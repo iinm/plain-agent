@@ -1,0 +1,30 @@
+{
+  "private": true,
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "start": "./env.sh tsx src/index.ts",
+    "format": "prettier --write .",
+    "check": "prettier --check . && eslint . && tsc --noEmit"
+  },
+  "dependencies": {
+    "@langchain/community": "^0.3.32",
+    "@langchain/core": "^0.3.40",
+    "@langchain/langgraph": "^0.2.48",
+    "@langchain/openai": "^0.4.4",
+    "langfuse-langchain": "^3.35.2",
+    "uuid": "^11.1.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.21.0",
+    "@types/node": "^22.13.5",
+    "eslint": "^9.21.0",
+    "globals": "^16.0.0",
+    "prettier": "3.5.2",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.24.1"
+  }
+}
