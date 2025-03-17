@@ -1,12 +1,11 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
-
-import { execCommandTool } from "./execCommandTool";
+import { execCommandTool } from "./execCommand.mjs";
 
 describe("execCommandTool", () => {
   it("captures stdout", async () => {
     // when:
-    const result = await execCommandTool.invoke({
+    const result = await execCommandTool.impl({
       command: "echo",
       args: ["Hello World"],
     });
@@ -28,7 +27,7 @@ Hello World
 
   it("captures stderr", async () => {
     // when:
-    const result = await execCommandTool.invoke({
+    const result = await execCommandTool.impl({
       command: "node",
       args: ["-e", 'process.stderr.write("Hello from stderr")'],
     });
@@ -49,7 +48,7 @@ Hello from stderr</stderr>
 
   it("captures error", async () => {
     // when:
-    const result = await execCommandTool.invoke({
+    const result = await execCommandTool.impl({
       command: "node",
       args: ["-e", "process.exit(1)"],
     });

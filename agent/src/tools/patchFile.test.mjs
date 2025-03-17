@@ -1,11 +1,11 @@
 import assert from "node:assert";
 import fs from "node:fs";
 import { afterEach, describe, it } from "node:test";
-
-import { patchFileTool } from "./patchFileTool";
+import { patchFileTool } from "./patchFile.mjs";
 
 describe("patchFileTool", () => {
-  const cleanups: (() => Promise<void>)[] = [];
+  /** @type {(() => Promise<void>)[]} */
+  const cleanups = [];
 
   const generateRandomString = () => Math.random().toString(36).substring(2);
 
@@ -44,7 +44,7 @@ This is a test file content updated 2.
 This is a test file content updated 3.
 >>>>>>> REPLACE
 `;
-    const result = await patchFileTool.invoke({ path: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
     // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
@@ -77,7 +77,7 @@ Hello World
 =======
 >>>>>>> REPLACE
 `.trim();
-    const result = await patchFileTool.invoke({ path: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
     // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
@@ -109,7 +109,7 @@ This is a test file content 3.
 =======
 >>>>>>> REPLACE
 `.trim();
-    const result = await patchFileTool.invoke({ path: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
     // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);

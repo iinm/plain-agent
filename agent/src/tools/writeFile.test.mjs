@@ -1,11 +1,11 @@
 import assert from "node:assert";
 import fs from "node:fs";
 import { afterEach, describe, it } from "node:test";
-
-import { writeFileTool } from "./writeFileTool";
+import { writeFileTool } from "./writeFile.mjs";
 
 describe("writeFileTool", () => {
-  const cleanups: (() => Promise<void>)[] = [];
+  /** @type {(() => Promise<void>)[]} */
+  const cleanups = [];
 
   const generateRandomString = () => Math.random().toString(36).substring(2);
 
@@ -22,8 +22,8 @@ describe("writeFileTool", () => {
     cleanups.push(async () => fs.unlinkSync(tmpFilePath));
 
     // when:
-    const result = await writeFileTool.invoke({
-      path: tmpFilePath,
+    const result = await writeFileTool.impl({
+      filePath: tmpFilePath,
       content: "Hello World",
     });
 
