@@ -42,7 +42,7 @@ export async function loadPrompts(claudeCodePlugins) {
     },
     {
       dir: path.resolve(process.cwd(), ".claude", "skills"),
-      idPrefix: "claude/skill:",
+      idPrefix: "claude/skills:",
     },
   ];
 

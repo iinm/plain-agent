@@ -1,37 +1,42 @@
-# Agent
+# Plain Agent
 
 A lightweight CLI-based coding agent.
+
+- **Safety controls** — Configure per-tool approval rules and run in a sandbox for stronger isolation
+- **Multi-provider** — Works with Anthropic, OpenAI, Gemini, AWS Bedrock, Azure, Vertex AI, and more
+- **Sequential subagent delegation** — Delegate subtasks to specialized subagents with full visibility into their actions
+- **MCP support** — Connect to external MCP servers to extend available tools
+- **Claude Code compatible** *(experimental)* — Reuse Claude Code plugins, agents, commands, and skills
 
 ## Safety Controls
 
 This CLI tool automatically allows the execution of certain tools but requires explicit approval for security-sensitive operations, such as accessing parent directories.
+The security rules are defined in [`config.predefined.json`](https://github.com/iinm/plain-agent/blob/main/.config/config.predefined.json) and [`toolInputValidator.mjs`](https://github.com/iinm/plain-agent/blob/main/src/toolInputValidator.mjs) within this repository.
 
-Note: The `write_file` and `patch_file` tools block direct access to git-ignored files. However, `exec_command` can access any files within the working directory. Use a sandbox for stronger isolation. The security rules are defined in `.config/config.predefined.json` and `src/toolInputValidator.mjs` within this repository.
+⚠️ The `write_file` and `patch_file` tools block direct access to git-ignored files. However, `exec_command` can access any files in your environment.
+Use a sandbox for stronger isolation.
 
 ## Requirements
 
+- Linux or macOS
 - Node.js 22 or later
 - LLM provider credentials (API keys, AWS SSO, gcloud CLI, or Azure CLI)
-- (Optional) Tavily API key
+- [ripgrep](https://github.com/burntsushi/ripgrep)
+- [fd](https://github.com/sharkdp/fd)
 
 ## Quick Start
 
-Install the dependencies.
-
 ```sh
-npm install
+npm install -g @iinm/plain-agent
 ```
 
-<details>
-<summary>Create the configuration.</summary>
+Create the configuration.
 
 ```js
-// $AGENT_ROOT(where this README file exists)/.config/config.local.json
+// ~/.config/config.local.json
 {
-  // Set default model used by ./bin/agent
-  // e.g., "gpt-5.4-mini+thinking-high"
-  // List available models: jq -r '.models[] | "\(.name)+\(.variant)"' .config/config.predefined.json
-  "model": "<model>+<variant>",
+  // Default model used by ./bin/agent
+  "model": "gpt-5.4+thinking-high",
 
   "platforms": [
     {
@@ -48,7 +53,35 @@ npm install
       "name": "openai",
       "variant": "default",
       "apiKey": "FIXME"
+    }
+  ],
+
+  // Optional
+  "tools": {
+    "askGoogle": {
+      "model": "gemini-3-flash-preview"
+
+      // Google AI Studio
+      "apiKey": "FIXME"
+
+      // Or use Vertex AI (Requires gcloud CLI to get authentication token)
+      // "platform": "vertex-ai",
+      // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
     },
+    "tavily": {
+      "apiKey": "FIXME"
+    }
+  }
+}
+
+```
+
+<details>
+<summary>Extra provider examples</summary>
+
+```js
+{
+  "platforms": [
     {
       // Requires Azure CLI to get access token
       "name": "azure",
@@ -88,25 +121,7 @@ npm install
       "variant": "xai",
       "apiKey": "FIXME"
     }
-  ],
-
-  // Optional
-  "tools": {
-    "askGoogle": {
-      "model": "gemini-3-flash-preview"
-
-      // Google AI Studio
-      "apiKey": "FIXME"
-
-      // Or use Vertex AI (Requires gcloud CLI to get authentication token)
-      // "platform": "vertex-ai",
-      // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
-      // "account": "FIXME"
-    },
-    "tavily": {
-      "apiKey": "FIXME"
-    }
-  }
+  ]
 }
 ```
 </details>
@@ -114,11 +129,10 @@ npm install
 Run the agent.
 
 ```sh
-# Use default model defined in config files
-./bin/agent
+plain
 
 # Or specify a specific model
-./bin/agent -m <model>+<variant>
+plain -m <model>+<variant>
 ```
 
 Display the help message.
@@ -130,7 +144,7 @@ Display the help message.
 Interrupt the agent while it's running by providing additional instructions:
 
 ```sh
-./bin/agent-interrupt "Please stop and report the current progress and status"
+plain-interrupt Stop and report the progress
 ```
 
 ## Available Tools
@@ -150,15 +164,14 @@ The agent can use the following tools to assist with tasks:
 ## Directory Structure
 
 ```
-$AGENT_ROOT (where this README file exists)
-  \__ .config
-        \__ config.json        # User configuration
-        \__ config.local.json  # User local configuration (including secrets)
-        \__ prompts/           # Global/User-defined prompts
-        \__ agents/            # Global/User-defined agent roles
+~/.config/plain-agent/
+  \__ config.json        # User configuration
+  \__ config.local.json  # User local configuration (including secrets)
+  \__ prompts/           # Global/User-defined prompts
+  \__ agents/            # Global/User-defined agent roles
 
 <project-root>
-  \__ $AGENT_PROJECT_METADATA_DIR (default: .agent)
+  \__ .plain-agent/
         \__ config.json            # Project-specific configuration
         \__ config.local.json      # Project-specific local configuration (including secrets)
         \__ interrupt-message.txt  # Interrupt message consumed by the agent
@@ -171,10 +184,10 @@ $AGENT_ROOT (where this README file exists)
 
 The agent loads configuration files in the following order. Settings in later files will override those in earlier files.
 
-- `$AGENT_ROOT/.config/config.json`: User configuration for all projects.
-- `$AGENT_ROOT/.config/config.local.json`: User local configuration, typically for API keys.
-- `$AGENT_PROJECT_METADATA_DIR/config.json`: Project-specific configuration.
-- `$AGENT_PROJECT_METADATA_DIR/config.local.json`: Project-specific local configuration, typically for API keys or local development overrides.
+- `~/.config/plain-agent/config.json`: User configuration for all projects.
+- `~/.config/plain-agent/config.local.json`: User local configuration, typically for API keys.
+- `.plain-agent/config.json`: Project-specific configuration.
+- `.plain-agent/config.local.json`: Project-specific local configuration, typically for API keys or local development overrides.
 
 ### Example
 
@@ -217,7 +230,7 @@ The agent loads configuration files in the following order. Settings in later fi
     ]
   },
   "sandbox": {
-    "command": "agent-sandbox",
+    "command": "plain-sandbox",
     "args": ["--dockerfile", ".agent/sandbox/Dockerfile", "--allow-write", "--skip-build", "--keep-alive", "30"],
     "separator": "--",
     "rules": [
@@ -247,7 +260,7 @@ The agent loads configuration files in the following order. Settings in later fi
     "patterns": [
       {
         "toolName": { "$regex": "^(write_file|patch_file)$" },
-        "input": { "filePath": { "$regex": "^\\.agent/memory/.+\\.md$" } },
+        "input": { "filePath": { "$regex": "^\\.plain-agent/memory/.+\\.md$" } },
         "action": "allow"
       },
       {
@@ -277,9 +290,9 @@ The agent loads configuration files in the following order. Settings in later fi
   },
 
   // (Optional) Sandbox environment for the exec_command and tmux_command tools
-  // https://github.com/iinm/dotfiles/tree/main/agent-sandbox
+  // https://github.com/iinm/plain-agent/tree/main/sandbox
   "sandbox": {
-    "command": "agent-sandbox",
+    "command": "plain-sandbox",
     "args": ["--dockerfile", ".agent/sandbox/Dockerfile", "--allow-write", "--skip-build", "--keep-alive", "30"],
     // separator is inserted between sandbox flags and the user command to prevent bypasses
     "separator": "--",
@@ -353,6 +366,7 @@ Prompts are Markdown files with a YAML frontmatter:
 ---
 description: Create a commit message based on staged changes
 ---
+
 Review the staged changes and create a concise commit message following the conventional commits specification.
 ```
 
@@ -362,6 +376,7 @@ You can also import remote prompts with the `import` field:
 ---
 import: https://raw.githubusercontent.com/anthropics/claude-code/5cff78741f54a0dcfaeb11d29b9ea9a83f3882ff/plugins/feature-dev/commands/feature-dev.md
 ---
+
 - Use memory file instead of TodoWrite
 - Parallel execution of subagents is not supported. Delegate to subagents sequentially.
 ```
@@ -372,17 +387,16 @@ Remote prompts are fetched and cached locally. The local content will be appende
 
 The agent searches for prompts in the following directories:
 
-- `$AGENT_ROOT/.config/prompts.predefined/` (Predefined prompts)
-- `$AGENT_ROOT/.config/prompts/` (Global/User-defined prompts)
-- `.agent/prompts/` (Project-specific prompts)
-- `.claude/commands/` (Claude-specific commands, prefixed with `claude/`)
-- `.claude/skills/` (Claude-specific skills, prefixed with `claude/skill/`)
+- `~/.config/plain-agent/prompts/` (Global/User-defined prompts)
+- `.plain-agent/prompts/` (Project-specific prompts)
+- `.claude/commands/` (Claude-specific commands, prefixed with `claude/commands:`)
+- `.claude/skills/` (Claude-specific skills, prefixed with `claude/skills:`)
 
-The prompt ID is the relative path of the file without the `.md` extension. For example, `.agent/prompts/retro.md` becomes `/prompts:retro`.
+The prompt ID is the relative path of the file without the `.md` extension. For example, `.plain-agent/prompts/retro.md` becomes `/prompts:retro`.
 
 ### Shortcuts
 
-Prompts located in a `shortcuts/` subdirectory (e.g., `.agent/prompts/shortcuts/review.md`) can be invoked directly as a top-level command (e.g., `/review`). This is useful for frequently used tasks. If a prompt is in a `shortcuts/` subdirectory, its ID is simplified by removing the `shortcuts/` prefix for use as a shortcut (e.g., `shortcuts/review` becomes `/review`).
+Prompts located in a `shortcuts/` subdirectory (e.g., `.plain-agent/prompts/shortcuts/review.md`) can be invoked directly as a top-level command (e.g., `/review`). This is useful for frequently used tasks. If a prompt is in a `shortcuts/` subdirectory, its ID is simplified by removing the `shortcuts/` prefix for use as a shortcut (e.g., `shortcuts/review` becomes `/review`).
 
 ## Subagents
 
@@ -396,6 +410,7 @@ Subagent definitions are Markdown files with a YAML frontmatter:
 ---
 description: Simplifies and refines code for clarity and maintainability
 ---
+
 You are a code simplifier. Your role is to refactor code while preserving its functionality.
 ```
 
@@ -405,6 +420,7 @@ You can also import remote subagent definitions with the `import` field:
 ---
 import: https://raw.githubusercontent.com/anthropics/claude-code/f7ab5c799caf2ec8c7cd1b99d2bc2f158459ef5e/plugins/pr-review-toolkit/agents/code-simplifier.md
 ---
+
 Use AGENTS.md instead of CLAUDE.md in this project.
 ```
 
@@ -414,24 +430,23 @@ Remote subagents are fetched and cached locally. The local content will be appen
 
 The agent searches for subagent definitions in the following directories:
 
-- `$AGENT_ROOT/.config/agents.predefined/` (Predefined agents)
-- `$AGENT_ROOT/.config/agents/` (Global/User-defined agents)
-- `.agent/agents/` (Project-specific agents)
+- `~/.config/plain-agent/agents/` (Global/User-defined agents)
+- `.plain-agent/agents/` (Project-specific agents)
 - `.claude/agents/` (Claude-specific agents)
 
-The subagent ID is the relative path of the file without the `.md` extension. For example, `.agent/agents/worker.md` becomes `worker`.
+The subagent ID is the relative path of the file without the `.md` extension. For example, `.plain-agent/agents/worker.md` becomes `worker`.
 
 ## Claude Code Plugin Support
 
 Example:
 
 ```sh
-git clone --depth 1 https://github.com/anthropics/claude-code .agent/claude-code-plugins/anthropics/claude-code
-git clone --depth 1 https://github.com/awslabs/agent-plugins .agent/claude-code-plugins/awslabs/agent-plugins
+git clone --depth 1 https://github.com/anthropics/claude-code .plain-agent/claude-code-plugins/anthropics/claude-code
+git clone --depth 1 https://github.com/awslabs/agent-plugins .plain-agent/claude-code-plugins/awslabs/agent-plugins
 ```
 
 ```js
-// .agent/config.json
+// .plain-agent/config.json
 {
   "claudeCodePlugins": [
     { "name": "pr-review-toolkit", "path": "anthropics/claude-code/plugins/pr-review-toolkit" },
