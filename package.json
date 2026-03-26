@@ -1,5 +1,30 @@
 {
-  "private": true,
+  "name": "@iinm/plain-agent",
+  "version": "1.0.0",
+  "description": "A lightweight CLI-based coding agent",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iinm/plain-agent.git"
+  },
+  "bin": {
+    "plain": "./bin/plain",
+    "plain-interrupt": "./bin/plain-interrupt",
+    "plain-notify-desktop": "./bin/plain-notify-desktop",
+    "plain-notify-terminal-bell": "./bin/plain-notify-terminal-bell",
+    "plain-sandbox": "./sandbox/bin/plain-sandbox"
+  },
+  "files": [
+    "bin",
+    "sandbox/bin",
+    ".config",
+    "src/**/*.mjs",
+    "src/**/*.d.ts",
+    "!src/**/*.test.mjs",
+    "!src/**/*.playground.mjs",
+    "!src/utils/test/"
+  ],
   "engines": {
     "node": ">=22"
   },
