@@ -419,14 +419,6 @@ function convertOpenAIStreamDataToAgentPartialContent(streamEvent) {
     };
   }
 
-  if (streamEvent.type === "response.reasoning_summary_text.done") {
-    return {
-      type: "thinking",
-      position: "delta",
-      content: streamEvent.text,
-    };
-  }
-
   if (streamEvent.type === "response.output_item.done") {
     if (streamEvent.item.type === "reasoning") {
       return {
