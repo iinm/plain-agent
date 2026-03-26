@@ -103,7 +103,7 @@ describe("loadUserMessageContext", () => {
           "last line",
           "",
           '<context location="README.md:1">',
-          "# Agent",
+          "# Plain Agent",
           "</context>",
         ].join("\n"),
         type: "text",
