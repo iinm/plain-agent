@@ -30,6 +30,13 @@ Use a sandbox for stronger isolation.
 npm install -g @iinm/plain-agent
 ```
 
+List available models.
+
+```sh
+curl https://raw.githubusercontent.com/iinm/plain-agent/refs/heads/main/.config/config.predefined.json \
+  | jq -r '.models[] | "\(.name)+\(.variant)"'
+```
+
 Create the configuration.
 
 ```js
