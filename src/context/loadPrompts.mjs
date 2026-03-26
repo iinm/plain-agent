@@ -7,6 +7,7 @@ import {
   AGENT_CACHE_DIR,
   AGENT_PROJECT_METADATA_DIR,
   AGENT_ROOT,
+  AGENT_USER_CONFIG_DIR,
   CLAUDE_CODE_PLUGIN_DIR,
 } from "../env.mjs";
 
@@ -33,7 +34,7 @@ export async function loadPrompts(claudeCodePlugins) {
       dir: path.resolve(AGENT_ROOT, ".config", "prompts.predefined"),
       idPrefix: "",
     },
-    { dir: path.resolve(AGENT_ROOT, ".config", "prompts"), idPrefix: "" },
+    { dir: path.resolve(AGENT_USER_CONFIG_DIR, "prompts"), idPrefix: "" },
     { dir: path.resolve(AGENT_PROJECT_METADATA_DIR, "prompts"), idPrefix: "" },
     {
       dir: path.resolve(process.cwd(), ".claude", "commands"),

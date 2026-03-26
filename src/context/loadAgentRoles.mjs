@@ -6,6 +6,7 @@ import {
   AGENT_CACHE_DIR,
   AGENT_PROJECT_METADATA_DIR,
   AGENT_ROOT,
+  AGENT_USER_CONFIG_DIR,
   CLAUDE_CODE_PLUGIN_DIR,
 } from "../env.mjs";
 
@@ -29,7 +30,7 @@ export async function loadAgentRoles(claudeCodePlugins) {
       dir: path.resolve(AGENT_ROOT, ".config", "agents.predefined"),
       idPrefix: "",
     },
-    { dir: path.resolve(AGENT_ROOT, ".config", "agents"), idPrefix: "" },
+    { dir: path.resolve(AGENT_USER_CONFIG_DIR, "agents"), idPrefix: "" },
     { dir: path.resolve(AGENT_PROJECT_METADATA_DIR, "agents"), idPrefix: "" },
     {
       dir: path.resolve(process.cwd(), ".claude", "agents"),

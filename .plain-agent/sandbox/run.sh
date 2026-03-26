@@ -2,8 +2,8 @@
 
 set -eu -o pipefail
 
-agent-sandbox --dockerfile .agent/sandbox/Dockerfile \
-  --volume agent-sandbox--global--home-npm:/home/node/.npm \
+plain-sandbox --dockerfile .plain-agent/sandbox/Dockerfile \
+  --volume plain-sandbox--global--home-npm:/home/node/.npm \
   --volume node_modules \
   --allow-write \
   --mount-readonly ~/.gitconfig:/home/node/.gitconfig \

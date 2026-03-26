@@ -10,6 +10,7 @@ import { styleText } from "node:util";
 import {
   AGENT_PROJECT_METADATA_DIR,
   AGENT_ROOT,
+  AGENT_USER_CONFIG_DIR,
   TRUSTED_CONFIG_HASHES_DIR,
 } from "./env.mjs";
 import { evalJSONConfig } from "./utils/evalJSONConfig.mjs";
@@ -20,8 +21,8 @@ import { evalJSONConfig } from "./utils/evalJSONConfig.mjs";
 export async function loadAppConfig() {
   const paths = [
     `${AGENT_ROOT}/.config/config.predefined.json`,
-    `${AGENT_ROOT}/.config/config.json`,
-    `${AGENT_ROOT}/.config/config.local.json`,
+    `${AGENT_USER_CONFIG_DIR}/config.json`,
+    `${AGENT_USER_CONFIG_DIR}/config.local.json`,
     `${AGENT_PROJECT_METADATA_DIR}/config.json`,
     `${AGENT_PROJECT_METADATA_DIR}/config.local.json`,
   ];

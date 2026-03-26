@@ -6,8 +6,8 @@ options=(
   --dockerfile Dockerfile
   --env-file env
   # Use shared volume for package cache
-  --volume agent-sandbox--global--home-npm:/home/node/.npm
-  # --volume agent-sandbox--global--home-cache-yarn:/home/node/.cache/yarn
+  --volume plain-sandbox--global--home-npm:/home/node/.npm
+  # --volume plain-sandbox--global--home-cache-yarn:/home/node/.cache/yarn
   --mount-readonly ~/.gitconfig:/home/node/.gitconfig
   --allow-write
 )
@@ -25,4 +25,4 @@ if test -f "$git_root/.git"; then
   options+=("--mount-writable" "$main_worktree_path:$main_worktree_path")
 fi
 
-agent-sandbox "${options[@]}" "$@"
+plain-sandbox "${options[@]}" "$@"

@@ -5,7 +5,6 @@ RUN apt update && apt install -y \
       iptables ipset dnsmasq dnsutils \
       ripgrep fd-find jq \
       git tmux \
-    && bash -c 'ln -s $(which fdfind) /usr/local/bin/fd' \
-    && npm install -g npm@latest
+    && bash -c 'ln -s $(which fdfind) /usr/local/bin/fd'
 
 USER node:node
