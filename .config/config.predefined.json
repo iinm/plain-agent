@@ -432,7 +432,7 @@
 
     {
       "name": "gemini-3-flash-preview",
-      "variant": "thinking-medium",
+      "variant": "thinking-medium-vertex-ai",
       "platform": {
         "name": "vertex-ai",
         "variant": "default"
@@ -457,7 +457,7 @@
     },
     {
       "name": "gemini-3-flash-preview",
-      "variant": "thinking-high",
+      "variant": "thinking-high-vertex-ai",
       "platform": {
         "name": "vertex-ai",
         "variant": "default"
@@ -482,7 +482,7 @@
     },
     {
       "name": "gemini-3.1-pro-preview",
-      "variant": "thinking-medium",
+      "variant": "thinking-medium-vertex-ai",
       "platform": {
         "name": "vertex-ai",
         "variant": "default"
@@ -507,7 +507,7 @@
     },
     {
       "name": "gemini-3.1-pro-preview",
-      "variant": "thinking-high",
+      "variant": "thinking-high-vertex-ai",
       "platform": {
         "name": "vertex-ai",
         "variant": "default"
