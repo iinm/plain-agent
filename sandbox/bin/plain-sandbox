@@ -77,40 +77,6 @@ Examples:
   Check preset configuration:
     $SCRIPT_NAME --tty --verbose --dry-run zsh
 
-  Start Claude Code:
-    $SCRIPT_NAME --allow-write \\
-      --allow-net api.anthropic.com,sentry.io,statsig.anthropic.com,statsig.com \\
-      --mount-writable ~/.claude:/home/sandbox/.claude,~/.claude.json:/home/sandbox/.claude.json \\
-      --mount-readonly ~/.gitconfig:/home/sandbox/.gitconfig \\
-      --tty --verbose claude
-
-  Start Claude Code using Amazon Bedrock:
-    Configure environment variables as described at: https://code.claude.com/docs/en/amazon-bedrock
-
-    $SCRIPT_NAME --env-file .env.sandbox --allow-write --allow-net \\
-      --mount-writable ~/.claude:/home/sandbox/.claude,~/.claude.json:/home/sandbox/.claude.json \\
-      --mount-readonly ~/.gitconfig:/home/sandbox/.gitconfig \\
-      --mount-readonly ~/.aws:/home/sandbox/.aws \\
-      --allow-net bedrock-runtime.ap-northeast-1.amazonaws.com \\
-      --allow-net bedrock.ap-northeast-1.amazonaws.com \\
-      --allow-net oidc.ap-northeast-1.amazonaws.com \\
-      --allow-net portal.sso.ap-northeast-1.amazonaws.com \\
-      --tty --verbose claude
-
-  Start Codex CLI:
-    $SCRIPT_NAME --allow-write \\
-      --allow-net api.openai.com \\
-      --mount-writable ~/.codex:/home/sandbox/.codex \\
-      --mount-readonly ~/.gitconfig:/home/sandbox/.gitconfig \\
-      --tty --verbose codex
-
-  Start Gemini CLI:
-    $SCRIPT_NAME --allow-write \\
-      --allow-net generativelanguage.googleapis.com,oauth2.googleapis.com,cloudcode-pa.googleapis.com,play.googleapis.com,registry.npmjs.org,github.com,release-assets.githubusercontent.com \\
-      --mount-writable ~/.gemini:/home/sandbox/.gemini \\
-      --mount-readonly ~/.gitconfig:/home/sandbox/.gitconfig \\
-      --tty --verbose gemini
-
   Install tools with mise:
     $SCRIPT_NAME --allow-net mise-versions.jdx.dev,nodejs.org --verbose mise install node
     $SCRIPT_NAME --allow-net mise-versions.jdx.dev,github.com,dl.google.com mise install go
@@ -133,8 +99,7 @@ Preset Configuration:
   When --dockerfile is not specified, a preset Node.js LTS image is used with:
   - System packages: busybox, bash, zsh (with grml config), ripgrep, fd, dig, curl, git
   - mise package manager for additional runtime installations
-  - AI coding assistants: Claude Code, Gemini CLI, Codex CLI
-  - Persistent storage for shell history, git config, and AI tool configurations
+  - Persistent storage for shell history, git config
   - Default editor: busybox vi
 
 
@@ -913,8 +878,6 @@ test -L ~/.zsh_history || (touch /persistent/home/.zsh_history; ln -s /persisten
 test -L ~/.config || (mkdir -p /persistent/home/.config; ln -s /persistent/home/.config ~/ 2> /dev/null)
 test -L ~/.gitconfig || (touch /persistent/home/.gitconfig; ln -s /persistent/home/.gitconfig ~/ 2> /dev/null)
 test -L ~/.local || (mkdir -p /persistent/home/.local/share; ln -s /persistent/home/.local ~/ 2> /dev/null)
-test -L ~/.claude || (mkdir -p /persistent/home/.claude; ln -s /persistent/home/.claude ~/ 2> /dev/null)
-test -L ~/.claude.json || (touch /persistent/home/.claude.json; ln -s /persistent/home/.claude.json ~/ 2> /dev/null)
 test -L ~/.gemini || (mkdir -p /persistent/home/.gemini; ln -s /persistent/home/.gemini ~/ 2> /dev/null)
 test -L ~/.codex || (mkdir -p /persistent/home/.codex; ln -s /persistent/home/.codex ~/ 2> /dev/null)
 
@@ -926,13 +889,6 @@ RUN chmod +x /sandbox/bin/user-entrypoint.sh
 USER sandbox
 ENV NPM_CONFIG_PREFIX=/sandbox/npm-global
 ENV PATH=/home/sandbox/.local/bin:/sandbox/npm-global/bin:$PATH
-
-# Install coding agents
-RUN umask 000 \
-    && curl -fsSL https://claude.ai/install.sh | bash \
-    && npm install -g @openai/codex \
-    && npm install -g @google/gemini-cli \
-    && rm -rf /home/sandbox/.npm
 
 # Configure shell
 # - grml zsh config: https://grml.org/zsh/
