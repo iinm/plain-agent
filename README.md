@@ -238,7 +238,7 @@ The agent loads configuration files in the following order. Settings in later fi
   },
   "sandbox": {
     "command": "plain-sandbox",
-    "args": ["--dockerfile", ".agent/sandbox/Dockerfile", "--allow-write", "--skip-build", "--keep-alive", "30"],
+    "args": ["--dockerfile", ".plain-agent/sandbox/Dockerfile", "--allow-write", "--skip-build", "--keep-alive", "30"],
     "separator": "--",
     "rules": [
       {
@@ -300,7 +300,7 @@ The agent loads configuration files in the following order. Settings in later fi
   // https://github.com/iinm/plain-agent/tree/main/sandbox
   "sandbox": {
     "command": "plain-sandbox",
-    "args": ["--dockerfile", ".agent/sandbox/Dockerfile", "--allow-write", "--skip-build", "--keep-alive", "30"],
+    "args": ["--dockerfile", ".plain-agent/sandbox/Dockerfile", "--allow-write", "--skip-build", "--keep-alive", "30"],
     // separator is inserted between sandbox flags and the user command to prevent bypasses
     "separator": "--",
 
