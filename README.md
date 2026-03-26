@@ -40,9 +40,9 @@ curl https://raw.githubusercontent.com/iinm/plain-agent/refs/heads/main/.config/
 Create the configuration.
 
 ```js
-// ~/.config/config.local.json
+// ~/.config/plain-agent/config.local.json
 {
-  // Default model used by ./bin/agent
+  // Default model
   "model": "gpt-5.4+thinking-high",
 
   "platforms": [
