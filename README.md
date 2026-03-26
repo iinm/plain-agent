@@ -21,6 +21,7 @@ Use a sandbox for stronger isolation.
 - Linux or macOS
 - Node.js 22 or later
 - LLM provider credentials (API keys, AWS SSO, gcloud CLI, or Azure CLI)
+- bash / docker for sandboxed execution
 - [ripgrep](https://github.com/burntsushi/ripgrep)
 - [fd](https://github.com/sharkdp/fd)
 
@@ -386,6 +387,17 @@ import: https://raw.githubusercontent.com/anthropics/claude-code/5cff78741f54a0d
 
 - Use memory file instead of TodoWrite
 - Parallel execution of subagents is not supported. Delegate to subagents sequentially.
+```
+
+```md
+---
+import: https://raw.githubusercontent.com/anthropics/claude-code/db8834ba1d72e9a26fba30ac85f3bc4316bb0689/plugins/code-review/commands/code-review.md
+---
+
+- Parallel execution of subagents is not supported. Delegate to subagents sequentially.
+- If CLAUDE.md is not found, refer to AGENTS.md instead for project rules and conventions.
+- If the PR branch is already checked out, review changes from local files instead of fetching from GitHub.
+- After explaining the review results to the user, ask whether to post the comments to GitHub as well.
 ```
 
 Remote prompts are fetched and cached locally. The local content will be appended to the imported content.
