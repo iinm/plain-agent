@@ -13,7 +13,7 @@ A lightweight CLI-based coding agent.
 This CLI tool automatically allows the execution of certain tools but requires explicit approval for security-sensitive operations, such as accessing parent directories.
 The security rules are defined in [`config.predefined.json`](https://github.com/iinm/plain-agent/blob/main/.config/config.predefined.json) and [`toolInputValidator.mjs`](https://github.com/iinm/plain-agent/blob/main/src/toolInputValidator.mjs) within this repository.
 
-⚠️ `write_file` and `patch_file` block access to git-ignored files. `exec_command` blocks direct path arguments (e.g., `ls .env`), but cannot block access from executed programs (e.g., `node script.js`). Use a sandbox for stronger isolation.
+⚠️ `write_file` and `patch_file` block access to git-ignored files. `exec_command` blocks direct path arguments (e.g., `cat /etc/...`), but cannot block access from executed programs (e.g., `node script.js`). Use a sandbox for stronger isolation.
 
 ## Requirements
 
