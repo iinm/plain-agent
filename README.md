@@ -6,20 +6,20 @@ A lightweight CLI-based coding agent.
 - **Multi-provider** — Supports Anthropic, OpenAI, Gemini, Bedrock, Azure, Vertex AI, and more
 - **Sequential subagent delegation** — Delegate subtasks to specialized subagents with full visibility
 - **MCP support** — Connect to external MCP servers to extend available tools
-- **Claude Code compatible** *(experimental)* — Reuse Claude Code plugins, agents, commands, and skills
+- **Claude Code compatible** — Reuse Claude Code plugins, agents, commands, and skills
 
 ## Safety Controls
 
-This CLI tool automatically allows the execution of certain tools but requires explicit approval for security-sensitive operations, such as accessing parent directories.
-The security rules are defined in [`config.predefined.json`](https://github.com/iinm/plain-agent/blob/main/.config/config.predefined.json) and [`toolInputValidator.mjs`](https://github.com/iinm/plain-agent/blob/main/src/toolInputValidator.mjs) within this repository.
+**Auto-Approval**: Tools with no side effects and no sensitive data access are automatically approved based on patterns defined in [`config.predefined.json#autoApproval`](https://github.com/iinm/plain-agent/blob/main/.config/config.predefined.json).
 
-⚠️ `write_file` and `patch_file` block access to git-ignored files. `exec_command` blocks direct path arguments (e.g., `cat /etc/...`), but cannot block access from executed programs (e.g., `node script.js`). Use a sandbox for stronger isolation.
+**Path Validation**: All file paths in tool inputs are validated to remain within the working directory and under git control.
+
+⚠️ `write_file` and `patch_file` require explicit path arguments. However, `exec_command` can run arbitrary code where file access cannot be validated. Use a sandbox for stronger isolation.
 
 ## Requirements
 
-- Linux or macOS
 - Node.js 22 or later
-- LLM provider credentials (API keys, AWS SSO, gcloud CLI, or Azure CLI)
+- LLM provider credentials
 - bash / docker for sandboxed execution
 - [ripgrep](https://github.com/burntsushi/ripgrep)
 - [fd](https://github.com/sharkdp/fd)
@@ -140,7 +140,7 @@ Run the agent.
 ```sh
 plain
 
-# Or specify a specific model
+# Or
 plain -m <model>+<variant>
 ```
 
@@ -165,7 +165,7 @@ The agent can use the following tools to assist with tasks:
 - **patch_file**: Patch a file.
 - **tmux_command**: Run a tmux command.
 - **fetch_web_page**: Fetch and extract web page content from a given URL, returning it as Markdown.
-- **ask_google**: Ask Google a question using natural language (requires Gemini API key).
+- **ask_google**: Ask Google a question using natural language (requires Google API key or Vertex AI configuration).
 - **search_web**: Search the web for information (requires Tavily API key).
 - **delegate_to_subagent**: Delegate a subtask to a subagent. The agent switches to a subagent role within the same conversation, focusing on the specified goal.
 - **report_as_subagent**: Report completion and return to the main agent. Used by subagents to communicate results and restore the main agent role. After reporting, the subagent's conversation history is removed from the context.
@@ -206,13 +206,10 @@ The agent loads configuration files in the following order. Settings in later fi
 ```js
 {
   "autoApproval": {
-    // Automatically deny unmatched tools instead of asking
     "defaultAction": "deny",
-    // The maximum number of automatic approvals.
     "maxApprovals": 100,
-    // Patterns are evaluated in order. First match wins.
     "patterns": [
-      // Prohibit direct access to external URLs
+      // Prohibit direct access to external URLs (even GET requests can leak data via URL parameters)
       {
         "toolName": "fetch_web_page",
         "action": "deny",
@@ -269,7 +266,7 @@ The agent loads configuration files in the following order. Settings in later fi
     "patterns": [
       {
         "toolName": { "$regex": "^(write_file|patch_file)$" },
-        "input": { "filePath": { "$regex": "^\\.plain-agent/memory/.+\\.md$" } },
+        "input": { "filePath": { "$regex": "^(\\./)?\\.plain-agent/memory/.+\\.md$" } },
         "action": "allow"
       },
       {
@@ -278,8 +275,7 @@ The agent loads configuration files in the following order. Settings in later fi
         "action": "allow"
       },
 
-      // ⚠️ `npm run test` may execute arbitrary code and access git-ignored files.
-      // It must be run in a sandbox.
+      // ⚠️ Arbitrary code execution can access unauthorized files and networks. Always use a sandbox.
       {
         "toolName": "exec_command",
         "input": { "command": "npm", "args": ["run", { "$regex": "^(check|test|lint|fix)$" }] },
@@ -327,7 +323,7 @@ The agent loads configuration files in the following order. Settings in later fi
     ]
   },
 
-  // Configure MCP servers for extended functionality
+  // Configure MCP servers
   "mcpServers": {
     "chrome_devtools": {
       "command": "npx",
@@ -365,11 +361,9 @@ The agent loads configuration files in the following order. Settings in later fi
 
 ## Prompts
 
-You can define reusable prompts in Markdown files. These are especially useful for common tasks like creating commit messages or conducting retrospectives.
+You can define reusable prompts in Markdown files.
 
 ### Prompt File Format
-
-Prompts are Markdown files with a YAML frontmatter:
 
 ```md
 ---
@@ -407,24 +401,22 @@ Remote prompts are fetched and cached locally. The local content will be appende
 
 The agent searches for prompts in the following directories:
 
-- `~/.config/plain-agent/prompts/` (Global/User-defined prompts)
-- `.plain-agent/prompts/` (Project-specific prompts)
-- `.claude/commands/` (Claude-specific commands, prefixed with `claude/commands:`)
-- `.claude/skills/` (Claude-specific skills, prefixed with `claude/skills:`)
+- `~/.config/plain-agent/prompts/`
+- `.plain-agent/prompts/`
+- `.claude/commands/`
+- `.claude/skills/`
 
-The prompt ID is the relative path of the file without the `.md` extension. For example, `.plain-agent/prompts/retro.md` becomes `/prompts:retro`.
+The prompt ID is the relative path of the file without the `.md` extension. For example, `.plain-agent/prompts/commit.md` becomes `/prompts:commit`.
 
 ### Shortcuts
 
-Prompts located in a `shortcuts/` subdirectory (e.g., `.plain-agent/prompts/shortcuts/review.md`) can be invoked directly as a top-level command (e.g., `/review`). This is useful for frequently used tasks. If a prompt is in a `shortcuts/` subdirectory, its ID is simplified by removing the `shortcuts/` prefix for use as a shortcut (e.g., `shortcuts/review` becomes `/review`).
+Prompts located in a `shortcuts/` subdirectory (e.g., `.plain-agent/prompts/shortcuts/commit.md`) can be invoked directly as a top-level command (e.g., `/commit`).
 
 ## Subagents
 
-Subagents are specialized agents that can be delegated specific tasks. They allow you to break down complex workflows into focused, manageable components.
+Subagents are specialized agents designed for specific tasks.
 
 ### Subagent File Format
-
-Subagent definitions are Markdown files with a YAML frontmatter:
 
 ```md
 ---
@@ -450,11 +442,9 @@ Remote subagents are fetched and cached locally. The local content will be appen
 
 The agent searches for subagent definitions in the following directories:
 
-- `~/.config/plain-agent/agents/` (Global/User-defined agents)
-- `.plain-agent/agents/` (Project-specific agents)
-- `.claude/agents/` (Claude-specific agents)
-
-The subagent ID is the relative path of the file without the `.md` extension. For example, `.plain-agent/agents/worker.md` becomes `worker`.
+- `~/.config/plain-agent/agents/`
+- `.plain-agent/agents/`
+- `.claude/agents/`
 
 ## Claude Code Plugin Support
 
