@@ -6,7 +6,7 @@
 import { noThrow } from "../utils/noThrow.mjs";
 
 /**
- * @param {{apiKey?: string}} config
+ * @param {{tavilyApiKey?: string}} config
  * @returns {Tool}
  */
 export function createTavilySearchTool(config) {
@@ -34,7 +34,7 @@ export function createTavilySearchTool(config) {
         const response = await fetch("https://api.tavily.com/search", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${config.apiKey}`,
+            Authorization: `Bearer ${config.tavilyApiKey}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({

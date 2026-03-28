@@ -16,9 +16,12 @@ import {
 import { evalJSONConfig } from "./utils/evalJSONConfig.mjs";
 
 /**
+ * @param {Object} [options]
+ * @param {boolean} [options.skipTrustCheck] - Skip trust check for config files
  * @returns {Promise<{appConfig: AppConfig, loadedConfigPath: string[]}>}
  */
-export async function loadAppConfig() {
+export async function loadAppConfig(options = {}) {
+  const { skipTrustCheck = false } = options;
   const paths = [
     `${AGENT_ROOT}/.config/config.predefined.json`,
     `${AGENT_USER_CONFIG_DIR}/config.json`,
@@ -33,7 +36,7 @@ export async function loadAppConfig() {
   let merged = {};
 
   for (const filePath of paths) {
-    const config = await loadConfigFile(path.resolve(filePath));
+    const config = await loadConfigFile(path.resolve(filePath), skipTrustCheck);
     if (Object.keys(config).length) {
       loadedConfigPath.push(filePath);
     }
@@ -55,9 +58,9 @@ export async function loadAppConfig() {
       },
       sandbox: config.sandbox ?? merged.sandbox,
       tools: {
-        tavily: {
-          ...(merged.tools?.tavily ?? {}),
-          ...(config.tools?.tavily ?? {}),
+        searchWeb: {
+          ...(merged.tools?.searchWeb ?? {}),
+          ...(config.tools?.searchWeb ?? {}),
         },
         askGoogle: {
           ...(merged.tools?.askGoogle ?? {}),
@@ -81,9 +84,10 @@ export async function loadAppConfig() {
 
 /**
  * @param {string} filePath
+ * @param {boolean} [skipTrustCheck=false]
  * @returns {Promise<AppConfig>}
  */
-export async function loadConfigFile(filePath) {
+export async function loadConfigFile(filePath, skipTrustCheck = false) {
   let content;
   try {
     content = await fs.readFile(filePath, "utf-8");
@@ -95,7 +99,7 @@ export async function loadConfigFile(filePath) {
   }
 
   const hash = crypto.createHash("sha256").update(content).digest("hex");
-  const isTrusted = await isConfigHashTrusted(hash);
+  const isTrusted = skipTrustCheck || (await isConfigHashTrusted(hash));
 
   if (!isTrusted) {
     if (!process.stdout.isTTY) {

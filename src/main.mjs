@@ -33,6 +33,21 @@ if (cliArgs.showHelp) {
   printHelp();
 }
 
+if (cliArgs.listModels) {
+  const { appConfig } = await loadAppConfig({ skipTrustCheck: true });
+  if (!appConfig.models || appConfig.models.length === 0) {
+    console.error("No models found in configuration.");
+    process.exit(1);
+  }
+  for (const model of appConfig.models) {
+    const platform = model.platform;
+    console.log(
+      `${model.name}+${model.variant} (platform: ${platform.name}+${platform.variant})`,
+    );
+  }
+  process.exit(0);
+}
+
 (async () => {
   const startTime = new Date();
   const sessionId = [
@@ -118,8 +133,8 @@ if (cliArgs.showHelp) {
     createReportAsSubagentTool(),
   ];
 
-  if (appConfig.tools?.tavily?.apiKey) {
-    builtinTools.push(createTavilySearchTool(appConfig.tools.tavily));
+  if (appConfig.tools?.searchWeb?.tavilyApiKey) {
+    builtinTools.push(createTavilySearchTool(appConfig.tools.searchWeb));
   }
 
   if (appConfig.tools?.askGoogle) {

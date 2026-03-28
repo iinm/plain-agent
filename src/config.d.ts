@@ -18,9 +18,6 @@ export type AppConfig = {
   };
   sandbox?: ExecCommandSanboxConfig;
   tools?: {
-    tavily?: {
-      apiKey?: string;
-    };
     /**
      * - Vertex AI: requires baseURL and account
      * - AI Studio: requires apiKey
@@ -31,6 +28,9 @@ export type AppConfig = {
       account?: string;
       apiKey?: string;
       model?: string;
+    };
+    searchWeb?: {
+      tavilyApiKey?: string;
     };
   };
   mcpServers?: Record<string, MCPServerConfig>;

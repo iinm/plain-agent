@@ -2,6 +2,7 @@
  * @typedef {Object} CliArgs
  * @property {string|null} model - Model name with variant
  * @property {boolean} showHelp - Whether to show help message
+ * @property {boolean} listModels - Whether to list available models
  */
 
 /**
@@ -12,13 +13,15 @@
 export function parseCliArgs(argv) {
   const args = argv.slice(2);
   /** @type {CliArgs} */
-  const result = { model: null, showHelp: false };
+  const result = { model: null, showHelp: false, listModels: false };
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "-m" && args[i + 1]) {
       result.model = args[++i];
     } else if (args[i] === "-h" || args[i] === "--help") {
       result.showHelp = true;
+    } else if (args[i] === "-l" || args[i] === "--list-models") {
+      result.listModels = true;
     }
   }
 
@@ -35,6 +38,7 @@ Usage: agent [options]
 
 Options:
   -m <model+variant>  Model to use
+  -l, --list-models   List available models
   -h, --help          Show this help message
 
 Examples:

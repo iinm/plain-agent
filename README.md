@@ -2,9 +2,9 @@
 
 A lightweight CLI-based coding agent.
 
-- **Safety controls** — Configure per-tool approval rules and run in a sandbox for stronger isolation
-- **Multi-provider** — Works with Anthropic, OpenAI, Gemini, AWS Bedrock, Azure, Vertex AI, and more
-- **Sequential subagent delegation** — Delegate subtasks to specialized subagents with full visibility into their actions
+- **Safety controls** — Configure approval rules and sandboxing for safe execution
+- **Multi-provider** — Supports Anthropic, OpenAI, Gemini, Bedrock, Azure, Vertex AI, and more
+- **Sequential subagent delegation** — Delegate subtasks to specialized subagents with full visibility
 - **MCP support** — Connect to external MCP servers to extend available tools
 - **Claude Code compatible** *(experimental)* — Reuse Claude Code plugins, agents, commands, and skills
 
@@ -13,8 +13,7 @@ A lightweight CLI-based coding agent.
 This CLI tool automatically allows the execution of certain tools but requires explicit approval for security-sensitive operations, such as accessing parent directories.
 The security rules are defined in [`config.predefined.json`](https://github.com/iinm/plain-agent/blob/main/.config/config.predefined.json) and [`toolInputValidator.mjs`](https://github.com/iinm/plain-agent/blob/main/src/toolInputValidator.mjs) within this repository.
 
-⚠️ The `write_file` and `patch_file` tools block direct access to git-ignored files. However, `exec_command` can access any files in your environment.
-Use a sandbox for stronger isolation.
+⚠️ `write_file` and `patch_file` block access to git-ignored files. `exec_command` blocks direct path arguments (e.g., `ls .env`), but cannot block access from executed programs (e.g., `node script.js`). Use a sandbox for stronger isolation.
 
 ## Requirements
 
@@ -34,8 +33,7 @@ npm install -g @iinm/plain-agent
 List available models.
 
 ```sh
-curl https://raw.githubusercontent.com/iinm/plain-agent/refs/heads/main/.config/config.predefined.json \
-  | jq -r '.models[] | "\(.name)+\(.variant)"'
+plain --list-models
 ```
 
 Create the configuration.
@@ -43,9 +41,10 @@ Create the configuration.
 ```js
 // ~/.config/plain-agent/config.local.json
 {
-  // Default model
   "model": "gpt-5.4+thinking-high",
+  // "model": "claude-sonnet-4-6+thinking-16k",
 
+  // Configure the providers you want to use
   "platforms": [
     {
       "name": "anthropic",
@@ -61,35 +60,7 @@ Create the configuration.
       "name": "openai",
       "variant": "default",
       "apiKey": "FIXME"
-    }
-  ],
-
-  // Optional
-  "tools": {
-    "askGoogle": {
-      "model": "gemini-3-flash-preview"
-
-      // Google AI Studio
-      "apiKey": "FIXME"
-
-      // Or use Vertex AI (Requires gcloud CLI to get authentication token)
-      // "platform": "vertex-ai",
-      // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
     },
-    "tavily": {
-      "apiKey": "FIXME"
-    }
-  }
-}
-
-```
-
-<details>
-<summary>Extra provider examples</summary>
-
-```js
-{
-  "platforms": [
     {
       // Requires Azure CLI to get access token
       "name": "azure",
@@ -111,7 +82,37 @@ Create the configuration.
       "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project>/locations/<location>",
       // Optional
       "account": "<service_account_email>"
+    }
+  ],
+
+  // Optional
+  "tools": {
+    "askGoogle": {
+      "model": "gemini-3-flash-preview",
+
+      // Google AI Studio
+      "apiKey": "FIXME"
+
+      // Or use Vertex AI (Requires gcloud CLI to get authentication token)
+      // "platform": "vertex-ai",
+      // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
     },
+
+    "searchWeb": {
+      "tavilyApiKey": "FIXME"
+    }
+  },
+
+}
+
+```
+
+<details>
+<summary>Other provider examples</summary>
+
+```js
+{
+  "platforms": [
     {
       "name": "openai",
       "variant": "ollama",
@@ -164,8 +165,8 @@ The agent can use the following tools to assist with tasks:
 - **patch_file**: Patch a file.
 - **tmux_command**: Run a tmux command.
 - **fetch_web_page**: Fetch and extract web page content from a given URL, returning it as Markdown.
-- **search_web**: Search the web for information (requires Tavily API key).
 - **ask_google**: Ask Google a question using natural language (requires Gemini API key).
+- **search_web**: Search the web for information (requires Tavily API key).
 - **delegate_to_subagent**: Delegate a subtask to a subagent. The agent switches to a subagent role within the same conversation, focusing on the specified goal.
 - **report_as_subagent**: Report completion and return to the main agent. Used by subagents to communicate results and restore the main agent role. After reporting, the subagent's conversation history is removed from the context.
 
