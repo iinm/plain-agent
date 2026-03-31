@@ -141,7 +141,16 @@ Run the agent.
 plain
 
 # Or
-plain -m <model>+<variant>
+plain -m <model+variant>
+```
+
+Run in batch mode (non-interactive).
+In batch mode, config files are not loaded automatically. Only the files specified with `--config` are loaded.
+
+```sh
+plain --batch "Add tests for src/main.mjs" \
+      --config ~/.config/plain-agent/config.local.json \
+      --config .plain-agent/config.json
 ```
 
 Display the help message.

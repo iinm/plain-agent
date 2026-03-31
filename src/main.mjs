@@ -5,6 +5,7 @@
 import { styleText } from "node:util";
 import { createAgent } from "./agent.mjs";
 import { parseCliArgs, printHelp } from "./cliArgs.mjs";
+import { startBatchSession } from "./cliBatch.mjs";
 import { startInteractiveSession } from "./cliInteractive.mjs";
 import { loadAppConfig } from "./config.mjs";
 import { loadAgentRoles } from "./context/loadAgentRoles.mjs";
@@ -56,22 +57,31 @@ if (cliArgs.listModels) {
       `0${startTime.getMinutes()}`.slice(-2),
   ].join("-");
   const tmuxSessionId = `agent-${sessionId}`;
-  const { appConfig, loadedConfigPath } = await loadAppConfig();
+  const isBatchMode = Boolean(cliArgs.batch);
 
-  if (loadedConfigPath.length > 0) {
-    console.log(styleText("green", "\n⚡ Loaded configuration files"));
-    console.log(loadedConfigPath.map((p) => `  ⤷ ${p}`).join("\n"));
-  }
+  const { appConfig, loadedConfigPath } = await loadAppConfig({
+    skipUserConfig: isBatchMode,
+    skipTrustCheck: isBatchMode,
+    configFiles: cliArgs.config,
+  });
 
-  if (appConfig.sandbox) {
-    const sandboxStr = [
-      appConfig.sandbox.command,
-      ...(appConfig.sandbox.args || []),
-    ].join(" ");
-    console.log(styleText("green", "\n📦 Sandbox: on"));
-    console.log(`  ⤷ ${sandboxStr}`);
-  } else {
-    console.log(styleText("yellow", "\n📦 Sandbox: off"));
+  // In batch mode, skip human-readable output
+  if (!isBatchMode) {
+    if (loadedConfigPath.length > 0) {
+      console.log(styleText("green", "\n⚡ Loaded configuration files"));
+      console.log(loadedConfigPath.map((p) => `  ⤷ ${p}`).join("\n"));
+    }
+
+    if (appConfig.sandbox) {
+      const sandboxStr = [
+        appConfig.sandbox.command,
+        ...(appConfig.sandbox.args || []),
+      ].join(" ");
+      console.log(styleText("green", "\n📦 Sandbox: on"));
+      console.log(`  ⤷ ${sandboxStr}`);
+    } else {
+      console.log(styleText("yellow", "\n📦 Sandbox: off"));
+    }
   }
 
   /** @type {(() => Promise<void>)[]} */
@@ -82,11 +92,13 @@ if (cliArgs.listModels) {
   if (appConfig.mcpServers) {
     const mcpServerEntries = Object.entries(appConfig.mcpServers);
 
-    console.log();
-    for (const [serverName] of mcpServerEntries) {
-      console.log(
-        styleText("blue", `🔌 Connecting to MCP server: ${serverName}...`),
-      );
+    if (!isBatchMode) {
+      console.log();
+      for (const [serverName] of mcpServerEntries) {
+        console.log(
+          styleText("blue", `🔌 Connecting to MCP server: ${serverName}...`),
+        );
+      }
     }
 
     const mcpResults = await Promise.all(
@@ -99,12 +111,14 @@ if (cliArgs.listModels) {
     for (const { serverName, tools, cleanup } of mcpResults) {
       mcpTools.push(...tools);
       mcpCleanups.push(cleanup);
-      console.log(
-        styleText(
-          "green",
-          `✅ Successfully connected to MCP server: ${serverName}`,
-        ),
-      );
+      if (!isBatchMode) {
+        console.log(
+          styleText(
+            "green",
+            `✅ Successfully connected to MCP server: ${serverName}`,
+          ),
+        );
+      }
     }
   }
 
@@ -196,21 +210,35 @@ if (cliArgs.listModels) {
     agentRoles,
   });
 
-  startInteractiveSession({
+  const sessionOptions = {
     userEventEmitter,
     agentEventEmitter,
     agentCommands,
     sessionId,
     modelName: modelNameWithVariant,
-    notifyCmd: appConfig.notifyCmd || AGENT_NOTIFY_CMD_DEFAULT,
     sandbox: Boolean(appConfig.sandbox),
     onStop: async () => {
       for (const cleanup of mcpCleanups) {
         await cleanup();
       }
     },
-    claudeCodePlugins: appConfig.claudeCodePlugins,
-  });
+  };
+
+  if (isBatchMode) {
+    if (!cliArgs.batch) {
+      throw new Error("Batch task is required in batch mode");
+    }
+    await startBatchSession({
+      ...sessionOptions,
+      task: cliArgs.batch,
+    });
+  } else {
+    startInteractiveSession({
+      ...sessionOptions,
+      notifyCmd: appConfig.notifyCmd || AGENT_NOTIFY_CMD_DEFAULT,
+      claudeCodePlugins: appConfig.claudeCodePlugins,
+    });
+  }
 })().catch((err) => {
   console.error(err);
   process.exit(1);

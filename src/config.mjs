@@ -16,19 +16,37 @@ import {
 import { evalJSONConfig } from "./utils/evalJSONConfig.mjs";
 
 /**
- * @param {Object} [options]
- * @param {boolean} [options.skipTrustCheck] - Skip trust check for config files
+ * @typedef {Object} LoadAppConfigOptions
+ * @property {boolean} [skipTrustCheck] - Skip trust check for config files
+ * @property {string[]} [configFiles] - Additional config files to load (for batch mode)
+ * @property {boolean} [skipUserConfig] - Skip default user config files (for batch mode)
+ */
+
+/**
+ * @param {LoadAppConfigOptions} [options]
  * @returns {Promise<{appConfig: AppConfig, loadedConfigPath: string[]}>}
  */
 export async function loadAppConfig(options = {}) {
-  const { skipTrustCheck = false } = options;
-  const paths = [
-    `${AGENT_ROOT}/.config/config.predefined.json`,
-    `${AGENT_USER_CONFIG_DIR}/config.json`,
-    `${AGENT_USER_CONFIG_DIR}/config.local.json`,
-    `${AGENT_PROJECT_METADATA_DIR}/config.json`,
-    `${AGENT_PROJECT_METADATA_DIR}/config.local.json`,
-  ];
+  const {
+    skipTrustCheck = false,
+    configFiles = [],
+    skipUserConfig = false,
+  } = options;
+
+  // Always load predefined config
+  const paths = [`${AGENT_ROOT}/.config/config.predefined.json`];
+
+  if (!skipUserConfig) {
+    paths.push(
+      `${AGENT_USER_CONFIG_DIR}/config.json`,
+      `${AGENT_USER_CONFIG_DIR}/config.local.json`,
+      `${AGENT_PROJECT_METADATA_DIR}/config.json`,
+      `${AGENT_PROJECT_METADATA_DIR}/config.local.json`,
+    );
+  }
+
+  // Add explicitly specified config files
+  paths.push(...configFiles);
 
   /** @type {string[]} */
   const loadedConfigPath = [];
