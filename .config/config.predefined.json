@@ -703,6 +703,21 @@
     },
     {
       "name": "glm-5",
+      "variant": "bedrock",
+      "platform": {
+        "name": "bedrock",
+        "variant": "default"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "zai.glm-5",
+          "reasoning_effort": "high"
+        }
+      }
+    },
+    {
+      "name": "glm-5",
       "variant": "ollama",
       "platform": {
         "name": "openai",
