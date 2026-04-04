@@ -18,13 +18,12 @@ import {
 import { setupMCPServer } from "./mcp.mjs";
 import { createModelCaller } from "./modelCaller.mjs";
 import { createPrompt } from "./prompt.mjs";
-import { createAskGoogleTool } from "./tools/askGoogle.mjs";
+import { createAskURLTool } from "./tools/askURL.mjs";
+import { createAskWebTool } from "./tools/askWeb.mjs";
 import { createDelegateToSubagentTool } from "./tools/delegateToSubagent.mjs";
 import { createExecCommandTool } from "./tools/execCommand.mjs";
-import { fetchWebPageTool } from "./tools/fetchWebPage.mjs";
 import { patchFileTool } from "./tools/patchFile.mjs";
 import { createReportAsSubagentTool } from "./tools/reportAsSubagent.mjs";
-import { createTavilySearchTool } from "./tools/tavilySearch.mjs";
 import { createTmuxCommandTool } from "./tools/tmuxCommand.mjs";
 import { writeFileTool } from "./tools/writeFile.mjs";
 import { createToolUseApprover } from "./toolUseApprover.mjs";
@@ -142,23 +141,16 @@ if (cliArgs.listModels) {
     writeFileTool,
     patchFileTool,
     createTmuxCommandTool({ sandbox: appConfig.sandbox }),
-    fetchWebPageTool,
     createDelegateToSubagentTool(),
     createReportAsSubagentTool(),
   ];
 
-  if (appConfig.tools?.searchWeb?.tavilyApiKey) {
-    builtinTools.push(createTavilySearchTool(appConfig.tools.searchWeb));
+  if (appConfig.tools?.askWeb) {
+    builtinTools.push(createAskWebTool(appConfig.tools.askWeb));
   }
 
-  if (appConfig.tools?.askGoogle) {
-    builtinTools.push(
-      createAskGoogleTool({
-        platform: appConfig.tools.askGoogle.platform,
-        baseURL: appConfig.tools.askGoogle.baseURL,
-        apiKey: appConfig.tools.askGoogle.apiKey,
-      }),
-    );
+  if (appConfig.tools?.askURL) {
+    builtinTools.push(createAskURLTool(appConfig.tools.askURL));
   }
 
   const toolUseApprover = createToolUseApprover({

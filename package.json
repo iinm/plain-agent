@@ -38,20 +38,15 @@
     "@aws-crypto/sha256-js": "^5.2.0",
     "@aws-sdk/credential-providers": "^3.1001.0",
     "@modelcontextprotocol/sdk": "^1.27.1",
-    "@mozilla/readability": "^0.6.0",
     "@smithy/protocol-http": "^5.3.10",
     "@smithy/signature-v4": "^5.3.10",
     "diff": "^8.0.3",
-    "js-yaml": "^4.1.1",
-    "jsdom": "^28.1.0",
-    "turndown": "^7.2.2"
+    "js-yaml": "^4.1.1"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.5",
     "@types/js-yaml": "^4.0.9",
-    "@types/jsdom": "^28.0.0",
     "@types/node": "^22.19.13",
-    "@types/turndown": "^5.0.6",
     "typescript": "^5.9.3"
   }
 }

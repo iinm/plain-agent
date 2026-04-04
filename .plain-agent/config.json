@@ -4,11 +4,6 @@
     "maxApprovals": 100,
     "patterns": [
       {
-        "toolName": "fetch_web_page",
-        "action": "deny",
-        "reason": "Use ask_google instead"
-      },
-      {
         "toolName": "exec_command",
         "input": { "command": "git", "args": ["commit"] },
         "action": "ask"
@@ -27,7 +22,7 @@
         "action": "allow"
       },
       {
-        "toolName": "ask_google",
+        "toolName": { "$regex": "^(ask_web|ask_url)$" },
         "action": "allow"
       }
     ]

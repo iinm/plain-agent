@@ -1,5 +1,7 @@
 import { ModelDefinition, PlatformConfig } from "./modelDefinition";
 import { ToolUsePattern } from "./tool";
+import { AskURLToolOptions } from "./tools/askURL.mjs";
+import { AskWebToolOptions } from "./tools/askWeb.mjs";
 import { ExecCommandSanboxConfig } from "./tools/execCommand";
 
 export type ClaudeCodePluginConfig = {
@@ -18,20 +20,8 @@ export type AppConfig = {
   };
   sandbox?: ExecCommandSanboxConfig;
   tools?: {
-    /**
-     * - Vertex AI: requires baseURL and account
-     * - AI Studio: requires apiKey
-     */
-    askGoogle?: {
-      platform?: "vertex-ai";
-      baseURL?: string;
-      account?: string;
-      apiKey?: string;
-      model?: string;
-    };
-    searchWeb?: {
-      tavilyApiKey?: string;
-    };
+    askWeb?: AskWebToolOptions;
+    askURL?: AskURLToolOptions;
   };
   mcpServers?: Record<string, MCPServerConfig>;
   notifyCmd?: string;

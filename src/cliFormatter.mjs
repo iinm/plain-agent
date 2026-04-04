@@ -4,7 +4,6 @@
  * @import { PatchFileInput } from "./tools/patchFile"
  * @import { WriteFileInput } from "./tools/writeFile"
  * @import { TmuxCommandInput } from "./tools/tmuxCommand"
- * @import { TavilySearchInput } from "./tools/tavilySearch"
  * @import { DelegateToSubagentInput } from "./tools/delegateToSubagent"
  */
 
@@ -84,14 +83,6 @@ export function formatToolUse(toolUse) {
       `command: ${tmuxCommandInput.command}`,
       `args: ${JSON.stringify(tmuxCommandInput.args)}`,
     ].join("\n");
-  }
-
-  if (toolName === "search_web") {
-    /** @type {Partial<TavilySearchInput>} */
-    const tavilySearchInput = input;
-    return [`tool: ${toolName}`, `query: ${tavilySearchInput.query}`].join(
-      "\n",
-    );
   }
 
   if (toolName === "delegate_to_subagent") {

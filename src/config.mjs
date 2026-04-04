@@ -76,14 +76,18 @@ export async function loadAppConfig(options = {}) {
       },
       sandbox: config.sandbox ?? merged.sandbox,
       tools: {
-        searchWeb: {
-          ...(merged.tools?.searchWeb ?? {}),
-          ...(config.tools?.searchWeb ?? {}),
-        },
-        askGoogle: {
-          ...(merged.tools?.askGoogle ?? {}),
-          ...(config.tools?.askGoogle ?? {}),
-        },
+        askWeb: config.tools?.askWeb
+          ? {
+              ...(merged.tools?.askWeb ?? {}),
+              ...config.tools.askWeb,
+            }
+          : merged.tools?.askWeb,
+        askURL: config.tools?.askURL
+          ? {
+              ...(merged.tools?.askURL ?? {}),
+              ...config.tools.askURL,
+            }
+          : merged.tools?.askWeb,
       },
       mcpServers: {
         ...(merged.mcpServers ?? {}),

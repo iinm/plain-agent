@@ -87,19 +87,33 @@ Create the configuration.
 
   // Optional
   "tools": {
-    "askGoogle": {
-      "model": "gemini-3-flash-preview",
-
-      // Google AI Studio
-      "apiKey": "FIXME"
+    "askWeb": {
+      "provider": "gemini",
+      "apiKey": "FIXME",
+      "model": "gemini-3-flash-preview"
+      // Optional
+      // "baseURL": "<proxy_url>"
 
       // Or use Vertex AI (Requires gcloud CLI to get authentication token)
-      // "platform": "vertex-ai",
+      // "provider": "gemini-vertex-ai",
       // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
+      // "model": "gemini-3-flash-preview"
+      // Optional:
+      // "account": "<service_account_email>"
     },
 
-    "searchWeb": {
-      "tavilyApiKey": "FIXME"
+    "askURL": {
+      "provider": "gemini",
+      "apiKey": "FIXME"
+      // Optional
+      // "baseURL": "<proxy_url>"
+
+      // Or use Vertex AI (Requires gcloud CLI to get authentication token)
+      // "provider": "gemini-vertex-ai",
+      // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
+      // "model": "gemini-3-flash-preview"
+      // Optional:
+      // "account": "<service_account_email>"
     }
   },
 
@@ -173,9 +187,8 @@ The agent can use the following tools to assist with tasks:
 - **write_file**: Write a file.
 - **patch_file**: Patch a file.
 - **tmux_command**: Run a tmux command.
-- **fetch_web_page**: Fetch and extract web page content from a given URL, returning it as Markdown.
-- **ask_google**: Ask Google a question using natural language (requires Google API key or Vertex AI configuration).
-- **search_web**: Search the web for information (requires Tavily API key).
+- **ask_web**: Use the web search to answer questions that need up-to-date information or supporting sources. (requires Google API key or Vertex AI configuration).
+- **ask_url**: Use one or more provided URLs to answer a question. Include the URLs in your question. (requires Google API key or Vertex AI configuration).
 - **delegate_to_subagent**: Delegate a subtask to a subagent. The agent switches to a subagent role within the same conversation, focusing on the specified goal.
 - **report_as_subagent**: Report completion and return to the main agent. Used by subagents to communicate results and restore the main agent role. After reporting, the subagent's conversation history is removed from the context.
 
@@ -218,12 +231,6 @@ The agent loads configuration files in the following order. Settings in later fi
     "defaultAction": "deny",
     "maxApprovals": 100,
     "patterns": [
-      // Prohibit direct access to external URLs (even GET requests can leak data via URL parameters)
-      {
-        "toolName": "fetch_web_page",
-        "action": "deny",
-        "reason": "Use ask_google instead"
-      },
       {
         "toolName": { "$regex": "^(write_file|patch_file)$" },
         "action": "allow"
@@ -233,11 +240,10 @@ The agent loads configuration files in the following order. Settings in later fi
         "action": "allow"
       },
       {
-        "toolName": "ask_google",
+        "toolName": { "$regex": "^(ask_web|ask_url)$" },
         "action": "allow"
       }
-
-      // ⚠️ Never do this. fetch_web_page and mcp run outside the sandbox, so they can send anything externally.
+      // ⚠️ Never do this. mcp run outside the sandbox, so they can send anything externally.
       // {
       //   "toolName": { "$regex": "." },
       //   "action": "allow"
@@ -290,8 +296,9 @@ The agent loads configuration files in the following order. Settings in later fi
         "input": { "command": "npm", "args": ["run", { "$regex": "^(check|test|lint|fix)$" }] },
         "action": "allow"
       },
+
       {
-        "toolName": "ask_google",
+        "toolName": { "$regex": "^(ask_web|ask_url)$" },
         "action": "allow"
       },
 
