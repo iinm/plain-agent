@@ -562,6 +562,18 @@ npx npm-check-updates -t minor -c 3
 npx npm-check-updates -t minor -c 3 -u
 ```
 
+## Release
+
+```sh
+git commit -m "<message>"
+
+npm version <major|minor|patch>
+
+git push --follow-tags
+
+gh release create $(git describe --tags) --generate-notes
+```
+
 ## Appendix: Creating Least-Privilege Users for Cloud Providers
 
 <details>
