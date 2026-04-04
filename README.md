@@ -33,7 +33,7 @@ npm install -g @iinm/plain-agent
 List available models.
 
 ```sh
-plain --list-models
+plain list-models
 ```
 
 Create the configuration.
@@ -215,7 +215,7 @@ Run in batch mode (non-interactive).
 In batch mode, config files are not loaded automatically. Only the files specified with `--config` are loaded.
 
 ```sh
-plain --batch "Add tests for src/main.mjs" \
+plain batch "Add tests for src/main.mjs" \
       --config ~/.config/plain-agent/config.local.json \
       --config .plain-agent/config.json
 ```

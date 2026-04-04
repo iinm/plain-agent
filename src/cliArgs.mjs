@@ -1,10 +1,26 @@
 /**
+ * @typedef {HelpSubcommand | InteractiveSubcommand | BatchSubcommand | ListModelsSubcommand } Subcommand
+ */
+
+/**
+ * @typedef {{ type: 'help' }} HelpSubcommand
+ */
+
+/**
+ * @typedef {{ type: 'interactive', config: string[], model: string | null }} InteractiveSubcommand
+ */
+
+/**
+ * @typedef {{ type: 'batch', task: string, config: string[], model: string | null }} BatchSubcommand
+ */
+
+/**
+ * @typedef {{ type: 'list-models' }} ListModelsSubcommand
+ */
+
+/**
  * @typedef {Object} CliArgs
- * @property {string|null} model - Model name with variant
- * @property {boolean} showHelp - Whether to show help message
- * @property {boolean} listModels - Whether to list available models
- * @property {string|null} batch - Task instruction for batch mode
- * @property {string[]} config - Paths to additional config files for batch mode
+ * @property {Subcommand} subcommand - The subcommand to execute
  */
 
 /**
@@ -14,30 +30,75 @@
  */
 export function parseCliArgs(argv) {
   const args = argv.slice(2);
-  /** @type {CliArgs} */
-  const result = {
-    model: null,
-    showHelp: false,
-    listModels: false,
-    batch: null,
-    config: [],
-  };
+  const subcommandName = args[0];
 
-  for (let i = 0; i < args.length; i++) {
-    if ((args[i] === "-m" || args[i] === "--model") && args[i + 1]) {
-      result.model = args[++i];
-    } else if (args[i] === "-h" || args[i] === "--help") {
-      result.showHelp = true;
-    } else if (args[i] === "-l" || args[i] === "--list-models") {
-      result.listModels = true;
-    } else if (args[i] === "--batch" && args[i + 1]) {
-      result.batch = args[++i];
-    } else if (args[i] === "--config" && args[i + 1]) {
-      result.config.push(args[++i]);
-    }
+  if (["-h", "--help", "help"].includes(subcommandName)) {
+    return {
+      subcommand: { type: "help" },
+    };
   }
 
-  return result;
+  if (!subcommandName || subcommandName.startsWith("-")) {
+    // Interactive mode (default)
+    const config = [];
+    let model = null;
+
+    for (let i = 0; i < args.length; i++) {
+      if (args[i] === "-m" || args[i] === "--model") {
+        if (args[i + 1]) {
+          model = args[i + 1];
+          i++;
+        }
+      } else if (args[i] === "-c" || args[i] === "--config") {
+        if (args[i + 1]) {
+          config.push(args[i + 1]);
+          i++;
+        }
+      }
+    }
+
+    return {
+      subcommand: { type: "interactive", config, model },
+    };
+  }
+
+  if (subcommandName === "batch") {
+    const batchArgs = args.slice(1);
+
+    let task = null;
+    let model = null;
+    const config = [];
+
+    for (let i = 0; i < batchArgs.length; i++) {
+      if (batchArgs[i] === "-m" || batchArgs[i] === "--model") {
+        if (batchArgs[i + 1]) {
+          model = batchArgs[i + 1];
+          i++;
+        }
+      } else if (batchArgs[i] === "-c" || batchArgs[i] === "--config") {
+        if (batchArgs[i + 1]) {
+          config.push(batchArgs[i + 1]);
+          i++;
+        }
+      } else if (!batchArgs[i].startsWith("-") && !task) {
+        task = batchArgs[i];
+      }
+    }
+
+    return {
+      subcommand: { type: "batch", task: task || "", config, model },
+    };
+  }
+
+  if (subcommandName === "list-models") {
+    return {
+      subcommand: { type: "list-models" },
+    };
+  }
+
+  return {
+    subcommand: { type: "help" },
+  };
 }
 
 /**
@@ -46,22 +107,26 @@ export function parseCliArgs(argv) {
  */
 export function printHelp(exitCode = 0) {
   console.log(`
-Usage: agent [options]
-       agent --batch "task instruction" [options]
+Usage: plain [options]
+       plain list-models
+       plain batch [options] <task>
 
 Options:
   -m, --model <model+variant>  Model to use
-  -l, --list-models            List available models
-  -h, --help          Show this help message
-  --batch <task>      Run in batch mode with the given task instruction
-  --config <file>     Config file to load (required in batch mode)
-                      In batch mode, only explicitly specified config files are loaded
+  -h, --help                   Show this help message
+  -c, --config <file>          Config file to load
+
+Subcommands:
+  list-models                  List available models
+  batch <task>                 Run in batch mode with the given task instruction
 
 Examples:
-  agent -m gpt-5.4+thinking-medium
-  plain --batch "Add tests for src/main.mjs" \\
-        --config ~/.config/plain-agent/config.local.json \\
-        --config .plain-agent/config.json
+  plain -m gpt-5.4+thinking-medium
+  plain list-models
+  plain batch \\
+        -c ~/.config/plain-agent/config.local.json \\
+        -c .plain-agent/config.json \\
+        "Add tests for src/main.mjs"
 `);
   process.exit(exitCode);
 }

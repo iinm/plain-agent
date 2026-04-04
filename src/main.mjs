@@ -29,11 +29,11 @@ import { writeFileTool } from "./tools/writeFile.mjs";
 import { createToolUseApprover } from "./toolUseApprover.mjs";
 
 const cliArgs = parseCliArgs(process.argv);
-if (cliArgs.showHelp) {
+if (cliArgs.subcommand.type === "help") {
   printHelp();
 }
 
-if (cliArgs.listModels) {
+if (cliArgs.subcommand.type === "list-models") {
   const { appConfig } = await loadAppConfig({ skipTrustCheck: true });
   if (!appConfig.models || appConfig.models.length === 0) {
     console.error("No models found in configuration.");
@@ -56,12 +56,18 @@ if (cliArgs.listModels) {
       `0${startTime.getMinutes()}`.slice(-2),
   ].join("-");
   const tmuxSessionId = `agent-${sessionId}`;
-  const isBatchMode = Boolean(cliArgs.batch);
+
+  const isBatchMode = cliArgs.subcommand.type === "batch";
+  const configFiles =
+    cliArgs.subcommand.type === "batch" ||
+    cliArgs.subcommand.type === "interactive"
+      ? cliArgs.subcommand.config
+      : [];
 
   const { appConfig, loadedConfigPath } = await loadAppConfig({
     skipUserConfig: isBatchMode,
     skipTrustCheck: isBatchMode,
-    configFiles: cliArgs.config,
+    configFiles,
   });
 
   // In batch mode, skip human-readable output
@@ -121,7 +127,14 @@ if (cliArgs.listModels) {
     }
   }
 
-  const modelNameWithVariant = cliArgs.model || appConfig.model || "";
+  const modelFromConfig = appConfig.model || "";
+  const modelFromArgs =
+    cliArgs.subcommand.type === "batch" ||
+    cliArgs.subcommand.type === "interactive"
+      ? cliArgs.subcommand.model
+      : null;
+  const modelNameWithVariant = modelFromArgs || modelFromConfig;
+
   const agentRoles = await loadAgentRoles(appConfig.claudeCodePlugins);
   const prompts = await loadPrompts(appConfig.claudeCodePlugins);
 
@@ -216,13 +229,14 @@ if (cliArgs.listModels) {
     },
   };
 
-  if (isBatchMode) {
-    if (!cliArgs.batch) {
+  if (cliArgs.subcommand.type === "batch") {
+    const task = cliArgs.subcommand.task;
+    if (!task) {
       throw new Error("Batch task is required in batch mode");
     }
     await startBatchSession({
       ...sessionOptions,
-      task: cliArgs.batch,
+      task,
     });
   } else {
     startInteractiveSession({
