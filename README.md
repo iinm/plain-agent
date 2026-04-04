@@ -122,7 +122,7 @@ Create the configuration.
 ```
 
 <details>
-<summary>Other provider examples</summary>
+<summary><b>Other provider examples</b></summary>
 
 ```js
 {
@@ -148,6 +148,59 @@ Create the configuration.
 }
 ```
 </details>
+
+<details>
+<summary><b>Bedrock example using Claude Japan inference profiles</b></summary>
+
+```js
+{
+  "models": [
+    {
+      "name": "claude-haiku-4-5",
+      "variant": "thinking-16k-bedrock-jp",
+      "platform": {
+        "name": "bedrock",
+        "variant": "jp"
+      },
+      "model": {
+        "format": "anthropic",
+        "config": {
+          "model": "jp.anthropic.claude-haiku-4-5-20251001-v1:0",
+          "max_tokens": 32768,
+          "thinking": { "type": "enabled", "budget_tokens": 16384 }
+        }
+      }
+    },
+    {
+      "name": "claude-sonnet-4-6",
+      "variant": "thinking-16k-bedrock-jp",
+      "platform": {
+        "name": "bedrock",
+        "variant": "jp"
+      },
+      "model": {
+        "format": "anthropic",
+        "config": {
+          "model": "jp.anthropic.claude-sonnet-4-6",
+          "max_tokens": 32768,
+          "thinking": { "type": "enabled", "budget_tokens": 16384 }
+        }
+      }
+    }
+  ],
+  "platforms": [
+    {
+      "name": "bedrock",
+      "variant": "jp",
+      "baseURL": "https://bedrock-runtime.ap-northeast-1.amazonaws.com",
+      "awsProfile": "FIXME"
+    }
+  ]
+}
+```
+</details>
+
+
 
 Run the agent.
 
@@ -223,7 +276,7 @@ The agent loads configuration files in the following order. Settings in later fi
 ### Example
 
 <details>
-<summary>YOLO mode example (requires sandbox for safety)</summary>
+<summary><b>YOLO mode example (requires sandbox for safety)</b></summary>
 
 ```js
 {
@@ -270,7 +323,7 @@ The agent loads configuration files in the following order. Settings in later fi
 </details>
 
 <details>
-<summary>Full example</summary>
+<summary><b>Full example</b></summary>
 
 ```js
 {
@@ -502,7 +555,7 @@ npx npm-check-updates -t minor -c 3 -u
 ## Appendix: Creating Least-Privilege Users for Cloud Providers
 
 <details>
-<summary>Amazon Bedrock</summary>
+<summary><b>Amazon Bedrock</b></summary>
 
 ```sh
 # IAM Identity Center 
@@ -582,7 +635,7 @@ aws bedrock-runtime invoke-model \
 </details>
 
 <details>
-<summary>Azure - Microsoft Foundry</summary>
+<summary><b>Azure - Microsoft Foundry</b></summary>
 
 ```sh
 resource_group=FIXME
@@ -615,7 +668,7 @@ az login --service-principal -u "$app_id" -p "$app_secret" --tenant "$tenant_id"
 </details>
 
 <details>
-<summary>Google Cloud Vertex AI</summary>
+<summary><b>Google Cloud Vertex AI</b></summary>
 
 ```sh
 project_id=FIXME
