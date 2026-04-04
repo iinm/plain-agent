@@ -1,6 +1,7 @@
 /**
  * @import { Message } from "./model"
  * @import { UserEventEmitter, AgentEventEmitter, AgentCommands } from "./agent"
+ * @import { ClaudeCodePlugin } from "./claudeCodePlugin.mjs"
  */
 
 import { execFileSync } from "node:child_process";
@@ -196,7 +197,7 @@ const HELP_MESSAGE = [
  * @property {string} notifyCmd
  * @property {boolean} sandbox
  * @property {() => Promise<void>} onStop
- * @property {Array<{name: string, path: string}>} [claudeCodePlugins]
+ * @property {ClaudeCodePlugin[]} [claudeCodePlugins]
  */
 
 /**
@@ -256,7 +257,9 @@ export function startInteractiveSession({
     }
 
     const invocation = `${displayInvocation}${args ? ` ${args}` : ""}`;
-    const message = `System: This prompt was invoked as "${invocation}".\n\n${prompt.content}`;
+    const message = prompt.isSkill
+      ? `System: This prompt was invoked as "${invocation}".\nPrompt path: ${prompt.filePath}\n\n${prompt.content}`
+      : `System: This prompt was invoked as "${invocation}".\n\n${prompt.content}`;
 
     console.log(styleText("gray", "\n<prompt>"));
     console.log(message);

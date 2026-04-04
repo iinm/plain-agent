@@ -1,3 +1,5 @@
+/** @import { ClaudeCodePlugin } from "../claudeCodePlugin.mjs" */
+
 import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
@@ -24,10 +26,11 @@ import {
 
 /**
  * Load all prompts from the predefined directories.
- * @param {Array<{name: string, path: string}>} [claudeCodePlugins]
+ * @param {ClaudeCodePlugin[]} [claudeCodePlugins]
  * @returns {Promise<Map<string, Prompt>>}
  */
 export async function loadPrompts(claudeCodePlugins) {
+  /** @type {Array<{dir: string, idPrefix: string, only?: RegExp}>} */
   const promptDirs = [
     {
       dir: path.resolve(AGENT_ROOT, ".config", "prompts.predefined"),
@@ -52,12 +55,14 @@ export async function loadPrompts(claudeCodePlugins) {
       promptDirs.push({
         dir: path.join(plugin.path, "commands"),
         idPrefix: `claude/${plugin.name}/commands:`,
+        only: plugin.only,
       });
 
       // Skills
       promptDirs.push({
         dir: path.join(plugin.path, "skills"),
         idPrefix: `claude/${plugin.name}/skills:`,
+        only: plugin.only,
       });
     }
   }
@@ -65,7 +70,7 @@ export async function loadPrompts(claudeCodePlugins) {
   /** @type {Map<string, Prompt>} */
   const prompts = new Map();
 
-  for (const { dir, idPrefix } of promptDirs) {
+  for (const { dir, idPrefix, only } of promptDirs) {
     const files = await getMarkdownFiles(dir).catch((err) => {
       if (err.code !== "ENOENT") {
         console.warn(`Failed to list prompts in ${dir}:`, err);
@@ -81,6 +86,11 @@ export async function loadPrompts(claudeCodePlugins) {
       });
 
       if (content === null) continue;
+
+      // Filter by only pattern if specified
+      if (only && !only.test(file)) {
+        continue;
+      }
 
       //  Ignore all files in the skills/ directory except for SKILL.md.
       if (fullPath.match(/\/skills\//) && !file.endsWith("/SKILL.md")) {
@@ -237,6 +247,7 @@ async function getMarkdownFiles(dir, baseDir = dir) {
  */
 function parsePrompt(relativePath, fileContent, fullPath, idPrefix = "") {
   const rawId = relativePath.replace(/\/SKILL\.md$/, "").replace(/\.md$/, "");
+  const isSkill = relativePath.endsWith("SKILL.md");
   const isShortcut = rawId.startsWith("shortcuts/");
   const id = isShortcut
     ? idPrefix + rawId.replace(/^shortcuts\//, "")
@@ -254,7 +265,7 @@ function parsePrompt(relativePath, fileContent, fullPath, idPrefix = "") {
       content: fileContent.trim(),
       filePath: fullPath,
       isShortcut,
-      isSkill: relativePath.endsWith("SKILL.md"),
+      isSkill,
     };
   }
 
@@ -278,7 +289,7 @@ function parsePrompt(relativePath, fileContent, fullPath, idPrefix = "") {
         parseFrontmatterField(match[1], "user-invocable") === "true" ||
         undefined,
       isShortcut,
-      isSkill: relativePath.endsWith("SKILL.md"),
+      isSkill,
     };
   }
   const userInvocable = frontmatter["user-invocable"];

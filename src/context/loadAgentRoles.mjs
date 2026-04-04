@@ -1,3 +1,5 @@
+/** @import { ClaudeCodePlugin } from "../claudeCodePlugin.mjs" */
+
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -20,10 +22,11 @@ import {
 
 /**
  * Load all agent roles from the predefined directories.
- * @param {Array<{name: string, path: string}>} [claudeCodePlugins]
+ * @param {ClaudeCodePlugin[]} [claudeCodePlugins]
  * @returns {Promise<Map<string, AgentRole>>}
  */
 export async function loadAgentRoles(claudeCodePlugins) {
+  /** @type {Array<{dir: string, idPrefix: string, only?: RegExp}>} */
   const agentDirs = [
     {
       dir: path.resolve(AGENT_ROOT, ".config", "agents.predefined"),
@@ -43,6 +46,7 @@ export async function loadAgentRoles(claudeCodePlugins) {
       agentDirs.push({
         dir: path.join(plugin.path, "agents"),
         idPrefix: `claude/${plugin.name}:`,
+        only: plugin.only,
       });
     }
   }
@@ -50,7 +54,7 @@ export async function loadAgentRoles(claudeCodePlugins) {
   /** @type {Map<string, AgentRole>} */
   const roles = new Map();
 
-  for (const { dir, idPrefix } of agentDirs) {
+  for (const { dir, idPrefix, only } of agentDirs) {
     const files = await getMarkdownFiles(dir).catch((err) => {
       if (err.code !== "ENOENT") {
         console.warn(`Failed to list agent roles in ${dir}:`, err);
@@ -66,6 +70,11 @@ export async function loadAgentRoles(claudeCodePlugins) {
       });
 
       if (content === null) continue;
+
+      // Filter by only pattern if specified
+      if (only && !only.test(file)) {
+        continue;
+      }
 
       let role = parseAgentRole(file, content, fullPath, idPrefix);
       if (role.import) {

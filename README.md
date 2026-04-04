@@ -530,7 +530,14 @@ Example:
         { "name": "feature-dev", "path": "plugins/feature-dev" },
         { "name": "code-review", "path": "plugins/code-review" }
       ]
+    },
+    {
+      "source": "https://github.com/anthropics/skills",
+      "plugins": [
+        { "name": "anthropics", "path": "", "only": "pdf|pptx" }
+      ]
     }
+  ]
 }
 ```
 

@@ -5,15 +5,28 @@ import { loadAppConfig } from "./config.mjs";
 import { CLAUDE_CODE_PLUGIN_DIR } from "./env.mjs";
 
 /**
+ * @typedef {Object} ClaudeCodePluginRepo
+ * @property {string} source
+ * @property {Array<{name: string, path: string, only?: string}>} plugins
+ */
+
+/**
+ * @typedef {Object} ClaudeCodePlugin
+ * @property {string} name
+ * @property {string} path
+ * @property {RegExp} [only]
+ */
+
+/**
  * Resolve plugin paths from hierarchical config structure.
- * Converts {source, plugins} to flat {name, path} with full paths.
- * @param {Array<{source: string, plugins: Array<{name: string, path: string}>}>} repos
- * @returns {Array<{name: string, path: string}>}
+ * Converts {source, plugins} to flat {name, path, only} with full paths.
+ * @param {ClaudeCodePluginRepo[]} repos
+ * @returns {ClaudeCodePlugin[]}
  */
 export function resolvePluginPaths(repos) {
   if (!repos) return [];
 
-  /** @type {Array<{name: string, path: string}>} */
+  /** @type {ClaudeCodePlugin[]} */
   const result = [];
 
   for (const repo of repos) {
@@ -24,9 +37,23 @@ export function resolvePluginPaths(repos) {
     }
 
     for (const plugin of repo.plugins) {
+      // Compile only pattern to RegExp
+      let only;
+      if (plugin.only) {
+        try {
+          only = new RegExp(plugin.only);
+        } catch (err) {
+          console.warn(
+            `Invalid regex pattern "${plugin.only}" for plugin "${plugin.name}":`,
+            err instanceof Error ? err.message : String(err),
+          );
+        }
+      }
+
       result.push({
         name: plugin.name,
         path: path.join(CLAUDE_CODE_PLUGIN_DIR, ownerRepo, plugin.path),
+        only,
       });
     }
   }
@@ -121,10 +148,6 @@ export async function installClaudeCodePlugins() {
     for (const p of skippedPaths) {
       console.log(`  • ${p}`);
     }
-  }
-
-  if (failed > 0) {
-    process.exitCode = 1;
   }
 }
 

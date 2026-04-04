@@ -3,14 +3,7 @@ import { ToolUsePattern } from "./tool";
 import { AskURLToolOptions } from "./tools/askURL.mjs";
 import { AskWebToolOptions } from "./tools/askWeb.mjs";
 import { ExecCommandSanboxConfig } from "./tools/execCommand";
-
-export type ClaudeCodePluginRepo = {
-  source: string;
-  plugins: Array<{
-    name: string;
-    path: string;
-  }>;
-};
+import { ClaudeCodePluginRepo } from "./claudeCodePlugin.mjs";
 
 export type AppConfig = {
   model?: string;
