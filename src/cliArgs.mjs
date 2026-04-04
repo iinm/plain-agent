@@ -1,5 +1,5 @@
 /**
- * @typedef {HelpSubcommand | InteractiveSubcommand | BatchSubcommand | ListModelsSubcommand } Subcommand
+ * @typedef {HelpSubcommand | InteractiveSubcommand | BatchSubcommand | ListModelsSubcommand | InstallClaudeCodePluginsSubcommand} Subcommand
  */
 
 /**
@@ -16,6 +16,10 @@
 
 /**
  * @typedef {{ type: 'list-models' }} ListModelsSubcommand
+ */
+
+/**
+ * @typedef {{ type: 'install-claude-code-plugins' }} InstallClaudeCodePluginsSubcommand
  */
 
 /**
@@ -96,6 +100,12 @@ export function parseCliArgs(argv) {
     };
   }
 
+  if (subcommandName === "install-claude-code-plugins") {
+    return {
+      subcommand: { type: "install-claude-code-plugins" },
+    };
+  }
+
   return {
     subcommand: { type: "help" },
   };
@@ -108,8 +118,9 @@ export function parseCliArgs(argv) {
 export function printHelp(exitCode = 0) {
   console.log(`
 Usage: plain [options]
-       plain list-models
        plain batch [options] <task>
+       plain list-models
+       plain install-claude-code-plugins
 
 Options:
   -m, --model <model+variant>  Model to use
@@ -117,16 +128,18 @@ Options:
   -c, --config <file>          Config file to load
 
 Subcommands:
-  list-models                  List available models
   batch <task>                 Run in batch mode with the given task instruction
+  list-models                  List available models
+  install-claude-code-plugins  Install Claude Code plugins
 
 Examples:
   plain -m gpt-5.4+thinking-medium
-  plain list-models
   plain batch \\
         -c ~/.config/plain-agent/config.local.json \\
         -c .plain-agent/config.json \\
         "Add tests for src/main.mjs"
+  plain list-models
+  plain install-claude-code-plugins
 `);
   process.exit(exitCode);
 }

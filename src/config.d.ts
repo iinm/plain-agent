@@ -4,9 +4,12 @@ import { AskURLToolOptions } from "./tools/askURL.mjs";
 import { AskWebToolOptions } from "./tools/askWeb.mjs";
 import { ExecCommandSanboxConfig } from "./tools/execCommand";
 
-export type ClaudeCodePluginConfig = {
-  name: string;
-  path: string;
+export type ClaudeCodePluginRepo = {
+  source: string;
+  plugins: Array<{
+    name: string;
+    path: string;
+  }>;
 };
 
 export type AppConfig = {
@@ -25,7 +28,7 @@ export type AppConfig = {
   };
   mcpServers?: Record<string, MCPServerConfig>;
   notifyCmd?: string;
-  claudeCodePlugins?: ClaudeCodePluginConfig[];
+  claudeCodePlugins?: ClaudeCodePluginRepo[];
 };
 
 export type MCPServerConfig = {

@@ -1,7 +1,6 @@
 /**
  * @import { Message } from "./model"
  * @import { UserEventEmitter, AgentEventEmitter, AgentCommands } from "./agent"
- * @import { ClaudeCodePluginConfig } from "./config"
  */
 
 import { execFileSync } from "node:child_process";
@@ -197,7 +196,7 @@ const HELP_MESSAGE = [
  * @property {string} notifyCmd
  * @property {boolean} sandbox
  * @property {() => Promise<void>} onStop
- * @property {ClaudeCodePluginConfig[]} [claudeCodePlugins]
+ * @property {Array<{name: string, path: string}>} [claudeCodePlugins]
  */
 
 /**

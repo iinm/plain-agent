@@ -4,6 +4,10 @@
 
 import { styleText } from "node:util";
 import { createAgent } from "./agent.mjs";
+import {
+  installClaudeCodePlugins,
+  resolvePluginPaths,
+} from "./claudeCodePlugin.mjs";
 import { parseCliArgs, printHelp } from "./cliArgs.mjs";
 import { startBatchSession } from "./cliBatch.mjs";
 import { startInteractiveSession } from "./cliInteractive.mjs";
@@ -45,6 +49,11 @@ if (cliArgs.subcommand.type === "list-models") {
       `${model.name}+${model.variant} (platform: ${platform.name}+${platform.variant})`,
     );
   }
+  process.exit(0);
+}
+
+if (cliArgs.subcommand.type === "install-claude-code-plugins") {
+  await installClaudeCodePlugins();
   process.exit(0);
 }
 
@@ -135,8 +144,9 @@ if (cliArgs.subcommand.type === "list-models") {
       : null;
   const modelNameWithVariant = modelFromArgs || modelFromConfig;
 
-  const agentRoles = await loadAgentRoles(appConfig.claudeCodePlugins);
-  const prompts = await loadPrompts(appConfig.claudeCodePlugins);
+  const pluginPaths = resolvePluginPaths(appConfig.claudeCodePlugins ?? []);
+  const agentRoles = await loadAgentRoles(pluginPaths);
+  const prompts = await loadPrompts(pluginPaths);
 
   const prompt = createPrompt({
     username: USER_NAME,
@@ -242,7 +252,7 @@ if (cliArgs.subcommand.type === "list-models") {
     startInteractiveSession({
       ...sessionOptions,
       notifyCmd: appConfig.notifyCmd || AGENT_NOTIFY_CMD_DEFAULT,
-      claudeCodePlugins: appConfig.claudeCodePlugins,
+      claudeCodePlugins: resolvePluginPaths(appConfig.claudeCodePlugins ?? []),
     });
   }
 })().catch((err) => {

@@ -47,5 +47,14 @@
         "extraArgs": ["--allow-net", "0.0.0.0/0"]
       }
     ]
-  }
+  },
+  "claudeCodePlugins": [
+    {
+      "source": "https://github.com/anthropics/claude-code",
+      "plugins": [
+        { "name": "feature-dev", "path": "plugins/feature-dev" },
+        { "name": "code-review", "path": "plugins/code-review" }
+      ]
+    }
+  ]
 }

@@ -520,20 +520,22 @@ The agent searches for subagent definitions in the following directories:
 
 Example:
 
-```sh
-git clone --depth 1 https://github.com/anthropics/claude-code .plain-agent/claude-code-plugins/anthropics/claude-code
-git clone --depth 1 https://github.com/awslabs/agent-plugins .plain-agent/claude-code-plugins/awslabs/agent-plugins
-```
-
 ```js
 // .plain-agent/config.json
 {
   "claudeCodePlugins": [
-    { "name": "pr-review-toolkit", "path": "anthropics/claude-code/plugins/pr-review-toolkit" },
-    { "name": "aws-serverless", "path": "awslabs/agent-plugins/plugins/aws-serverless" }
-  ]
+    {
+      "source": "https://github.com/anthropics/claude-code",
+      "plugins": [
+        { "name": "feature-dev", "path": "plugins/feature-dev" },
+        { "name": "code-review", "path": "plugins/code-review" }
+      ]
+    }
 }
+```
 
+```sh
+plain install-claude-code-plugins
 ```
 
 ## Development

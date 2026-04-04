@@ -7,7 +7,6 @@ import {
   AGENT_PROJECT_METADATA_DIR,
   AGENT_ROOT,
   AGENT_USER_CONFIG_DIR,
-  CLAUDE_CODE_PLUGIN_DIR,
 } from "../env.mjs";
 
 /**
@@ -41,10 +40,8 @@ export async function loadAgentRoles(claudeCodePlugins) {
   // Add plugin directories if provided
   if (claudeCodePlugins) {
     for (const plugin of claudeCodePlugins) {
-      const pluginBase = path.join(CLAUDE_CODE_PLUGIN_DIR, plugin.path);
-
       agentDirs.push({
-        dir: path.join(pluginBase, "agents"),
+        dir: path.join(plugin.path, "agents"),
         idPrefix: `claude/${plugin.name}:`,
       });
     }
