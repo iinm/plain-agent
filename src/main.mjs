@@ -60,7 +60,7 @@ if (cliArgs.subcommand.type === "install-claude-code-plugins") {
 (async () => {
   const startTime = new Date();
   const sessionId = [
-    startTime.toISOString().slice(0, 10),
+    `${startTime.getFullYear()}-${`0${startTime.getMonth() + 1}`.slice(-2)}-${`0${startTime.getDate()}`.slice(-2)}`,
     `0${startTime.getHours()}`.slice(-2) +
       `0${startTime.getMinutes()}`.slice(-2),
   ].join("-");
