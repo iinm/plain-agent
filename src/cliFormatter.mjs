@@ -192,7 +192,7 @@ export function formatProviderTokenUsage(usage) {
                 "rejected_prediction_tokens",
               ].includes(k),
           )
-          .map(([k, v]) => `${k}: ${v}`)
+          .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
           .join(", ")}`,
       );
     }
