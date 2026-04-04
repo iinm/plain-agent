@@ -105,6 +105,7 @@ Create the configuration.
     "askURL": {
       "provider": "gemini",
       "apiKey": "FIXME"
+      "model": "gemini-3-flash-preview"
       // Optional
       // "baseURL": "<proxy_url>"
 
@@ -534,7 +535,7 @@ Example:
     {
       "source": "https://github.com/anthropics/skills",
       "plugins": [
-        { "name": "anthropics", "path": "", "only": "pdf|pptx" }
+        { "name": "document-skills", "path": "", "only": "xlsx|docx|pptx|pdf" }
       ]
     }
   ]
