@@ -275,6 +275,7 @@ The agent loads configuration files in the following order. Settings in later fi
 ```js
 {
   "autoApproval": {
+    "defaultAction": "ask",
     // The maximum number of automatic approvals.
     "maxApprovals": 50,
     // Patterns are evaluated in order. First match wins.

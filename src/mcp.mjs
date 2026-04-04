@@ -1,12 +1,11 @@
 /**
- * @import { Client } from "@modelcontextprotocol/sdk/client/index.js";
- * @import { StdioServerParameters } from "@modelcontextprotocol/sdk/client/stdio.js";
  * @import { StructuredToolResultContent, Tool, ToolImplementation } from "./tool";
  * @import { MCPServerConfig } from "./config";
  */
 
 import { mkdir, open } from "node:fs/promises";
 import path from "node:path";
+import { Client } from "@modelcontextprotocol/client";
 import { AGENT_PROJECT_METADATA_DIR } from "./env.mjs";
 import { writeTmpFile } from "./tmpfile.mjs";
 import { noThrow } from "./utils/noThrow.mjs";
@@ -52,7 +51,7 @@ export async function setupMCPServer(serverName, serverConfig) {
 /**
  * @typedef {Object} MCPClientOptions
  * @property {string} serverName - The name of the MCP server.
- * @property {StdioServerParameters} params - The transport to use for the client.
+ * @property {import("@modelcontextprotocol/client").StdioServerParameters} params - The transport to use for the client.
  */
 
 /**
@@ -60,10 +59,7 @@ export async function setupMCPServer(serverName, serverConfig) {
  * @returns {Promise<{client: Client; cleanup: () => void}>} - The MCP client and cleanup function.
  */
 async function startMCPServer(options) {
-  const mcpClient = await import("@modelcontextprotocol/sdk/client/index.js");
-  const mcpClientStdio = await import(
-    "@modelcontextprotocol/sdk/client/stdio.js"
-  );
+  const mcpClient = await import("@modelcontextprotocol/client");
 
   const client = new mcpClient.Client({
     name: "undefined",
@@ -83,7 +79,7 @@ async function startMCPServer(options) {
   const logPath = path.join(logDir, `mcp--${options.serverName}.stderr`);
   const stderrLogFile = await open(logPath, "a");
 
-  const transport = new mcpClientStdio.StdioClientTransport({
+  const transport = new mcpClient.StdioClientTransport({
     ...restParams,
     env: env ? { ...defaultEnv, ...env } : undefined,
     stderr: stderrLogFile.fd,

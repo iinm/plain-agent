@@ -1,6 +1,6 @@
 {
   "autoApproval": {
-    "defaultAction": "deny",
+    "defaultAction": "ask",
     "maxApprovals": 100,
     "patterns": [
       {
