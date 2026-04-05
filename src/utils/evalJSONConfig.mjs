@@ -16,6 +16,30 @@ export function evalJSONConfig(configItem) {
       return new RegExp(configItem.$regex);
     }
 
+    if (
+      Object.keys(configItem).length === 1 &&
+      "$env" in configItem &&
+      typeof configItem.$env === "string"
+    ) {
+      const value = process.env[configItem.$env];
+      if (value === undefined) {
+        throw new Error(
+          `Environment variable '${configItem.$env}' is not defined`,
+        );
+      }
+      return value;
+    }
+
+    if (
+      Object.keys(configItem).length === 1 &&
+      "$env" in configItem &&
+      typeof configItem.$env !== "string"
+    ) {
+      throw new Error(
+        `The value of '$env' must be a string, got: ${typeof configItem.$env}`,
+      );
+    }
+
     if (Object.keys(configItem).length === 1 && "$has" in configItem) {
       const pattern = evalJSONConfig(configItem.$has);
       /** @param {unknown} value */

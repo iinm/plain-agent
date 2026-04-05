@@ -61,6 +61,48 @@ describe("evalJSONConfig", () => {
     assert.strictEqual(fn(["bar-", "foo2"]), false);
   });
 
+  it("should convert {$env: string} to environment variable value", () => {
+    process.env.__TEST_ENV_VAR__ = "hello";
+    const out = evalJSONConfig({ $env: "__TEST_ENV_VAR__" });
+    assert.strictEqual(out, "hello");
+    delete process.env.__TEST_ENV_VAR__;
+  });
+
+  it("should throw when $env variable is not defined", () => {
+    delete process.env.__TEST_MISSING_ENV_VAR__;
+    assert.throws(
+      () => evalJSONConfig({ $env: "__TEST_MISSING_ENV_VAR__" }),
+      /Environment variable '__TEST_MISSING_ENV_VAR__' is not defined/,
+    );
+  });
+
+  it("should throw when $env value is not a string", () => {
+    assert.throws(
+      () => evalJSONConfig({ $env: 123 }),
+      /The value of '\$env' must be a string/,
+    );
+  });
+
+  it("should not treat object with $env and other keys as special", () => {
+    process.env.__TEST_ENV_VAR__ = "hello";
+    const out = evalJSONConfig({ $env: "__TEST_ENV_VAR__", other: 1 });
+    const outAny = /** @type {any} */ (out);
+    assert.strictEqual(outAny.$env, "__TEST_ENV_VAR__");
+    assert.strictEqual(outAny.other, 1);
+    delete process.env.__TEST_ENV_VAR__;
+  });
+
+  it("should support $env nested inside $has", () => {
+    process.env.__TEST_ENV_VAR__ = "foo";
+    const fn = /** @type {(value: unknown) => boolean} */ (
+      evalJSONConfig({ $has: { $env: "__TEST_ENV_VAR__" } })
+    );
+    assert.strictEqual(typeof fn, "function");
+    assert.strictEqual(fn(["foo", "bar"]), true);
+    assert.strictEqual(fn(["bar", "baz"]), false);
+    delete process.env.__TEST_ENV_VAR__;
+  });
+
   it("should convert nested {$has: {$has: string}} to a function", () => {
     const fn = /** @type {(value: unknown) => boolean} */ (
       evalJSONConfig({ $has: { $has: "foo" } })

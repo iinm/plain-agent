@@ -50,6 +50,8 @@ Create the configuration.
       "name": "anthropic",
       "variant": "default",
       "apiKey": "FIXME"
+      // Or
+      // "apiKey": { "$env": "ANTHROPIC_API_KEY" }
     },
     {
       "name": "gemini",
