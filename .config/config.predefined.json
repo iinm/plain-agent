@@ -835,6 +835,52 @@
           "model": "qwen/qwen3-next-80b-a3b-thinking-maas"
         }
       }
+    },
+
+    {
+      "name": "nova-2-lite",
+      "variant": "bedrock",
+      "platform": {
+        "name": "bedrock",
+        "variant": "default"
+      },
+      "model": {
+        "format": "bedrock-converse",
+        "config": {
+          "model": "global.amazon.nova-2-lite-v1:0",
+          "enablePromptCaching": true,
+          "additionalModelRequestFields": {
+            "reasoningConfig": {
+              "type": "enabled",
+              "maxReasoningEffort": "medium"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "claude-haiku-4-5",
+      "variant": "thinking-16k-bedrock-converse",
+      "platform": {
+        "name": "bedrock",
+        "variant": "default"
+      },
+      "model": {
+        "format": "bedrock-converse",
+        "config": {
+          "model": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+          "enablePromptCaching": true,
+          "inferenceConfig": {
+            "max_tokens": 32768
+          },
+          "additionalModelRequestFields": {
+            "reasoning_config": {
+              "type": "enabled",
+              "budget_tokens": 16384
+            }
+          }
+        }
+      }
     }
   ]
 }

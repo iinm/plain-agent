@@ -53,7 +53,8 @@
       "source": "https://github.com/anthropics/claude-code",
       "plugins": [
         { "name": "feature-dev", "path": "plugins/feature-dev" },
-        { "name": "code-review", "path": "plugins/code-review" }
+        { "name": "code-review", "path": "plugins/code-review" },
+        { "name": "pr-review-toolkit", "path": "plugins/pr-review-toolkit" }
       ]
     }
   ]

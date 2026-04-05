@@ -44,6 +44,7 @@ export async function* readBedrockStreamEvents(reader) {
       try {
         const payloadParsed = JSON.parse(payloadDecoded);
         if (payloadParsed.bytes) {
+          // Invoke API format (base64 encoded event)
           const event = Buffer.from(payloadParsed.bytes, "base64").toString(
             "utf-8",
           );
@@ -56,6 +57,9 @@ export async function* readBedrockStreamEvents(reader) {
               `Bedrock message received: ${JSON.stringify(payloadParsed.message)}`,
             ),
           );
+        } else {
+          // Converse API format (direct event data)
+          yield payloadParsed;
         }
       } catch (err) {
         if (err instanceof Error) {

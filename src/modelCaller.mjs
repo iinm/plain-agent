@@ -1,4 +1,5 @@
 import { callAnthropicModel } from "./providers/anthropic.mjs";
+import { callBedrockConverseModel } from "./providers/bedrock.mjs";
 import { createCacheEnabledGeminiModelCaller } from "./providers/gemini.mjs";
 import { callOpenAIModel } from "./providers/openai.mjs";
 import { callOpenAICompatibleModel } from "./providers/openaiCompatible.mjs";
@@ -25,5 +26,7 @@ export function createModelCaller(modelDef) {
     case "openai-messages":
       return (input) =>
         callOpenAICompatibleModel(platform, model.config, input);
+    case "bedrock-converse":
+      return (input) => callBedrockConverseModel(platform, model.config, input);
   }
 }
