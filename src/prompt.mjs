@@ -112,6 +112,12 @@ If skill matches task: read full file and apply the workflow
 
 ${skillDescriptions}
 
+# Claude Code Compatibility Notes
+
+When using a Claude Code-compatible command, agent, or skill, follow these rules:
+- Subagents cannot run in parallel. Delegate to them one at a time.
+- If a Claude Code prompt mentions CLAUDE.md for project rules or conventions, use AGENTS.md instead when CLAUDE.md is absent.
+
 # Environment
 
 - User name: ${username}
