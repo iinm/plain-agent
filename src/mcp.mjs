@@ -1,11 +1,11 @@
 /**
+ * @import { Client } from "@modelcontextprotocol/client";
  * @import { StructuredToolResultContent, Tool, ToolImplementation } from "./tool";
  * @import { MCPServerConfig } from "./config";
  */
 
 import { mkdir, open } from "node:fs/promises";
 import path from "node:path";
-import { Client } from "@modelcontextprotocol/client";
 import { AGENT_PROJECT_METADATA_DIR } from "./env.mjs";
 import { writeTmpFile } from "./tmpfile.mjs";
 import { noThrow } from "./utils/noThrow.mjs";

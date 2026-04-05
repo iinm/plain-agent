@@ -5,10 +5,6 @@
  */
 
 import { styleText } from "node:util";
-import { Sha256 } from "@aws-crypto/sha256-js";
-import { fromIni } from "@aws-sdk/credential-providers";
-import { HttpRequest } from "@smithy/protocol-http";
-import { SignatureV4 } from "@smithy/signature-v4";
 import { noThrow } from "../utils/noThrow.mjs";
 import { retryOnError } from "../utils/retryOnError.mjs";
 import { readBedrockStreamEvents } from "./platform/bedrock.mjs";
@@ -112,6 +108,11 @@ export async function callOpenAICompatibleModel(
 
     // bedrock + sso profile
     const runFetchForBedrock = async () => {
+      const { Sha256 } = await import("@aws-crypto/sha256-js");
+      const { fromIni } = await import("@aws-sdk/credential-providers");
+      const { HttpRequest } = await import("@smithy/protocol-http");
+      const { SignatureV4 } = await import("@smithy/signature-v4");
+
       const region =
         url.match(/bedrock-runtime\.([\w-]+)\.amazonaws\.com/)?.[1] ?? "";
       const urlParsed = new URL(url);
