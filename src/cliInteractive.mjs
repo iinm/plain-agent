@@ -214,11 +214,12 @@ export function startInteractiveSession({
   onStop,
   claudeCodePlugins,
 }) {
-  /** @type {{ turn: boolean, multiLineBuffer: string[] | null, subagentName: string }} */
+  /** @type {{ turn: boolean, multiLineBuffer: string[] | null, subagentName: string, skipNextUserMessage: boolean }} */
   const state = {
     turn: true,
     multiLineBuffer: null,
     subagentName: "",
+    skipNextUserMessage: false,
   };
 
   /**
@@ -236,8 +237,8 @@ export function startInteractiveSession({
     console.log(message);
     console.log(styleText("gray", "</agent>"));
 
+    state.skipNextUserMessage = true;
     userEventEmitter.emit("userInput", [{ type: "text", text: message }]);
-    state.turn = false;
   }
 
   /**
@@ -252,6 +253,7 @@ export function startInteractiveSession({
 
     if (!prompt) {
       console.log(styleText("red", `\nPrompt not found: ${id}`));
+      state.turn = true;
       cli.prompt();
       return;
     }
@@ -265,8 +267,8 @@ export function startInteractiveSession({
     console.log(message);
     console.log(styleText("gray", "</prompt>"));
 
+    state.skipNextUserMessage = true;
     userEventEmitter.emit("userInput", [{ type: "text", text: message }]);
-    state.turn = false;
   }
 
   const getCliPrompt = (subagentName = "") =>
@@ -388,9 +390,13 @@ export function startInteractiveSession({
    * @returns {Promise<void>}
    */
   async function processInput(input) {
+    // Prevent concurrent input processing from multi-line paste
+    state.turn = false;
+
     const inputTrimmed = input.trim();
 
     if (inputTrimmed.length === 0) {
+      state.turn = true;
       cli.prompt();
       return;
     }
@@ -400,6 +406,7 @@ export function startInteractiveSession({
 
     if (["/help", "help"].includes(inputTrimmed.toLowerCase())) {
       console.log(`\n${HELP_MESSAGE}`);
+      state.turn = true;
       cli.prompt();
       return;
     }
@@ -408,6 +415,7 @@ export function startInteractiveSession({
       const fileRange = parseFileRange(inputTrimmed.slice(1));
       if (fileRange instanceof Error) {
         console.log(styleText("red", `\n${fileRange.message}`));
+        state.turn = true;
         cli.prompt();
         return;
       }
@@ -415,6 +423,7 @@ export function startInteractiveSession({
       const fileContent = await readFileRange(fileRange);
       if (fileContent instanceof Error) {
         console.log(styleText("red", `\n${fileContent.message}`));
+        state.turn = true;
         cli.prompt();
         return;
       }
@@ -425,19 +434,21 @@ export function startInteractiveSession({
 
       const messageWithContext = await loadUserMessageContext(fileContent);
 
+      state.skipNextUserMessage = true;
       userEventEmitter.emit("userInput", messageWithContext);
-      state.turn = false;
       return;
     }
 
     if (inputTrimmed.toLowerCase() === "/dump") {
       await agentCommands.dumpMessages();
+      state.turn = true;
       cli.prompt();
       return;
     }
 
     if (inputTrimmed.toLowerCase() === "/load") {
       await agentCommands.loadMessages();
+      state.turn = true;
       cli.prompt();
       return;
     }
@@ -457,6 +468,7 @@ export function startInteractiveSession({
           );
         }
       }
+      state.turn = true;
       cli.prompt();
       return;
     }
@@ -477,6 +489,7 @@ export function startInteractiveSession({
             );
           }
         }
+        state.turn = true;
         cli.prompt();
         return;
       }
@@ -485,6 +498,7 @@ export function startInteractiveSession({
         const match = inputTrimmed.match(/^\/prompts:([^ ]+)(?:\s+(.*))?$/);
         if (!match) {
           console.log(styleText("red", "\nInvalid prompt invocation format."));
+          state.turn = true;
           cli.prompt();
           return;
         }
@@ -497,6 +511,7 @@ export function startInteractiveSession({
       const match = inputTrimmed.match(/^\/agents:([^ ]+)(?:\s+(.*))?$/);
       if (!match) {
         console.log(styleText("red", "\nInvalid agent invocation format."));
+        state.turn = true;
         cli.prompt();
         return;
       }
@@ -521,6 +536,7 @@ export function startInteractiveSession({
               `\nUnsupported platform for /paste: ${process.platform}`,
             ),
           );
+          state.turn = true;
           cli.prompt();
           return;
         }
@@ -532,6 +548,7 @@ export function startInteractiveSession({
             `\nFailed to get clipboard content: ${errorMessage}`,
           ),
         );
+        state.turn = true;
         cli.prompt();
         return;
       }
@@ -543,8 +560,8 @@ export function startInteractiveSession({
       console.log(styleText("gray", "</paste>"));
 
       const messageWithContext = await loadUserMessageContext(combinedInput);
+      state.skipNextUserMessage = true;
       userEventEmitter.emit("userInput", messageWithContext);
-      state.turn = false;
       return;
     }
 
@@ -564,8 +581,8 @@ export function startInteractiveSession({
     }
 
     const messageWithContext = await loadUserMessageContext(inputTrimmed);
+    state.skipNextUserMessage = true;
     userEventEmitter.emit("userInput", messageWithContext);
-    state.turn = false;
   }
 
   cli.on("line", async (lineInput) => {
@@ -627,8 +644,9 @@ export function startInteractiveSession({
   });
 
   agentEventEmitter.on("message", (message) => {
-    // Skip user message
-    if (state.turn) {
+    // Skip user input message (echoing back what the user just sent)
+    if (state.skipNextUserMessage) {
+      state.skipNextUserMessage = false;
       return;
     }
     printMessage(message);
