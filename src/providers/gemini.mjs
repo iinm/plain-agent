@@ -204,13 +204,15 @@ export function createCacheEnabledGeminiModelCaller(
 
       /** @type {ProviderTokenUsage} */
       const tokenUsage = {
-        input:
-          content.usageMetadata.promptTokenCount -
-          (content.usageMetadata.cachedContentTokenCount ?? 0),
-        cached: content.usageMetadata.cachedContentTokenCount ?? 0,
-        output: content.usageMetadata.candidatesTokenCount ?? 0,
-        thought: content.usageMetadata.thoughtsTokenCount ?? 0,
-        total: content.usageMetadata.totalTokenCount,
+        promptTokenCount: content.usageMetadata.promptTokenCount,
+        // nonCachedPromptTokenCount:
+        //   content.usageMetadata.promptTokenCount -
+        //   (content.usageMetadata.cachedContentTokenCount ?? 0),
+        cachedContentTokenCount:
+          content.usageMetadata.cachedContentTokenCount ?? 0,
+        candidatesTokenCount: content.usageMetadata.candidatesTokenCount ?? 0,
+        thoughtsTokenCount: content.usageMetadata.thoughtsTokenCount ?? 0,
+        totalTokenCount: content.usageMetadata.totalTokenCount,
       };
 
       const message = convertGeminiAssistantMessageToGenericFormat(content);
