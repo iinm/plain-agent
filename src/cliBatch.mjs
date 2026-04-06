@@ -1,11 +1,14 @@
 /**
- * @import { UserEventEmitter, AgentEventEmitter } from "./agent"
+ * @import { UserEventEmitter, AgentEventEmitter, AgentCommands } from "./agent"
  */
+
+import { formatCostForBatch } from "./cliFormatter.mjs";
 
 /**
  * @typedef {object} BatchSessionOptions
  * @property {UserEventEmitter} userEventEmitter
  * @property {AgentEventEmitter} agentEventEmitter
+ * @property {AgentCommands} agentCommands
  * @property {string} task - Task instruction to execute
  * @property {string} sessionId
  * @property {string} modelName
@@ -23,6 +26,7 @@
 export async function startBatchSession({
   userEventEmitter,
   agentEventEmitter,
+  agentCommands,
   task,
   sessionId,
   modelName,
@@ -35,9 +39,12 @@ export async function startBatchSession({
 
   await new Promise((/** @type {(value?: void) => void} */ resolve) => {
     agentEventEmitter.on("turnEnd", async () => {
+      const costSummary = agentCommands.getCostSummary();
+
       outputEvent({
         type: "session_end",
         timestamp: new Date().toISOString(),
+        cost: formatCostForBatch(costSummary),
       });
       await onStop();
       resolve();

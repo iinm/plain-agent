@@ -8,6 +8,7 @@ import { execFileSync } from "node:child_process";
 import readline from "node:readline";
 import { styleText } from "node:util";
 import {
+  formatCostSummary,
   formatProviderTokenUsage,
   formatToolResult,
   formatToolUse,
@@ -47,6 +48,7 @@ const SLASH_COMMANDS = [
   },
   { name: "/dump", description: "Save current messages to a JSON file" },
   { name: "/load", description: "Load messages from a JSON file" },
+  { name: "/cost", description: "Display session cost and token usage" },
 ];
 
 /**
@@ -448,6 +450,14 @@ export function startInteractiveSession({
 
     if (inputTrimmed.toLowerCase() === "/load") {
       await agentCommands.loadMessages();
+      state.turn = true;
+      cli.prompt();
+      return;
+    }
+
+    if (inputTrimmed.toLowerCase() === "/cost") {
+      const summary = agentCommands.getCostSummary();
+      console.log(formatCostSummary(summary));
       state.turn = true;
       cli.prompt();
       return;

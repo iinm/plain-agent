@@ -140,6 +140,16 @@
           "max_tokens": 32768,
           "thinking": { "type": "enabled", "budget_tokens": 16384 }
         }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "input_tokens": 1.0,
+          "output_tokens": 5.0,
+          "cache_read_input_tokens": 0.1,
+          "cache_creation_input_tokens": 1.25
+        }
       }
     },
     {
@@ -157,6 +167,16 @@
           "max_tokens": 64000,
           "thinking": { "type": "enabled", "budget_tokens": 32768 }
         }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "input_tokens": 1.0,
+          "output_tokens": 5.0,
+          "cache_read_input_tokens": 0.1,
+          "cache_creation_input_tokens": 1.25
+        }
       }
     },
     {
@@ -173,6 +193,16 @@
           "model": "claude-sonnet-4-6",
           "max_tokens": 32768,
           "thinking": { "type": "enabled", "budget_tokens": 16384 }
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "input_tokens": 3,
+          "output_tokens": 15,
+          "cache_read_input_tokens": 0.3,
+          "cache_creation_input_tokens": 3.75
         }
       }
     },
@@ -191,6 +221,16 @@
           "max_tokens": 64000,
           "thinking": { "type": "enabled", "budget_tokens": 32768 }
         }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "input_tokens": 3,
+          "output_tokens": 15,
+          "cache_read_input_tokens": 0.3,
+          "cache_creation_input_tokens": 3.75
+        }
       }
     },
     {
@@ -208,6 +248,16 @@
           "max_tokens": 32768,
           "thinking": { "type": "enabled", "budget_tokens": 16384 }
         }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "input_tokens": 5,
+          "output_tokens": 25,
+          "cache_read_input_tokens": 0.5,
+          "cache_creation_input_tokens": 6.25
+        }
       }
     },
     {
@@ -224,6 +274,16 @@
           "model": "claude-opus-4-6",
           "max_tokens": 64000,
           "thinking": { "type": "enabled", "budget_tokens": 32768 }
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "input_tokens": 5,
+          "output_tokens": 25,
+          "cache_read_input_tokens": 0.5,
+          "cache_creation_input_tokens": 6.25
         }
       }
     },
@@ -242,6 +302,16 @@
           "max_tokens": 32768,
           "thinking": { "type": "enabled", "budget_tokens": 16384 }
         }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "input_tokens": 1.0,
+          "output_tokens": 5.0,
+          "cache_read_input_tokens": 0.1,
+          "cache_creation_input_tokens": 1.25
+        }
       }
     },
     {
@@ -258,6 +328,16 @@
           "max_tokens": 64000,
           "thinking": { "type": "enabled", "budget_tokens": 32768 }
         }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "input_tokens": 1.0,
+          "output_tokens": 5.0,
+          "cache_read_input_tokens": 0.1,
+          "cache_creation_input_tokens": 1.25
+        }
       }
     },
     {
@@ -273,6 +353,16 @@
           "model": "global.anthropic.claude-sonnet-4-6",
           "max_tokens": 32768,
           "thinking": { "type": "enabled", "budget_tokens": 16384 }
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "input_tokens": 3,
+          "output_tokens": 15,
+          "cache_read_input_tokens": 0.3,
+          "cache_creation_input_tokens": 3.75
         }
       }
     },
@@ -290,6 +380,16 @@
           "max_tokens": 64000,
           "thinking": { "type": "enabled", "budget_tokens": 32768 }
         }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "input_tokens": 3,
+          "output_tokens": 15,
+          "cache_read_input_tokens": 0.3,
+          "cache_creation_input_tokens": 3.75
+        }
       }
     },
     {
@@ -306,6 +406,16 @@
           "max_tokens": 32768,
           "thinking": { "type": "enabled", "budget_tokens": 16384 }
         }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "input_tokens": 5,
+          "output_tokens": 25,
+          "cache_read_input_tokens": 0.5,
+          "cache_creation_input_tokens": 6.25
+        }
       }
     },
     {
@@ -321,6 +431,16 @@
           "model": "global.anthropic.claude-opus-4-6-v1",
           "max_tokens": 64000,
           "thinking": { "type": "enabled", "budget_tokens": 32768 }
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "input_tokens": 5,
+          "output_tokens": 25,
+          "cache_read_input_tokens": 0.5,
+          "cache_creation_input_tokens": 6.25
         }
       }
     },
@@ -349,6 +469,15 @@
             }
           }
         }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "promptTokenCount": 0.5,
+          "cachedContentTokenCount": -0.45,
+          "candidatesTokenCount": 3
+        }
       }
     },
     {
@@ -374,6 +503,15 @@
               }
             }
           }
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "promptTokenCount": 0.5,
+          "cachedContentTokenCount": -0.45,
+          "candidatesTokenCount": 3
         }
       }
     },
@@ -453,6 +591,15 @@
             }
           }
         }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "promptTokenCount": 0.5,
+          "cachedContentTokenCount": -0.45,
+          "candidatesTokenCount": 3
+        }
       }
     },
     {
@@ -477,6 +624,15 @@
               }
             }
           }
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "promptTokenCount": 0.5,
+          "cachedContentTokenCount": -0.45,
+          "candidatesTokenCount": 3
         }
       }
     },
@@ -698,6 +854,15 @@
         "format": "openai-messages",
         "config": {
           "model": "zai-org/glm-5-maas"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "prompt_tokens": 1,
+          "completion_tokens": 3.2,
+          "prompt_tokens_details.cached_tokens": -0.9
         }
       }
     },

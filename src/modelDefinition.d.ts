@@ -9,6 +9,7 @@ export type ModelDefinition = {
   variant: string;
   platform: PlatformConfig;
   model: ModelConfig;
+  cost?: CostConfig;
 };
 
 export type PlatformConfig =
@@ -76,3 +77,9 @@ export type ModelConfig =
       format: "bedrock-converse";
       config: BedrockConverseModelConfig;
     };
+
+export type CostConfig = {
+  currency: string;
+  unit: string;
+  costs: Record<string, number>;
+};

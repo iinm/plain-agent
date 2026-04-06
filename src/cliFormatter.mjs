@@ -206,3 +206,70 @@ export function formatProviderTokenUsage(usage) {
 
   return styleText("gray", outputLines.join("\n"));
 }
+
+/**
+ * Format cost summary for interactive display
+ * @param {import("./costTracker.mjs").CostSummary} summary
+ * @returns {string}
+ */
+export function formatCostSummary(summary) {
+  if (!summary || Object.keys(summary.breakdown).length === 0) {
+    return styleText("gray", "No token usage recorded yet.");
+  }
+
+  const lines = [];
+
+  // Header
+  lines.push(styleText("bold", "\nSession Cost Summary\n"));
+
+  // Tokens
+  lines.push(styleText("bold", "Tokens:"));
+
+  for (const [key, { tokens, cost }] of Object.entries(summary.breakdown)) {
+    const tokenStr = `${key}: ${tokens.toLocaleString()}`;
+
+    if (cost !== undefined) {
+      const costStr = `${cost.toFixed(4)} ${summary.currency}`;
+      lines.push(`  ${tokenStr.padEnd(30)} ${styleText("cyan", costStr)}`);
+    } else {
+      lines.push(`  ${tokenStr.padEnd(30)} ${styleText("gray", "N/A")}`);
+    }
+  }
+
+  // Total
+  lines.push("");
+  if (summary.totalCost !== undefined) {
+    lines.push(
+      styleText(
+        "bold",
+        `Total: ${summary.totalCost.toFixed(4)} ${summary.currency}`,
+      ),
+    );
+  } else {
+    lines.push(styleText("yellow", "Total: N/A (no cost configuration)"));
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Format cost for batch mode JSON output
+ * @param {import("./costTracker.mjs").CostSummary} summary
+ */
+export function formatCostForBatch(summary) {
+  if (!summary || Object.keys(summary.breakdown).length === 0) {
+    return undefined;
+  }
+
+  return {
+    total: summary.totalCost,
+    currency: summary.currency,
+    unit: summary.unit,
+    breakdown: Object.fromEntries(
+      Object.entries(summary.breakdown).map(([key, { tokens, cost }]) => [
+        key,
+        { tokens, cost },
+      ]),
+    ),
+  };
+}

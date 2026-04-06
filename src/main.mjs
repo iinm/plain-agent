@@ -223,6 +223,7 @@ if (cliArgs.subcommand.type === "install-claude-code-plugins") {
     tools: [...builtinTools, ...mcpTools],
     toolUseApprover,
     agentRoles,
+    modelCostConfig: modelDef.cost,
   });
 
   const sessionOptions = {

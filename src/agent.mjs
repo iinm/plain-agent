@@ -9,6 +9,7 @@ import { EventEmitter } from "node:events";
 import fs from "node:fs/promises";
 import { createAgentLoop } from "./agentLoop.mjs";
 import { createStateManager } from "./agentState.mjs";
+import { createCostTracker } from "./costTracker.mjs";
 import { MESSAGES_DUMP_FILE_PATH } from "./env.mjs";
 import { createSubagentManager } from "./subagent.mjs";
 import { createToolExecutor } from "./toolExecutor.mjs";
@@ -25,11 +26,18 @@ export function createAgent({
   tools,
   toolUseApprover,
   agentRoles,
+  modelCostConfig,
 }) {
   /** @type {UserEventEmitter} */
   const userEventEmitter = new EventEmitter();
   /** @type {AgentEventEmitter} */
   const agentEventEmitter = new EventEmitter();
+
+  const costTracker = createCostTracker(modelCostConfig);
+
+  agentEventEmitter.on("providerTokenUsage", (usage) => {
+    costTracker.recordUsage(usage);
+  });
 
   const stateManager = createStateManager(
     [
@@ -154,6 +162,7 @@ export function createAgent({
     agentCommands: {
       dumpMessages,
       loadMessages,
+      getCostSummary: () => costTracker.calculateCost(),
     },
   };
 }

@@ -9,6 +9,7 @@ import type {
 } from "./model";
 import type { Tool, ToolUseApprover } from "./tool";
 import type { AgentRole } from "./context/loadAgentRoles.mjs";
+import type { CostSummary, CostConfig } from "./costTracker.mjs";
 
 export type Agent = {
   userEventEmitter: UserEventEmitter;
@@ -19,6 +20,7 @@ export type Agent = {
 export type AgentCommands = {
   dumpMessages: () => Promise<void>;
   loadMessages: () => Promise<void>;
+  getCostSummary: () => CostSummary;
 };
 
 type UserEventMap = {
@@ -45,4 +47,5 @@ export type AgentConfig = {
   tools: Tool[];
   toolUseApprover: ToolUseApprover;
   agentRoles: Map<string, AgentRole>;
+  modelCostConfig?: CostConfig;
 };
