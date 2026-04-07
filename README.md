@@ -172,6 +172,16 @@ Create the configuration.
           "max_tokens": 32768,
           "thinking": { "type": "enabled", "budget_tokens": 16384 }
         }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "input_tokens": 1.1,
+          "output_tokens": 5.5,
+          "cache_read_input_tokens": 0.11,
+          "cache_creation_input_tokens": 1.375
+        }
       }
     },
     {
@@ -187,6 +197,16 @@ Create the configuration.
           "model": "jp.anthropic.claude-sonnet-4-6",
           "max_tokens": 32768,
           "thinking": { "type": "enabled", "budget_tokens": 16384 }
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "input_tokens": 3.3,
+          "output_tokens": 16.5,
+          "cache_read_input_tokens": 0.33,
+          "cache_creation_input_tokens": 4.125
         }
       }
     }
