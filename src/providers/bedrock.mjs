@@ -103,7 +103,7 @@ export async function callBedrockConverseModel(
       method: signed.method,
       headers: signed.headers,
       body: signed.body,
-      signal: AbortSignal.timeout(120 * 1000),
+      signal: AbortSignal.timeout(8 * 60 * 1000),
     });
 
     if (response.status !== 200) {

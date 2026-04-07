@@ -103,7 +103,7 @@ export async function callOpenAICompatibleModel(
           "Content-Type": "application/json",
         },
         body: JSON.stringify(request),
-        signal: AbortSignal.timeout(120 * 1000),
+        signal: AbortSignal.timeout(8 * 60 * 1000),
       });
 
     // bedrock + sso profile
@@ -146,7 +146,7 @@ export async function callOpenAICompatibleModel(
         method: signed.method,
         headers: signed.headers,
         body: signed.body,
-        signal: AbortSignal.timeout(120 * 1000),
+        signal: AbortSignal.timeout(8 * 60 * 1000),
       });
     };
 

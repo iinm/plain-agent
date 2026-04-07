@@ -63,7 +63,7 @@ export async function callOpenAIModel(
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify(request),
-      signal: AbortSignal.timeout(5 * 60 * 1000),
+      signal: AbortSignal.timeout(8 * 60 * 1000),
     });
 
     const retryInterval = Math.min(2 * 2 ** retryCount, 16);
