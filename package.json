@@ -36,18 +36,18 @@
   },
   "dependencies": {
     "@aws-crypto/sha256-js": "^5.2.0",
-    "@aws-sdk/credential-providers": "^3.1001.0",
+    "@aws-sdk/credential-providers": "^3.1024.0",
     "@cfworker/json-schema": "^4.1.1",
     "@modelcontextprotocol/client": "^2.0.0-alpha.2",
-    "@smithy/protocol-http": "^5.3.10",
-    "@smithy/signature-v4": "^5.3.10",
-    "diff": "^8.0.3",
+    "@smithy/protocol-http": "^5.3.12",
+    "@smithy/signature-v4": "^5.3.12",
+    "diff": "^8.0.4",
     "js-yaml": "^4.1.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.5",
+    "@biomejs/biome": "^2.4.10",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^22.19.13",
+    "@types/node": "^22.19.17",
     "typescript": "^5.9.3"
   }
 }
