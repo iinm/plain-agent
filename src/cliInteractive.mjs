@@ -216,12 +216,11 @@ export function startInteractiveSession({
   onStop,
   claudeCodePlugins,
 }) {
-  /** @type {{ turn: boolean, multiLineBuffer: string[] | null, subagentName: string, skipNextUserMessage: boolean }} */
+  /** @type {{ turn: boolean, multiLineBuffer: string[] | null, subagentName: string }} */
   const state = {
     turn: true,
     multiLineBuffer: null,
     subagentName: "",
-    skipNextUserMessage: false,
   };
 
   /**
@@ -239,7 +238,6 @@ export function startInteractiveSession({
     console.log(message);
     console.log(styleText("gray", "</agent>"));
 
-    state.skipNextUserMessage = true;
     userEventEmitter.emit("userInput", [{ type: "text", text: message }]);
   }
 
@@ -269,7 +267,6 @@ export function startInteractiveSession({
     console.log(message);
     console.log(styleText("gray", "</prompt>"));
 
-    state.skipNextUserMessage = true;
     userEventEmitter.emit("userInput", [{ type: "text", text: message }]);
   }
 
@@ -436,7 +433,6 @@ export function startInteractiveSession({
 
       const messageWithContext = await loadUserMessageContext(fileContent);
 
-      state.skipNextUserMessage = true;
       userEventEmitter.emit("userInput", messageWithContext);
       return;
     }
@@ -570,7 +566,6 @@ export function startInteractiveSession({
       console.log(styleText("gray", "</paste>"));
 
       const messageWithContext = await loadUserMessageContext(combinedInput);
-      state.skipNextUserMessage = true;
       userEventEmitter.emit("userInput", messageWithContext);
       return;
     }
@@ -591,7 +586,6 @@ export function startInteractiveSession({
     }
 
     const messageWithContext = await loadUserMessageContext(inputTrimmed);
-    state.skipNextUserMessage = true;
     userEventEmitter.emit("userInput", messageWithContext);
   }
 
@@ -654,11 +648,6 @@ export function startInteractiveSession({
   });
 
   agentEventEmitter.on("message", (message) => {
-    // Skip user input message (echoing back what the user just sent)
-    if (state.skipNextUserMessage) {
-      state.skipNextUserMessage = false;
-      return;
-    }
     printMessage(message);
   });
 
