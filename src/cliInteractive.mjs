@@ -234,10 +234,6 @@ export function startInteractiveSession({
     const name = agent ? id : `custom:${id}`;
     const message = `Delegate to "${name}" agent with goal: ${goal}`;
 
-    console.log(styleText("gray", "\n<agent>"));
-    console.log(message);
-    console.log(styleText("gray", "</agent>"));
-
     userEventEmitter.emit("userInput", [{ type: "text", text: message }]);
   }
 
@@ -262,10 +258,6 @@ export function startInteractiveSession({
     const message = prompt.isSkill
       ? `System: This prompt was invoked as "${invocation}".\nPrompt path: ${prompt.filePath}\n\n${prompt.content}`
       : `System: This prompt was invoked as "${invocation}".\n\n${prompt.content}`;
-
-    console.log(styleText("gray", "\n<prompt>"));
-    console.log(message);
-    console.log(styleText("gray", "</prompt>"));
 
     userEventEmitter.emit("userInput", [{ type: "text", text: message }]);
   }
@@ -427,10 +419,6 @@ export function startInteractiveSession({
         return;
       }
 
-      console.log(styleText("gray", "\n<input>"));
-      console.log(fileContent);
-      console.log(styleText("gray", "</input>"));
-
       const messageWithContext = await loadUserMessageContext(fileContent);
 
       userEventEmitter.emit("userInput", messageWithContext);
@@ -560,10 +548,6 @@ export function startInteractiveSession({
       }
 
       const combinedInput = prompt ? `${prompt}\n\n${clipboard}` : clipboard;
-
-      console.log(styleText("gray", "\n<paste>"));
-      console.log(combinedInput);
-      console.log(styleText("gray", "</paste>"));
 
       const messageWithContext = await loadUserMessageContext(combinedInput);
       userEventEmitter.emit("userInput", messageWithContext);
@@ -740,6 +724,9 @@ function printMessage(message) {
           case "text": {
             console.log(styleText("bold", "\nUser:"));
             console.log(part.text);
+            break;
+          }
+          case "image": {
             break;
           }
           default: {
