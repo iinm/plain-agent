@@ -367,10 +367,16 @@ export function startInteractiveSession({
 
   process.stdin.on("keypress", async (_, key) => {
     if (key.ctrl && key.name === "c") {
+      const summary = agentCommands.getCostSummary();
+      console.log();
+      console.log(formatCostSummary(summary));
       await onStop();
     }
 
     if (key.ctrl && key.name === "d") {
+      const summary = agentCommands.getCostSummary();
+      console.log();
+      console.log(formatCostSummary(summary));
       await onStop();
     }
   });

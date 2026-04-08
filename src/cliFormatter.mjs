@@ -219,12 +219,18 @@ export function formatCostSummary(summary) {
 
   const lines = [];
 
-  // Header
-  lines.push(styleText("bold", "\nSession Cost Summary\n"));
+  if (summary.totalCost !== undefined) {
+    lines.push(
+      styleText(
+        "bold",
+        `\nTotal: ${summary.totalCost.toFixed(4)} ${summary.currency}`,
+      ),
+    );
+  } else {
+    lines.push(styleText("yellow", "Total: N/A (no cost configuration)"));
+  }
 
-  // Tokens
-  lines.push(styleText("bold", "Tokens:"));
-
+  lines.push(styleText("bold", "\nTokens:"));
   for (const [key, { tokens, cost }] of Object.entries(summary.breakdown)) {
     const tokenStr = `${key}: ${tokens.toLocaleString()}`;
 
@@ -234,19 +240,6 @@ export function formatCostSummary(summary) {
     } else {
       lines.push(`  ${tokenStr.padEnd(30)} ${styleText("gray", "N/A")}`);
     }
-  }
-
-  // Total
-  lines.push("");
-  if (summary.totalCost !== undefined) {
-    lines.push(
-      styleText(
-        "bold",
-        `Total: ${summary.totalCost.toFixed(4)} ${summary.currency}`,
-      ),
-    );
-  } else {
-    lines.push(styleText("yellow", "Total: N/A (no cost configuration)"));
   }
 
   return lines.join("\n");
