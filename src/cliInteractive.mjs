@@ -343,6 +343,9 @@ export function startInteractiveSession({
       "> ",
     ].join("\n");
 
+  // Indirect reference for exit handler (assigned after confirmExit is defined)
+  let onExitRequest = () => {};
+
   // Create a transform stream to handle bracketed paste before readline
   let inPasteMode = false;
   let pasteBuffer = "";
@@ -352,15 +355,9 @@ export function startInteractiveSession({
       let data = chunk.toString("utf8");
 
       // Handle Ctrl-C and Ctrl-D
-      if (data.includes("\x03")) {
-        // Ctrl-C: emit SIGINT
-        process.emit("SIGINT");
-        callback();
-        return;
-      }
-      if (data.includes("\x04")) {
-        // Ctrl-D: close readline
-        cli.close();
+      if (data.includes("\x03") || data.includes("\x04")) {
+        // Ctrl-C / Ctrl-D: request exit (handled by confirmExit)
+        onExitRequest();
         callback();
         return;
       }
@@ -536,10 +533,24 @@ export function startInteractiveSession({
     process.exit(0);
   };
 
-  // Handle Ctrl-C (SIGINT)
-  process.on("SIGINT", handleExit);
+  // Double-press exit confirmation
+  let lastExitAttempt = 0;
+  const EXIT_CONFIRM_TIMEOUT = 1500;
 
-  // Handle readline close (Ctrl-D triggers this)
+  const confirmExit = () => {
+    const now = Date.now();
+    if (now - lastExitAttempt < EXIT_CONFIRM_TIMEOUT) {
+      handleExit();
+      return;
+    }
+    lastExitAttempt = now;
+    console.log(styleText("yellow", "\nPress Ctrl-C or Ctrl-D again to exit."));
+  };
+
+  // Wire up exit request handler for Ctrl-C / Ctrl-D
+  onExitRequest = confirmExit;
+
+  // Handle readline close (e.g., stdin closed externally)
   cli.on("close", handleExit);
 
   /**
