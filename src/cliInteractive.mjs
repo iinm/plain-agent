@@ -6,6 +6,7 @@
 
 import { execFileSync } from "node:child_process";
 import readline from "node:readline";
+import { Transform } from "node:stream";
 import { styleText } from "node:util";
 import {
   formatCostSummary,
@@ -189,6 +190,57 @@ const HELP_MESSAGE = [
   .replace(/^ {2}\/.+?(?= - )/gm, (m) => styleText("cyan", m))
   .replace(/^ {2}.+?(?= - )/gm, (m) => styleText("blue", m));
 
+// Bracketed paste mode sequences
+const BRACKETED_PASTE_START = "\x1b[200~";
+const BRACKETED_PASTE_END = "\x1b[201~";
+
+// Store for pasted content
+const pastedContentStore = new Map();
+
+/**
+ * Generate a short hash for paste reference
+ * @param {string} content
+ * @returns {string}
+ */
+function generatePasteHash(content) {
+  let hash = 0;
+  for (let i = 0; i < content.length; i++) {
+    const char = content.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash).toString(16).padStart(6, "0").slice(0, 6);
+}
+
+/**
+ * Resolve paste placeholders and append context tags
+ * @param {string} input
+ * @returns {string}
+ */
+function resolvePastePlaceholders(input) {
+  /** @type {string[]} */
+  const contexts = [];
+
+  // Collect paste content for context tags while keeping placeholders
+  const text = input.replace(/\[pasted#([a-f0-9]{6})\]/g, (match, hash) => {
+    const content = pastedContentStore.get(hash);
+    if (content !== undefined) {
+      pastedContentStore.delete(hash); // Clean up after use
+      contexts.push(
+        `<context location="pasted#${hash}">\n${content}\n</context>`,
+      );
+    }
+    return match; // Keep placeholder in text
+  });
+
+  // Append contexts to the end of input
+  if (contexts.length > 0) {
+    return [text, ...contexts].join("\n\n");
+  }
+
+  return text;
+}
+
 /**
  * @typedef {object} CliOptions
  * @property {UserEventEmitter} userEventEmitter
@@ -232,9 +284,16 @@ export function startInteractiveSession({
     const agentRoles = await loadAgentRoles(claudeCodePlugins);
     const agent = agentRoles.get(id);
     const name = agent ? id : `custom:${id}`;
-    const message = `Delegate to "${name}" agent with goal: ${goal}`;
 
-    userEventEmitter.emit("userInput", [{ type: "text", text: message }]);
+    const [goalTextContent, ...goalImages] = await loadUserMessageContext(goal);
+    const goalText =
+      goalTextContent?.type === "text" ? goalTextContent.text : goal;
+
+    const messageText = `Delegate to "${name}" agent with goal: ${goalText}`;
+    userEventEmitter.emit("userInput", [
+      { type: "text", text: messageText },
+      ...goalImages,
+    ]);
   }
 
   /**
@@ -254,12 +313,21 @@ export function startInteractiveSession({
       return;
     }
 
-    const invocation = `${displayInvocation}${args ? ` ${args}` : ""}`;
+    const [argsTextContent, ...argsImages] = args
+      ? await loadUserMessageContext(args)
+      : [];
+    const argsText =
+      argsTextContent?.type === "text" ? argsTextContent.text : args;
+
+    const invocation = `${displayInvocation}${argsText ? ` ${argsText}` : ""}`;
     const message = prompt.isSkill
       ? `System: This prompt was invoked as "${invocation}".\nPrompt path: ${prompt.filePath}\n\n${prompt.content}`
       : `System: This prompt was invoked as "${invocation}".\n\n${prompt.content}`;
 
-    userEventEmitter.emit("userInput", [{ type: "text", text: message }]);
+    userEventEmitter.emit("userInput", [
+      { type: "text", text: message },
+      ...argsImages,
+    ]);
   }
 
   const getCliPrompt = (subagentName = "") =>
@@ -275,9 +343,92 @@ export function startInteractiveSession({
       "> ",
     ].join("\n");
 
+  // Create a transform stream to handle bracketed paste before readline
+  let inPasteMode = false;
+  let pasteBuffer = "";
+
+  const pasteTransform = new Transform({
+    transform(chunk, _encoding, callback) {
+      let data = chunk.toString("utf8");
+
+      // Handle Ctrl-C and Ctrl-D
+      if (data.includes("\x03")) {
+        // Ctrl-C: emit SIGINT
+        process.emit("SIGINT");
+        callback();
+        return;
+      }
+      if (data.includes("\x04")) {
+        // Ctrl-D: close readline
+        cli.close();
+        callback();
+        return;
+      }
+
+      while (data.length > 0) {
+        if (inPasteMode) {
+          const endIdx = data.indexOf(BRACKETED_PASTE_END);
+          if (endIdx !== -1) {
+            // End of paste
+            pasteBuffer += data.slice(0, endIdx);
+            data = data.slice(endIdx + BRACKETED_PASTE_END.length);
+            inPasteMode = false;
+
+            // Handle paste content
+            if (pasteBuffer) {
+              // Remove trailing newline for single-line paste detection
+              const trimmedPaste = pasteBuffer.replace(/\n$/, "");
+
+              // For single-line paste, insert directly without placeholder
+              if (!trimmedPaste.includes("\n")) {
+                this.push(trimmedPaste);
+              } else {
+                // For multi-line paste, use placeholder
+                const hash = generatePasteHash(pasteBuffer);
+                pastedContentStore.set(hash, pasteBuffer);
+                this.push(`[pasted#${hash}] `);
+              }
+            }
+            pasteBuffer = "";
+          } else {
+            // Still in paste mode
+            pasteBuffer += data;
+            data = "";
+          }
+        } else {
+          const startIdx = data.indexOf(BRACKETED_PASTE_START);
+          if (startIdx !== -1) {
+            // Start of paste
+            // Output any data before the paste
+            if (startIdx > 0) {
+              this.push(data.slice(0, startIdx));
+            }
+            data = data.slice(startIdx + BRACKETED_PASTE_START.length);
+            inPasteMode = true;
+            pasteBuffer = "";
+          } else {
+            // Normal data
+            this.push(data);
+            data = "";
+          }
+        }
+      }
+
+      callback();
+    },
+  });
+
+  // Set up transformed stdin for readline
+  process.stdin.pipe(pasteTransform);
+
+  // Enable bracketed paste mode
+  if (process.stdout.isTTY) {
+    process.stdout.write("\x1b[?2004h");
+  }
+
   let currentCliPrompt = getCliPrompt();
   const cli = readline.createInterface({
-    input: process.stdin,
+    input: pasteTransform,
     output: process.stdout,
     prompt: currentCliPrompt,
     /**
@@ -364,22 +515,32 @@ export function startInteractiveSession({
   if (process.stdin.isTTY) {
     process.stdin.setRawMode(true);
   }
-
-  process.stdin.on("keypress", async (_, key) => {
-    if (key.ctrl && key.name === "c") {
-      const summary = agentCommands.getCostSummary();
-      console.log();
-      console.log(formatCostSummary(summary));
-      await onStop();
+  // Cleanup handler to disable bracketed paste mode on exit
+  const cleanup = () => {
+    if (process.stdout.isTTY) {
+      process.stdout.write("\x1b[?2004l");
     }
+  };
 
-    if (key.ctrl && key.name === "d") {
-      const summary = agentCommands.getCostSummary();
-      console.log();
-      console.log(formatCostSummary(summary));
-      await onStop();
-    }
-  });
+  // Handle exit signals
+  let isExiting = false;
+  const handleExit = async () => {
+    if (isExiting) return;
+    isExiting = true;
+
+    cleanup();
+    const summary = agentCommands.getCostSummary();
+    console.log();
+    console.log(formatCostSummary(summary));
+    await onStop();
+    process.exit(0);
+  };
+
+  // Handle Ctrl-C (SIGINT)
+  process.on("SIGINT", handleExit);
+
+  // Handle readline close (Ctrl-D triggers this)
+  cli.on("close", handleExit);
 
   /**
    * Process the complete user input.
@@ -390,7 +551,9 @@ export function startInteractiveSession({
     // Prevent concurrent input processing from multi-line paste
     state.turn = false;
 
-    const inputTrimmed = input.trim();
+    // Resolve paste placeholders to original content
+    const resolvedInput = resolvePastePlaceholders(input);
+    const inputTrimmed = resolvedInput.trim();
 
     if (inputTrimmed.length === 0) {
       state.turn = true;
@@ -495,7 +658,7 @@ export function startInteractiveSession({
       }
 
       if (inputTrimmed.startsWith("/prompts:")) {
-        const match = inputTrimmed.match(/^\/prompts:([^ ]+)(?:\s+(.*))?$/);
+        const match = inputTrimmed.match(/^\/prompts:([^ ]+)(?:\s+(.*))?$/s);
         if (!match) {
           console.log(styleText("red", "\nInvalid prompt invocation format."));
           state.turn = true;
@@ -508,7 +671,7 @@ export function startInteractiveSession({
     }
 
     if (inputTrimmed.startsWith("/agents:")) {
-      const match = inputTrimmed.match(/^\/agents:([^ ]+)(?:\s+(.*))?$/);
+      const match = inputTrimmed.match(/^\/agents:([^ ]+)(?:\s+(.*))?$/s);
       if (!match) {
         console.log(styleText("red", "\nInvalid agent invocation format."));
         state.turn = true;
@@ -590,7 +753,7 @@ export function startInteractiveSession({
       return;
     }
 
-    // Handle multi-line delimiter
+    // Check for multi-line delimiter
     if (lineInput.trim() === '"""') {
       if (state.multiLineBuffer === null) {
         state.multiLineBuffer = [];
@@ -687,6 +850,10 @@ export function startInteractiveSession({
   });
 
   cli.prompt();
+
+  // Register cleanup handlers
+  process.on("exit", cleanup);
+  process.on("SIGTERM", cleanup);
 }
 
 /**
