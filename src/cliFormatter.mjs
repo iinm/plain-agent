@@ -1,5 +1,5 @@
 /**
- * @import { MessageContentToolUse, MessageContentToolResult, ProviderTokenUsage } from "./model"
+ * @import { Message, MessageContentToolUse, MessageContentToolResult, ProviderTokenUsage } from "./model"
  * @import { ExecCommandInput } from "./tools/execCommand"
  * @import { PatchFileInput } from "./tools/patchFile"
  * @import { WriteFileInput } from "./tools/writeFile"
@@ -265,4 +265,66 @@ export function formatCostForBatch(summary) {
       ]),
     ),
   };
+}
+
+/**
+ * Print a message to the console.
+ * @param {Message} message
+ */
+export function printMessage(message) {
+  switch (message.role) {
+    case "assistant": {
+      // console.log(styleText("bold", "\nAgent:"));
+      for (const part of message.content) {
+        switch (part.type) {
+          // Note: Streamで表示するためここでは表示しない
+          // case "thinking":
+          //   console.log(
+          //     [
+          //       styleText("blue", "<thinking>"),
+          //       part.thinking,
+          //       styleText("blue", "</thinking>\n"),
+          //     ].join("\n"),
+          //   );
+          //   break;
+          // case "text":
+          //   console.log(part.text);
+          //   break;
+          case "tool_use":
+            console.log(styleText("bold", "\nTool call:"));
+            console.log(formatToolUse(part));
+            break;
+        }
+      }
+      break;
+    }
+    case "user": {
+      for (const part of message.content) {
+        switch (part.type) {
+          case "tool_result": {
+            console.log(styleText("bold", "\nTool result:"));
+            console.log(formatToolResult(part));
+            break;
+          }
+          case "text": {
+            console.log(styleText("bold", "\nUser:"));
+            console.log(part.text);
+            break;
+          }
+          case "image": {
+            break;
+          }
+          default: {
+            console.log(styleText("bold", "\nUnknown Message Format:"));
+            console.log(JSON.stringify(part, null, 2));
+          }
+        }
+      }
+      break;
+    }
+    default: {
+      console.log(styleText("bold", "\nUnknown Message Format:"));
+      console.log(JSON.stringify(message, null, 2));
+    }
+  }
 }
