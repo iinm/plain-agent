@@ -745,7 +745,7 @@
         "unit": "1M",
         "costs": {
           "input_tokens": 0.75,
-          "cached_tokens": -0.675,
+          "input_tokens_details.cached_tokens": -0.675,
           "output_tokens": 4.5
         }
       }
@@ -772,7 +772,7 @@
         "unit": "1M",
         "costs": {
           "input_tokens": 0.75,
-          "cached_tokens": -0.675,
+          "input_tokens_details.cached_tokens": -0.675,
           "output_tokens": 4.5
         }
       }
@@ -799,7 +799,7 @@
         "unit": "1M",
         "costs": {
           "input_tokens": 0.75,
-          "cached_tokens": -0.675,
+          "input_tokens_details.cached_tokens": -0.675,
           "output_tokens": 4.5
         }
       }
@@ -826,7 +826,7 @@
         "unit": "1M",
         "costs": {
           "input_tokens": 2.5,
-          "cached_tokens": -2.25,
+          "input_tokens_details.cached_tokens": -2.25,
           "output_tokens": 15
         }
       }
@@ -853,7 +853,7 @@
         "unit": "1M",
         "costs": {
           "input_tokens": 2.5,
-          "cached_tokens": -2.25,
+          "input_tokens_details.cached_tokens": -2.25,
           "output_tokens": 15
         }
       }
@@ -880,7 +880,7 @@
         "unit": "1M",
         "costs": {
           "input_tokens": 2.5,
-          "cached_tokens": -2.25,
+          "input_tokens_details.cached_tokens": -2.25,
           "output_tokens": 15
         }
       }
