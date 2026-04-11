@@ -7,7 +7,12 @@
  */
 
 import { styleText } from "node:util";
-import { consumeInterruptMessage } from "./context/consumeInterruptMessage.mjs";
+
+/**
+ * @typedef {Object} PauseSignal
+ * @property {() => boolean} isPaused - Returns true if auto-approve should be paused
+ * @property {() => void} reset - Resets the paused state
+ */
 
 /**
  * @typedef {Object} AgentLoopConfig
@@ -18,6 +23,7 @@ import { consumeInterruptMessage } from "./context/consumeInterruptMessage.mjs";
  * @property {AgentEventEmitter} agentEventEmitter - Event emitter for agent events
  * @property {ToolUseApprover} toolUseApprover - Tool use approval checker
  * @property {SubagentManager} subagentManager - Subagent manager instance
+ * @property {PauseSignal} pauseSignal - Signal to pause auto-approve after current tool completes
  */
 
 /**
@@ -36,6 +42,7 @@ export function createAgentLoop({
   agentEventEmitter,
   toolUseApprover,
   subagentManager,
+  pauseSignal,
 }) {
   const inputHandler = createInputHandler({
     stateManager,
@@ -198,14 +205,10 @@ export function createAgentLoop({
         stateManager.appendMessages([{ role: "user", content: toolResults }]);
       }
 
-      const interruptMessage = await consumeInterruptMessage();
-      if (interruptMessage) {
-        stateManager.appendMessages([
-          {
-            role: "user",
-            content: [{ type: "text", text: interruptMessage }],
-          },
-        ]);
+      // Check if auto-approve was paused by Ctrl-C during tool execution
+      if (pauseSignal.isPaused()) {
+        pauseSignal.reset();
+        break;
       }
     }
   }

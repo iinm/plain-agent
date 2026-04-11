@@ -16,7 +16,6 @@ import {
   createPasteTransform,
   resolvePastePlaceholders,
 } from "./cliPasteTransform.mjs";
-import { consumeInterruptMessage } from "./context/consumeInterruptMessage.mjs";
 import { notify } from "./utils/notify.mjs";
 
 const HELP_MESSAGE = [
@@ -121,7 +120,19 @@ export function startInteractiveSession({
   let lastExitAttempt = 0;
   const EXIT_CONFIRM_TIMEOUT = 1500;
 
-  const confirmExit = () => {
+  const handleCtrlC = () => {
+    // If agent is running, pause auto-approve instead of exiting
+    if (!state.turn) {
+      agentCommands.pauseAutoApprove();
+      console.log(
+        styleText(
+          "yellow",
+          "\n⚠ Ctrl-C: Auto-approve paused. Finishing current tool...",
+        ),
+      );
+      return;
+    }
+
     const now = Date.now();
     if (now - lastExitAttempt < EXIT_CONFIRM_TIMEOUT) {
       handleExit();
@@ -132,7 +143,7 @@ export function startInteractiveSession({
   };
 
   // Create a transform stream to handle bracketed paste before readline
-  const pasteTransform = createPasteTransform(confirmExit);
+  const pasteTransform = createPasteTransform(handleCtrlC);
 
   // Set up transformed stdin for readline
   process.stdin.pipe(pasteTransform);
@@ -198,7 +209,6 @@ export function startInteractiveSession({
     }
 
     cli.setPrompt(currentCliPrompt);
-    await consumeInterruptMessage();
 
     const result = await handleCommand(inputTrimmed);
     if (result === "prompt") {

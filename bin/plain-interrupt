@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-
-set -eu -o pipefail
-
-mkdir -p .plain-agent
-echo -e "$@" >> .plain-agent/interrupt-message.txt

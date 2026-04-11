@@ -53,10 +53,10 @@ export function resolvePastePlaceholders(input) {
 
 /**
  * Create a Transform stream to handle bracketed paste before readline.
- * @param {() => void} onExitRequest - Called when Ctrl-C or Ctrl-D is detected
+ * @param {() => void} onCtrlC - Called when Ctrl-C or Ctrl-D is detected
  * @returns {Transform}
  */
-export function createPasteTransform(onExitRequest) {
+export function createPasteTransform(onCtrlC) {
   let inPasteMode = false;
   let pasteBuffer = "";
 
@@ -67,8 +67,7 @@ export function createPasteTransform(onExitRequest) {
 
       // Handle Ctrl-C and Ctrl-D
       if (data.includes("\x03") || data.includes("\x04")) {
-        // Ctrl-C / Ctrl-D: request exit (handled by confirmExit)
-        onExitRequest();
+        onCtrlC();
         callback();
         return;
       }

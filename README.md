@@ -249,11 +249,9 @@ Display the help message.
 /help
 ```
 
-Interrupt the agent while it's running by providing additional instructions:
+Interrupt the agent while it's running:
 
-```sh
-plain-interrupt Stop and report the progress
-```
+Press **Ctrl-C** to pause auto-approve. The agent will finish the current tool call, then return to the prompt.
 
 ## Available Tools
 
@@ -281,7 +279,6 @@ The agent can use the following tools to assist with tasks:
   \__ .plain-agent/
         \__ config.json            # Project-specific configuration
         \__ config.local.json      # Project-specific local configuration (including secrets)
-        \__ interrupt-message.txt  # Interrupt message consumed by the agent
         \__ memory/                # Task-specific memory files
         \__ prompts/               # Project-specific prompts
         \__ agents/                # Project-specific agent roles

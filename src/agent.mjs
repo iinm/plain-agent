@@ -144,6 +144,16 @@ export function createAgent({
     }
   }
 
+  // Pause signal: set by Ctrl-C during agent execution, checked after each tool batch completes
+  let paused = false;
+  /** @type {import("./agentLoop.mjs").PauseSignal} */
+  const pauseSignal = {
+    isPaused: () => paused,
+    reset: () => {
+      paused = false;
+    },
+  };
+
   const agentLoop = createAgentLoop({
     callModel,
     stateManager,
@@ -152,6 +162,7 @@ export function createAgent({
     agentEventEmitter,
     toolUseApprover,
     subagentManager,
+    pauseSignal,
   });
 
   userEventEmitter.on("userInput", agentLoop.handleUserInput);
@@ -163,6 +174,9 @@ export function createAgent({
       dumpMessages,
       loadMessages,
       getCostSummary: () => costTracker.calculateCost(),
+      pauseAutoApprove: () => {
+        paused = true;
+      },
     },
   };
 }

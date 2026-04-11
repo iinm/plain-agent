@@ -21,6 +21,7 @@ export type AgentCommands = {
   dumpMessages: () => Promise<void>;
   loadMessages: () => Promise<void>;
   getCostSummary: () => CostSummary;
+  pauseAutoApprove: () => void;
 };
 
 type UserEventMap = {
