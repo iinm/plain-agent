@@ -92,7 +92,7 @@ export function createSubagentManager(agentRoles, handlers) {
         `✓ Delegation successful. You are now the subagent "${actualName}".`,
         `Your goal: ${goal}`,
         `Role: ${actualName}\n---\n${roleContent}\n---`,
-        `Memory file path format: ${AGENT_PROJECT_METADATA_DIR}/memory/<session-id>--${actualName}--<kebab-case-title>.md (Replace <kebab-case-title> to match the parent task)`,
+        `Memory file path format: ${AGENT_PROJECT_METADATA_DIR}/memory/<session-id>--${actualName}--<kebab-case-title>.md (Replace <kebab-case-title> with a short title describing your own goal)`,
         `Start working on this goal now. When finished, call "report_as_subagent" with the memory file path.`,
       ].join("\n\n"),
     };
