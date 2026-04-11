@@ -200,8 +200,8 @@ export function createCompleter(getCliRef, claudeCodePlugins) {
               const name = typeof cmd === "string" ? cmd : cmd.name;
               return (
                 name !== "/<id>" &&
-                (name === "/agents:" || !name.startsWith("/agent:")) &&
-                (name === "/prompts:" || !name.startsWith("/prompt:"))
+                (name === "/agents:" || !name.startsWith("/agents:")) &&
+                (name === "/prompts:" || !name.startsWith("/prompts:"))
               );
             },
           );
