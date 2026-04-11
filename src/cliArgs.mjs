@@ -125,10 +125,12 @@ Usage: plain [options]
 Options:
   -m, --model <model+variant>  Model to use
   -h, --help                   Show this help message
-  -c, --config <file>          Config file to load
+  -c, --config <file>          Config file to load (repeatable)
 
 Subcommands:
-  batch <task>                 Run in batch mode with the given task instruction
+  batch <task>                 Run in batch mode with the given task instruction.
+                               Config files are NOT auto-loaded in batch mode;
+                               use -c to specify config files explicitly.
   list-models                  List available models
   install-claude-code-plugins  Install Claude Code plugins
 
@@ -137,9 +139,7 @@ Examples:
   plain batch \\
         -c ~/.config/plain-agent/config.local.json \\
         -c .plain-agent/config.json \\
-        "Add tests for src/main.mjs"
-  plain list-models
-  plain install-claude-code-plugins
+        "Add tests for ..."
 `);
   process.exit(exitCode);
 }

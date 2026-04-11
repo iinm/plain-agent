@@ -238,9 +238,10 @@ Run in batch mode (non-interactive).
 In batch mode, config files are not loaded automatically. Only the files specified with `--config` are loaded.
 
 ```sh
-plain batch "Add tests for src/main.mjs" \
-      --config ~/.config/plain-agent/config.local.json \
-      --config .plain-agent/config.json
+plain batch \
+      -c ~/.config/plain-agent/config.local.json \
+      -c .plain-agent/config.json \
+      "Add tests for ..."
 ```
 
 Display the help message.
