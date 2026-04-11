@@ -1,9 +1,3 @@
-export const CLAUDE_CODE_COMPATIBILITY_NOTES = `# Claude Code Compatibility Notes
-
-When using a Claude Code-compatible command, agent, or skill, follow these rules:
-- Subagents cannot run in parallel. Delegate to them one at a time.
-- If a Claude Code prompt mentions CLAUDE.md for project rules or conventions, use AGENTS.md instead when CLAUDE.md is absent.`;
-
 /**
  * @typedef {object} PromptConfig
  * @property {string} username
@@ -118,8 +112,6 @@ If skill matches task: read full file and apply the workflow
 
 ${skillDescriptions}
 
-${CLAUDE_CODE_COMPATIBILITY_NOTES}
-
 # Environment
 
 - User name: ${username}
@@ -134,3 +126,10 @@ ${agentRoleDescriptions}
 - custom:<role-name>: Use this for ad-hoc roles not listed above (e.g., custom:explore, custom:plan).
 `.trim();
 }
+
+export const CLAUDE_CODE_COMPATIBILITY_NOTES = `# Environment Constraints
+
+- Use memory file to manage todo list.
+- Subagents cannot run in parallel. Delegate to them one at a time.
+- Use AGENTS.md instead when CLAUDE.md is absent.
+- If instructed to use "haiku agent", "sonnet agent", or "opus agent", use "worker" instead.`;

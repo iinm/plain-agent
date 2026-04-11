@@ -86,7 +86,7 @@ export function createCommandHandler({
 
     const invocation = `${displayInvocation}${argsText ? ` ${argsText}` : ""}`;
     const promptContent = prompt.claudeOriginated
-      ? `${CLAUDE_CODE_COMPATIBILITY_NOTES}\n\n${prompt.content}`
+      ? `${prompt.content}\n\n---\n\n${CLAUDE_CODE_COMPATIBILITY_NOTES}`
       : prompt.content;
     const message = prompt.isSkill
       ? `System: This prompt was invoked as "${invocation}".\nPrompt path: ${prompt.filePath}\n\n${promptContent}`

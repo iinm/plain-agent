@@ -75,7 +75,7 @@ export function createSubagentManager(agentRoles, handlers) {
         };
       }
       roleContent = role.claudeOriginated
-        ? `${CLAUDE_CODE_COMPATIBILITY_NOTES}\n\n${role.content}`
+        ? `${role.content}\n\n---\n\n${CLAUDE_CODE_COMPATIBILITY_NOTES}`
         : role.content;
     }
 
