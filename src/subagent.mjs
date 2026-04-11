@@ -25,6 +25,7 @@ import { reportAsSubagentToolName } from "./tools/reportAsSubagent.mjs";
 export function createSubagentManager(agentRoles, handlers) {
   /** @type {{name: string; goal: string; delegationMessageIndex: number}[]} */
   const subagents = [];
+  let subagentCount = 0;
 
   /**
    * @typedef {DelegateSuccess | DelegateFailure} DelegateResult
@@ -79,6 +80,9 @@ export function createSubagentManager(agentRoles, handlers) {
         : role.content;
     }
 
+    subagentCount++;
+    const sequenceNumber = String(subagentCount).padStart(2, "0");
+
     subagents.push({
       name: actualName,
       goal,
@@ -92,7 +96,7 @@ export function createSubagentManager(agentRoles, handlers) {
         `✓ Delegation successful. You are now the subagent "${actualName}".`,
         `Your goal: ${goal}`,
         `Role: ${actualName}\n---\n${roleContent}\n---`,
-        `Memory file path format: ${AGENT_PROJECT_METADATA_DIR}/memory/<session-id>--${actualName}--<kebab-case-title>.md (Replace <kebab-case-title> with a short title describing your own goal)`,
+        `Memory file path format: ${AGENT_PROJECT_METADATA_DIR}/memory/<session-id>--${sequenceNumber}--${actualName}--<kebab-case-title>.md (Replace <kebab-case-title> with a short title describing your own goal)`,
         `Start working on this goal now. When finished, call "report_as_subagent" with the memory file path.`,
       ].join("\n\n"),
     };
