@@ -7,6 +7,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { AGENT_PROJECT_METADATA_DIR } from "./env.mjs";
+import { CLAUDE_CODE_COMPATIBILITY_NOTES } from "./prompt.mjs";
 import { reportAsSubagentToolName } from "./tools/reportAsSubagent.mjs";
 
 /** @typedef {ReturnType<typeof createSubagentManager>} SubagentManager */
@@ -73,7 +74,9 @@ export function createSubagentManager(agentRoles, handlers) {
           error: `Agent role "${name}" not found. Available agent roles:\n${availableRoles}\n\nTo use an ad-hoc role, prefix the name with "custom:" (e.g., "custom:researcher").`,
         };
       }
-      roleContent = role.content;
+      roleContent = role.claudeOriginated
+        ? `${CLAUDE_CODE_COMPATIBILITY_NOTES}\n\n${role.content}`
+        : role.content;
     }
 
     subagents.push({

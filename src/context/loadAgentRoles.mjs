@@ -17,6 +17,7 @@ import {
  * @property {string} description
  * @property {string} content
  * @property {string} filePath
+ * @property {boolean} claudeOriginated
  * @property {string} [import]
  */
 
@@ -224,6 +225,7 @@ async function getMarkdownFiles(dir, baseDir = dir) {
 function parseAgentRole(relativePath, fileContent, fullPath, idPrefix = "") {
   const rawId = relativePath.replace(/\.md$/, "");
   const id = idPrefix + rawId;
+  const claudeOriginated = idPrefix.startsWith("claude");
 
   // Match YAML frontmatter
   const match = fileContent.match(
@@ -236,6 +238,7 @@ function parseAgentRole(relativePath, fileContent, fullPath, idPrefix = "") {
       description: "",
       content: fileContent.trim(),
       filePath: fullPath,
+      claudeOriginated,
     };
   }
 
@@ -251,6 +254,7 @@ function parseAgentRole(relativePath, fileContent, fullPath, idPrefix = "") {
       description: parseFrontmatterField(match[1], "description") ?? "",
       content: fileContent.trim(),
       filePath: fullPath,
+      claudeOriginated,
     };
   }
   const content = match[2].trim();
@@ -260,6 +264,7 @@ function parseAgentRole(relativePath, fileContent, fullPath, idPrefix = "") {
     description: frontmatter.description ?? "",
     content,
     filePath: fullPath,
+    claudeOriginated,
     import: frontmatter.import,
   };
 }

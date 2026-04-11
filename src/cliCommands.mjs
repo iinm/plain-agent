@@ -9,6 +9,7 @@ import { formatCostSummary } from "./cliFormatter.mjs";
 import { loadAgentRoles } from "./context/loadAgentRoles.mjs";
 import { loadPrompts } from "./context/loadPrompts.mjs";
 import { loadUserMessageContext } from "./context/loadUserMessageContext.mjs";
+import { CLAUDE_CODE_COMPATIBILITY_NOTES } from "./prompt.mjs";
 import { parseFileRange } from "./utils/parseFileRange.mjs";
 import { readFileRange } from "./utils/readFileRange.mjs";
 
@@ -84,9 +85,12 @@ export function createCommandHandler({
       argsTextContent?.type === "text" ? argsTextContent.text : args;
 
     const invocation = `${displayInvocation}${argsText ? ` ${argsText}` : ""}`;
+    const promptContent = prompt.claudeOriginated
+      ? `${CLAUDE_CODE_COMPATIBILITY_NOTES}\n\n${prompt.content}`
+      : prompt.content;
     const message = prompt.isSkill
-      ? `System: This prompt was invoked as "${invocation}".\nPrompt path: ${prompt.filePath}\n\n${prompt.content}`
-      : `System: This prompt was invoked as "${invocation}".\n\n${prompt.content}`;
+      ? `System: This prompt was invoked as "${invocation}".\nPrompt path: ${prompt.filePath}\n\n${promptContent}`
+      : `System: This prompt was invoked as "${invocation}".\n\n${promptContent}`;
 
     userEventEmitter.emit("userInput", [
       { type: "text", text: message },

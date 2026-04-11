@@ -18,6 +18,7 @@ import {
  * @property {string} description
  * @property {string} content
  * @property {string} filePath
+ * @property {boolean} claudeOriginated
  * @property {string} [import]
  * @property {boolean} [userInvocable]
  * @property {boolean} [isShortcut]
@@ -252,6 +253,7 @@ function parsePrompt(relativePath, fileContent, fullPath, idPrefix = "") {
   const id = isShortcut
     ? idPrefix + rawId.replace(/^shortcuts\//, "")
     : idPrefix + rawId;
+  const claudeOriginated = idPrefix.startsWith("claude");
 
   // Match YAML frontmatter
   const match = fileContent.match(
@@ -264,6 +266,7 @@ function parsePrompt(relativePath, fileContent, fullPath, idPrefix = "") {
       description: "",
       content: fileContent.trim(),
       filePath: fullPath,
+      claudeOriginated,
       isShortcut,
       isSkill,
     };
@@ -284,6 +287,7 @@ function parsePrompt(relativePath, fileContent, fullPath, idPrefix = "") {
       description: parseFrontmatterField(match[1], "description") ?? "",
       content,
       filePath: fullPath,
+      claudeOriginated,
       import: parseFrontmatterField(match[1], "import"),
       userInvocable:
         parseFrontmatterField(match[1], "user-invocable") === "true" ||
@@ -299,6 +303,7 @@ function parsePrompt(relativePath, fileContent, fullPath, idPrefix = "") {
     description: frontmatter.description ?? "",
     content,
     filePath: fullPath,
+    claudeOriginated,
     import: frontmatter.import,
     userInvocable: userInvocable ?? undefined,
     isShortcut,
