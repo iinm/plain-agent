@@ -14,7 +14,7 @@ A lightweight CLI-based coding agent.
 
 ## Safety Controls
 
-**Auto-Approval**: Tools with no side effects and no sensitive data access are automatically approved based on patterns defined in [`config.predefined.json#autoApproval`](https://github.com/iinm/plain-agent/blob/main/.config/config.predefined.json).
+**Auto-Approval**: Tools with no side effects and no sensitive data access are automatically approved based on patterns defined in [`config.predefined.json#autoApproval`](https://github.com/iinm/plain-agent/blob/main/config/config.predefined.json).
 
 **Path Validation**: All file paths in tool inputs are validated to remain within the working directory and under git control.
 
@@ -144,11 +144,6 @@ Create the configuration.
       "name": "openai-compatible",
       "variant": "huggingface",
       "baseURL": "https://router.huggingface.co",
-      "apiKey": "FIXME"
-    },
-    {
-      "name": "openai-compatible",
-      "variant": "xai",
       "apiKey": "FIXME"
     },
     {

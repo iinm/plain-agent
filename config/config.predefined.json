@@ -1038,6 +1038,29 @@
         }
       }
     },
+    {
+      "name": "kimi-k2.5",
+      "variant": "fireworks",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "fireworks"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "accounts/fireworks/models/kimi-k2p5"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "prompt_tokens": 0.6,
+          "prompt_tokens_details.cached_tokens": -0.5,
+          "completion_tokens": 3
+        }
+      }
+    },
 
     {
       "name": "deepseek-v3.2",
@@ -1069,7 +1092,29 @@
         }
       }
     },
-
+    {
+      "name": "deepseek-v3.2",
+      "variant": "fireworks",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "fireworks"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "accounts/fireworks/models/deepseek-v3p2"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "prompt_tokens": 0.56,
+          "prompt_tokens_details.cached_tokens": -0.28,
+          "completion_tokens": 1.68
+        }
+      }
+    },
     {
       "name": "minimax-m2.1",
       "variant": "bedrock",
@@ -1085,6 +1130,30 @@
         }
       }
     },
+    {
+      "name": "minimax-m2.5",
+      "variant": "fireworks",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "fireworks"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "accounts/fireworks/models/minimax-m2p5"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "prompt_tokens": 0.3,
+          "prompt_tokens_details.cached_tokens": -0.27,
+          "completion_tokens": 1.2
+        }
+      }
+    },
+
     {
       "name": "minimax-m2.7",
       "variant": "ollama",
