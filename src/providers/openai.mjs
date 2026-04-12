@@ -41,6 +41,7 @@ export async function callOpenAIModel(
     const apiKey = await (async () => {
       switch (platformConfig.name) {
         case "openai":
+        case "openai-compatible":
           return platformConfig.apiKey;
         case "azure":
           return getAzureAccessToken(
