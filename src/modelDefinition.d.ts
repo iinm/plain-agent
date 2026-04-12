@@ -35,6 +35,13 @@ export type PlatformConfig =
       apiKey: string;
     }
   | {
+      name: "openai-compatible";
+      variant: string;
+      baseURL: string;
+      customHeaders?: Record<string, string>;
+      apiKey: string;
+    }
+  | {
       name: "azure";
       variant: string;
       baseURL: string;

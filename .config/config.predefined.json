@@ -891,7 +891,7 @@
       "variant": "thinking-medium-azure",
       "platform": {
         "name": "azure",
-        "variant": "default"
+        "variant": "openai"
       },
       "model": {
         "format": "openai-responses",
@@ -972,10 +972,33 @@
       }
     },
     {
-      "name": "glm-5",
+      "name": "glm-5.1",
+      "variant": "fireworks",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "fireworks"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "accounts/fireworks/models/glm-5p1"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "prompt_tokens": 1.4,
+          "prompt_tokens_details.cached_tokens": -1.14,
+          "completion_tokens": 4.4
+        }
+      }
+    },
+    {
+      "name": "glm-5.1",
       "variant": "ollama",
       "platform": {
-        "name": "openai",
+        "name": "openai-compatible",
         "variant": "ollama"
       },
       "model": {
@@ -986,16 +1009,16 @@
       }
     },
     {
-      "name": "glm-5",
+      "name": "glm-5.1",
       "variant": "huggingface",
       "platform": {
-        "name": "openai",
+        "name": "openai-compatible",
         "variant": "huggingface"
       },
       "model": {
         "format": "openai-messages",
         "config": {
-          "model": "zai-org/GLM-5:novita"
+          "model": "zai-org/GLM-5.1:together"
         }
       }
     },
@@ -1066,7 +1089,7 @@
       "name": "minimax-m2.7",
       "variant": "ollama",
       "platform": {
-        "name": "openai",
+        "name": "openai-compatible",
         "variant": "ollama"
       },
       "model": {
@@ -1088,6 +1111,58 @@
         "format": "openai-messages",
         "config": {
           "model": "qwen/qwen3-next-80b-a3b-thinking-maas"
+        }
+      }
+    },
+    {
+      "name": "qwen3.6-plus",
+      "variant": "fireworks",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "fireworks"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "accounts/fireworks/models/qwen3p6-plus"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "prompt_tokens": 0.5,
+          "prompt_tokens_details.cached_tokens": -0.4,
+          "completion_tokens": 3
+        }
+      }
+    },
+
+    {
+      "name": "gemma4",
+      "variant": "ollama",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "ollama"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gemma4:31b-cloud"
+        }
+      }
+    },
+    {
+      "name": "gemma4",
+      "variant": "huggingface",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "huggingface"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "google/gemma-4-31B-it:together"
         }
       }
     },

@@ -36,6 +36,7 @@ export async function callOpenAICompatibleModel(
 
       switch (platformConfig.name) {
         case "openai":
+        case "openai-compatible":
           return `${baseURL}/v1/chat/completions`;
         case "bedrock":
           return `${baseURL}/model/${modelConfig.model}/invoke-with-response-stream`;
@@ -50,6 +51,7 @@ export async function callOpenAICompatibleModel(
     const headers = await (async () => {
       switch (platformConfig.name) {
         case "openai":
+        case "openai-compatible":
           return {
             ...platformConfig.customHeaders,
             Authorization: `Bearer ${platformConfig.apiKey}`,
@@ -68,6 +70,7 @@ export async function callOpenAICompatibleModel(
     const platformRequest = (() => {
       switch (platformConfig.name) {
         case "openai":
+        case "openai-compatible":
           return {
             ...modelConfig,
             stream: true,

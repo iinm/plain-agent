@@ -66,7 +66,7 @@ Create the configuration.
     {
       // Requires Azure CLI to get access token
       "name": "azure",
-      "variant": "default",
+      "variant": "openai",
       "baseURL": "https://<resource>.openai.azure.com/openai",
       // Optional
       "azureConfigDir": "/home/xxx/.azure-for-agent"
@@ -131,20 +131,26 @@ Create the configuration.
 {
   "platforms": [
     {
-      "name": "openai",
+      "name": "openai-compatible",
       "variant": "ollama",
       "baseURL": "https://ollama.com",
       "apiKey": "FIXME"
     },
     {
-      "name": "openai",
+      "name": "openai-compatible",
       "variant": "huggingface",
       "baseURL": "https://router.huggingface.co",
       "apiKey": "FIXME"
     },
     {
-      "name": "openai",
+      "name": "openai-compatible",
       "variant": "xai",
+      "apiKey": "FIXME"
+    },
+    {
+      "name": "openai-compatible",
+      "variant": "fireworks",
+      "baseURL": "https://api.fireworks.ai/inference",
       "apiKey": "FIXME"
     }
   ]
