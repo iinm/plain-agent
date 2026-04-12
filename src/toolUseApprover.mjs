@@ -70,6 +70,7 @@ export function createToolUseApprover({
             ? { action: "allow" }
             : { action: "ask" };
         }
+        return { action: defaultAction };
       }
 
       return { action };

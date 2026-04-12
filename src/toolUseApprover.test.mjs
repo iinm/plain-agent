@@ -260,4 +260,33 @@ describe("createToolUseApprover", () => {
       reason: undefined,
     });
   });
+
+  it("should take default action when git-ignored file is specified", () => {
+    // given:
+    const toolApprover = createToolUseApprover({
+      patterns: [
+        {
+          toolName: "exec_command",
+          input: { command: "cat" },
+          action: "allow",
+        },
+      ],
+      maxApprovals: 2,
+      defaultAction: "ask",
+      maskApprovalInput: (_name, input) => input,
+    });
+
+    /** @type {MessageContentToolUse} */
+    const toolUse = {
+      type: "tool_use",
+      toolUseId: "test",
+      toolName: "exec_command",
+      input: { command: "cat", args: [".plain-agent/config.local.json"] },
+    };
+
+    // when/then:
+    assert.deepStrictEqual(toolApprover.isAllowedToolUse(toolUse), {
+      action: "ask",
+    });
+  });
 });
