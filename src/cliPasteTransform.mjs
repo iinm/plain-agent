@@ -32,16 +32,17 @@ export function resolvePastePlaceholders(input) {
   const contexts = [];
 
   // Collect paste content for context tags while keeping placeholders
-  const text = input.replace(/\[pasted#([a-f0-9]{6})\]/g, (match, hash) => {
-    const content = pastedContentStore.get(hash);
-    if (content !== undefined) {
-      pastedContentStore.delete(hash); // Clean up after use
-      contexts.push(
-        `<context location="pasted#${hash}">\n${content}\n</context>`,
-      );
-    }
-    return match; // Keep placeholder in text
-  });
+  const text = input.replace(
+    /\[Pasted text #([a-f0-9]{6}),/g,
+    (match, hash) => {
+      const content = pastedContentStore.get(hash);
+      if (content !== undefined) {
+        pastedContentStore.delete(hash); // Clean up after use
+        contexts.push(`<context id="pasted#${hash}">\n${content}\n</context>`);
+      }
+      return match; // Keep placeholder in text
+    },
+  );
 
   // Append contexts to the end of input
   if (contexts.length > 0) {
@@ -93,7 +94,8 @@ export function createPasteTransform(onCtrlC) {
                 // For multi-line paste, use placeholder
                 const hash = generatePasteHash(pasteBuffer);
                 pastedContentStore.set(hash, pasteBuffer);
-                this.push(`[pasted#${hash}] `);
+                const lines = pasteBuffer.split("\n");
+                this.push(`[Pasted text #${hash}, ${lines.length} lines]`);
               }
             }
             pasteBuffer = "";
