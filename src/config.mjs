@@ -34,7 +34,7 @@ export async function loadAppConfig(options = {}) {
   } = options;
 
   // Always load predefined config
-  const paths = [`${AGENT_ROOT}/.config/config.predefined.json`];
+  const paths = [`${AGENT_ROOT}/config/config.predefined.json`];
 
   if (!skipUserConfig) {
     paths.push(

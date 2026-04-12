@@ -18,7 +18,7 @@
   "files": [
     "bin",
     "sandbox/bin",
-    ".config",
+    "config",
     "src/**/*.mjs",
     "src/**/*.d.ts",
     "!src/**/*.test.mjs",

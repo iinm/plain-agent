@@ -30,7 +30,7 @@ export async function loadAgentRoles(claudeCodePlugins) {
   /** @type {Array<{dir: string, idPrefix: string, only?: RegExp}>} */
   const agentDirs = [
     {
-      dir: path.resolve(AGENT_ROOT, ".config", "agents.predefined"),
+      dir: path.resolve(AGENT_ROOT, "config", "agents.predefined"),
       idPrefix: "",
     },
     { dir: path.resolve(AGENT_USER_CONFIG_DIR, "agents"), idPrefix: "" },

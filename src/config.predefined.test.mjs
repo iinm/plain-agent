@@ -11,7 +11,7 @@ import { matchValue } from "./utils/matchValue.mjs";
 
 describe("predefined patterns from config.predefined.json", async () => {
   const content = await fs.readFile(
-    `${AGENT_ROOT}/.config/config.predefined.json`,
+    `${AGENT_ROOT}/config/config.predefined.json`,
     "utf-8",
   );
   const parsed = JSON.parse(content.replace(/^ *\/\/.+$/gm, ""));

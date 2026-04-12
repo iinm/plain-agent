@@ -34,7 +34,7 @@ export async function loadPrompts(claudeCodePlugins) {
   /** @type {Array<{dir: string, idPrefix: string, only?: RegExp}>} */
   const promptDirs = [
     {
-      dir: path.resolve(AGENT_ROOT, ".config", "prompts.predefined"),
+      dir: path.resolve(AGENT_ROOT, "config", "prompts.predefined"),
       idPrefix: "",
     },
     { dir: path.resolve(AGENT_USER_CONFIG_DIR, "prompts"), idPrefix: "" },
