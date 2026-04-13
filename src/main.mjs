@@ -26,7 +26,7 @@ import { createAskURLTool } from "./tools/askURL.mjs";
 import { createAskWebTool } from "./tools/askWeb.mjs";
 import { createDelegateToSubagentTool } from "./tools/delegateToSubagent.mjs";
 import { createExecCommandTool } from "./tools/execCommand.mjs";
-import { patchFileTool } from "./tools/patchFile.mjs";
+import { createPatchFileTool } from "./tools/patchFile.mjs";
 import { createReportAsSubagentTool } from "./tools/reportAsSubagent.mjs";
 import { createTmuxCommandTool } from "./tools/tmuxCommand.mjs";
 import { writeFileTool } from "./tools/writeFile.mjs";
@@ -162,7 +162,7 @@ if (cliArgs.subcommand.type === "install-claude-code-plugins") {
   const builtinTools = [
     createExecCommandTool({ sandbox: appConfig.sandbox }),
     writeFileTool,
-    patchFileTool,
+    createPatchFileTool(),
     createTmuxCommandTool({ sandbox: appConfig.sandbox }),
     createDelegateToSubagentTool(),
     createReportAsSubagentTool(),

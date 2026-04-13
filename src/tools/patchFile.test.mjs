@@ -1,9 +1,11 @@
 import assert from "node:assert";
 import fs from "node:fs/promises";
 import { afterEach, describe, it } from "node:test";
-import { patchFileTool } from "./patchFile.mjs";
+import { createPatchFileTool } from "./patchFile.mjs";
 
 describe("patchFileTool", () => {
+  const patchFileTool = createPatchFileTool("012");
+
   /** @type {(() => Promise<void>)[]} */
   const cleanups = [];
 
@@ -31,19 +33,19 @@ describe("patchFileTool", () => {
 
     // when:
     const diff = `
-<<<<<<< SEARCH
+<<<<<<< SEARCH 012
 Hello World
-=======
+======= 012
 Hello Universe
->>>>>>> REPLACE
+>>>>>>> REPLACE 012
 
-<<<<<<< SEARCH
+<<<<<<< SEARCH 012
 This is a test file content 2.
 This is a test file content 3.
-=======
+======= 012
 This is a test file content updated 2.
 This is a test file content updated 3.
->>>>>>> REPLACE
+>>>>>>> REPLACE 012
 `;
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
@@ -74,10 +76,10 @@ This is a test file content updated 3.
 
     // when:
     const diff = `
-<<<<<<< SEARCH
+<<<<<<< SEARCH 012
 Hello World
-=======
->>>>>>> REPLACE
+======= 012
+>>>>>>> REPLACE 012
 `.trim();
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
@@ -107,10 +109,10 @@ Hello World
 
     // when:
     const diff = `
-<<<<<<< SEARCH
+<<<<<<< SEARCH 012
 This is a test file content 3.
-=======
->>>>>>> REPLACE
+======= 012
+>>>>>>> REPLACE 012
 `.trim();
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
@@ -125,30 +127,52 @@ This is a test file content 3.
     assert.equal(patchedContent, expectedContent);
   });
 
-  it("replace content including marker =======", async () => {
+  it("replace content including markers", async () => {
     // given:
     const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;
     await fs.mkdir("tmp", { recursive: true });
-    const initialContent = ["Hello World", "==========="].join("\n");
+    const initialContent = [
+      "Hello World",
+      "<<<<<<< SEARCH",
+      "=======",
+      ">>>>>>> REPLACE",
+    ].join("\n");
     await fs.writeFile(tmpFilePath, initialContent);
     cleanups.push(() => fs.unlink(tmpFilePath));
 
     // when:
     const diff = `
-<<<<<<< SEARCH
+<<<<<<< SEARCH 012
 Hello World
-===========
-=======
+<<<<<<< SEARCH
+======= 012
 Hello Universe
---------------
+marker 1
+>>>>>>> REPLACE 012
+
+<<<<<<< SEARCH 012
+=======
+======= 012
+marker 2
+>>>>>>> REPLACE 012
+
+<<<<<<< SEARCH 012
 >>>>>>> REPLACE
+======= 012
+marker 3
+>>>>>>> REPLACE 012
 `;
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
     // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
-    const expectedContent = ["Hello Universe", "--------------"].join("\n");
+    const expectedContent = [
+      "Hello Universe",
+      "marker 1",
+      "marker 2",
+      "marker 3",
+    ].join("\n");
     assert.equal(patchedContent, expectedContent);
   });
 
@@ -162,11 +186,11 @@ Hello Universe
 
     // when: replacement string contains special characters like $&, $1, $$, %
     const diff = `
-<<<<<<< SEARCH
+<<<<<<< SEARCH 012
 Hello World
-=======
+======= 012
 Price: $100 & 50% off $& special $1 deal $$
->>>>>>> REPLACE
+>>>>>>> REPLACE 012
 `;
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
@@ -188,11 +212,11 @@ Price: $100 & 50% off $& special $1 deal $$
 
     // when: replacement string contains various dollar sign patterns
     const diff = `
-<<<<<<< SEARCH
+<<<<<<< SEARCH 012
 Original text here
-=======
+======= 012
 $& means match, $1 means first group, $$ means literal dollar
->>>>>>> REPLACE
+>>>>>>> REPLACE 012
 `;
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
