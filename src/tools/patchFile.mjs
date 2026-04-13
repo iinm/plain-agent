@@ -55,7 +55,7 @@ other new content
       const content = await fs.readFile(filePath, "utf8");
       const matches = Array.from(
         diff.matchAll(
-          /<<<<<<< SEARCH\n(.*?)\n?=======\n(.*?)\n?>>>>>>> REPLACE/gs,
+          /<<<<<<< SEARCH\n(.*?)\n=======\n(.*?)\n?>>>>>>> REPLACE/gs,
         ),
       );
       if (matches.length === 0) {

@@ -125,6 +125,33 @@ This is a test file content 3.
     assert.equal(patchedContent, expectedContent);
   });
 
+  it("replace content including marker =======", async () => {
+    // given:
+    const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;
+    await fs.mkdir("tmp", { recursive: true });
+    const initialContent = ["Hello World", "==========="].join("\n");
+    await fs.writeFile(tmpFilePath, initialContent);
+    cleanups.push(() => fs.unlink(tmpFilePath));
+
+    // when:
+    const diff = `
+<<<<<<< SEARCH
+Hello World
+===========
+=======
+Hello Universe
+--------------
+>>>>>>> REPLACE
+`;
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+
+    // then:
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
+    const expectedContent = ["Hello Universe", "--------------"].join("\n");
+    assert.equal(patchedContent, expectedContent);
+  });
+
   it("handles special characters in replacement string", async () => {
     // given:
     const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;
