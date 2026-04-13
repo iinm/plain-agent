@@ -196,5 +196,13 @@ Question: ${input.question}`,
      * @returns {Promise<string | Error>}
      */
     impl: async (input) => await noThrow(async () => askWeb(input, 0)),
+
+    /**
+     * @param {Record<string, unknown>} _input
+     * @returns {Record<string, unknown>}
+     */
+    maskApprovalInput: (_input) => {
+      return {};
+    },
   };
 }
