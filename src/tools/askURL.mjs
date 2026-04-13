@@ -25,7 +25,7 @@ import { noThrow } from "../utils/noThrow.mjs";
  */
 
 /**
- * @typedef {Object} AskWebInput
+ * @typedef {Object} AskURLInput
  * @property {string} question
  */
 
@@ -35,7 +35,7 @@ import { noThrow } from "../utils/noThrow.mjs";
  */
 export function createAskURLTool(config) {
   /**
-   * @param {AskWebInput} input
+   * @param {AskURLInput} input
    * @param {number} retryCount
    * @returns {Promise<string | Error>}
    */
@@ -193,7 +193,7 @@ Question: ${input.question}`,
     },
 
     /**
-     * @param {AskWebInput} input
+     * @param {AskURLInput} input
      * @returns {Promise<string | Error>}
      */
     impl: async (input) => await noThrow(async () => askURL(input, 0)),

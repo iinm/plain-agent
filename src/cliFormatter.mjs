@@ -95,6 +95,31 @@ export function formatToolUse(toolUse) {
     ].join("\n");
   }
 
+  if (toolName === "report_as_subagent") {
+    /** @type {Partial<import("./tools/reportAsSubagent").ReportAsSubagentInput>} */
+    const reportAsSubagentInput = input;
+    return [
+      `tool: ${toolName}`,
+      `memoryPath: ${reportAsSubagentInput.memoryPath}`,
+    ].join("\n");
+  }
+
+  if (toolName === "ask_web") {
+    /** @type {Partial<import("./tools/askWeb.mjs").AskWebInput>} */
+    const askWebInput = input;
+    return [`tool: ${toolName}`, `question: ${askWebInput.question}`].join(
+      "\n",
+    );
+  }
+
+  if (toolName === "ask_url") {
+    /** @type {Partial<import("./tools/askURL.mjs").AskURLInput>} */
+    const askURLInput = input;
+    return [`tool: ${toolName}`, `question: ${askURLInput.question}`].join(
+      "\n",
+    );
+  }
+
   const { provider: _, ...filteredToolUse } = toolUse;
 
   return JSON.stringify(filteredToolUse, null, 2);
