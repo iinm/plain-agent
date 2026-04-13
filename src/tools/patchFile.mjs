@@ -68,7 +68,9 @@ other new content
           ),
         );
         if (matches.length === 0) {
-          throw new Error("No matches found in diff.");
+          throw new Error(
+            `Invalid diff format. All markers must include the nonce, e.g., <<<<<<< SEARCH ${nonce} / ======= ${nonce} / >>>>>>> REPLACE ${nonce}`,
+          );
         }
         let newContent = content;
         for (const match of matches) {
