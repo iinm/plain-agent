@@ -28,7 +28,7 @@ export function createPatchFileTool(
             description: `
 - Content is searched as an exact match including indentation and line breaks.
 - The first match found will be replaced if there are multiple matches.
-- Use multiple SEARCH/REPLACE blocks with nonce (${nonce}) to replace multiple contents.
+- Use multiple SEARCH/REPLACE blocks with session-scoped nonce (${nonce}) to replace multiple contents.
 
 Format:
 <<<<<<< SEARCH ${nonce}
