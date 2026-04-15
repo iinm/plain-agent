@@ -333,7 +333,11 @@ export function printMessage(message) {
           }
           case "text": {
             console.log(styleText("bold", "\nUser:"));
-            console.log(part.text);
+            const highlighted = part.text.replace(
+              /^(<context.+?>|<\/context>)/gm,
+              styleText("green", "$1"),
+            );
+            console.log(highlighted);
             break;
           }
           case "image": {
