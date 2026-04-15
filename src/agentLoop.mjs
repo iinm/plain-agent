@@ -72,6 +72,12 @@ export function createAgentLoop({
     const maxThinkingLoops = 5;
 
     while (true) {
+      // Check if auto-approve was paused by Ctrl-C during tool execution
+      if (pauseSignal.isPaused()) {
+        pauseSignal.reset();
+        break;
+      }
+
       const modelOutput = await callModel({
         messages: stateManager.getMessages(),
         tools: toolDefs,
@@ -203,12 +209,6 @@ export function createAgentLoop({
         stateManager.appendMessages([result.newMessage]);
       } else {
         stateManager.appendMessages([{ role: "user", content: toolResults }]);
-      }
-
-      // Check if auto-approve was paused by Ctrl-C during tool execution
-      if (pauseSignal.isPaused()) {
-        pauseSignal.reset();
-        break;
       }
     }
   }
