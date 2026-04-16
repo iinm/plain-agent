@@ -103,7 +103,7 @@ USER sandbox
 
 # Install mise and project runtimes
 ENV PATH="/home/sandbox/.local/share/mise/shims:/home/sandbox/.local/bin:$PATH"
-RUN curl https://mise.jdx.sh/install.sh | sh
+RUN curl https://mise.run | sh
 
 <MISE_INSTALL_COMMANDS>
 ```
