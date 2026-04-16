@@ -239,6 +239,18 @@ plain
 plain -m <model+variant>
 ```
 
+(Optional) Set up a sandbox for your project with the `sandbox-configurator` agent.
+
+```
+/agents:sandbox-configurator Set up a sandbox for this project
+```
+
+After the agent finishes, run the generated setup script once to build the sandbox image and install dependencies.
+
+```sh
+./.plain-agent/setup.sh
+```
+
 Run in batch mode (non-interactive).
 In batch mode, config files are not loaded automatically. Only the files specified with `--config` are loaded.
 
@@ -331,7 +343,7 @@ The agent loads configuration files in the following order. Settings in later fi
   },
   "sandbox": {
     "command": "plain-sandbox",
-    "args": ["--dockerfile", ".plain-agent/sandbox/Dockerfile", "--allow-write", "--skip-build", "--keep-alive", "30"],
+    "args": ["--allow-write", "--skip-build", "--keep-alive", "30"],
     "separator": "--",
     "rules": [
       {
@@ -394,7 +406,7 @@ The agent loads configuration files in the following order. Settings in later fi
   // https://github.com/iinm/plain-agent/tree/main/sandbox
   "sandbox": {
     "command": "plain-sandbox",
-    "args": ["--dockerfile", ".plain-agent/sandbox/Dockerfile", "--allow-write", "--skip-build", "--keep-alive", "30"],
+    "args": ["--allow-write", "--skip-build", "--keep-alive", "30"],
     // separator is inserted between sandbox flags and the user command to prevent bypasses
     "separator": "--",
 
