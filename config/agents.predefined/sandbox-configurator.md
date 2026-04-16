@@ -133,6 +133,15 @@ After generating all files, display the following example and instruct the user 
 Add the following to your .plain-agent/config.json:
 
 {
+  "autoApproval": {
+    "patterns": [
+      {
+        "toolName": "exec_command",
+        "input": { "command": { "$regex": "^(gh|docker)$" } },
+        "action": "ask"
+      }
+    ]
+  },
   "sandbox": {
     "command": ".plain-agent/sandbox/run.sh",
     "args": ["--skip-build", "--keep-alive", "30"],
@@ -147,7 +156,7 @@ Add the following to your .plain-agent/config.json:
 }
 ```
 
-If the project already has a `.plain-agent/config.json`, show only the `sandbox` key that should be added/merged. Remind the user:
+If the project already has a `.plain-agent/config.json`, show only the keys that should be added/merged. Remind the user:
 - `--skip-build` assumes the image is already built (run `setup.sh` first to build)
 - `--keep-alive 30` reuses the container for 30 seconds between commands for performance
-- `rules` for `gh` and `docker` should typically run unsandboxed (host access needed)
+- `gh` and `docker` run unsandboxed (host access needed), so they should also be set to `ask` in `autoApproval` to avoid being auto-approved alongside other shell commands. Place this `ask` pattern before any broad `allow` pattern for `exec_command`, since `autoApproval` patterns are evaluated in order and the first match wins.
