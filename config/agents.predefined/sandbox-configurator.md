@@ -21,26 +21,27 @@ Before generating anything, analyze the project to determine:
 
 Detect the project type and determine which runtimes to install via mise. Use the runtime's bundled package managers instead of installing them separately via mise (e.g. Node.js ships with npm; use `corepack enable` for yarn/pnpm).
 
-| File found | mise install commands |
-|---|---|
-| `package.json` | `mise use node@<version>` (check `.nvmrc` or `.node-version`, else use LTS) |
-| `requirements.txt` or `pyproject.toml` | `mise use python@<version>` (check `.python-version`, else 3.12) |
-| `go.mod` | `mise use go@<version>` (check `go.mod` for version directive) |
-| `Cargo.toml` | `mise use rust@latest` |
+| File found | mise install commands | Version source |
+|---|---|---|
+| `package.json` | `mise use node@<version>` | `.nvmrc` / `.node-version` |
+| `requirements.txt` or `pyproject.toml` | `mise use python@<version>` | `.python-version` |
 
 Also check for common dev tools:
-- `*.tf` files or `.terraform-version` → `mise use terraform@<version>`
+- `*.tf` files or `.terraform-version` → `mise use terraform@<version>` (version source: `.terraform-version`)
+
+If a version cannot be determined from the files above, **ask the user which version to use** rather than falling back to a default.
 
 ### 1b. Volume Candidates
 
-Detect directories that should use Docker volumes (for performance with large directories):
+Detect directories that should use Docker volumes. A Docker volume is preferred over a host bind mount for `node_modules` because:
+
+- `node_modules` contains many thousands of small files, and bind-mounting it into the container is slow on macOS/Windows (file sync overhead).
+- Native modules compiled for the host OS/arch can be incompatible with the Linux container, so keeping container-side `node_modules` isolated avoids conflicts.
 
 | Project type | Cache volumes | Dependency volumes |
 |---|---|---|
 | Node.js | `plain-sandbox--global--home-npm:/home/sandbox/.npm` | `node_modules` (per `package.json` dir if monorepo) |
 | Python | `plain-sandbox--global--home-pip:/home/sandbox/.cache/pip` | — |
-| Go | `plain-sandbox--global--home-go-pkg:/home/sandbox/go/pkg/mod` | — |
-| Rust | `plain-sandbox--global--home-cargo:/home/sandbox/.cargo/registry` | — |
 
 For monorepo detection: if multiple `package.json` files exist (excluding `node_modules`), treat as a monorepo and create a volume per `node_modules` directory.
 
@@ -52,8 +53,6 @@ For monorepo detection: if multiple `package.json` files exist (excluding `node_
 | Node.js (yarn) | `corepack enable && yarn install --frozen-lockfile` |
 | Node.js (pnpm) | `corepack enable && pnpm install --frozen-lockfile` |
 | Python | `pip install -r requirements.txt` or `pip install .` |
-| Go | `go mod download` |
-| Rust | `cargo build` |
 
 ## Step 2: Confirm with User
 
