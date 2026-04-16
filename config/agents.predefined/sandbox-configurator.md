@@ -86,6 +86,13 @@ This is the only question beyond confirming the analysis. Do NOT ask about:
 
 Generate `.plain-agent/sandbox/Dockerfile`. Replace `<MISE_INSTALL_COMMANDS>` with the detected runtimes from Step 1a.
 
+Before generating the Dockerfile, look up the latest mise version and SHA256 checksums:
+
+1. Get the latest version tag by following the redirect from `https://github.com/jdx/mise/releases/latest` (the `location` header contains the version tag, e.g., `https://github.com/jdx/mise/releases/tag/v2026.4.14`)
+2. Download `SHASUMS256.txt` from `https://github.com/jdx/mise/releases/download/<VERSION>/SHASUMS256.txt`
+3. Extract the checksums for `linux-x64.tar.gz` and `linux-arm64.tar.gz`
+4. Use the version and checksums in the `ARG` lines of the Dockerfile below
+
 ```dockerfile
 FROM debian:stable-slim
 
@@ -101,9 +108,24 @@ RUN apt update && apt install -y \
 RUN groupadd sandbox && useradd -g sandbox -m sandbox
 USER sandbox
 
-# Install mise and project runtimes
+# Install mise from GitHub Releases with checksum verification
 ENV PATH="/home/sandbox/.local/share/mise/shims:/home/sandbox/.local/bin:$PATH"
-RUN curl https://mise.jdx.sh/install.sh | sh
+ARG MISE_VERSION=v2026.4.14
+ARG MISE_CHECKSUM_X64=f6e7ff9227e92fac3d0ab8c81b96ee4de55a0a4cac2e599762f81db7ee5aa87e
+ARG MISE_CHECKSUM_ARM64=58ef53ecc158db3b1dc55b0b533b5edaefb58e60ce12ed28a88a56d06f90349a
+RUN ARCH=$(uname -m) \
+    && if [ "$ARCH" = "x86_64" ]; then \
+         MISE_ARCH="x64"; MISE_CHECKSUM="${MISE_CHECKSUM_X64}"; \
+       elif [ "$ARCH" = "aarch64" ]; then \
+         MISE_ARCH="arm64"; MISE_CHECKSUM="${MISE_CHECKSUM_ARM64}"; \
+       else echo "Unsupported architecture: $ARCH" && exit 1; fi \
+    && mkdir -p /home/sandbox/.local/bin \
+    && curl -fsSL "https://github.com/jdx/mise/releases/download/${MISE_VERSION}/mise-${MISE_VERSION}-linux-${MISE_ARCH}.tar.gz" \
+         -o /tmp/mise.tar.gz \
+    && echo "${MISE_CHECKSUM}  /tmp/mise.tar.gz" | sha256sum -c - \
+    && tar -xzf /tmp/mise.tar.gz -C /tmp \
+    && mv /tmp/mise/bin/mise /home/sandbox/.local/bin/mise \
+    && rm -rf /tmp/mise.tar.gz /tmp/mise
 
 <MISE_INSTALL_COMMANDS>
 ```
@@ -128,7 +150,7 @@ RUN mise use -g node@22 && mise use -g npm@latest && mise use -g terraform@lates
 
 **Important rules:**
 - Always start from `debian:stable-slim`
-- Always install mise via install script — simpler and more reliable than apt
+- Always install mise by downloading the binary from GitHub Releases and verifying the SHA256 checksum — never use `curl | sh`
 - All runtimes go through `mise use -g` — never install directly via apt/curl
 - `mise use -g` installs and sets the tool globally, making it available via shims
 - Always create `sandbox` user — home dir is always `/home/sandbox`
