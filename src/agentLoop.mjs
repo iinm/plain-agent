@@ -57,6 +57,7 @@ export function createAgentLoop({
    * @returns {Promise<void>}
    */
   async function handleUserInput(input) {
+    pauseSignal.reset();
     toolUseApprover.resetApprovalCount();
     await inputHandler.handle(input);
     await runTurnLoop();
