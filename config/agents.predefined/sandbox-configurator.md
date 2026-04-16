@@ -23,7 +23,7 @@ Detect the project type and determine which runtimes to install via mise. Use th
 
 | File found | mise install commands | Version source |
 |---|---|---|
-| `package.json` | `mise use node@<version>` | `.nvmrc` / `.node-version` / `package.json` (`engines.node`, `volta.node`) |
+| `package.json` | `mise use node@<version>` | `.nvmrc` / `.node-version` / `package.json` (`engines.node`) |
 | `requirements.txt` or `pyproject.toml` | `mise use python@<version>` | `.python-version` / `pyproject.toml` (`requires-python`) |
 
 Also check for common dev tools:
