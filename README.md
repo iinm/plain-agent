@@ -245,6 +245,12 @@ plain -m <model+variant>
 /agents:sandbox-configurator Set up a sandbox for this project
 ```
 
+After the agent finishes, run the generated setup script once to build the sandbox image and install dependencies.
+
+```sh
+./.plain-agent/setup.sh
+```
+
 Run in batch mode (non-interactive).
 In batch mode, config files are not loaded automatically. Only the files specified with `--config` are loaded.
 
