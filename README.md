@@ -239,16 +239,10 @@ plain
 plain -m <model+variant>
 ```
 
-(Optional) Set up a sandbox for your project with the `sandbox-configurator` agent. The agent analyzes your project and generates `.plain-agent/sandbox/run.sh` and `.plain-agent/setup.sh`, then shows what to add to `.plain-agent/config.json`.
+(Optional) Set up a sandbox for your project with the `sandbox-configurator` agent.
 
 ```
 /agents:sandbox-configurator Set up a sandbox for this project
-```
-
-After the agent finishes, run the generated setup script and update `.plain-agent/config.json` as instructed.
-
-```sh
-./.plain-agent/setup.sh
 ```
 
 Run in batch mode (non-interactive).
