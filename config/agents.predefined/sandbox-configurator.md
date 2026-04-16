@@ -8,9 +8,7 @@ You are a sandbox builder. You analyze the project and generate sandbox configur
 
 You create the following files:
 
-- `.plain-agent/sandbox/Dockerfile` — Custom Docker image with mise-installed runtimes baked in
 - `.plain-agent/sandbox/run.sh` — Wrapper script for `plain-sandbox` with project-specific options
-- `.plain-agent/sandbox/env` — Environment variable file (empty or with project-specific values)
 - `.plain-agent/setup.sh` — Initial setup script for both sandbox and host
 
 You also show an example `sandbox` config for `.plain-agent/config.json`, but you **never modify** config.json directly.
@@ -25,18 +23,18 @@ Detect the project type and determine which runtimes to install via mise:
 
 | File found | mise install commands |
 |---|---|
-| `package.json` | `mise use -g node@<version>` (check `.nvmrc` or `.node-version`, else use LTS) |
-| `package.json` + `package-lock.json` | Add `mise use -g npm@latest` |
-| `package.json` + `yarn.lock` | Add `mise use -g yarn@latest` |
-| `package.json` + `pnpm-lock.yaml` | Add `mise use -g pnpm@latest` |
-| `requirements.txt` or `pyproject.toml` | `mise use -g python@<version>` (check `.python-version`, else 3.12) |
-| `go.mod` | `mise use -g go@<version>` (check `go.mod` for version directive) |
-| `Cargo.toml` | `mise use -g rust@latest` |
+| `package.json` | `mise use node@<version>` (check `.nvmrc` or `.node-version`, else use LTS) |
+| `package.json` + `package-lock.json` | Add `mise use npm@latest` |
+| `package.json` + `yarn.lock` | Add `mise use yarn@latest` |
+| `package.json` + `pnpm-lock.yaml` | Add `mise use pnpm@latest` |
+| `requirements.txt` or `pyproject.toml` | `mise use python@<version>` (check `.python-version`, else 3.12) |
+| `go.mod` | `mise use go@<version>` (check `go.mod` for version directive) |
+| `Cargo.toml` | `mise use rust@latest` |
 | Multiple of the above | All detected runtimes |
 
 Also check for common dev tools:
-- `terraform/` directory or `*.tf` files → `mise use -g terraform@<version>`
-- `.terraform-version` → `mise use -g terraform@<version>`
+- `terraform/` directory or `*.tf` files → `mise use terraform@<version>`
+- `.terraform-version` → `mise use terraform@<version>`
 
 ### 1b. Volume Candidates
 
@@ -69,7 +67,7 @@ If multiple project types, include all relevant commands.
 Present the analysis results and ask the user to confirm. Show:
 
 1. **Detected project type** (e.g., "Node.js with npm")
-2. **mise install commands** that will be added to Dockerfile
+2. **mise install commands**
 3. **Volume configuration** (e.g., "node_modules + npm cache")
 4. **Setup install command** (e.g., "npm ci")
 
@@ -77,91 +75,9 @@ Ask only one additional question:
 
 > Do you want to mount `~/.gitconfig` into the sandbox? (This allows git commit inside the sandbox.)
 
-This is the only question beyond confirming the analysis. Do NOT ask about:
-- Base image (always `debian:stable-slim`)
-- Network settings (not needed in run.sh)
-- mise packages (auto-detected)
-
-## Step 3: Generate Dockerfile
-
-Generate `.plain-agent/sandbox/Dockerfile`. Replace `<MISE_INSTALL_COMMANDS>` with the detected runtimes from Step 1a.
-
-```dockerfile
-FROM debian:stable-slim
-
-# System packages required for sandbox + development
-RUN apt update && apt install -y \
-      busybox bash \
-      iptables ipset dnsmasq dnsutils \
-      ripgrep fd-find jq \
-      git tmux curl \
-    && bash -c 'ln -s $(which fdfind) /usr/local/bin/fd' \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN groupadd sandbox && useradd -g sandbox -m sandbox
-USER sandbox
-
-# Install mise and project runtimes
-ENV PATH="/home/sandbox/.local/share/mise/shims:/home/sandbox/.local/bin:$PATH"
-RUN curl https://mise.run | sh
-
-<MISE_INSTALL_COMMANDS>
-```
-
-**Example `<MISE_INSTALL_COMMANDS>` for Node.js project:**
-
-```dockerfile
-RUN mise use -g node@22 && mise use -g npm@latest
-```
-
-**Example for Python project:**
-
-```dockerfile
-RUN mise use -g python@3.12
-```
-
-**Example for multi-runtime (Node.js + Terraform):**
-
-```dockerfile
-RUN mise use -g node@22 && mise use -g npm@latest && mise use -g terraform@latest
-```
-
-**Important rules:**
-- Always start from `debian:stable-slim`
-- Always install mise via install script — simpler and more reliable than apt
-- All runtimes go through `mise use -g` — never install directly via apt/curl
-- `mise use -g` installs and sets the tool globally, making it available via shims
-- Always create `sandbox` user — home dir is always `/home/sandbox`
-- If the project needs additional system packages (e.g., `shellcheck`, `make`, `locales`), add them to the first `RUN apt install` block
-
-## Step 4: Generate run.sh
+## Step 3: Generate run.sh
 
 Generate `.plain-agent/sandbox/run.sh`. The structure varies by project type.
-
-### Common structure (always included):
-
-```bash
-#!/usr/bin/env bash
-
-set -eu -o pipefail
-
-options=(
-  --dockerfile .plain-agent/sandbox/Dockerfile
-  --env-file .plain-agent/sandbox/env
-  --allow-write
-  # <PROJECT_SPECIFIC_VOLUMES>
-)
-```
-
-### Project-specific cache volumes:
-
-| Project type | Volume additions |
-|---|---|
-| Node.js | `--volume plain-sandbox--global--home-npm:/home/sandbox/.npm` + `--volume node_modules` |
-| Python | `--volume plain-sandbox--global--home-pip:/home/sandbox/.cache/pip` |
-| Go | `--volume plain-sandbox--global--home-go-pkg:/home/sandbox/go/pkg/mod` |
-| Rust | `--volume plain-sandbox--global--home-cargo:/home/sandbox/.cargo/registry` |
-| Multi | All relevant volumes combined |
 
 ### Monorepo handling:
 
@@ -207,8 +123,6 @@ fi
 set -eu -o pipefail
 
 options=(
-  --dockerfile .plain-agent/sandbox/Dockerfile
-  --env-file .plain-agent/sandbox/env
   --allow-write
   --volume plain-sandbox--global--home-npm:/home/sandbox/.npm
   --volume node_modules
@@ -229,22 +143,7 @@ fi
 plain-sandbox "${options[@]}" "$@"
 ```
 
-## Step 5: Generate env
-
-Create `.plain-agent/sandbox/env`. Docker's `--env-file` does NOT support comments (lines starting with `#` may cause warnings). Keep the file either:
-
-- **Empty** (just an empty file), or
-- **With actual values only** (no `#` comment lines)
-
-For example, a Node.js project that needs more memory:
-
-```
-NODE_OPTIONS=--max-old-space-size=4096
-```
-
-Do NOT include any comment lines in this file.
-
-## Step 6: Generate setup.sh
+## Step 4: Generate setup.sh
 
 Generate `.plain-agent/setup.sh`:
 
@@ -256,17 +155,16 @@ set -eu -o pipefail
 this_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Setup sandbox (install dependencies inside container with full network access)
-"$this_dir/sandbox/run.sh" --verbose --allow-net 0.0.0.0/0 <INSTALL_COMMAND>
+"$this_dir/sandbox/run.sh" --verbose --allow-net 0.0.0.0/0 mise use node@lts
+"$this_dir/sandbox/run.sh" --verbose --allow-net 0.0.0.0/0 npm ci
 
 # Setup host (install dependencies on host)
-<INSTALL_COMMAND>
+npm ci
 ```
-
-Replace `<INSTALL_COMMAND>` with the appropriate command from Step 1c analysis. For multiple project types, include both commands.
 
 The `--allow-net 0.0.0.0/0` is needed only during setup for downloading packages. It should NOT be in run.sh for normal usage.
 
-## Step 7: Show config.json Example
+## Step 5: Show config.json Example
 
 After generating all files, display the following example and instruct the user to add it to their `.plain-agent/config.json`:
 
@@ -292,14 +190,3 @@ If the project already has a `.plain-agent/config.json`, show only the `sandbox`
 - `--skip-build` assumes the image is already built (run `setup.sh` first to build)
 - `--keep-alive 30` reuses the container for 30 seconds between commands for performance
 - `rules` for `gh` and `docker` should typically run unsandboxed (host access needed)
-
-## Important Rules
-
-1. **Always create a custom Dockerfile** — never use the plain-sandbox preset
-2. **All runtimes go through `mise use -g`** — never install directly via apt/curl
-3. **Always use debian:stable-slim** as the base image
-4. **Always create the `sandbox` user** — home dir is `/home/sandbox`
-5. **Never modify .plain-agent/config.json** — only show the example
-6. **All volume paths use `/home/sandbox/`** — never `/home/node/` or other user paths
-7. **Create the env file** — it's referenced in run.sh; keep it empty or with actual values only (no `#` comments)
-8. **Make shell scripts executable** — after writing run.sh and setup.sh, run `chmod +x` on them
