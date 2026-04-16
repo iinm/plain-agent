@@ -78,8 +78,8 @@ Examples:
     $SCRIPT_NAME --tty --verbose --dry-run zsh
 
   Install tools with mise:
-    $SCRIPT_NAME --allow-net mise-versions.jdx.dev,nodejs.org --verbose mise install node
-    $SCRIPT_NAME --allow-net mise-versions.jdx.dev,github.com,dl.google.com mise install go
+    $SCRIPT_NAME --allow-write --allow-net mise-versions.jdx.dev,nodejs.org \\
+      --verbose mise use node@lts
 
   Use volume:
     $SCRIPT_NAME --volume $SCRIPT_NAME--global--home-npm:/home/node/.npm \\
@@ -96,7 +96,7 @@ Examples:
 
 Preset Configuration:
 
-  When --dockerfile is not specified, a preset Node.js LTS image is used with:
+  When --dockerfile is not specified, a preset Debian stable image is used with:
   - System packages: busybox, bash, zsh (with grml config), ripgrep, fd, dig, curl, git
   - mise package manager for additional runtime installations
   - Persistent storage for shell history, git config
@@ -839,20 +839,18 @@ setup_container_user() {
 
 print_preset_dockerfile() {
   cat << 'EOF'
-FROM node:lts
+FROM public.ecr.aws/docker/library/debian:stable-slim
 
 RUN apt update \
     && apt install -y \
-      busybox \
-      bash zsh \
-      ripgrep fd-find \
-      iptables ipset dnsmasq dnsutils \
-      curl git gpg locales tmux \
+      busybox bash zsh locales gpg \
+      fd-find ripgrep jq \
+      iptables ipset dnsmasq dnsutils curl \
+      build-essential git tmux \
     && bash -c 'ln -s $(which fdfind) /usr/local/bin/fd' \
     && echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen \
     && echo 'ja_JP.UTF-8 UTF-8' >> /etc/locale.gen \
-    && locale-gen \
-    && npm install -g npm@latest
+    && locale-gen
 
 # mise: https://mise.jdx.dev/
 RUN install -dm 755 /etc/apt/keyrings \
@@ -887,8 +885,6 @@ USER_ENTRYPOINT
 RUN chmod +x /sandbox/bin/user-entrypoint.sh
 
 USER sandbox
-ENV NPM_CONFIG_PREFIX=/sandbox/npm-global
-ENV PATH=/home/sandbox/.local/bin:/sandbox/npm-global/bin:$PATH
 
 # Configure shell
 # - grml zsh config: https://grml.org/zsh/
