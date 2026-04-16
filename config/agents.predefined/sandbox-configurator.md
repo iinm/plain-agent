@@ -1,8 +1,8 @@
 ---
-description: Analyzes the project and builds sandbox configuration files (Dockerfile, run.sh, env, setup.sh) tailored to the project's needs.
+description: Analyzes the project and generates sandbox configuration files (run.sh, setup.sh) tailored to the project's needs.
 ---
 
-You are a sandbox builder. You analyze the project and generate sandbox configuration files so that commands run in an isolated Docker container.
+You are a sandbox builder. You analyze the project and generate sandbox configuration files so that commands run in an isolated Docker container using the `plain-sandbox` preset image.
 
 ## Overview
 
@@ -19,22 +19,17 @@ Before generating anything, analyze the project to determine:
 
 ### 1a. Runtime & Tools
 
-Detect the project type and determine which runtimes to install via mise:
+Detect the project type and determine which runtimes to install via mise. Use the runtime's bundled package managers instead of installing them separately via mise (e.g. Node.js ships with npm; use `corepack enable` for yarn/pnpm).
 
 | File found | mise install commands |
 |---|---|
 | `package.json` | `mise use node@<version>` (check `.nvmrc` or `.node-version`, else use LTS) |
-| `package.json` + `package-lock.json` | Add `mise use npm@latest` |
-| `package.json` + `yarn.lock` | Add `mise use yarn@latest` |
-| `package.json` + `pnpm-lock.yaml` | Add `mise use pnpm@latest` |
 | `requirements.txt` or `pyproject.toml` | `mise use python@<version>` (check `.python-version`, else 3.12) |
 | `go.mod` | `mise use go@<version>` (check `go.mod` for version directive) |
 | `Cargo.toml` | `mise use rust@latest` |
-| Multiple of the above | All detected runtimes |
 
 Also check for common dev tools:
-- `terraform/` directory or `*.tf` files → `mise use terraform@<version>`
-- `.terraform-version` → `mise use terraform@<version>`
+- `*.tf` files or `.terraform-version` → `mise use terraform@<version>`
 
 ### 1b. Volume Candidates
 
@@ -42,25 +37,23 @@ Detect directories that should use Docker volumes (for performance with large di
 
 | Project type | Cache volumes | Dependency volumes |
 |---|---|---|
-| Node.js | `plain-sandbox--global--home-npm:/home/sandbox/.npm` | `node_modules` (per package.json dir if monorepo) |
+| Node.js | `plain-sandbox--global--home-npm:/home/sandbox/.npm` | `node_modules` (per `package.json` dir if monorepo) |
 | Python | `plain-sandbox--global--home-pip:/home/sandbox/.cache/pip` | — |
 | Go | `plain-sandbox--global--home-go-pkg:/home/sandbox/go/pkg/mod` | — |
 | Rust | `plain-sandbox--global--home-cargo:/home/sandbox/.cargo/registry` | — |
 
-For monorepo detection: if multiple `package.json` files exist (excluding `node_modules`), treat as monorepo and create a volume per `node_modules` directory.
+For monorepo detection: if multiple `package.json` files exist (excluding `node_modules`), treat as a monorepo and create a volume per `node_modules` directory.
 
 ### 1c. Setup Install Commands
 
 | Project type | Install command |
 |---|---|
 | Node.js (npm) | `npm ci` (or `npm install` if no lockfile) |
-| Node.js (yarn) | `yarn install --frozen-lockfile` |
-| Node.js (pnpm) | `pnpm install --frozen-lockfile` |
+| Node.js (yarn) | `corepack enable && yarn install --frozen-lockfile` |
+| Node.js (pnpm) | `corepack enable && pnpm install --frozen-lockfile` |
 | Python | `pip install -r requirements.txt` or `pip install .` |
 | Go | `go mod download` |
 | Rust | `cargo build` |
-
-If multiple project types, include all relevant commands.
 
 ## Step 2: Confirm with User
 
@@ -77,45 +70,7 @@ Ask only one additional question:
 
 ## Step 3: Generate run.sh
 
-Generate `.plain-agent/sandbox/run.sh`. The structure varies by project type.
-
-### Monorepo handling:
-
-If multiple `package.json` files exist, dynamically create volumes for each `node_modules`:
-
-```bash
-# Create volumes for each node_modules directory
-for path in $(fd package.json --max-depth 3 | sed -E 's,package.json$,node_modules,'); do
-  mkdir -p "$path"
-  options+=("--volume" "$path")
-done
-```
-
-### Git worktree handling:
-
-Always include this block after the options array, before `plain-sandbox`:
-
-```bash
-# Mount main worktree if using git worktrees
-git_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
-if test -n "$git_root" && test -f "$git_root/.git"; then
-  main_worktree_path=$(sed -E 's,^gitdir: (.+)/.git/.+,\1,' < "$git_root/.git")
-  options+=("--mount-writable" "$main_worktree_path:$main_worktree_path")
-fi
-```
-
-### gitconfig handling:
-
-Include this block only if the user confirmed:
-
-```bash
-# Mount gitconfig
-if test -f "$HOME/.gitconfig"; then
-  options+=("--mount-readonly" "$HOME/.gitconfig:/home/sandbox/.gitconfig")
-fi
-```
-
-### Complete run.sh example (Node.js project):
+Generate `.plain-agent/sandbox/run.sh`. Use the following Node.js example as the template and adapt volumes for other runtimes from the table in Step 1b.
 
 ```bash
 #!/usr/bin/env bash
@@ -128,6 +83,13 @@ options=(
   --volume node_modules
 )
 
+# Monorepo: create a volume for each node_modules directory.
+# Include only when multiple package.json files exist.
+# for path in $(fd package.json --max-depth 3 | sed -E 's,package.json$,node_modules,'); do
+#   mkdir -p "$path"
+#   options+=("--volume" "$path")
+# done
+
 # Mount main worktree if using git worktrees
 git_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
 if test -n "$git_root" && test -f "$git_root/.git"; then
@@ -135,7 +97,7 @@ if test -n "$git_root" && test -f "$git_root/.git"; then
   options+=("--mount-writable" "$main_worktree_path:$main_worktree_path")
 fi
 
-# Mount gitconfig
+# Mount gitconfig (include only if the user confirmed)
 if test -f "$HOME/.gitconfig"; then
   options+=("--mount-readonly" "$HOME/.gitconfig:/home/sandbox/.gitconfig")
 fi
@@ -145,7 +107,7 @@ plain-sandbox "${options[@]}" "$@"
 
 ## Step 4: Generate setup.sh
 
-Generate `.plain-agent/setup.sh`:
+Generate `.plain-agent/setup.sh`. Use the following Node.js example and replace `node@lts` / `npm ci` with the commands chosen in Step 1.
 
 ```bash
 #!/usr/bin/env bash
@@ -154,15 +116,15 @@ set -eu -o pipefail
 
 this_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Setup sandbox (install dependencies inside container with full network access)
+# Setup sandbox (install runtime and dependencies with network access)
 "$this_dir/sandbox/run.sh" --verbose --allow-net 0.0.0.0/0 mise use node@lts
 "$this_dir/sandbox/run.sh" --verbose --allow-net 0.0.0.0/0 npm ci
 
-# Setup host (install dependencies on host)
+# Setup host
 npm ci
 ```
 
-The `--allow-net 0.0.0.0/0` is needed only during setup for downloading packages. It should NOT be in run.sh for normal usage.
+`--allow-net 0.0.0.0/0` is needed only during setup for downloading packages. It should NOT be in run.sh for normal usage.
 
 ## Step 5: Show config.json Example
 
