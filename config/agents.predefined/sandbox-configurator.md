@@ -127,11 +127,9 @@ npm ci
 
 ## Step 5: Show config.json Example
 
-After generating all files, display the following example and instruct the user to add it to their `.plain-agent/config.json`:
+After generating all files, instruct the user to add the following to their `.plain-agent/config.json`:
 
-```
-Add the following to your .plain-agent/config.json:
-
+```json
 {
   "autoApproval": {
     "patterns": [
