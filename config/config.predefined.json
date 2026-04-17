@@ -355,6 +355,7 @@
         "format": "anthropic",
         "config": {
           "model": "global.anthropic.claude-sonnet-4-6",
+          "max_tokens": 32768,
           "thinking": { "type": "adaptive" },
           "output_config": { "effort": "high" }
         }
