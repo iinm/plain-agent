@@ -191,7 +191,7 @@ Create the configuration.
     },
     {
       "name": "claude-sonnet-4-6",
-      "variant": "thinking-16k-bedrock-jp",
+      "variant": "thinking-high-bedrock-jp",
       "platform": {
         "name": "bedrock",
         "variant": "jp"
@@ -201,7 +201,8 @@ Create the configuration.
         "config": {
           "model": "jp.anthropic.claude-sonnet-4-6",
           "max_tokens": 32768,
-          "thinking": { "type": "enabled", "budget_tokens": 16384 }
+          "thinking": { "type": "adaptive" },
+          "output_config": { "effort": "high" }
         }
       },
       "cost": {
