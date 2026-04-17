@@ -52,6 +52,12 @@ export function resolvePastePlaceholders(input) {
   return text;
 }
 
+// Time to wait for a continuation paste chunk before flushing the paste buffer.
+// Some terminals split large pastes into multiple bracketed paste sequences
+// (e.g. `\x1b[200~...\x1b[201~\x1b[200~...\x1b[201~`) that arrive back-to-back.
+// Holding the paste briefly lets us merge them into a single placeholder.
+const PASTE_MERGE_WINDOW_MS = 20;
+
 /**
  * Create a Transform stream to handle bracketed paste before readline.
  * @param {() => void} onCtrlC - Called when Ctrl-C or Ctrl-D is detected
@@ -60,8 +66,43 @@ export function resolvePastePlaceholders(input) {
 export function createPasteTransform(onCtrlC) {
   let inPasteMode = false;
   let pasteBuffer = "";
+  // True when a paste just ended and we are waiting to see if the next data
+  // continues it (i.e. starts with another BRACKETED_PASTE_START).
+  let awaitingMerge = false;
+  /** @type {NodeJS.Timeout | null} */
+  let mergeTimer = null;
+  /** @type {Transform} */
+  let transform;
 
-  return new Transform({
+  const clearMergeTimer = () => {
+    if (mergeTimer) {
+      clearTimeout(mergeTimer);
+      mergeTimer = null;
+    }
+  };
+
+  const flushPaste = () => {
+    clearMergeTimer();
+    awaitingMerge = false;
+    if (pasteBuffer) {
+      // Remove trailing newline for single-line paste detection
+      const trimmedPaste = pasteBuffer.replace(/\n$/, "");
+
+      // For single-line paste, insert directly without placeholder
+      if (!trimmedPaste.includes("\n")) {
+        transform.push(trimmedPaste);
+      } else {
+        // For multi-line paste, use placeholder
+        const hash = generatePasteHash(pasteBuffer);
+        pastedContentStore.set(hash, pasteBuffer);
+        const lines = pasteBuffer.split("\n");
+        transform.push(`[Pasted text #${hash}, ${lines.length} lines]`);
+      }
+    }
+    pasteBuffer = "";
+  };
+
+  transform = new Transform({
     transform(chunk, _encoding, callback) {
       /** @type {string} */
       let data = chunk.toString("utf8");
@@ -77,32 +118,28 @@ export function createPasteTransform(onCtrlC) {
         if (inPasteMode) {
           const endIdx = data.indexOf(BRACKETED_PASTE_END);
           if (endIdx !== -1) {
-            // End of paste
+            // End of (this chunk of) paste. Hold the buffer briefly in case
+            // another paste chunk follows immediately and should be merged.
             pasteBuffer += data.slice(0, endIdx);
             data = data.slice(endIdx + BRACKETED_PASTE_END.length);
             inPasteMode = false;
-
-            // Handle paste content
-            if (pasteBuffer) {
-              // Remove trailing newline for single-line paste detection
-              const trimmedPaste = pasteBuffer.replace(/\n$/, "");
-
-              // For single-line paste, insert directly without placeholder
-              if (!trimmedPaste.includes("\n")) {
-                this.push(trimmedPaste);
-              } else {
-                // For multi-line paste, use placeholder
-                const hash = generatePasteHash(pasteBuffer);
-                pastedContentStore.set(hash, pasteBuffer);
-                const lines = pasteBuffer.split("\n");
-                this.push(`[Pasted text #${hash}, ${lines.length} lines]`);
-              }
-            }
-            pasteBuffer = "";
+            awaitingMerge = true;
           } else {
             // Still in paste mode
             pasteBuffer += data;
-            break;
+            data = "";
+          }
+        } else if (awaitingMerge) {
+          // If the next data starts with another paste start marker, treat it
+          // as a continuation of the previous paste and merge.
+          if (data.startsWith(BRACKETED_PASTE_START)) {
+            data = data.slice(BRACKETED_PASTE_START.length);
+            inPasteMode = true;
+            awaitingMerge = false;
+            clearMergeTimer();
+          } else {
+            // Not a continuation; flush pending paste, then process this data.
+            flushPaste();
           }
         } else {
           const startIdx = data.indexOf(BRACKETED_PASTE_START);
@@ -118,12 +155,30 @@ export function createPasteTransform(onCtrlC) {
           } else {
             // Normal data
             this.push(data);
-            break;
+            data = "";
           }
         }
       }
 
+      // If the chunk ended while still awaiting a continuation, schedule a
+      // short timer to flush the pending paste if nothing else arrives.
+      if (awaitingMerge && !mergeTimer) {
+        mergeTimer = setTimeout(() => {
+          mergeTimer = null;
+          flushPaste();
+        }, PASTE_MERGE_WINDOW_MS);
+      }
+
+      callback();
+    },
+
+    flush(callback) {
+      if (awaitingMerge) {
+        flushPaste();
+      }
       callback();
     },
   });
+
+  return transform;
 }
