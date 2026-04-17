@@ -58,17 +58,22 @@ export function resolvePastePlaceholders(input) {
 // Holding the paste briefly lets us merge them into a single placeholder.
 const PASTE_MERGE_WINDOW_MS = 20;
 
+// Paste state machine:
+//   IDLE    - normal passthrough
+//   PASTE   - inside a BRACKETED_PASTE_START ... BRACKETED_PASTE_END sequence
+//   PENDING - just saw an END; waiting to see if the next data continues the
+//             paste (another START immediately follows) or not.
+/** @typedef {"IDLE" | "PASTE" | "PENDING"} PasteState */
+
 /**
  * Create a Transform stream to handle bracketed paste before readline.
  * @param {() => void} onCtrlC - Called when Ctrl-C or Ctrl-D is detected
  * @returns {Transform}
  */
 export function createPasteTransform(onCtrlC) {
-  let inPasteMode = false;
+  /** @type {PasteState} */
+  let state = "IDLE";
   let pasteBuffer = "";
-  // True when a paste just ended and we are waiting to see if the next data
-  // continues it (i.e. starts with another BRACKETED_PASTE_START).
-  let awaitingMerge = false;
   /** @type {NodeJS.Timeout | null} */
   let mergeTimer = null;
   /** @type {Transform} */
@@ -81,25 +86,23 @@ export function createPasteTransform(onCtrlC) {
     }
   };
 
-  const flushPaste = () => {
+  const flushPasteBuffer = () => {
     clearMergeTimer();
-    awaitingMerge = false;
     if (pasteBuffer) {
-      // Remove trailing newline for single-line paste detection
-      const trimmedPaste = pasteBuffer.replace(/\n$/, "");
-
-      // For single-line paste, insert directly without placeholder
-      if (!trimmedPaste.includes("\n")) {
-        transform.push(trimmedPaste);
-      } else {
-        // For multi-line paste, use placeholder
+      // Strip a trailing newline so a paste like "foo\n" is treated as single-line.
+      const trimmed = pasteBuffer.replace(/\n$/, "");
+      if (trimmed.includes("\n")) {
+        // Multi-line: emit a placeholder and stash the content for later.
         const hash = generatePasteHash(pasteBuffer);
         pastedContentStore.set(hash, pasteBuffer);
-        const lines = pasteBuffer.split("\n");
-        transform.push(`[Pasted text #${hash}, ${lines.length} lines]`);
+        const lineCount = pasteBuffer.split("\n").length;
+        transform.push(`[Pasted text #${hash}, ${lineCount} lines]`);
+      } else {
+        transform.push(trimmed);
       }
     }
     pasteBuffer = "";
+    state = "IDLE";
   };
 
   transform = new Transform({
@@ -115,57 +118,50 @@ export function createPasteTransform(onCtrlC) {
       }
 
       while (data.length > 0) {
-        if (inPasteMode) {
+        if (state === "PASTE") {
           const endIdx = data.indexOf(BRACKETED_PASTE_END);
-          if (endIdx !== -1) {
-            // End of (this chunk of) paste. Hold the buffer briefly in case
-            // another paste chunk follows immediately and should be merged.
-            pasteBuffer += data.slice(0, endIdx);
-            data = data.slice(endIdx + BRACKETED_PASTE_END.length);
-            inPasteMode = false;
-            awaitingMerge = true;
-          } else {
-            // Still in paste mode
+          if (endIdx === -1) {
             pasteBuffer += data;
             data = "";
-          }
-        } else if (awaitingMerge) {
-          // If the next data starts with another paste start marker, treat it
-          // as a continuation of the previous paste and merge.
-          if (data.startsWith(BRACKETED_PASTE_START)) {
-            data = data.slice(BRACKETED_PASTE_START.length);
-            inPasteMode = true;
-            awaitingMerge = false;
-            clearMergeTimer();
           } else {
-            // Not a continuation; flush pending paste, then process this data.
-            flushPaste();
+            // End of (this chunk of) paste. Hold briefly in case another paste
+            // chunk follows immediately and should be merged.
+            pasteBuffer += data.slice(0, endIdx);
+            data = data.slice(endIdx + BRACKETED_PASTE_END.length);
+            state = "PENDING";
+          }
+        } else if (state === "PENDING") {
+          if (data.startsWith(BRACKETED_PASTE_START)) {
+            // Continuation of the previous paste; keep appending to pasteBuffer.
+            data = data.slice(BRACKETED_PASTE_START.length);
+            clearMergeTimer();
+            state = "PASTE";
+          } else {
+            // Not a continuation; flush, then re-process this data as IDLE.
+            flushPasteBuffer();
           }
         } else {
+          // IDLE
           const startIdx = data.indexOf(BRACKETED_PASTE_START);
-          if (startIdx !== -1) {
-            // Start of paste
-            // Output any data before the paste
+          if (startIdx === -1) {
+            this.push(data);
+            data = "";
+          } else {
             if (startIdx > 0) {
               this.push(data.slice(0, startIdx));
             }
             data = data.slice(startIdx + BRACKETED_PASTE_START.length);
-            inPasteMode = true;
-            pasteBuffer = "";
-          } else {
-            // Normal data
-            this.push(data);
-            data = "";
+            state = "PASTE";
           }
         }
       }
 
-      // If the chunk ended while still awaiting a continuation, schedule a
-      // short timer to flush the pending paste if nothing else arrives.
-      if (awaitingMerge && !mergeTimer) {
+      // If the chunk ended while still waiting for a possible continuation,
+      // schedule a short timer to flush the pending paste if nothing arrives.
+      if (state === "PENDING" && !mergeTimer) {
         mergeTimer = setTimeout(() => {
           mergeTimer = null;
-          flushPaste();
+          flushPasteBuffer();
         }, PASTE_MERGE_WINDOW_MS);
       }
 
@@ -173,8 +169,8 @@ export function createPasteTransform(onCtrlC) {
     },
 
     flush(callback) {
-      if (awaitingMerge) {
-        flushPaste();
+      if (state === "PENDING") {
+        flushPasteBuffer();
       }
       callback();
     },

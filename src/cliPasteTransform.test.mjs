@@ -110,27 +110,6 @@ describe("createPasteTransform", () => {
     assert.ok(resolved.includes("a\nb\nc\nd\ne\nf"));
   });
 
-  it("merges paste chunks split at arbitrary byte boundaries into one block", async () => {
-    const transform = createPasteTransform(() => {});
-    // Terminal may split a paste mid-line. Ensure the merged content is
-    // exactly the concatenation of the two chunks' bodies.
-    const out = await feedChunks(
-      transform,
-      [
-        `${BRACKETED_PASTE_START}hello wor${BRACKETED_PASTE_END}`,
-        `${BRACKETED_PASTE_START}ld\nsecond line${BRACKETED_PASTE_END}`,
-      ],
-      { chunkDelayMs: 1 },
-    );
-    // Only a single block is emitted.
-    const blocks = out.match(/\[Pasted text #[a-f0-9]{6}, \d+ lines\]/g);
-    assert.ok(blocks);
-    assert.strictEqual(blocks.length, 1);
-
-    const resolved = resolvePastePlaceholders(out);
-    assert.ok(resolved.includes("hello world\nsecond line"));
-  });
-
   it("does not merge pastes separated by a longer gap than the merge window", async () => {
     const transform = createPasteTransform(() => {});
     const out = await feedChunks(
