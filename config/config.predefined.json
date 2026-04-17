@@ -234,7 +234,7 @@
       }
     },
     {
-      "name": "claude-opus-4-6",
+      "name": "claude-opus-4-7",
       "variant": "thinking-16k",
       "platform": {
         "name": "anthropic",
@@ -244,7 +244,7 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "claude-opus-4-6",
+          "model": "claude-opus-4-7",
           "max_tokens": 32768,
           "thinking": { "type": "enabled", "budget_tokens": 16384 }
         }
@@ -261,7 +261,7 @@
       }
     },
     {
-      "name": "claude-opus-4-6",
+      "name": "claude-opus-4-7",
       "variant": "thinking-32k",
       "platform": {
         "name": "anthropic",
@@ -271,7 +271,7 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "claude-opus-4-6",
+          "model": "claude-opus-4-7",
           "max_tokens": 64000,
           "thinking": { "type": "enabled", "budget_tokens": 32768 }
         }
@@ -393,7 +393,7 @@
       }
     },
     {
-      "name": "claude-opus-4-6",
+      "name": "claude-opus-4-7",
       "variant": "thinking-16k-bedrock",
       "platform": {
         "name": "bedrock",
@@ -402,7 +402,7 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "global.anthropic.claude-opus-4-6-v1",
+          "model": "global.anthropic.claude-opus-4-7-v1",
           "max_tokens": 32768,
           "thinking": { "type": "enabled", "budget_tokens": 16384 }
         }
@@ -419,7 +419,7 @@
       }
     },
     {
-      "name": "claude-opus-4-6",
+      "name": "claude-opus-4-7",
       "variant": "thinking-32k-bedrock",
       "platform": {
         "name": "bedrock",
@@ -428,7 +428,7 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "global.anthropic.claude-opus-4-6-v1",
+          "model": "global.anthropic.claude-opus-4-7-v1",
           "max_tokens": 64000,
           "thinking": { "type": "enabled", "budget_tokens": 32768 }
         }
