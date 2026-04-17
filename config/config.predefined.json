@@ -181,7 +181,7 @@
     },
     {
       "name": "claude-sonnet-4-6",
-      "variant": "thinking-16k",
+      "variant": "thinking-high",
       "platform": {
         "name": "anthropic",
         "variant": "default",
@@ -192,7 +192,8 @@
         "config": {
           "model": "claude-sonnet-4-6",
           "max_tokens": 32768,
-          "thinking": { "type": "enabled", "budget_tokens": 16384 }
+          "thinking": { "type": "adaptive" },
+          "output_config": { "effort": "high" }
         }
       },
       "cost": {
@@ -208,7 +209,7 @@
     },
     {
       "name": "claude-sonnet-4-6",
-      "variant": "thinking-32k",
+      "variant": "thinking-max",
       "platform": {
         "name": "anthropic",
         "variant": "default",
@@ -219,7 +220,8 @@
         "config": {
           "model": "claude-sonnet-4-6",
           "max_tokens": 64000,
-          "thinking": { "type": "enabled", "budget_tokens": 32768 }
+          "thinking": { "type": "adaptive" },
+          "output_config": { "effort": "max" }
         }
       },
       "cost": {
@@ -235,7 +237,7 @@
     },
     {
       "name": "claude-opus-4-7",
-      "variant": "thinking-16k",
+      "variant": "thinking-high",
       "platform": {
         "name": "anthropic",
         "variant": "default",
@@ -246,7 +248,8 @@
         "config": {
           "model": "claude-opus-4-7",
           "max_tokens": 32768,
-          "thinking": { "type": "enabled", "budget_tokens": 16384 }
+          "thinking": { "type": "adaptive" },
+          "output_config": { "effort": "high" }
         }
       },
       "cost": {
@@ -262,7 +265,7 @@
     },
     {
       "name": "claude-opus-4-7",
-      "variant": "thinking-32k",
+      "variant": "thinking-max",
       "platform": {
         "name": "anthropic",
         "variant": "default",
@@ -273,7 +276,8 @@
         "config": {
           "model": "claude-opus-4-7",
           "max_tokens": 64000,
-          "thinking": { "type": "enabled", "budget_tokens": 32768 }
+          "thinking": { "type": "adaptive" },
+          "output_config": { "effort": "max" }
         }
       },
       "cost": {
@@ -342,7 +346,7 @@
     },
     {
       "name": "claude-sonnet-4-6",
-      "variant": "thinking-16k-bedrock",
+      "variant": "thinking-high-bedrock",
       "platform": {
         "name": "bedrock",
         "variant": "default"
@@ -351,8 +355,8 @@
         "format": "anthropic",
         "config": {
           "model": "global.anthropic.claude-sonnet-4-6",
-          "max_tokens": 32768,
-          "thinking": { "type": "enabled", "budget_tokens": 16384 }
+          "thinking": { "type": "adaptive" },
+          "output_config": { "effort": "high" }
         }
       },
       "cost": {
@@ -368,7 +372,7 @@
     },
     {
       "name": "claude-sonnet-4-6",
-      "variant": "thinking-32k-bedrock",
+      "variant": "thinking-max-bedrock",
       "platform": {
         "name": "bedrock",
         "variant": "default"
@@ -378,7 +382,8 @@
         "config": {
           "model": "global.anthropic.claude-sonnet-4-6",
           "max_tokens": 64000,
-          "thinking": { "type": "enabled", "budget_tokens": 32768 }
+          "thinking": { "type": "adaptive" },
+          "output_config": { "effort": "max" }
         }
       },
       "cost": {
@@ -394,7 +399,7 @@
     },
     {
       "name": "claude-opus-4-7",
-      "variant": "thinking-16k-bedrock",
+      "variant": "thinking-high-bedrock",
       "platform": {
         "name": "bedrock",
         "variant": "default"
@@ -404,7 +409,8 @@
         "config": {
           "model": "global.anthropic.claude-opus-4-7-v1",
           "max_tokens": 32768,
-          "thinking": { "type": "enabled", "budget_tokens": 16384 }
+          "thinking": { "type": "adaptive" },
+          "output_config": { "effort": "high" }
         }
       },
       "cost": {
@@ -420,7 +426,7 @@
     },
     {
       "name": "claude-opus-4-7",
-      "variant": "thinking-32k-bedrock",
+      "variant": "thinking-max-bedrock",
       "platform": {
         "name": "bedrock",
         "variant": "default"
@@ -430,7 +436,8 @@
         "config": {
           "model": "global.anthropic.claude-opus-4-7-v1",
           "max_tokens": 64000,
-          "thinking": { "type": "enabled", "budget_tokens": 32768 }
+          "thinking": { "type": "adaptive" },
+          "output_config": { "effort": "max" }
         }
       },
       "cost": {
