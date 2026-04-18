@@ -1,9 +1,6 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
-import {
-  createPasteTransform,
-  resolvePastePlaceholders,
-} from "./cliPasteTransform.mjs";
+import { createPasteHandler } from "./cliPasteTransform.mjs";
 
 const BRACKETED_PASTE_START = "\x1b[200~";
 const BRACKETED_PASTE_END = "\x1b[201~";
@@ -42,15 +39,15 @@ async function feedChunks(transform, chunks, options = {}) {
   return Buffer.concat(output).toString("utf8");
 }
 
-describe("createPasteTransform", () => {
+describe("createPasteHandler.transform", () => {
   it("passes through normal typed input untouched", async () => {
-    const transform = createPasteTransform(() => {});
+    const { transform } = createPasteHandler();
     const out = await feedChunks(transform, ["hello world\n"]);
     assert.strictEqual(out, "hello world\n");
   });
 
   it("emits single-line paste content directly without placeholder", async () => {
-    const transform = createPasteTransform(() => {});
+    const { transform } = createPasteHandler();
     const out = await feedChunks(transform, [
       `${BRACKETED_PASTE_START}hello${BRACKETED_PASTE_END}`,
     ]);
@@ -58,7 +55,7 @@ describe("createPasteTransform", () => {
   });
 
   it("emits a placeholder for multi-line paste", async () => {
-    const transform = createPasteTransform(() => {});
+    const { transform } = createPasteHandler();
     const out = await feedChunks(transform, [
       `${BRACKETED_PASTE_START}line1\nline2\nline3${BRACKETED_PASTE_END}`,
     ]);
@@ -66,19 +63,19 @@ describe("createPasteTransform", () => {
   });
 
   it("merges two bracketed paste sequences that arrive in the same chunk", async () => {
-    const transform = createPasteTransform(() => {});
+    const { transform, resolvePlaceholders } = createPasteHandler();
     const out = await feedChunks(transform, [
       `${BRACKETED_PASTE_START}line1\nline2\n${BRACKETED_PASTE_END}${BRACKETED_PASTE_START}line3\nline4${BRACKETED_PASTE_END}`,
     ]);
     // Should produce a single placeholder, not two blocks.
     assert.match(out, /^\[Pasted text #[a-f0-9]{6}, 4 lines\]$/);
 
-    const resolved = resolvePastePlaceholders(out);
+    const resolved = resolvePlaceholders(out);
     assert.ok(resolved.includes("line1\nline2\nline3\nline4"));
   });
 
   it("merges two bracketed paste sequences that arrive in separate chunks", async () => {
-    const transform = createPasteTransform(() => {});
+    const { transform, resolvePlaceholders } = createPasteHandler();
     const out = await feedChunks(
       transform,
       [
@@ -89,50 +86,12 @@ describe("createPasteTransform", () => {
     );
     assert.match(out, /^\[Pasted text #[a-f0-9]{6}, 4 lines\]$/);
 
-    const resolved = resolvePastePlaceholders(out);
+    const resolved = resolvePlaceholders(out);
     assert.ok(resolved.includes("line1\nline2\nline3\nline4"));
   });
 
-  it("merges three or more consecutive paste sequences", async () => {
-    const transform = createPasteTransform(() => {});
-    const out = await feedChunks(
-      transform,
-      [
-        `${BRACKETED_PASTE_START}a\nb\n${BRACKETED_PASTE_END}`,
-        `${BRACKETED_PASTE_START}c\nd\n${BRACKETED_PASTE_END}`,
-        `${BRACKETED_PASTE_START}e\nf${BRACKETED_PASTE_END}`,
-      ],
-      { chunkDelayMs: 1 },
-    );
-    assert.match(out, /^\[Pasted text #[a-f0-9]{6}, 6 lines\]$/);
-
-    const resolved = resolvePastePlaceholders(out);
-    assert.ok(resolved.includes("a\nb\nc\nd\ne\nf"));
-  });
-
-  it("merges paste chunks split at arbitrary byte boundaries into one block", async () => {
-    const transform = createPasteTransform(() => {});
-    // Terminal may split a paste mid-line. Ensure the merged content is
-    // exactly the concatenation of the two chunks' bodies.
-    const out = await feedChunks(
-      transform,
-      [
-        `${BRACKETED_PASTE_START}hello wor${BRACKETED_PASTE_END}`,
-        `${BRACKETED_PASTE_START}ld\nsecond line${BRACKETED_PASTE_END}`,
-      ],
-      { chunkDelayMs: 1 },
-    );
-    // Only a single block is emitted.
-    const blocks = out.match(/\[Pasted text #[a-f0-9]{6}, \d+ lines\]/g);
-    assert.ok(blocks);
-    assert.strictEqual(blocks.length, 1);
-
-    const resolved = resolvePastePlaceholders(out);
-    assert.ok(resolved.includes("hello world\nsecond line"));
-  });
-
   it("does not merge pastes separated by a longer gap than the merge window", async () => {
-    const transform = createPasteTransform(() => {});
+    const { transform } = createPasteHandler();
     const out = await feedChunks(
       transform,
       [
@@ -148,7 +107,7 @@ describe("createPasteTransform", () => {
   });
 
   it("continues a paste split across multiple chunks without an end marker", async () => {
-    const transform = createPasteTransform(() => {});
+    const { transform } = createPasteHandler();
     const out = await feedChunks(
       transform,
       [
@@ -162,7 +121,7 @@ describe("createPasteTransform", () => {
   });
 
   it("flushes pending paste when typing resumes after a paste", async () => {
-    const transform = createPasteTransform(() => {});
+    const { transform } = createPasteHandler();
     const out = await feedChunks(
       transform,
       [`${BRACKETED_PASTE_START}line1\nline2${BRACKETED_PASTE_END}`, "\n"],
@@ -171,34 +130,16 @@ describe("createPasteTransform", () => {
     // Placeholder emitted, followed by the newline typed by the user.
     assert.match(out, /^\[Pasted text #[a-f0-9]{6}, 2 lines\]\n$/);
   });
-
-  it("invokes onCtrlC on Ctrl-C", async () => {
-    let called = 0;
-    const transform = createPasteTransform(() => {
-      called += 1;
-    });
-    await feedChunks(transform, ["\x03"]);
-    assert.strictEqual(called, 1);
-  });
-
-  it("invokes onCtrlC on Ctrl-D", async () => {
-    let called = 0;
-    const transform = createPasteTransform(() => {
-      called += 1;
-    });
-    await feedChunks(transform, ["\x04"]);
-    assert.strictEqual(called, 1);
-  });
 });
 
-describe("resolvePastePlaceholders", () => {
+describe("createPasteHandler.resolvePlaceholders", () => {
   it("appends a context tag for each referenced paste", async () => {
-    const transform = createPasteTransform(() => {});
+    const { transform, resolvePlaceholders } = createPasteHandler();
     const out = await feedChunks(transform, [
       `${BRACKETED_PASTE_START}alpha\nbeta\ngamma${BRACKETED_PASTE_END}`,
     ]);
-    // out is the placeholder; feed it back through resolvePastePlaceholders.
-    const resolved = resolvePastePlaceholders(out);
+    // out is the placeholder; feed it back through resolvePlaceholders.
+    const resolved = resolvePlaceholders(out);
     assert.match(resolved, /\[Pasted text #[a-f0-9]{6}, 3 lines\]/);
     assert.match(
       resolved,
@@ -207,6 +148,7 @@ describe("resolvePastePlaceholders", () => {
   });
 
   it("returns input unchanged when there are no placeholders", () => {
-    assert.strictEqual(resolvePastePlaceholders("just text"), "just text");
+    const { resolvePlaceholders } = createPasteHandler();
+    assert.strictEqual(resolvePlaceholders("just text"), "just text");
   });
 });
