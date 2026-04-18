@@ -4,54 +4,6 @@ import { Transform } from "node:stream";
 const BRACKETED_PASTE_START = "\x1b[200~";
 const BRACKETED_PASTE_END = "\x1b[201~";
 
-// Store for pasted content
-const pastedContentStore = new Map();
-
-/**
- * Generate a short hash for paste reference
- * @param {string} content
- * @returns {string}
- */
-function generatePasteHash(content) {
-  let hash = 0;
-  for (let i = 0; i < content.length; i++) {
-    const char = content.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  return Math.abs(hash).toString(16).padStart(6, "0").slice(0, 6);
-}
-
-/**
- * Resolve paste placeholders and append context tags
- * @param {string} input
- * @returns {string}
- */
-export function resolvePastePlaceholders(input) {
-  /** @type {string[]} */
-  const contexts = [];
-
-  // Collect paste content for context tags while keeping placeholders
-  const text = input.replace(
-    /\[Pasted text #([a-f0-9]{6}),/g,
-    (match, hash) => {
-      const content = pastedContentStore.get(hash);
-      if (content !== undefined) {
-        pastedContentStore.delete(hash); // Clean up after use
-        contexts.push(`<context id="pasted#${hash}">\n${content}\n</context>`);
-      }
-      return match; // Keep placeholder in text
-    },
-  );
-
-  // Append contexts to the end of input
-  if (contexts.length > 0) {
-    return [text, ...contexts].join("\n\n");
-  }
-
-  return text;
-}
-
 // Time to wait for a continuation paste chunk before flushing the paste buffer.
 // Some terminals split large pastes into multiple bracketed paste sequences
 // (e.g. `\x1b[200~...\x1b[201~\x1b[200~...\x1b[201~`) that arrive back-to-back.
@@ -66,11 +18,43 @@ const PASTE_MERGE_WINDOW_MS = 20;
 /** @typedef {"IDLE" | "PASTE" | "PENDING"} PasteState */
 
 /**
- * Create a Transform stream to handle bracketed paste before readline.
- * @param {() => void} onCtrlC - Called when Ctrl-C or Ctrl-D is detected
- * @returns {Transform}
+ * Generate a short hash for paste reference.
+ * @param {string} content
+ * @returns {string}
  */
-export function createPasteTransform(onCtrlC) {
+function generatePasteHash(content) {
+  let hash = 0;
+  for (let i = 0; i < content.length; i++) {
+    const char = content.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash).toString(16).padStart(6, "0").slice(0, 6);
+}
+
+/**
+ * @typedef {object} PasteHandler
+ * @property {Transform} transform
+ *   Transform stream to pipe stdin through. Emits placeholders for multi-line
+ *   pastes and raw text for single-line pastes / typed input.
+ * @property {(input: string) => string} resolvePlaceholders
+ *   Given a string containing placeholders produced by `transform`, append a
+ *   `<context id="pasted#HASH">...</context>` block for each referenced paste
+ *   and consume the stored content. Unknown placeholders are left untouched.
+ */
+
+/**
+ * Create a bracketed-paste handler. The handler owns its own content store so
+ * pastes from one handler instance cannot interfere with another (and state
+ * does not leak across tests).
+ *
+ * @param {() => void} onCtrlC - Called when Ctrl-C or Ctrl-D is detected
+ * @returns {PasteHandler}
+ */
+export function createPasteHandler(onCtrlC) {
+  /** @type {Map<string, string>} */
+  const pastedContentStore = new Map();
+
   /** @type {PasteState} */
   let state = "IDLE";
   let pasteBuffer = "";
@@ -174,5 +158,34 @@ export function createPasteTransform(onCtrlC) {
     },
   });
 
-  return transform;
+  /**
+   * @param {string} input
+   * @returns {string}
+   */
+  const resolvePlaceholders = (input) => {
+    /** @type {string[]} */
+    const contexts = [];
+
+    // Collect paste content for context tags while keeping placeholders.
+    const text = input.replace(
+      /\[Pasted text #([a-f0-9]{6}),/g,
+      (match, hash) => {
+        const content = pastedContentStore.get(hash);
+        if (content !== undefined) {
+          pastedContentStore.delete(hash); // Clean up after use
+          contexts.push(
+            `<context id="pasted#${hash}">\n${content}\n</context>`,
+          );
+        }
+        return match; // Keep placeholder in text
+      },
+    );
+
+    if (contexts.length > 0) {
+      return [text, ...contexts].join("\n\n");
+    }
+    return text;
+  };
+
+  return { transform, resolvePlaceholders };
 }

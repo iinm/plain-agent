@@ -12,10 +12,7 @@ import {
   formatProviderTokenUsage,
   printMessage,
 } from "./cliFormatter.mjs";
-import {
-  createPasteTransform,
-  resolvePastePlaceholders,
-} from "./cliPasteTransform.mjs";
+import { createPasteHandler } from "./cliPasteTransform.mjs";
 import { notify } from "./utils/notify.mjs";
 
 const HELP_MESSAGE = [
@@ -143,10 +140,10 @@ export function startInteractiveSession({
   };
 
   // Create a transform stream to handle bracketed paste before readline
-  const pasteTransform = createPasteTransform(handleCtrlC);
+  const paste = createPasteHandler(handleCtrlC);
 
   // Set up transformed stdin for readline
-  process.stdin.pipe(pasteTransform);
+  process.stdin.pipe(paste.transform);
 
   // Enable bracketed paste mode
   if (process.stdout.isTTY) {
@@ -156,7 +153,7 @@ export function startInteractiveSession({
   let currentCliPrompt = getCliPrompt();
   /** @type {import("node:readline").Interface} */
   const cli = readline.createInterface({
-    input: pasteTransform,
+    input: paste.transform,
     output: process.stdout,
     prompt: currentCliPrompt,
     completer: createCompleter(() => cli, claudeCodePlugins),
@@ -199,7 +196,7 @@ export function startInteractiveSession({
     state.turn = false;
 
     // Resolve paste placeholders to original content
-    const resolvedInput = resolvePastePlaceholders(input);
+    const resolvedInput = paste.resolvePlaceholders(input);
     const inputTrimmed = resolvedInput.trim();
 
     if (inputTrimmed.length === 0) {
