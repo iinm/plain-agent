@@ -147,9 +147,7 @@ export function createPasteTransform(onCtrlC) {
             this.push(data);
             data = "";
           } else {
-            if (startIdx > 0) {
-              this.push(data.slice(0, startIdx));
-            }
+            this.push(data.slice(0, startIdx));
             data = data.slice(startIdx + BRACKETED_PASTE_START.length);
             state = "PASTE";
           }
