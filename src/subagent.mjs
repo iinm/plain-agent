@@ -246,9 +246,18 @@ export function createSubagentManager(agentRoles, handlers) {
     return { messages: truncatedMessages, newMessage };
   }
 
+  /**
+   * Whether the main agent is currently running as a subagent.
+   * @returns {boolean}
+   */
+  function isSubagentActive() {
+    return subagents.length > 0;
+  }
+
   return {
     delegateToSubagent,
     reportAsSubagent,
     processToolResults,
+    isSubagentActive,
   };
 }

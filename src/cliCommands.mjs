@@ -149,6 +149,19 @@ export function createCommandHandler({
       return "prompt";
     }
 
+    // /compact
+    if (inputTrimmed.toLowerCase() === "/compact") {
+      const message = [
+        'System: This prompt was invoked as "/compact".',
+        "",
+        "Compact the conversation context:",
+        "1. Update the memory file for the current task so it fully captures the task overview, progress, decisions, and next steps in a self-contained way.",
+        '2. Then call the "compact_context" tool alone with that memory file path and a brief reason.',
+      ].join("\n");
+      userEventEmitter.emit("userInput", [{ type: "text", text: message }]);
+      return "continue";
+    }
+
     // /agents or /agents:id
     if (inputTrimmed === "/agents") {
       const agentRoles = await loadAgentRoles(claudeCodePlugins);
