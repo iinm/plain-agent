@@ -7,6 +7,37 @@
  */
 
 import { styleText } from "node:util";
+import { compactContextToolName } from "./tools/compactContext.mjs";
+
+/**
+ * If compact_context was called successfully, discard the prior conversation
+ * (keeping only the system prompt) and append the tool result as a standard
+ * user message so the model can resume from the reloaded memory file.
+ * @param {StateManager} stateManager
+ * @param {MessageContentToolUse[]} toolUseParts
+ * @param {MessageContentToolResult[]} toolResults
+ * @returns {boolean} true if compact was applied
+ */
+function applyCompactContextIfCalled(stateManager, toolUseParts, toolResults) {
+  const compactToolUse = toolUseParts.find(
+    (t) => t.toolName === compactContextToolName,
+  );
+  if (!compactToolUse) return false;
+
+  const compactResult = toolResults.find(
+    (r) => r.toolUseId === compactToolUse.toolUseId,
+  );
+  if (!compactResult || compactResult.isError) return false;
+
+  const systemMessage = stateManager.getMessageAt(0);
+  if (!systemMessage) return false;
+
+  stateManager.setMessages([systemMessage]);
+  stateManager.appendMessages([
+    { role: "user", content: compactResult.content },
+  ]);
+  return true;
+}
 
 /**
  * @typedef {Object} PauseSignal
@@ -200,6 +231,12 @@ export function createAgentLoop({
 
       const toolResults = executionResult.results;
 
+      if (
+        applyCompactContextIfCalled(stateManager, toolUseParts, toolResults)
+      ) {
+        continue;
+      }
+
       const result = subagentManager.processToolResults(
         toolUseParts,
         toolResults,
@@ -300,6 +337,13 @@ export function createInputHandler(context) {
       }
 
       const toolResults = executionResult.results;
+
+      if (
+        applyCompactContextIfCalled(stateManager, toolUseParts, toolResults)
+      ) {
+        return;
+      }
+
       const result = subagentManager.processToolResults(
         toolUseParts,
         toolResults,

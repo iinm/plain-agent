@@ -34,6 +34,11 @@ export const SLASH_COMMANDS = [
   { name: "/dump", description: "Save current messages to a JSON file" },
   { name: "/load", description: "Load messages from a JSON file" },
   { name: "/cost", description: "Display session cost and token usage" },
+  {
+    name: "/compact",
+    description:
+      "Ask the agent to compact the context by reloading from a memory file",
+  },
 ];
 
 /**

@@ -24,6 +24,7 @@ import { createModelCaller } from "./modelCaller.mjs";
 import { createPrompt } from "./prompt.mjs";
 import { createAskURLTool } from "./tools/askURL.mjs";
 import { createAskWebTool } from "./tools/askWeb.mjs";
+import { createCompactContextTool } from "./tools/compactContext.mjs";
 import { createDelegateToSubagentTool } from "./tools/delegateToSubagent.mjs";
 import { createExecCommandTool } from "./tools/execCommand.mjs";
 import { createPatchFileTool } from "./tools/patchFile.mjs";
@@ -164,6 +165,7 @@ if (cliArgs.subcommand.type === "install-claude-code-plugins") {
     writeFileTool,
     createPatchFileTool(),
     createTmuxCommandTool({ sandbox: appConfig.sandbox }),
+    createCompactContextTool(),
     createDelegateToSubagentTool(),
     createReportAsSubagentTool(),
   ];

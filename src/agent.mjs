@@ -1,6 +1,7 @@
 /**
  * @import { Agent, AgentConfig, AgentEventEmitter, UserEventEmitter } from "./agent"
  * @import { Tool, ToolDefinition } from "./tool"
+ * @import { CompactContextInput } from "./tools/compactContext"
  * @import { DelegateToSubagentInput } from "./tools/delegateToSubagent"
  * @import { ReportAsSubagentInput } from "./tools/reportAsSubagent"
  */
@@ -13,6 +14,10 @@ import { createCostTracker } from "./costTracker.mjs";
 import { MESSAGES_DUMP_FILE_PATH } from "./env.mjs";
 import { createSubagentManager } from "./subagent.mjs";
 import { createToolExecutor } from "./toolExecutor.mjs";
+import {
+  compactContextToolName,
+  readMemoryForCompaction,
+} from "./tools/compactContext.mjs";
 import { delegateToSubagentToolName } from "./tools/delegateToSubagent.mjs";
 import { reportAsSubagentToolName } from "./tools/reportAsSubagent.mjs";
 
@@ -89,6 +94,20 @@ export function createAgent({
     return result.memoryContent;
   };
 
+  /**
+   * @param {Record<string, unknown>} rawInput
+   */
+  const compactContextImpl = async (rawInput) => {
+    if (subagentManager.isSubagentActive()) {
+      return new Error(
+        "compact_context cannot be used while running as a subagent. " +
+          "Call report_as_subagent to return to the main agent first.",
+      );
+    }
+    const input = /** @type {CompactContextInput} */ (rawInput);
+    return await readMemoryForCompaction(input);
+  };
+
   /** @type {Map<string, Tool>} */
   const toolByName = new Map();
   for (const tool of tools) {
@@ -97,6 +116,9 @@ export function createAgent({
     }
     if (tool.def.name === reportAsSubagentToolName && tool.injectImpl) {
       tool.injectImpl(reportAsSubagentImpl);
+    }
+    if (tool.def.name === compactContextToolName && tool.injectImpl) {
+      tool.injectImpl(compactContextImpl);
     }
     toolByName.set(tool.def.name, tool);
   }
