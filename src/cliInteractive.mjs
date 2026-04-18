@@ -80,7 +80,7 @@ export function startInteractiveSession({
     subagentName: "",
   };
 
-  const getCliPrompt = (subagentName = "") =>
+  const getCliPrompt = (subagentName = "", flashMessage = "") =>
     [
       "",
       styleText(
@@ -90,6 +90,7 @@ export function startInteractiveSession({
           `session: ${sessionId} | model: ${modelName} | sandbox: ${sandbox ? "on" : "off"}`,
         ].join(" "),
       ),
+      ...(flashMessage ? [flashMessage] : []),
       "> ",
     ].join("\n");
 
@@ -130,12 +131,8 @@ export function startInteractiveSession({
       state.multiLineBuffer = null;
       cli.setPrompt(currentCliPrompt);
     }
-    // @ts-expect-error - internal property
-    cli.line = "";
-    // @ts-expect-error - internal property
-    cli.cursor = 0;
-    readline.cursorTo(process.stdout, 0);
-    readline.clearLine(process.stdout, 0);
+    cli.write(null, { ctrl: true, name: "a" }); // move to line start
+    cli.write(null, { ctrl: true, name: "k" }); // delete to line end
     cli.prompt();
   };
 
@@ -146,7 +143,7 @@ export function startInteractiveSession({
       console.log(
         styleText(
           "yellow",
-          "\n⚠ Ctrl-C: Auto-approve paused. Finishing current tool...",
+          "\n\n⚠️ Ctrl-C: Auto-approve paused. Finishing current tool...\nPress Ctrl-D twice to exit.\n",
         ),
       );
       return;
@@ -157,7 +154,12 @@ export function startInteractiveSession({
     if (hasInput) {
       resetInput();
     } else {
-      console.log(styleText("yellow", "\n(Press Ctrl-D twice to exit)"));
+      cli.setPrompt(
+        getCliPrompt(
+          state.subagentName,
+          styleText("yellow", "Press Ctrl-D twice to exit"),
+        ),
+      );
       cli.prompt();
     }
     // Reset Ctrl-D confirmation when Ctrl-C is pressed
@@ -176,9 +178,16 @@ export function startInteractiveSession({
       return;
     }
     lastCtrlDAttempt = now;
-    console.log(styleText("yellow", "\nPress Ctrl-D again to exit."));
     if (state.turn) {
+      cli.setPrompt(
+        getCliPrompt(
+          state.subagentName,
+          styleText("yellow", "Press Ctrl-D again to exit."),
+        ),
+      );
       cli.prompt();
+    } else {
+      console.log(styleText("yellow", "\n\n⚠️ Press Ctrl-D again to exit.\n"));
     }
   };
 
@@ -324,13 +333,13 @@ export function startInteractiveSession({
 
   agentEventEmitter.on("toolUseRequest", () => {
     cli.setPrompt(
-      [
+      getCliPrompt(
+        state.subagentName,
         styleText(
           "yellow",
-          "\nApprove tool calls? (y = allow once, Y = allow in this session, or feedback)",
+          "Approve tool calls? (y = allow once, Y = allow in this session, or feedback)",
         ),
-        currentCliPrompt,
-      ].join("\n"),
+      ),
     );
   });
 
