@@ -4,7 +4,7 @@
 
 import { styleText } from "node:util";
 import { getGoogleCloudAccessToken } from "../providers/platform/googleCloud.mjs";
-import { combineSignals, sleep } from "../utils/abortSignal.mjs";
+import { abortableSleep } from "../utils/abortSignal.mjs";
 import { noThrow } from "../utils/noThrow.mjs";
 
 /** @typedef {AskWebToolGeminiOptions | AskWebToolGeminiVertexAIOptions} AskWebToolOptions */
@@ -87,7 +87,9 @@ Question: ${input.question}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(data),
-      signal: combineSignals(signal, 120 * 1000),
+      signal: signal
+        ? AbortSignal.any([AbortSignal.timeout(120 * 1000), signal])
+        : AbortSignal.timeout(120 * 1000),
     });
 
     if (response.status === 429 || response.status >= 500) {
@@ -98,7 +100,7 @@ Question: ${input.question}`,
           `Google API returned ${response.status}. Retrying in ${interval} seconds...`,
         ),
       );
-      await sleep(interval * 1000, signal);
+      await abortableSleep(interval * 1000, signal);
       return askWeb(input, retryCount + 1, signal);
     }
 

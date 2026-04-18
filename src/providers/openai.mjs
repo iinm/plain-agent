@@ -5,7 +5,7 @@
  */
 
 import { styleText } from "node:util";
-import { combineSignals, sleep } from "../utils/abortSignal.mjs";
+import { abortableSleep } from "../utils/abortSignal.mjs";
 import { noThrow } from "../utils/noThrow.mjs";
 import { getAzureAccessToken } from "./platform/azure.mjs";
 
@@ -65,7 +65,9 @@ export async function callOpenAIModel(
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify(request),
-      signal: combineSignals(input.signal, 8 * 60 * 1000),
+      signal: input.signal
+        ? AbortSignal.any([AbortSignal.timeout(8 * 60 * 1000), input.signal])
+        : AbortSignal.timeout(8 * 60 * 1000),
     });
 
     const retryInterval = Math.min(2 * 2 ** retryCount, 16);
@@ -76,7 +78,7 @@ export async function callOpenAIModel(
           `OpenAI rate limit exceeded. Retry in ${retryInterval} seconds...`,
         ),
       );
-      await sleep(retryInterval * 1000, input.signal);
+      await abortableSleep(retryInterval * 1000, input.signal);
       return callOpenAIModel(
         platformConfig,
         modelConfig,
@@ -123,7 +125,7 @@ export async function callOpenAIModel(
           `OpenAI stream did not complete: ${JSON.stringify(lastEventTrimmed)}. Retry in ${retryInterval} seconds...`,
         ),
       );
-      await sleep(retryInterval * 1000, input.signal);
+      await abortableSleep(retryInterval * 1000, input.signal);
       return callOpenAIModel(
         platformConfig,
         modelConfig,

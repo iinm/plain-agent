@@ -5,7 +5,7 @@
  */
 
 import { styleText } from "node:util";
-import { combineSignals, sleep } from "../utils/abortSignal.mjs";
+import { abortableSleep } from "../utils/abortSignal.mjs";
 import { noThrow } from "../utils/noThrow.mjs";
 import { readBedrockStreamEvents } from "./platform/bedrock.mjs";
 
@@ -104,7 +104,9 @@ export async function callBedrockConverseModel(
       method: signed.method,
       headers: signed.headers,
       body: signed.body,
-      signal: combineSignals(input.signal, 8 * 60 * 1000),
+      signal: input.signal
+        ? AbortSignal.any([AbortSignal.timeout(8 * 60 * 1000), input.signal])
+        : AbortSignal.timeout(8 * 60 * 1000),
     });
 
     if (response.status !== 200) {
@@ -127,7 +129,7 @@ export async function callBedrockConverseModel(
             `Retrying in ${retryInterval} seconds... (attempt ${retryCount + 1})`,
           ),
         );
-        await sleep(retryInterval * 1000, input.signal);
+        await abortableSleep(retryInterval * 1000, input.signal);
         return callBedrockConverseModel(
           platformConfig,
           modelConfig,
