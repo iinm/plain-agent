@@ -80,7 +80,7 @@ export function startInteractiveSession({
     subagentName: "",
   };
 
-  const getCliPrompt = (subagentName = "") =>
+  const getCliPrompt = (subagentName = "", flashMessage = "") =>
     [
       "",
       styleText(
@@ -90,6 +90,7 @@ export function startInteractiveSession({
           `session: ${sessionId} | model: ${modelName} | sandbox: ${sandbox ? "on" : "off"}`,
         ].join(" "),
       ),
+      ...(flashMessage ? [flashMessage] : []),
       "> ",
     ].join("\n");
 
@@ -114,35 +115,88 @@ export function startInteractiveSession({
     process.exit(0);
   };
 
-  // Double-press exit confirmation
-  let lastExitAttempt = 0;
+  // Double-press Ctrl-D exit confirmation
+  let lastCtrlDAttempt = 0;
   const EXIT_CONFIRM_TIMEOUT = 1500;
 
+  /** @type {import("node:readline").Interface} */
+  let cli;
+
+  /**
+   * Clear the current readline input line and redraw the prompt.
+   * Also aborts multi-line input mode if active.
+   */
+  const resetInput = () => {
+    if (state.multiLineBuffer !== null) {
+      state.multiLineBuffer = null;
+      cli.setPrompt(currentCliPrompt);
+    }
+    cli.write(null, { ctrl: true, name: "a" }); // move to line start
+    cli.write(null, { ctrl: true, name: "k" }); // delete to line end
+    cli.prompt();
+  };
+
   const handleCtrlC = () => {
-    // If agent is running, pause auto-approve instead of exiting
+    // Agent turn: pause auto-approve; do not clear input.
     if (!state.turn) {
       agentCommands.pauseAutoApprove();
       console.log(
         styleText(
           "yellow",
-          "\n⚠ Ctrl-C: Auto-approve paused. Finishing current tool...",
+          "\n\n⚠️ Ctrl-C: Auto-approve paused. Finishing current tool...\nPress Ctrl-D twice to exit.\n",
         ),
       );
       return;
     }
 
+    // User turn: clear current input. On empty input, show exit hint.
+    const hasInput = cli.line.length > 0 || state.multiLineBuffer !== null;
+    if (hasInput) {
+      resetInput();
+    } else {
+      cli.setPrompt(
+        getCliPrompt(
+          state.subagentName,
+          styleText("yellow", "Press Ctrl-D twice to exit"),
+        ),
+      );
+      cli.prompt();
+    }
+    // Reset Ctrl-D confirmation when Ctrl-C is pressed
+    lastCtrlDAttempt = 0;
+  };
+
+  const handleCtrlD = () => {
+    // User turn with non-empty input: ignore Ctrl-D entirely.
+    if (state.turn && (cli.line.length > 0 || state.multiLineBuffer !== null)) {
+      return;
+    }
+
     const now = Date.now();
-    if (now - lastExitAttempt < EXIT_CONFIRM_TIMEOUT) {
+    if (now - lastCtrlDAttempt < EXIT_CONFIRM_TIMEOUT) {
       handleExit();
       return;
     }
-    lastExitAttempt = now;
-    console.log(styleText("yellow", "\nPress Ctrl-C or Ctrl-D again to exit."));
+    lastCtrlDAttempt = now;
+    if (state.turn) {
+      cli.setPrompt(
+        getCliPrompt(
+          state.subagentName,
+          styleText("yellow", "Press Ctrl-D again to exit."),
+        ),
+      );
+      cli.prompt();
+    } else {
+      console.log(styleText("yellow", "\n\n⚠️ Press Ctrl-D again to exit.\n"));
+    }
   };
 
   // Pre-readline pipeline:
   //   stdin -> interrupt (Ctrl-C / Ctrl-D) -> paste (bracketed paste) -> readline
-  const interrupt = createInterruptTransform(handleCtrlC);
+  const interrupt = createInterruptTransform({
+    onCtrlC: handleCtrlC,
+    onCtrlD: handleCtrlD,
+  });
   const paste = createPasteHandler();
 
   process.stdin.pipe(interrupt).pipe(paste.transform);
@@ -153,8 +207,7 @@ export function startInteractiveSession({
   }
 
   let currentCliPrompt = getCliPrompt();
-  /** @type {import("node:readline").Interface} */
-  const cli = readline.createInterface({
+  cli = readline.createInterface({
     input: paste.transform,
     output: process.stdout,
     prompt: currentCliPrompt,
@@ -280,13 +333,13 @@ export function startInteractiveSession({
 
   agentEventEmitter.on("toolUseRequest", () => {
     cli.setPrompt(
-      [
+      getCliPrompt(
+        state.subagentName,
         styleText(
           "yellow",
-          "\nApprove tool calls? (y = allow once, Y = allow in this session, or feedback)",
+          "Approve tool calls? (y = allow once, Y = allow in this session, or feedback)",
         ),
-        currentCliPrompt,
-      ].join("\n"),
+      ),
     );
   });
 
