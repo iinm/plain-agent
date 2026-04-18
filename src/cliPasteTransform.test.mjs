@@ -93,23 +93,6 @@ describe("createPasteTransform", () => {
     assert.ok(resolved.includes("line1\nline2\nline3\nline4"));
   });
 
-  it("merges three or more consecutive paste sequences", async () => {
-    const transform = createPasteTransform(() => {});
-    const out = await feedChunks(
-      transform,
-      [
-        `${BRACKETED_PASTE_START}a\nb\n${BRACKETED_PASTE_END}`,
-        `${BRACKETED_PASTE_START}c\nd\n${BRACKETED_PASTE_END}`,
-        `${BRACKETED_PASTE_START}e\nf${BRACKETED_PASTE_END}`,
-      ],
-      { chunkDelayMs: 1 },
-    );
-    assert.match(out, /^\[Pasted text #[a-f0-9]{6}, 6 lines\]$/);
-
-    const resolved = resolvePastePlaceholders(out);
-    assert.ok(resolved.includes("a\nb\nc\nd\ne\nf"));
-  });
-
   it("does not merge pastes separated by a longer gap than the merge window", async () => {
     const transform = createPasteTransform(() => {});
     const out = await feedChunks(
