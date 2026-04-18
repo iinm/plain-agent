@@ -46,7 +46,7 @@ Create the configuration.
 // ~/.config/plain-agent/config.local.json
 {
   "model": "gpt-5.4+thinking-high",
-  // "model": "claude-sonnet-4-6+thinking-16k",
+  // "model": "claude-sonnet-4-6+thinking-high",
 
   // Configure the providers you want to use
   "platforms": [
