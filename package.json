@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "@aws-crypto/sha256-js": "^5.2.0",
-    "@aws-sdk/credential-providers": "^3.1026.0",
+    "@aws-sdk/credential-providers": "^3.1030.0",
     "@cfworker/json-schema": "^4.1.1",
     "@modelcontextprotocol/client": "^2.0.0-alpha.2",
     "@smithy/protocol-http": "^5.3.13",
@@ -45,7 +45,7 @@
     "js-yaml": "^4.1.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.10",
+    "@biomejs/biome": "^2.4.12",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.19.17",
     "typescript": "^5.9.3"
