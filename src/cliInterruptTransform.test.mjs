@@ -25,28 +25,62 @@ async function feedChunks(transform, chunks) {
 
 describe("createInterruptTransform", () => {
   it("passes normal input through unchanged", async () => {
-    const transform = createInterruptTransform(() => {});
+    const transform = createInterruptTransform({
+      onCtrlC: () => {},
+      onCtrlD: () => {},
+    });
     const out = await feedChunks(transform, ["hello world\n"]);
     assert.strictEqual(out, "hello world\n");
   });
 
-  it("invokes onInterrupt on Ctrl-C and drops the chunk", async () => {
-    let called = 0;
-    const transform = createInterruptTransform(() => {
-      called += 1;
+  it("invokes onCtrlC on Ctrl-C and drops the chunk", async () => {
+    let ctrlC = 0;
+    let ctrlD = 0;
+    const transform = createInterruptTransform({
+      onCtrlC: () => {
+        ctrlC += 1;
+      },
+      onCtrlD: () => {
+        ctrlD += 1;
+      },
     });
     const out = await feedChunks(transform, ["\x03"]);
-    assert.strictEqual(called, 1);
+    assert.strictEqual(ctrlC, 1);
+    assert.strictEqual(ctrlD, 0);
     assert.strictEqual(out, "");
   });
 
-  it("invokes onInterrupt on Ctrl-D and drops the chunk", async () => {
-    let called = 0;
-    const transform = createInterruptTransform(() => {
-      called += 1;
+  it("invokes onCtrlD on Ctrl-D and drops the chunk", async () => {
+    let ctrlC = 0;
+    let ctrlD = 0;
+    const transform = createInterruptTransform({
+      onCtrlC: () => {
+        ctrlC += 1;
+      },
+      onCtrlD: () => {
+        ctrlD += 1;
+      },
     });
     const out = await feedChunks(transform, ["\x04"]);
-    assert.strictEqual(called, 1);
+    assert.strictEqual(ctrlC, 0);
+    assert.strictEqual(ctrlD, 1);
+    assert.strictEqual(out, "");
+  });
+
+  it("prefers Ctrl-C over Ctrl-D when both are in the same chunk", async () => {
+    let ctrlC = 0;
+    let ctrlD = 0;
+    const transform = createInterruptTransform({
+      onCtrlC: () => {
+        ctrlC += 1;
+      },
+      onCtrlD: () => {
+        ctrlD += 1;
+      },
+    });
+    const out = await feedChunks(transform, ["\x03\x04"]);
+    assert.strictEqual(ctrlC, 1);
+    assert.strictEqual(ctrlD, 0);
     assert.strictEqual(out, "");
   });
 });

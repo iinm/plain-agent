@@ -114,12 +114,33 @@ export function startInteractiveSession({
     process.exit(0);
   };
 
-  // Double-press exit confirmation
-  let lastExitAttempt = 0;
+  // Double-press Ctrl-D exit confirmation
+  let lastCtrlDAttempt = 0;
   const EXIT_CONFIRM_TIMEOUT = 1500;
 
+  /** @type {import("node:readline").Interface} */
+  let cli;
+
+  /**
+   * Clear the current readline input line and redraw the prompt.
+   * Also aborts multi-line input mode if active.
+   */
+  const resetInput = () => {
+    if (state.multiLineBuffer !== null) {
+      state.multiLineBuffer = null;
+      cli.setPrompt(currentCliPrompt);
+    }
+    // @ts-expect-error - internal property
+    cli.line = "";
+    // @ts-expect-error - internal property
+    cli.cursor = 0;
+    readline.cursorTo(process.stdout, 0);
+    readline.clearLine(process.stdout, 0);
+    cli.prompt();
+  };
+
   const handleCtrlC = () => {
-    // If agent is running, pause auto-approve instead of exiting
+    // Agent turn: pause auto-approve; do not clear input.
     if (!state.turn) {
       agentCommands.pauseAutoApprove();
       console.log(
@@ -131,18 +152,42 @@ export function startInteractiveSession({
       return;
     }
 
+    // User turn: clear current input. On empty input, show exit hint.
+    const hasInput = cli.line.length > 0 || state.multiLineBuffer !== null;
+    if (hasInput) {
+      resetInput();
+    } else {
+      console.log(styleText("yellow", "\n(Press Ctrl-D twice to exit)"));
+      cli.prompt();
+    }
+    // Reset Ctrl-D confirmation when Ctrl-C is pressed
+    lastCtrlDAttempt = 0;
+  };
+
+  const handleCtrlD = () => {
+    // User turn with non-empty input: ignore Ctrl-D entirely.
+    if (state.turn && (cli.line.length > 0 || state.multiLineBuffer !== null)) {
+      return;
+    }
+
     const now = Date.now();
-    if (now - lastExitAttempt < EXIT_CONFIRM_TIMEOUT) {
+    if (now - lastCtrlDAttempt < EXIT_CONFIRM_TIMEOUT) {
       handleExit();
       return;
     }
-    lastExitAttempt = now;
-    console.log(styleText("yellow", "\nPress Ctrl-C or Ctrl-D again to exit."));
+    lastCtrlDAttempt = now;
+    console.log(styleText("yellow", "\nPress Ctrl-D again to exit."));
+    if (state.turn) {
+      cli.prompt();
+    }
   };
 
   // Pre-readline pipeline:
   //   stdin -> interrupt (Ctrl-C / Ctrl-D) -> paste (bracketed paste) -> readline
-  const interrupt = createInterruptTransform(handleCtrlC);
+  const interrupt = createInterruptTransform({
+    onCtrlC: handleCtrlC,
+    onCtrlD: handleCtrlD,
+  });
   const paste = createPasteHandler();
 
   process.stdin.pipe(interrupt).pipe(paste.transform);
@@ -153,8 +198,7 @@ export function startInteractiveSession({
   }
 
   let currentCliPrompt = getCliPrompt();
-  /** @type {import("node:readline").Interface} */
-  const cli = readline.createInterface({
+  cli = readline.createInterface({
     input: paste.transform,
     output: process.stdout,
     prompt: currentCliPrompt,
