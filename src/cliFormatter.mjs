@@ -1,5 +1,6 @@
 /**
  * @import { Message, MessageContentToolUse, MessageContentToolResult, ProviderTokenUsage } from "./model"
+ * @import { CompactContextInput } from "./tools/compactContext"
  * @import { ExecCommandInput } from "./tools/execCommand"
  * @import { PatchFileInput } from "./tools/patchFile"
  * @import { WriteFileInput } from "./tools/writeFile"
@@ -92,6 +93,16 @@ export function formatToolUse(toolUse) {
       `tool: ${toolName}`,
       `name: ${delegateInput.name}`,
       `goal: ${delegateInput.goal}`,
+    ].join("\n");
+  }
+
+  if (toolName === "compact_context") {
+    /** @type {Partial<CompactContextInput>} */
+    const compactContextInput = input;
+    return [
+      `tool: ${toolName}`,
+      `memoryPath: ${compactContextInput.memoryPath}`,
+      `reason: ${compactContextInput.reason}`,
     ].join("\n");
   }
 
