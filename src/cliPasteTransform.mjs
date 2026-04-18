@@ -48,10 +48,9 @@ function generatePasteHash(content) {
  * pastes from one handler instance cannot interfere with another (and state
  * does not leak across tests).
  *
- * @param {() => void} onCtrlC - Called when Ctrl-C or Ctrl-D is detected
  * @returns {PasteHandler}
  */
-export function createPasteHandler(onCtrlC) {
+export function createPasteHandler() {
   /** @type {Map<string, string>} */
   const pastedContentStore = new Map();
 
@@ -93,13 +92,6 @@ export function createPasteHandler(onCtrlC) {
     transform(chunk, _encoding, callback) {
       /** @type {string} */
       let data = chunk.toString("utf8");
-
-      // Handle Ctrl-C and Ctrl-D
-      if (data.includes("\x03") || data.includes("\x04")) {
-        onCtrlC();
-        callback();
-        return;
-      }
 
       while (data.length > 0) {
         if (state === "PASTE") {

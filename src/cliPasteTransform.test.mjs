@@ -41,13 +41,13 @@ async function feedChunks(transform, chunks, options = {}) {
 
 describe("createPasteHandler.transform", () => {
   it("passes through normal typed input untouched", async () => {
-    const { transform } = createPasteHandler(() => {});
+    const { transform } = createPasteHandler();
     const out = await feedChunks(transform, ["hello world\n"]);
     assert.strictEqual(out, "hello world\n");
   });
 
   it("emits single-line paste content directly without placeholder", async () => {
-    const { transform } = createPasteHandler(() => {});
+    const { transform } = createPasteHandler();
     const out = await feedChunks(transform, [
       `${BRACKETED_PASTE_START}hello${BRACKETED_PASTE_END}`,
     ]);
@@ -55,7 +55,7 @@ describe("createPasteHandler.transform", () => {
   });
 
   it("emits a placeholder for multi-line paste", async () => {
-    const { transform } = createPasteHandler(() => {});
+    const { transform } = createPasteHandler();
     const out = await feedChunks(transform, [
       `${BRACKETED_PASTE_START}line1\nline2\nline3${BRACKETED_PASTE_END}`,
     ]);
@@ -63,7 +63,7 @@ describe("createPasteHandler.transform", () => {
   });
 
   it("merges two bracketed paste sequences that arrive in the same chunk", async () => {
-    const { transform, resolvePlaceholders } = createPasteHandler(() => {});
+    const { transform, resolvePlaceholders } = createPasteHandler();
     const out = await feedChunks(transform, [
       `${BRACKETED_PASTE_START}line1\nline2\n${BRACKETED_PASTE_END}${BRACKETED_PASTE_START}line3\nline4${BRACKETED_PASTE_END}`,
     ]);
@@ -75,7 +75,7 @@ describe("createPasteHandler.transform", () => {
   });
 
   it("merges two bracketed paste sequences that arrive in separate chunks", async () => {
-    const { transform, resolvePlaceholders } = createPasteHandler(() => {});
+    const { transform, resolvePlaceholders } = createPasteHandler();
     const out = await feedChunks(
       transform,
       [
@@ -91,7 +91,7 @@ describe("createPasteHandler.transform", () => {
   });
 
   it("does not merge pastes separated by a longer gap than the merge window", async () => {
-    const { transform } = createPasteHandler(() => {});
+    const { transform } = createPasteHandler();
     const out = await feedChunks(
       transform,
       [
@@ -107,7 +107,7 @@ describe("createPasteHandler.transform", () => {
   });
 
   it("continues a paste split across multiple chunks without an end marker", async () => {
-    const { transform } = createPasteHandler(() => {});
+    const { transform } = createPasteHandler();
     const out = await feedChunks(
       transform,
       [
@@ -121,7 +121,7 @@ describe("createPasteHandler.transform", () => {
   });
 
   it("flushes pending paste when typing resumes after a paste", async () => {
-    const { transform } = createPasteHandler(() => {});
+    const { transform } = createPasteHandler();
     const out = await feedChunks(
       transform,
       [`${BRACKETED_PASTE_START}line1\nline2${BRACKETED_PASTE_END}`, "\n"],
@@ -130,29 +130,11 @@ describe("createPasteHandler.transform", () => {
     // Placeholder emitted, followed by the newline typed by the user.
     assert.match(out, /^\[Pasted text #[a-f0-9]{6}, 2 lines\]\n$/);
   });
-
-  it("invokes onCtrlC on Ctrl-C", async () => {
-    let called = 0;
-    const { transform } = createPasteHandler(() => {
-      called += 1;
-    });
-    await feedChunks(transform, ["\x03"]);
-    assert.strictEqual(called, 1);
-  });
-
-  it("invokes onCtrlC on Ctrl-D", async () => {
-    let called = 0;
-    const { transform } = createPasteHandler(() => {
-      called += 1;
-    });
-    await feedChunks(transform, ["\x04"]);
-    assert.strictEqual(called, 1);
-  });
 });
 
 describe("createPasteHandler.resolvePlaceholders", () => {
   it("appends a context tag for each referenced paste", async () => {
-    const { transform, resolvePlaceholders } = createPasteHandler(() => {});
+    const { transform, resolvePlaceholders } = createPasteHandler();
     const out = await feedChunks(transform, [
       `${BRACKETED_PASTE_START}alpha\nbeta\ngamma${BRACKETED_PASTE_END}`,
     ]);
@@ -166,7 +148,7 @@ describe("createPasteHandler.resolvePlaceholders", () => {
   });
 
   it("returns input unchanged when there are no placeholders", () => {
-    const { resolvePlaceholders } = createPasteHandler(() => {});
+    const { resolvePlaceholders } = createPasteHandler();
     assert.strictEqual(resolvePlaceholders("just text"), "just text");
   });
 });

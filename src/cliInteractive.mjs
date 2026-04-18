@@ -12,6 +12,7 @@ import {
   formatProviderTokenUsage,
   printMessage,
 } from "./cliFormatter.mjs";
+import { createInterruptTransform } from "./cliInterruptTransform.mjs";
 import { createPasteHandler } from "./cliPasteTransform.mjs";
 import { notify } from "./utils/notify.mjs";
 
@@ -139,11 +140,12 @@ export function startInteractiveSession({
     console.log(styleText("yellow", "\nPress Ctrl-C or Ctrl-D again to exit."));
   };
 
-  // Create a transform stream to handle bracketed paste before readline
-  const paste = createPasteHandler(handleCtrlC);
+  // Pre-readline pipeline:
+  //   stdin -> interrupt (Ctrl-C / Ctrl-D) -> paste (bracketed paste) -> readline
+  const interrupt = createInterruptTransform(handleCtrlC);
+  const paste = createPasteHandler();
 
-  // Set up transformed stdin for readline
-  process.stdin.pipe(paste.transform);
+  process.stdin.pipe(interrupt).pipe(paste.transform);
 
   // Enable bracketed paste mode
   if (process.stdout.isTTY) {
