@@ -21,13 +21,8 @@ export function createCompactContextTool() {
   const tool = {
     def: {
       name: compactContextToolName,
-      description: [
-        "Compact the conversation context by discarding prior messages and",
-        "reloading the task state from a memory file.",
-        "Use this when the context has grown large but the task is not yet complete.",
-        "Before calling this, update the memory file so that it fully captures the",
-        "task overview, progress, decisions, and next steps in a self-contained way.",
-      ].join(" "),
+      description:
+        "Discard prior messages and reload task state from a memory file.",
       inputSchema: {
         type: "object",
         properties: {
