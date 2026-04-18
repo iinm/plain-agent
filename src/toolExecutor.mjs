@@ -126,11 +126,17 @@ export function createToolExecutor(toolByName, options = {}) {
    */
 
   /**
+   * @typedef {Object} ExecuteBatchOptions
+   * @property {AbortSignal} [signal]
+   */
+
+  /**
    * Validate and execute multiple tools
    * @param {MessageContentToolUse[]} toolUseParts
+   * @param {ExecuteBatchOptions} [options]
    * @returns {Promise<ExecuteBatchResult>}
    */
-  async function executeBatch(toolUseParts) {
+  async function executeBatch(toolUseParts, options = {}) {
     const validation = validateBatch(toolUseParts);
 
     if (!validation.isValid) {
@@ -145,7 +151,10 @@ export function createToolExecutor(toolByName, options = {}) {
 
     const results = [];
     for (const toolUse of toolUseParts) {
-      results.push(await execute(toolUse));
+      if (options.signal?.aborted) {
+        break;
+      }
+      results.push(await execute(toolUse, options));
     }
 
     return {
@@ -185,9 +194,10 @@ export function createToolExecutor(toolByName, options = {}) {
   /**
    * Execute a tool use and return the result
    * @param {MessageContentToolUse} toolUse
+   * @param {ExecuteBatchOptions} [options]
    * @returns {Promise<MessageContentToolResult>}
    */
-  async function execute(toolUse) {
+  async function execute(toolUse, options = {}) {
     const tool = toolByName.get(toolUse.toolName);
     if (!tool) {
       return {
@@ -201,7 +211,7 @@ export function createToolExecutor(toolByName, options = {}) {
       };
     }
 
-    const result = await tool.impl(toolUse.input);
+    const result = await tool.impl(toolUse.input, { signal: options.signal });
     if (result instanceof Error) {
       return {
         type: "tool_result",

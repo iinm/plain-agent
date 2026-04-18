@@ -5,6 +5,7 @@
  */
 
 import { styleText } from "node:util";
+import { combineSignals, sleep } from "../utils/abortSignal.mjs";
 import { noThrow } from "../utils/noThrow.mjs";
 import { readBedrockStreamEvents } from "./platform/bedrock.mjs";
 import { getGoogleCloudAccessToken } from "./platform/googleCloud.mjs";
@@ -103,7 +104,7 @@ export async function callAnthropicModel(
           "Content-Type": "application/json",
         },
         body: JSON.stringify(request),
-        signal: AbortSignal.timeout(8 * 60 * 1000),
+        signal: combineSignals(input.signal, 8 * 60 * 1000),
       });
 
     // bedrock + sso profile
@@ -146,7 +147,7 @@ export async function callAnthropicModel(
         method: signed.method,
         headers: signed.headers,
         body: signed.body,
-        signal: AbortSignal.timeout(8 * 60 * 1000),
+        signal: combineSignals(input.signal, 8 * 60 * 1000),
       });
     };
 
@@ -163,7 +164,7 @@ export async function callAnthropicModel(
           `Anthropic rate limit exceeded. Retry in ${interval} seconds...`,
         ),
       );
-      await new Promise((resolve) => setTimeout(resolve, interval * 1000));
+      await sleep(interval * 1000, input.signal);
       return callAnthropicModel(
         platformConfig,
         modelConfig,

@@ -40,9 +40,10 @@ export function createTmuxCommandTool(config) {
 
     /**
      * @param {TmuxCommandInput} input
+     * @param {import("../tool").ToolImplementationOptions} [options]
      * @returns {Promise<string | Error>}
      */
-    impl: async (input) =>
+    impl: async (input, options) =>
       await noThrow(async () => {
         const { command } = input;
         const args = input.args || [];
@@ -65,6 +66,7 @@ export function createTmuxCommandTool(config) {
             PATH: process.env.PATH,
             HOME: process.env.HOME,
           },
+          signal: options?.signal,
         };
 
         /**

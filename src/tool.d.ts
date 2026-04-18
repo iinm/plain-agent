@@ -18,7 +18,12 @@ export type ToolDefinition = {
 
 export type ToolImplementation = (
   input: Record,
+  options?: ToolImplementationOptions,
 ) => Promise<string | StructuredToolResultContent[] | Error>;
+
+export type ToolImplementationOptions = {
+  signal?: AbortSignal;
+};
 
 export type StructuredToolResultContent =
   | {

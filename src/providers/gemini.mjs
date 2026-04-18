@@ -5,6 +5,7 @@
  */
 
 import { styleText } from "node:util";
+import { combineSignals, sleep } from "../utils/abortSignal.mjs";
 import { noThrow } from "../utils/noThrow.mjs";
 import { getGoogleCloudAccessToken } from "./platform/googleCloud.mjs";
 
@@ -143,7 +144,7 @@ export function createCacheEnabledGeminiModelCaller(
           "Content-Type": "application/json",
         },
         body: JSON.stringify(request),
-        signal: AbortSignal.timeout(8 * 60 * 1000),
+        signal: combineSignals(input.signal, 8 * 60 * 1000),
       });
 
       if (response.status === 429 || response.status >= 500) {
@@ -154,7 +155,7 @@ export function createCacheEnabledGeminiModelCaller(
             `Gemini rate limit exceeded. Retrying in ${interval} seconds...`,
           ),
         );
-        await new Promise((resolve) => setTimeout(resolve, interval * 1000));
+        await sleep(interval * 1000, input.signal);
         return modelCaller(config, input, retryCount + 1);
       }
 
@@ -227,7 +228,7 @@ export function createCacheEnabledGeminiModelCaller(
             `${message.name}: Retrying in ${interval} seconds...`,
           ),
         );
-        await new Promise((resolve) => setTimeout(resolve, interval * 1000));
+        await sleep(interval * 1000, input.signal);
         return modelCaller(config, input, retryCount + 1);
       }
 

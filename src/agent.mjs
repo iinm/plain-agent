@@ -177,6 +177,9 @@ export function createAgent({
       pauseAutoApprove: () => {
         paused = true;
       },
+      abort: () => {
+        agentLoop.abort();
+      },
     },
   };
 }

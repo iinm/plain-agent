@@ -6,6 +6,7 @@ export type ModelInput = {
   messages: Message[];
   tools?: ToolDefinition[];
   onPartialMessageContent?: (partialContent: PartialMessageContent) => void;
+  signal?: AbortSignal;
 };
 
 export type ModelOutput = {

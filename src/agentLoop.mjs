@@ -44,11 +44,15 @@ export function createAgentLoop({
   subagentManager,
   pauseSignal,
 }) {
+  /** @type {AbortController | null} */
+  let currentAbortController = null;
+
   const inputHandler = createInputHandler({
     stateManager,
     toolExecutor,
     subagentManager,
     toolUseApprover,
+    getAbortSignal: () => currentAbortController?.signal,
   });
 
   /**
@@ -58,10 +62,22 @@ export function createAgentLoop({
    */
   async function handleUserInput(input) {
     pauseSignal.reset();
+    currentAbortController = new AbortController();
     toolUseApprover.resetApprovalCount();
-    await inputHandler.handle(input);
-    await runTurnLoop();
-    agentEventEmitter.emit("turnEnd");
+    try {
+      await inputHandler.handle(input);
+      await runTurnLoop();
+    } finally {
+      currentAbortController = null;
+      agentEventEmitter.emit("turnEnd");
+    }
+  }
+
+  /**
+   * Abort the current turn (in-flight model call / tool execution).
+   */
+  function abort() {
+    currentAbortController?.abort();
   }
 
   /**
@@ -73,6 +89,10 @@ export function createAgentLoop({
     const maxThinkingLoops = 5;
 
     while (true) {
+      // Check if aborted by Ctrl-C (2nd press)
+      if (currentAbortController?.signal.aborted) {
+        break;
+      }
       // Check if auto-approve was paused by Ctrl-C during tool execution
       if (pauseSignal.isPaused()) {
         pauseSignal.reset();
@@ -88,9 +108,13 @@ export function createAgentLoop({
         onPartialMessageContent: (partialContent) => {
           agentEventEmitter.emit("partialMessageContent", partialContent);
         },
+        signal: currentAbortController?.signal,
       });
 
       if (modelOutput instanceof Error) {
+        if (currentAbortController?.signal.aborted) {
+          break;
+        }
         agentEventEmitter.emit("error", modelOutput);
         break;
       }
@@ -176,7 +200,13 @@ export function createAgentLoop({
         break;
       }
 
-      const executionResult = await toolExecutor.executeBatch(toolUseParts);
+      const executionResult = await toolExecutor.executeBatch(toolUseParts, {
+        signal: currentAbortController?.signal,
+      });
+
+      if (currentAbortController?.signal.aborted) {
+        break;
+      }
 
       if (!executionResult.success) {
         stateManager.appendMessages([
@@ -216,6 +246,7 @@ export function createAgentLoop({
 
   return {
     handleUserInput,
+    abort,
   };
 }
 
@@ -225,6 +256,7 @@ export function createAgentLoop({
  * @property {import("./toolExecutor.mjs").ToolExecutor} toolExecutor
  * @property {import("./subagent.mjs").SubagentManager} subagentManager
  * @property {import("./tool.d.ts").ToolUseApprover} toolUseApprover
+ * @property {() => (AbortSignal | undefined)} [getAbortSignal]
  */
 
 /**
@@ -237,8 +269,13 @@ export function createAgentLoop({
  * @param {InputHandlerContext} context
  */
 export function createInputHandler(context) {
-  const { stateManager, toolExecutor, subagentManager, toolUseApprover } =
-    context;
+  const {
+    stateManager,
+    toolExecutor,
+    subagentManager,
+    toolUseApprover,
+    getAbortSignal,
+  } = context;
 
   /**
    * Determine input type based on current state and input.
@@ -291,7 +328,12 @@ export function createInputHandler(context) {
         }
       }
 
-      const executionResult = await toolExecutor.executeBatch(toolUseParts);
+      const executionResult = await toolExecutor.executeBatch(toolUseParts, {
+        signal: getAbortSignal?.(),
+      });
+      if (getAbortSignal?.()?.aborted) {
+        return;
+      }
       if (!executionResult.success) {
         stateManager.appendMessages([
           { role: "user", content: executionResult.errors },

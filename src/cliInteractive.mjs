@@ -118,15 +118,29 @@ export function startInteractiveSession({
   let lastExitAttempt = 0;
   const EXIT_CONFIRM_TIMEOUT = 1500;
 
+  // Ctrl-C press count within the current agent turn
+  // Reset on turnEnd. 1st press pauses auto-approve; 2nd press aborts in-flight
+  // model call / tool execution via AbortSignal.
+  let turnInterruptCount = 0;
+
   const handleCtrlC = () => {
-    // If agent is running, pause auto-approve instead of exiting
+    // If agent is running, escalate: 1st press = pause, 2nd press = abort
     if (!state.turn) {
-      agentCommands.pauseAutoApprove();
+      turnInterruptCount += 1;
+      if (turnInterruptCount === 1) {
+        agentCommands.pauseAutoApprove();
+        console.log(
+          styleText(
+            "yellow",
+            "\n⚠ Ctrl-C: Auto-approve paused. Finishing current tool... (Press Ctrl-C again to abort)",
+          ),
+        );
+        return;
+      }
+      // 2nd (or later) press: abort in-flight operation
+      agentCommands.abort();
       console.log(
-        styleText(
-          "yellow",
-          "\n⚠ Ctrl-C: Auto-approve paused. Finishing current tool...",
-        ),
+        styleText("yellow", "\n✖ Ctrl-C: Aborting current operation..."),
       );
       return;
     }
@@ -319,6 +333,7 @@ export function startInteractiveSession({
     // 暫定対応: token usageのconsole出力を確実にflushするため、次のevent loop tickまで遅延
     await new Promise((resolve) => setTimeout(resolve, 0));
 
+    turnInterruptCount = 0;
     state.turn = true;
     cli.prompt();
   });

@@ -67,9 +67,10 @@ export function createExecCommandTool(config) {
 
     /**
      * @param {ExecCommandInput} input
+     * @param {import("../tool").ToolImplementationOptions} [options]
      * @returns {Promise<string | Error>}
      */
-    impl: async (input) =>
+    impl: async (input, options) =>
       await noThrow(async () => {
         const { command, args } = config?.sandbox
           ? rewriteInputForSandbox(input, config.sandbox)
@@ -86,6 +87,7 @@ export function createExecCommandTool(config) {
                 HOME: process.env.HOME,
               },
               timeout: 5 * 60 * 1000,
+              signal: options?.signal,
             },
             async (err, stdout, stderr) => {
               /**

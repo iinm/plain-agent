@@ -4,6 +4,7 @@
 
 import { styleText } from "node:util";
 import { getGoogleCloudAccessToken } from "../providers/platform/googleCloud.mjs";
+import { combineSignals, sleep } from "../utils/abortSignal.mjs";
 import { noThrow } from "../utils/noThrow.mjs";
 
 /** @typedef {AskWebToolGeminiOptions | AskWebToolGeminiVertexAIOptions} AskWebToolOptions */
@@ -37,9 +38,10 @@ export function createAskWebTool(config) {
   /**
    * @param {AskWebInput} input
    * @param {number} retryCount
+   * @param {AbortSignal} [signal]
    * @returns {Promise<string | Error>}
    */
-  async function askWeb(input, retryCount = 0) {
+  async function askWeb(input, retryCount, signal) {
     const model = config.model ?? "gemini-3-flash-preview";
     const url =
       config.provider === "gemini-vertex-ai"
@@ -85,7 +87,7 @@ Question: ${input.question}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(data),
-      signal: AbortSignal.timeout(120 * 1000),
+      signal: combineSignals(signal, 120 * 1000),
     });
 
     if (response.status === 429 || response.status >= 500) {
@@ -96,8 +98,8 @@ Question: ${input.question}`,
           `Google API returned ${response.status}. Retrying in ${interval} seconds...`,
         ),
       );
-      await new Promise((resolve) => setTimeout(resolve, interval * 1000));
-      return askWeb(input, retryCount + 1);
+      await sleep(interval * 1000, signal);
+      return askWeb(input, retryCount + 1, signal);
     }
 
     if (!response.ok) {
@@ -195,7 +197,8 @@ Question: ${input.question}`,
      * @param {AskWebInput} input
      * @returns {Promise<string | Error>}
      */
-    impl: async (input) => await noThrow(async () => askWeb(input, 0)),
+    impl: async (input, options) =>
+      await noThrow(async () => askWeb(input, 0, options?.signal)),
 
     /**
      * @param {Record<string, unknown>} _input
