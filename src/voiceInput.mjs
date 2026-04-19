@@ -298,23 +298,21 @@ function createOpenAIDriver(config) {
       });
     },
     buildSetup() {
+      // The `?intent=transcription` endpoint uses the flat transcription-session
+      // schema, not the nested `session.audio.input.*` realtime schema.
       return {
-        type: "session.update",
+        type: "transcription_session.update",
         session: {
-          type: "transcription",
-          audio: {
-            input: {
-              format: { type: "audio/pcm", rate: OPENAI_SAMPLE_RATE },
-              transcription: { model },
-              turn_detection: { type: "server_vad" },
-            },
-          },
+          input_audio_format: "pcm16",
+          input_audio_transcription: { model },
+          turn_detection: { type: "server_vad" },
         },
       };
     },
     isReady(message) {
       return (
-        message.type === "session.updated" || message.type === "session.created"
+        message.type === "transcription_session.created" ||
+        message.type === "transcription_session.updated"
       );
     },
     buildAudioMessage(base64) {
@@ -530,6 +528,15 @@ export function startVoiceSession({ config, callbacks }) {
     if (!isObject(message)) return;
     if (DEBUG) {
       process.stderr.write(`[voiceInput] <- ${raw.slice(0, 800)}\n`);
+    }
+
+    if (message.type === "error" && isObject(message.error)) {
+      const detail =
+        typeof message.error.message === "string"
+          ? message.error.message
+          : JSON.stringify(message.error);
+      callbacks.onError(new Error(`${driver.label} error: ${detail}`));
+      return;
     }
 
     if (!ready && driver.isReady(message)) {
