@@ -25,6 +25,9 @@ import { spawn, spawnSync } from "node:child_process";
  * @property {"gemini"} provider
  * @property {string} apiKey
  * @property {string} [model] - Defaults to "gemini-3.1-flash-live-preview".
+ * @property {number} [maxOutputTokens] - Caps audio-output tokens. Reduces cost; Live API may not stop precisely at the limit.
+ * @property {number} [thinkingBudget] - For 2.5 models. Set to 0 to disable thinking.
+ * @property {"minimal" | "low" | "medium" | "high"} [thinkingLevel] - For 3.1 models. Defaults to "minimal".
  * @property {string} [baseURL]
  * @property {VoiceRecorderConfig} [recorder]
  * @property {string} [toggleKey]
@@ -349,14 +352,30 @@ function createGeminiDriver(config) {
       return new WebSocket(`${base}?key=${encodeURIComponent(config.apiKey)}`);
     },
     buildSetup() {
-      // responseModalities is AUDIO not TEXT: the 3.1 preview model returns
-      // a 1011 internal error for TEXT-only output
-      // (https://github.com/googleapis/python-genai/issues/2238). We discard
-      // the audio response; `inputAudioTranscription` is emitted regardless.
+      // responseModalities must be AUDIO: TEXT-only output is currently
+      // broken across every Live preview model
+      // (googleapis/python-genai#2238, #1780). We discard the generated
+      // audio; `inputAudioTranscription` is emitted regardless.
+      /** @type {Record<string, unknown>} */
+      const generationConfig = { responseModalities: ["AUDIO"] };
+      if (typeof config.maxOutputTokens === "number") {
+        generationConfig.maxOutputTokens = config.maxOutputTokens;
+      }
+      /** @type {Record<string, unknown>} */
+      const thinkingConfig = {};
+      if (typeof config.thinkingBudget === "number") {
+        thinkingConfig.thinkingBudget = config.thinkingBudget;
+      }
+      if (config.thinkingLevel) {
+        thinkingConfig.thinkingLevel = config.thinkingLevel;
+      }
+      if (Object.keys(thinkingConfig).length > 0) {
+        generationConfig.thinkingConfig = thinkingConfig;
+      }
       return {
         setup: {
           model: `models/${model}`,
-          generationConfig: { responseModalities: ["AUDIO"] },
+          generationConfig,
           inputAudioTranscription: {},
         },
       };
