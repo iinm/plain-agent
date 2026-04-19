@@ -496,62 +496,6 @@ The agent loads configuration files in the following order. Settings in later fi
 ```
 </details>
 
-## Voice Input
-
-Press **Ctrl-O** to start recording, press it again to stop. Partial
-transcripts are inserted into the prompt as you speak so you can edit
-and send them like regular text.
-
-### Requirements
-
-- A recording command on `PATH`: `arecord`, `sox`, or `ffmpeg`.
-- An API key for the chosen provider.
-- Your host must have microphone access. The sandbox does not need to.
-
-### Providers
-
-**OpenAI Realtime** (default, recommended):
-
-```js
-{
-  "voiceInput": {
-    "provider": "openai",
-    "apiKey": "YOUR_OPENAI_API_KEY"
-    // "model": "gpt-4o-transcribe",  // or "gpt-4o-mini-transcribe", "whisper-1"
-    // "language": "ja"                // ISO-639-1 code. Improves accuracy and latency.
-  }
-}
-```
-
-**Gemini Live** (preview API; model names and pricing may change):
-
-```js
-{
-  "voiceInput": {
-    "provider": "gemini",
-    "apiKey": "YOUR_GEMINI_API_KEY"
-    // "model": "gemini-3.1-flash-live-preview",
-    // "maxOutputTokens": 1,   // Cap generated audio output to reduce cost.
-    // "thinkingLevel": "minimal",   // 3.1 models. Defaults to "minimal".
-    // "thinkingBudget": 0     // 2.5 models. Set to 0 to disable thinking.
-  }
-}
-```
-
-Gemini Live was designed for voice agents, not pure STT. `maxOutputTokens` /
-`thinkingBudget` / `thinkingLevel` cap the wasted generation. For lowest cost,
-use `"provider": "openai"` with `"model": "gpt-4o-mini-transcribe"` instead.
-
-### Options
-
-- `toggleKey` — Rebind the toggle. Accepts `"ctrl-<char>"` where `<char>`
-  is a letter (a-z) or one of `[ \ ] ^ _`. Defaults to `"ctrl-o"`.
-- `recorder` — Override recorder auto-detection. Must write raw 16-bit
-  little-endian mono PCM to stdout at 24 kHz (OpenAI) or 16 kHz (Gemini).
-
-Put the config in `~/.config/plain-agent/config.local.json` to keep the
-API key out of version control.
-
 ## Prompts
 
 You can define reusable prompts in Markdown files.
@@ -667,6 +611,62 @@ Example:
 ```sh
 plain install-claude-code-plugins
 ```
+
+## Voice Input
+
+Press **Ctrl-O** to start recording, press it again to stop. Partial
+transcripts are inserted into the prompt as you speak so you can edit
+and send them like regular text.
+
+### Requirements
+
+- A recording command on `PATH`: `arecord`, `sox`, or `ffmpeg`.
+- An API key for the chosen provider.
+- Your host must have microphone access. The sandbox does not need to.
+
+### Providers
+
+**OpenAI Realtime** (default, recommended):
+
+```js
+{
+  "voiceInput": {
+    "provider": "openai",
+    "apiKey": "YOUR_OPENAI_API_KEY"
+    // "model": "gpt-4o-transcribe",  // or "gpt-4o-mini-transcribe", "whisper-1"
+    // "language": "ja"                // ISO-639-1 code. Improves accuracy and latency.
+  }
+}
+```
+
+**Gemini Live** (preview API; model names and pricing may change):
+
+```js
+{
+  "voiceInput": {
+    "provider": "gemini",
+    "apiKey": "YOUR_GEMINI_API_KEY"
+    // "model": "gemini-3.1-flash-live-preview",
+    // "maxOutputTokens": 1,   // Cap generated audio output to reduce cost.
+    // "thinkingLevel": "minimal",   // 3.1 models. Defaults to "minimal".
+    // "thinkingBudget": 0     // 2.5 models. Set to 0 to disable thinking.
+  }
+}
+```
+
+Gemini Live was designed for voice agents, not pure STT. `maxOutputTokens` /
+`thinkingBudget` / `thinkingLevel` cap the wasted generation. For lowest cost,
+use `"provider": "openai"` with `"model": "gpt-4o-mini-transcribe"` instead.
+
+### Options
+
+- `toggleKey` — Rebind the toggle. Accepts `"ctrl-<char>"` where `<char>`
+  is a letter (a-z) or one of `[ \ ] ^ _`. Defaults to `"ctrl-o"`.
+- `recorder` — Override recorder auto-detection. Must write raw 16-bit
+  little-endian mono PCM to stdout at 24 kHz (OpenAI) or 16 kHz (Gemini).
+
+Put the config in `~/.config/plain-agent/config.local.json` to keep the
+API key out of version control.
 
 ## Development
 
