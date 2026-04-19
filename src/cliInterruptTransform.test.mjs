@@ -83,4 +83,74 @@ describe("createInterruptTransform", () => {
     assert.strictEqual(ctrlD, 0);
     assert.strictEqual(out, "");
   });
+
+  it("invokes onVoiceToggle on the default byte (Ctrl-O) and drops the chunk", async () => {
+    let toggled = 0;
+    const transform = createInterruptTransform({
+      onCtrlC: () => {},
+      onCtrlD: () => {},
+      onVoiceToggle: () => {
+        toggled += 1;
+      },
+    });
+    const out = await feedChunks(transform, ["\x0f"]);
+    assert.strictEqual(toggled, 1);
+    assert.strictEqual(out, "");
+  });
+
+  it("respects a custom voiceToggleByte", async () => {
+    let toggled = 0;
+    const transform = createInterruptTransform({
+      onCtrlC: () => {},
+      onCtrlD: () => {},
+      onVoiceToggle: () => {
+        toggled += 1;
+      },
+      voiceToggleByte: 0x07, // Ctrl-G
+    });
+    // Default Ctrl-O should now pass through unchanged
+    const passThrough = await feedChunks(
+      createInterruptTransform({
+        onCtrlC: () => {},
+        onCtrlD: () => {},
+        onVoiceToggle: () => {
+          assert.fail("should not be called");
+        },
+        voiceToggleByte: 0x07,
+      }),
+      ["\x0f"],
+    );
+    assert.strictEqual(passThrough, "\x0f");
+
+    const out = await feedChunks(transform, ["\x07"]);
+    assert.strictEqual(toggled, 1);
+    assert.strictEqual(out, "");
+  });
+
+  it("passes the voice toggle byte through when no onVoiceToggle is provided", async () => {
+    const transform = createInterruptTransform({
+      onCtrlC: () => {},
+      onCtrlD: () => {},
+    });
+    const out = await feedChunks(transform, ["\x0f"]);
+    assert.strictEqual(out, "\x0f");
+  });
+
+  it("prefers Ctrl-C over the voice toggle when both are in the same chunk", async () => {
+    let ctrlC = 0;
+    let toggled = 0;
+    const transform = createInterruptTransform({
+      onCtrlC: () => {
+        ctrlC += 1;
+      },
+      onCtrlD: () => {},
+      onVoiceToggle: () => {
+        toggled += 1;
+      },
+    });
+    const out = await feedChunks(transform, ["\x03\x0f"]);
+    assert.strictEqual(ctrlC, 1);
+    assert.strictEqual(toggled, 0);
+    assert.strictEqual(out, "");
+  });
 });

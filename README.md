@@ -60,19 +60,19 @@ Create the configuration.
     {
       "name": "anthropic",
       "variant": "default",
-      "apiKey": "FIXME"
+      "apiKey": "<ANTHROPIC_API_KEY>"
       // Or
       // "apiKey": { "$env": "ANTHROPIC_API_KEY" }
     },
     {
       "name": "gemini",
       "variant": "default",
-      "apiKey": "FIXME"
+      "apiKey": "<GEMINI_API_KEY>"
     },
     {
       "name": "openai",
       "variant": "default",
-      "apiKey": "FIXME"
+      "apiKey": "<OPENAI_API_KEY>"
     },
   ],
 
@@ -81,7 +81,7 @@ Create the configuration.
     // askWeb: Searches the web to answer questions requiring up-to-date information or external sources.
     "askWeb": {
       "provider": "gemini",
-      "apiKey": "FIXME",
+      "apiKey": "<GEMINI_API_KEY>",
       "model": "gemini-3-flash-preview"
       // Optional
       // "baseURL": "<proxy_url>"
@@ -98,7 +98,7 @@ Create the configuration.
     //         Directly injecting URL content into context is not supported to prevent prompt injection.
     "askURL": {
       "provider": "gemini",
-      "apiKey": "FIXME"
+      "apiKey": "<GEMINI_API_KEY>"
       "model": "gemini-3-flash-preview"
       // Optional
       // "baseURL": "<proxy_url>"
@@ -134,7 +134,7 @@ Create the configuration.
       "name": "bedrock",
       "variant": "default",
       "baseURL": "https://bedrock-runtime.<region>.amazonaws.com",
-      "awsProfile": "FIXME"
+      "awsProfile": "<AWS_PROFILE>"
     },
     {
       // Requires gcloud CLI to get authentication token
@@ -159,19 +159,19 @@ Create the configuration.
       "name": "openai-compatible",
       "variant": "ollama",
       "baseURL": "https://ollama.com",
-      "apiKey": "FIXME"
+      "apiKey": "<API_KEY>"
     },
     {
       "name": "openai-compatible",
       "variant": "huggingface",
       "baseURL": "https://router.huggingface.co",
-      "apiKey": "FIXME"
+      "apiKey": "<HUGGINGFACE_API_KEY>"
     },
     {
       "name": "openai-compatible",
       "variant": "fireworks",
       "baseURL": "https://api.fireworks.ai/inference",
-      "apiKey": "FIXME"
+      "apiKey": "<FIREWORKS_API_KEY>"
     }
   ]
 }
@@ -243,7 +243,7 @@ Create the configuration.
       "name": "bedrock",
       "variant": "jp",
       "baseURL": "https://bedrock-runtime.ap-northeast-1.amazonaws.com",
-      "awsProfile": "FIXME"
+      "awsProfile": "<AWS_PROFILE>"
     }
   ]
 }
@@ -463,7 +463,7 @@ The agent loads configuration files in the following order. Settings in later fi
     // ⚠️ Add this to config.local.json to avoid committing secrets to Git
     "slack": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "https://mcp.slack.com/mcp", "--header", "Authorization:Bearer FIXME"],
+      "args": ["-y", "mcp-remote", "https://mcp.slack.com/mcp", "--header", "Authorization:Bearer <SLACK_TOKEN>"],
     },
     "notion": {
       "command": "npx",
@@ -480,12 +480,18 @@ The agent loads configuration files in the following order. Settings in later fi
     // ⚠️ Add this to config.local.json to avoid committing secrets to Git
     "google_developer-knowledge": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "https://developerknowledge.googleapis.com/mcp", "--header", "X-Goog-Api-Key:FIXME"]
+      "args": ["-y", "mcp-remote", "https://developerknowledge.googleapis.com/mcp", "--header", "X-Goog-Api-Key:<GOOGLE_API_KEY>"]
     }
   },
 
   // Override default notification command
   // "notifyCmd": "/path/to/notification-command"
+
+  // (Optional) Voice input. See "Voice Input" below.
+  // "voiceInput": {
+  //   "provider": "openai",
+  //   "apiKey": "<OPENAI_API_KEY>"
+  // }
 }
 ```
 </details>
@@ -606,6 +612,53 @@ Example:
 plain install-claude-code-plugins
 ```
 
+## Voice Input
+
+Press **Ctrl-O** to start recording, press it again to stop. Partial
+transcripts are inserted into the prompt as you speak so you can edit
+and send them like regular text.
+
+### Requirements
+
+- A recording command on `PATH`: `arecord`, `sox`, or `ffmpeg`.
+- An API key for the chosen provider.
+- Your host must have microphone access. The sandbox does not need to.
+
+### Providers
+
+**OpenAI Realtime** (default, recommended):
+
+```js
+{
+  "voiceInput": {
+    "provider": "openai",
+    "apiKey": "<OPENAI_API_KEY>"
+    // "model": "gpt-4o-transcribe",  // or "gpt-4o-mini-transcribe", "whisper-1"
+    // "language": "ja"               // ISO-639-1 code. Improves accuracy and latency.
+  }
+}
+```
+
+**Gemini Live** (preview API; model names and pricing may change):
+
+```js
+{
+  "voiceInput": {
+    "provider": "gemini",
+    "apiKey": "<GEMINI_API_KEY>"
+    // "model": "gemini-3.1-flash-live-preview",
+    // "language": "ja"
+  }
+}
+```
+
+### Options
+
+- `toggleKey` — Rebind the toggle. Accepts `"ctrl-<char>"` where `<char>`
+  is a letter (a-z) or one of `[ \ ] ^ _`. Defaults to `"ctrl-o"`.
+- `recorder` — Override recorder auto-detection. Must write raw 16-bit
+  little-endian mono PCM to stdout at 24 kHz (OpenAI) or 16 kHz (Gemini).
+
 ## Development
 
 ```sh
@@ -644,9 +697,9 @@ npm publish --access public
 
 ```sh
 # IAM Identity Center 
-identity_center_instance_arn="FIXME" # e.g., arn:aws:sso:::instance/ssoins-xxxxxxxxxxxxxxxx"
-identity_store_id=FIXME
-aws_account_id=FIXME
+identity_center_instance_arn="<IDENTITY_CENTER_INSTANCE_ARN>" # e.g., arn:aws:sso:::instance/ssoins-xxxxxxxxxxxxxxxx"
+identity_store_id=<IDENTITY_STORE_ID>
+aws_account_id=<AWS_ACCOUNT_ID>
 
 # Create a permission set
 permission_set_arn=$(aws sso-admin create-permission-set \
@@ -681,10 +734,10 @@ aws sso-admin put-inline-policy-to-permission-set \
   --inline-policy "$policy"
 
 # Create an SSO user
-sso_user_name=FIXME
-sso_user_email=FIXME
-sso_user_family_name=FIXME
-sso_user_given_name=FIXME
+sso_user_name=<SSO_USER_NAME>
+sso_user_email=<SSO_USER_EMAIL>
+sso_user_family_name=<SSO_USER_FAMILY_NAME>
+sso_user_given_name=<SSO_USER_GIVEN_NAME>
 
 user_id=$(aws identitystore create-user \
   --identity-store-id "$identity_store_id" \
@@ -725,8 +778,8 @@ aws bedrock-runtime invoke-model \
 <summary><b>Azure - Microsoft Foundry</b></summary>
 
 ```sh
-resource_group=FIXME
-account_name=FIXME # resource name
+resource_group=<RESOURCE_GROUP>
+account_name=<ACCOUNT_NAME> # resource name
 
 # Create a service principal
 service_principal=$(az ad sp create-for-rbac --name "CodingAgentServicePrincipal" --skip-assignment)
@@ -758,10 +811,10 @@ az login --service-principal -u "$app_id" -p "$app_secret" --tenant "$tenant_id"
 <summary><b>Google Cloud Vertex AI</b></summary>
 
 ```sh
-project_id=FIXME
-service_account_name=FIXME
+project_id=<PROJECT_ID>
+service_account_name=<SERVICE_ACCOUNT_NAME>
 service_account_email="${service_account_name}@${project_id}.iam.gserviceaccount.com"
-your_account_email=FIXME
+your_account_email=<YOUR_ACCOUNT_EMAIL>
 
 # Create a service account
 gcloud iam service-accounts create "$service_account_name" \
