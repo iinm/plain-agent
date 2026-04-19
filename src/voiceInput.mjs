@@ -13,7 +13,14 @@ import { spawn, spawnSync } from "node:child_process";
  * @property {"gemini"} provider
  * @property {string} apiKey - Gemini API key
  * @property {string=} model
- *   Gemini Live model name, defaults to "gemini-2.5-flash-live-preview".
+ *   Gemini Live model name. Defaults to "gemini-3.1-flash-live-preview",
+ *   matching the model used in the official WebSocket tutorial
+ *   (https://ai.google.dev/gemini-api/docs/live-api/get-started-websocket).
+ *   Other known-valid names at the time of writing:
+ *     - "gemini-live-2.5-flash-preview"
+ *     - "gemini-2.0-flash-live-001" (older stable tier)
+ *   Live API model names are preview-track and change over time — see
+ *   https://ai.google.dev/gemini-api/docs/live for the current list.
  * @property {string=} baseURL
  *   Override the WebSocket base URL. Defaults to the public Gemini endpoint.
  * @property {string=} language
@@ -49,7 +56,7 @@ import { spawn, spawnSync } from "node:child_process";
  *   Stop the recorder and close the WebSocket. Resolves after both are done.
  */
 
-const DEFAULT_MODEL = "gemini-2.5-flash-live-preview";
+const DEFAULT_MODEL = "gemini-3.1-flash-live-preview";
 
 /**
  * Parsed voice toggle key: the raw byte value that appears on stdin in raw

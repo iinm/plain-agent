@@ -492,7 +492,7 @@ The agent loads configuration files in the following order. Settings in later fi
   // "voiceInput": {
   //   "provider": "gemini",
   //   "apiKey": "FIXME",
-  //   "model": "gemini-2.5-flash-live-preview",
+  //   "model": "gemini-3.1-flash-live-preview",
   //   "language": "ja-JP"
   // }
 }
@@ -516,7 +516,7 @@ If Ctrl-G is intercepted by a wrapping program (for example, neovim's
   `arecord` (Linux), `sox`, `ffmpeg`. Install via your package manager
   (`apt install alsa-utils` / `brew install sox`, etc.).
 - A Gemini API key with access to a Live model (e.g.
-  `gemini-2.5-flash-live-preview`). Voice input uses its own key; it is
+  `gemini-3.1-flash-live-preview`). Voice input uses its own key; it is
   independent of the API key used for agent inference.
 - Voice input runs on the host and does **not** require (or interact
   with) the sandbox. It will not work when `plain` itself is launched
@@ -533,8 +533,13 @@ committed):
   "voiceInput": {
     "provider": "gemini",
     "apiKey": "YOUR_GEMINI_API_KEY",
-    // Optional. Defaults to "gemini-2.5-flash-live-preview".
-    "model": "gemini-2.5-flash-live-preview",
+    // Optional. Defaults to "gemini-3.1-flash-live-preview" (the model
+    // used in the official WebSocket tutorial). Live API model names are
+    // preview-track; see https://ai.google.dev/gemini-api/docs/live for
+    // the current list. Other valid names at the time of writing:
+    //   "gemini-live-2.5-flash-preview"
+    //   "gemini-2.0-flash-live-001"
+    "model": "gemini-3.1-flash-live-preview",
     // Optional BCP-47 language hint passed to the model.
     "language": "ja-JP",
     // Optional: change the toggle key. Accepts "ctrl-<char>" where <char>
