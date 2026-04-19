@@ -506,6 +506,10 @@ While recording, your speech is streamed to the Gemini Live API and the
 real-time transcription is inserted into the prompt as you speak. Press
 Ctrl-G again to stop.
 
+If Ctrl-G is intercepted by a wrapping program (for example, neovim's
+`:terminal` with a plugin that maps `<C-g>`), you can rebind the toggle via
+`voiceInput.toggleKey` — see the config example below.
+
 ### Requirements
 
 - A recording command on `PATH`. The CLI auto-detects the first of:
@@ -533,6 +537,11 @@ committed):
     "model": "gemini-2.5-flash-live-preview",
     // Optional BCP-47 language hint passed to the model.
     "language": "ja-JP",
+    // Optional: change the toggle key. Accepts "ctrl-<char>" where <char>
+    // is a letter (a-z) or one of `[ \ ] ^ _`. Defaults to "ctrl-g".
+    // Useful when Ctrl-G is intercepted by a wrapping program (e.g. neovim's
+    // `:terminal`, tmux with a conflicting key binding, etc.).
+    // "toggleKey": "ctrl-o",
     // Optional: override the recorder command. Must produce raw 16-bit
     // little-endian 16 kHz mono PCM on stdout.
     // "recorder": {

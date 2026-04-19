@@ -20,6 +20,11 @@ import { spawn, spawnSync } from "node:child_process";
  *   BCP-47 language code passed as `speechConfig.languageCode` (optional).
  * @property {VoiceRecorderConfig=} recorder
  *   Override auto-detection with an explicit recording command.
+ * @property {string=} toggleKey
+ *   Key that toggles voice recording on/off. Accepts `"ctrl-<char>"` where
+ *   `<char>` is any printable ASCII character (letters case-insensitive).
+ *   Defaults to `"ctrl-g"`. Useful when Ctrl-G is intercepted by a wrapping
+ *   program (e.g. neovim's `:terminal`).
  */
 
 /**
@@ -45,6 +50,77 @@ import { spawn, spawnSync } from "node:child_process";
  */
 
 const DEFAULT_MODEL = "gemini-2.5-flash-live-preview";
+
+/**
+ * Parsed voice toggle key: the raw byte value that appears on stdin in raw
+ * mode, plus a human-readable label for UI messages.
+ *
+ * @typedef {Object} VoiceToggleKey
+ * @property {number} byte
+ * @property {string} label
+ */
+
+/**
+ * Parse a configured toggle-key string (e.g. "ctrl-g", "ctrl-o", "ctrl-\\")
+ * into the raw ASCII byte that the terminal sends in raw mode.
+ *
+ * Only Ctrl-<char> bindings are supported because that is the only family of
+ * key combinations that the terminal encodes as a single deterministic byte
+ * on stdin without an `ESC` prefix. Function keys, Alt+, and multi-byte
+ * sequences would need a full key decoder (which the pre-readline pipeline
+ * deliberately avoids).
+ *
+ * Throws on malformed input so misconfiguration surfaces at startup, not at
+ * keypress time.
+ *
+ * @param {string | undefined} spec
+ * @returns {VoiceToggleKey}
+ */
+export function parseVoiceToggleKey(spec) {
+  const raw = (spec ?? "ctrl-g").trim().toLowerCase();
+  const match = /^ctrl-(.)$/.exec(raw);
+  if (!match) {
+    throw new Error(
+      `Invalid voiceInput.toggleKey "${spec}". Expected "ctrl-<char>" (e.g. "ctrl-g", "ctrl-o", "ctrl-\\").`,
+    );
+  }
+  const ch = match[1];
+  const code = ch.charCodeAt(0);
+  // Map printable ASCII to its Ctrl-modified byte: Ctrl-<@..._> => 0x00..0x1f.
+  // Letters a-z map to 0x01..0x1a; the symbols [ \ ] ^ _ map to 0x1b..0x1f;
+  // `@` and `` ` `` both map to 0x00 (NUL) which we disallow because NUL is
+  // frequently dropped by terminals and intermediate layers.
+  let byte;
+  if (code >= 0x61 && code <= 0x7a) {
+    byte = code - 0x60; // a-z -> 0x01-0x1a
+  } else if (code >= 0x5b && code <= 0x5f) {
+    byte = code - 0x40; // [ \ ] ^ _ -> 0x1b-0x1f
+  } else {
+    throw new Error(
+      `Unsupported voiceInput.toggleKey "${spec}". Use ctrl-<letter> or ctrl-<[ \\ ] ^ _>.`,
+    );
+  }
+  // Reject bytes that readline / the terminal already reserve.
+  // Ctrl-C / Ctrl-D are handled separately; Ctrl-J (0x0a) / Ctrl-M (0x0d) are
+  // newline/carriage return; Ctrl-I (0x09) is TAB; Ctrl-S / Ctrl-Q are flow
+  // control. Letting the user pick those would break line editing.
+  const reserved = new Set([
+    0x03, // Ctrl-C
+    0x04, // Ctrl-D
+    0x09, // Tab
+    0x0a, // LF
+    0x0d, // CR
+    0x11, // Ctrl-Q (XON)
+    0x13, // Ctrl-S (XOFF)
+  ]);
+  if (reserved.has(byte)) {
+    throw new Error(
+      `voiceInput.toggleKey "${spec}" conflicts with a reserved terminal/readline key.`,
+    );
+  }
+  return { byte, label: `Ctrl-${ch.toUpperCase()}` };
+}
+
 const DEFAULT_WS_BASE =
   "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent";
 

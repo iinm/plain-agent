@@ -1,24 +1,27 @@
 import { Transform } from "node:stream";
 
 /**
- * Create a Transform that intercepts Ctrl-C (0x03), Ctrl-D (0x04), and
- * Ctrl-G (0x07). When one of those bytes is seen anywhere in a chunk, the
- * corresponding callback is invoked and the entire chunk is dropped so that
- * downstream consumers (e.g. readline) never observe it. All other input
- * flows through unchanged.
+ * Create a Transform that intercepts Ctrl-C (0x03), Ctrl-D (0x04), and an
+ * optional "voice toggle" byte (default Ctrl-G, 0x07). When one of those
+ * bytes is seen anywhere in a chunk, the corresponding callback is invoked
+ * and the entire chunk is dropped so that downstream consumers (e.g.
+ * readline) never observe it. All other input flows through unchanged.
  *
  * Priority when multiple handled bytes appear in the same chunk:
- * Ctrl-C > Ctrl-D > Ctrl-G.
+ * Ctrl-C > Ctrl-D > voice toggle.
  *
  * When `shouldSwallowOthers()` returns true, chunks that do not contain a
  * handled control byte are also dropped. This lets callers fully mute stdin
  * during special modes (e.g. while a voice input session is recording) while
- * still responding to Ctrl-C / Ctrl-D / Ctrl-G.
+ * still responding to Ctrl-C / Ctrl-D / the voice toggle.
  *
  * @param {object} handlers
  * @param {() => void} handlers.onCtrlC - Called when Ctrl-C is detected
  * @param {() => void} handlers.onCtrlD - Called when Ctrl-D is detected
- * @param {() => void} [handlers.onCtrlG] - Called when Ctrl-G is detected
+ * @param {() => void} [handlers.onVoiceToggle]
+ *   Called when the voice toggle byte is detected.
+ * @param {number} [handlers.voiceToggleByte]
+ *   Byte value for the voice toggle key. Defaults to 0x07 (Ctrl-G).
  * @param {() => boolean} [handlers.shouldSwallowOthers]
  *   Optional predicate; when true, non-handled chunks are dropped.
  * @returns {Transform}
@@ -26,9 +29,11 @@ import { Transform } from "node:stream";
 export function createInterruptTransform({
   onCtrlC,
   onCtrlD,
-  onCtrlG,
+  onVoiceToggle,
+  voiceToggleByte = 0x07,
   shouldSwallowOthers,
 }) {
+  const voiceToggleChar = String.fromCharCode(voiceToggleByte);
   return new Transform({
     transform(chunk, _encoding, callback) {
       const data = chunk.toString("utf8");
@@ -42,8 +47,8 @@ export function createInterruptTransform({
         callback();
         return;
       }
-      if (onCtrlG && data.includes("\x07")) {
-        onCtrlG();
+      if (onVoiceToggle && data.includes(voiceToggleChar)) {
+        onVoiceToggle();
         callback();
         return;
       }

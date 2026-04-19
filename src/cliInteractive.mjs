@@ -16,7 +16,7 @@ import {
 import { createInterruptTransform } from "./cliInterruptTransform.mjs";
 import { createPasteHandler } from "./cliPasteTransform.mjs";
 import { notify } from "./utils/notify.mjs";
-import { startVoiceSession } from "./voiceInput.mjs";
+import { parseVoiceToggleKey, startVoiceSession } from "./voiceInput.mjs";
 
 const HELP_MESSAGE = [
   "Commands:",
@@ -90,6 +90,10 @@ export function startInteractiveSession({
    */
   let voice = null;
 
+  // Parse the voice toggle key once at startup so misconfiguration fails
+  // loudly instead of silently falling back.
+  const voiceToggle = parseVoiceToggleKey(voiceInput?.toggleKey);
+
   const getCliPrompt = (subagentName = "", flashMessage = "") =>
     [
       "",
@@ -156,7 +160,7 @@ export function startInteractiveSession({
     cli._refreshLine?.();
   };
 
-  const handleCtrlG = () => {
+  const handleVoiceToggle = () => {
     // Ignore while the agent is working.
     if (!state.turn) return;
 
@@ -171,7 +175,7 @@ export function startInteractiveSession({
           state.subagentName,
           styleText(
             "yellow",
-            "Voice input not configured. Set `voiceInput` in your config to enable Ctrl-G.",
+            `Voice input not configured. Set \`voiceInput\` in your config to enable ${voiceToggle.label}.`,
           ),
         ),
       );
@@ -226,7 +230,7 @@ export function startInteractiveSession({
     cli.setPrompt(
       getCliPrompt(
         state.subagentName,
-        styleText(["red", "bold"], "● REC  (Ctrl-G to stop)"),
+        styleText(["red", "bold"], `● REC  (${voiceToggle.label} to stop)`),
       ),
     );
     // @ts-expect-error - internal property
@@ -299,9 +303,11 @@ export function startInteractiveSession({
   const interrupt = createInterruptTransform({
     onCtrlC: handleCtrlC,
     onCtrlD: handleCtrlD,
-    onCtrlG: handleCtrlG,
+    onVoiceToggle: handleVoiceToggle,
+    voiceToggleByte: voiceToggle.byte,
     // While a voice session is recording, swallow all stdin bytes other than
-    // Ctrl-C / Ctrl-D / Ctrl-G so transcript insertion stays consistent.
+    // Ctrl-C / Ctrl-D / the voice toggle key so transcript insertion stays
+    // consistent.
     shouldSwallowOthers: () => voice !== null,
   });
   const paste = createPasteHandler();
