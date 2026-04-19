@@ -16,8 +16,9 @@ A lightweight CLI-based coding agent with zero framework dependencies.
   Everything else requires confirmation.
 - **Path validation** — File paths must stay within the working directory
   and git-ignored files (`.env`, etc.) are blocked.
-- **Sandboxed execution** — Run in a Docker container with network restricted
-  to allowlisted destinations (e.g., `registry.npmjs.org` only for `npm install`).
+- **Sandboxed execution** — Run the agent's shell commands inside a Docker
+  container with network access restricted to allowlisted destinations
+  (e.g., `registry.npmjs.org` only for `npm install`).
 - **Extensible** — Define prompts and subagents in Markdown.
   Connect MCP servers. Reuse Claude Code plugins.
 
