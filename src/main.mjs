@@ -123,7 +123,7 @@ if (cliArgs.subcommand.type === "install-claude-code-plugins") {
       }),
     );
 
-    for (const { serverName, tools, cleanup } of mcpResults) {
+    for (const { serverName, tools, stderrLogPath, cleanup } of mcpResults) {
       mcpTools.push(...tools);
       mcpCleanups.push(cleanup);
       if (!isBatchMode) {
@@ -133,6 +133,7 @@ if (cliArgs.subcommand.type === "install-claude-code-plugins") {
             `✅ Successfully connected to MCP server: ${serverName}`,
           ),
         );
+        console.log(`  ⤷ stderr log: ${stderrLogPath}`);
       }
     }
   }
