@@ -2,7 +2,7 @@ import { Transform } from "node:stream";
 
 /**
  * Create a Transform that intercepts Ctrl-C (0x03), Ctrl-D (0x04), and an
- * optional "voice toggle" byte (default Ctrl-G, 0x07). When one of those
+ * optional "voice toggle" byte (default Ctrl-O, 0x0f). When one of those
  * bytes is seen anywhere in a chunk, the corresponding callback is invoked
  * and the entire chunk is dropped so that downstream consumers (e.g.
  * readline) never observe it. All other input flows through unchanged.
@@ -21,7 +21,7 @@ import { Transform } from "node:stream";
  * @param {() => void} [handlers.onVoiceToggle]
  *   Called when the voice toggle byte is detected.
  * @param {number} [handlers.voiceToggleByte]
- *   Byte value for the voice toggle key. Defaults to 0x07 (Ctrl-G).
+ *   Byte value for the voice toggle key. Defaults to 0x0f (Ctrl-O).
  * @param {() => boolean} [handlers.shouldSwallowOthers]
  *   Optional predicate; when true, non-handled chunks are dropped.
  * @returns {Transform}
@@ -30,7 +30,7 @@ export function createInterruptTransform({
   onCtrlC,
   onCtrlD,
   onVoiceToggle,
-  voiceToggleByte = 0x07,
+  voiceToggleByte = 0x0f,
   shouldSwallowOthers,
 }) {
   const voiceToggleChar = String.fromCharCode(voiceToggleByte);

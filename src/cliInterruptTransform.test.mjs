@@ -84,7 +84,7 @@ describe("createInterruptTransform", () => {
     assert.strictEqual(out, "");
   });
 
-  it("invokes onVoiceToggle on the default byte (Ctrl-G) and drops the chunk", async () => {
+  it("invokes onVoiceToggle on the default byte (Ctrl-O) and drops the chunk", async () => {
     let toggled = 0;
     const transform = createInterruptTransform({
       onCtrlC: () => {},
@@ -93,7 +93,7 @@ describe("createInterruptTransform", () => {
         toggled += 1;
       },
     });
-    const out = await feedChunks(transform, ["\x07"]);
+    const out = await feedChunks(transform, ["\x0f"]);
     assert.strictEqual(toggled, 1);
     assert.strictEqual(out, "");
   });
@@ -106,9 +106,9 @@ describe("createInterruptTransform", () => {
       onVoiceToggle: () => {
         toggled += 1;
       },
-      voiceToggleByte: 0x0f, // Ctrl-O
+      voiceToggleByte: 0x07, // Ctrl-G
     });
-    // Default Ctrl-G should now pass through unchanged
+    // Default Ctrl-O should now pass through unchanged
     const passThrough = await feedChunks(
       createInterruptTransform({
         onCtrlC: () => {},
@@ -116,13 +116,13 @@ describe("createInterruptTransform", () => {
         onVoiceToggle: () => {
           assert.fail("should not be called");
         },
-        voiceToggleByte: 0x0f,
+        voiceToggleByte: 0x07,
       }),
-      ["\x07"],
+      ["\x0f"],
     );
-    assert.strictEqual(passThrough, "\x07");
+    assert.strictEqual(passThrough, "\x0f");
 
-    const out = await feedChunks(transform, ["\x0f"]);
+    const out = await feedChunks(transform, ["\x07"]);
     assert.strictEqual(toggled, 1);
     assert.strictEqual(out, "");
   });
@@ -132,8 +132,8 @@ describe("createInterruptTransform", () => {
       onCtrlC: () => {},
       onCtrlD: () => {},
     });
-    const out = await feedChunks(transform, ["\x07"]);
-    assert.strictEqual(out, "\x07");
+    const out = await feedChunks(transform, ["\x0f"]);
+    assert.strictEqual(out, "\x0f");
   });
 
   it("prefers Ctrl-C over the voice toggle when both are in the same chunk", async () => {
@@ -148,7 +148,7 @@ describe("createInterruptTransform", () => {
         toggled += 1;
       },
     });
-    const out = await feedChunks(transform, ["\x03\x07"]);
+    const out = await feedChunks(transform, ["\x03\x0f"]);
     assert.strictEqual(ctrlC, 1);
     assert.strictEqual(toggled, 0);
     assert.strictEqual(out, "");
@@ -179,7 +179,7 @@ describe("createInterruptTransform", () => {
       },
       shouldSwallowOthers: () => true,
     });
-    const out = await feedChunks(transform, ["a", "\x07", "\x03"]);
+    const out = await feedChunks(transform, ["a", "\x0f", "\x03"]);
     assert.strictEqual(ctrlC, 1);
     assert.strictEqual(toggled, 1);
     assert.strictEqual(out, "");

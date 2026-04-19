@@ -487,12 +487,10 @@ The agent loads configuration files in the following order. Settings in later fi
   // Override default notification command
   // "notifyCmd": "/path/to/notification-command"
 
-  // (Optional) Voice input via Gemini Live API (press Ctrl-G to toggle).
-  // See "Voice Input" below for details.
+  // (Optional) Voice input. See "Voice Input" below.
   // "voiceInput": {
-  //   "provider": "gemini",
-  //   "apiKey": "FIXME",
-  //   "model": "gemini-3.1-flash-live-preview"
+  //   "provider": "openai",
+  //   "apiKey": "FIXME"
   // }
 }
 ```
@@ -500,64 +498,51 @@ The agent loads configuration files in the following order. Settings in later fi
 
 ## Voice Input
 
-Press **Ctrl-G** during an interactive session to toggle voice recording.
-While recording, your speech is streamed to the Gemini Live API and the
-real-time transcription is inserted into the prompt as you speak. Press
-Ctrl-G again to stop.
-
-If Ctrl-G is intercepted by a wrapping program (for example, neovim's
-`:terminal` with a plugin that maps `<C-g>`), you can rebind the toggle via
-`voiceInput.toggleKey` — see the config example below.
+Press **Ctrl-O** to start recording, press it again to stop. Partial
+transcripts are inserted into the prompt as you speak so you can edit
+and send them like regular text.
 
 ### Requirements
 
-- A recording command on `PATH`. The CLI auto-detects the first of:
-  `arecord` (Linux), `sox`, `ffmpeg`. Install via your package manager
-  (`apt install alsa-utils` / `brew install sox`, etc.).
-- A Gemini API key with access to a Live model (default is
-  `gemini-3.1-flash-live-preview`). Voice input uses its own key; it is
-  independent of the API key used for agent inference.
-- Voice input runs on the host and does **not** require (or interact
-  with) the sandbox. It will not work when `plain` itself is launched
-  inside a sandbox with no microphone access.
+- A recording command on `PATH`: `arecord`, `sox`, or `ffmpeg`.
+- An API key for the chosen provider.
+- Your host must have microphone access. The sandbox does not need to.
 
-### Configuration
+### Providers
 
-Add a top-level `voiceInput` block to your config (typically in
-`~/.config/plain-agent/config.local.json` so the API key is not
-committed):
+**OpenAI Realtime** (default, recommended):
+
+```js
+{
+  "voiceInput": {
+    "provider": "openai",
+    "apiKey": "YOUR_OPENAI_API_KEY"
+    // "model": "gpt-4o-transcribe"   // or "gpt-4o-mini-transcribe", "whisper-1"
+  }
+}
+```
+
+**Gemini Live** (preview API; model names and pricing may change):
 
 ```js
 {
   "voiceInput": {
     "provider": "gemini",
-    "apiKey": "YOUR_GEMINI_API_KEY",
-    // Optional. Defaults to "gemini-3.1-flash-live-preview". As of
-    // Dec 9, 2025 Google shut down gemini-2.0-flash-live-001 and
-    // gemini-live-2.5-flash-preview, so those no longer work. Live API
-    // model names are preview-track; see
-    // https://ai.google.dev/gemini-api/docs/live for the current list.
-    "model": "gemini-3.1-flash-live-preview",
-    // (Input transcription language is auto-detected by the model; no
-    // explicit language hint is required.)
-    // Optional: change the toggle key. Accepts "ctrl-<char>" where <char>
-    // is a letter (a-z) or one of `[ \ ] ^ _`. Defaults to "ctrl-g".
-    // Useful when Ctrl-G is intercepted by a wrapping program (e.g. neovim's
-    // `:terminal`, tmux with a conflicting key binding, etc.).
-    // "toggleKey": "ctrl-o",
-    // Optional: override the recorder command. Must produce raw 16-bit
-    // little-endian 16 kHz mono PCM on stdout.
-    // "recorder": {
-    //   "command": "sox",
-    //   "args": ["-q", "-d", "-b", "16", "-c", "1", "-r", "16000",
-    //            "-e", "signed-integer", "-t", "raw", "-"]
-    // }
+    "apiKey": "YOUR_GEMINI_API_KEY"
+    // "model": "gemini-3.1-flash-live-preview"
   }
 }
 ```
 
-Gemini Live is a preview API; model names, pricing, and rate limits may
-change.
+### Options
+
+- `toggleKey` — Rebind the toggle. Accepts `"ctrl-<char>"` where `<char>`
+  is a letter (a-z) or one of `[ \ ] ^ _`. Defaults to `"ctrl-o"`.
+- `recorder` — Override recorder auto-detection. Must write raw 16-bit
+  little-endian mono PCM to stdout at 24 kHz (OpenAI) or 16 kHz (Gemini).
+
+Put the config in `~/.config/plain-agent/config.local.json` to keep the
+API key out of version control.
 
 ## Prompts
 

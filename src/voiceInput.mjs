@@ -2,75 +2,59 @@ import { spawn, spawnSync } from "node:child_process";
 
 /**
  * @typedef {Object} VoiceRecorderConfig
- * @property {string} command - Executable name or absolute path
+ * @property {string} command
  * @property {string[]} args
- *   Command arguments. The recorder must write raw 16-bit little-endian
- *   16 kHz mono PCM samples to stdout.
+ *   Must write raw 16-bit little-endian mono PCM to stdout at the sample
+ *   rate required by the chosen provider (24 kHz for OpenAI, 16 kHz for
+ *   Gemini).
+ */
+
+/**
+ * @typedef {Object} VoiceInputOpenAIConfig
+ * @property {"openai"} provider
+ * @property {string} apiKey
+ * @property {string} [model] - Defaults to "gpt-4o-transcribe".
+ * @property {string} [baseURL]
+ * @property {VoiceRecorderConfig} [recorder]
+ * @property {string} [toggleKey] - "ctrl-<char>". Defaults to "ctrl-o".
  */
 
 /**
  * @typedef {Object} VoiceInputGeminiConfig
  * @property {"gemini"} provider
- * @property {string} apiKey - Gemini API key
- * @property {string=} model
- *   Gemini Live model name. Defaults to "gemini-3.1-flash-live-preview",
- *   the current audio-to-audio preview model. As of Dec 9, 2025 Google
- *   shut down the older `gemini-2.0-flash-live-001` and
- *   `gemini-live-2.5-flash-preview` endpoints, so those no longer work.
- *
- *   Note: `gemini-3.1-flash-live-preview` rejects `responseModalities:
- *   ["TEXT"]` with a 1011 internal error
- *   (https://github.com/googleapis/python-genai/issues/2238), so we
- *   request `["AUDIO"]` and simply discard the audio response parts —
- *   transcriptions come from `serverContent.inputTranscription`
- *   regardless of the response modality.
- *
- *   Live API model names are preview-track and change over time — see
- *   https://ai.google.dev/gemini-api/docs/live for the current list.
- * @property {string=} baseURL
- *   Override the WebSocket base URL. Defaults to the public Gemini endpoint.
- * @property {VoiceRecorderConfig=} recorder
- *   Override auto-detection with an explicit recording command.
- * @property {string=} toggleKey
- *   Key that toggles voice recording on/off. Accepts `"ctrl-<char>"` where
- *   `<char>` is any printable ASCII character (letters case-insensitive).
- *   Defaults to `"ctrl-g"`. Useful when Ctrl-G is intercepted by a wrapping
- *   program (e.g. neovim's `:terminal`).
+ * @property {string} apiKey
+ * @property {string} [model] - Defaults to "gemini-3.1-flash-live-preview".
+ * @property {string} [baseURL]
+ * @property {VoiceRecorderConfig} [recorder]
+ * @property {string} [toggleKey]
  */
 
 /**
- * @typedef {VoiceInputGeminiConfig} VoiceInputConfig
+ * @typedef {VoiceInputOpenAIConfig | VoiceInputGeminiConfig} VoiceInputConfig
  */
 
 /**
  * @typedef {Object} VoiceSessionCallbacks
  * @property {(text: string) => void} onTranscript
- *   Called for each transcript delta received from the server.
  * @property {(error: Error) => void} onError
- *   Called on recorder failure, WebSocket failure, or fatal protocol error.
  * @property {() => void} [onClose]
- *   Called once the session has fully stopped (recorder exited and WebSocket
- *   closed). Always invoked exactly once after `stop()` completes or after a
- *   fatal error.
  */
 
 /**
  * @typedef {Object} VoiceSession
  * @property {() => Promise<void>} stop
- *   Stop the recorder and close the WebSocket. Resolves after both are done.
  */
 
-const DEFAULT_MODEL = "gemini-3.1-flash-live-preview";
+const OPENAI_DEFAULT_MODEL = "gpt-4o-transcribe";
+const OPENAI_DEFAULT_WS = "wss://api.openai.com/v1/realtime";
+const OPENAI_SAMPLE_RATE = 24000;
+
+const GEMINI_DEFAULT_MODEL = "gemini-3.1-flash-live-preview";
+const GEMINI_DEFAULT_WS =
+  "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent";
+const GEMINI_SAMPLE_RATE = 16000;
 
 /**
- * Test whether `ch` belongs to a script where whitespace is not used as a
- * word separator (so Gemini Live's morpheme-separated output should have
- * those spaces stripped out).
- *
- * Covers the CJK + Japanese kana + Hangul ranges, plus CJK-range punctuation
- * and fullwidth forms. Non-CJK punctuation (.,!? etc.) is intentionally NOT
- * included so "Windows を" style mixed text keeps its space.
- *
  * @param {string} ch
  * @returns {boolean}
  */
@@ -79,50 +63,28 @@ function isCJKChar(ch) {
   const code = ch.codePointAt(0);
   if (code === undefined) return false;
   return (
-    // CJK Symbols and Punctuation, Hiragana, Katakana, Bopomofo, Hangul Compat
     (code >= 0x3000 && code <= 0x33ff) ||
-    // CJK Unified Ideographs Extension A
     (code >= 0x3400 && code <= 0x4dbf) ||
-    // CJK Unified Ideographs
     (code >= 0x4e00 && code <= 0x9fff) ||
-    // Hangul Syllables
     (code >= 0xac00 && code <= 0xd7af) ||
-    // CJK Compatibility Ideographs
     (code >= 0xf900 && code <= 0xfaff) ||
-    // Halfwidth/Fullwidth Forms (includes fullwidth Latin and halfwidth kana)
     (code >= 0xff00 && code <= 0xffef) ||
-    // CJK Unified Ideographs Extension B (supplementary plane)
     (code >= 0x20000 && code <= 0x2ffff)
   );
 }
 
 /**
- * Create a streaming normalizer that drops whitespace sitting between two
- * CJK characters. Gemini Live sends Japanese transcripts as
- * morpheme-separated text ("そう 、 声 で 入力 できる") even though
- * Japanese doesn't use inter-word spaces; mixed strings like "Windows を
- * 使う" should still keep the space between the Latin and Japanese tokens.
+ * Drop whitespace sitting between two CJK characters. Some providers return
+ * Japanese transcripts with morpheme-separating spaces ("そう 、 声 で");
+ * mixed strings like "Windows を使う" keep their inter-script spaces.
  *
- * The normalizer is stateful: whitespace at the tail of a delta is held
- * until the following delta arrives so we can decide based on the *next*
- * real character. Call `flush()` when no more input is expected.
- *
- * @returns {{
- *   push: (text: string) => string,
- *   flush: () => string,
- * }}
+ * @returns {{ push: (text: string) => string, flush: () => string }}
  */
 export function createCJKSpaceNormalizer() {
-  /** @type {string} */
   let prevChar = "";
-  /** @type {string} */
   let pendingSpaces = "";
-
-  /**
-   * @param {string} ch
-   * @returns {boolean}
-   */
-  const isSpace = (ch) => ch === " " || ch === "\t" || ch === "\u3000";
+  const isSpace = (/** @type {string} */ c) =>
+    c === " " || c === "\t" || c === "\u3000";
 
   return {
     push(text) {
@@ -153,67 +115,40 @@ export function createCJKSpaceNormalizer() {
 }
 
 /**
- * Parsed voice toggle key: the raw byte value that appears on stdin in raw
- * mode, plus a human-readable label for UI messages.
- *
  * @typedef {Object} VoiceToggleKey
  * @property {number} byte
  * @property {string} label
  */
 
 /**
- * Parse a configured toggle-key string (e.g. "ctrl-g", "ctrl-o", "ctrl-\\")
- * into the raw ASCII byte that the terminal sends in raw mode.
- *
- * Only Ctrl-<char> bindings are supported because that is the only family of
- * key combinations that the terminal encodes as a single deterministic byte
- * on stdin without an `ESC` prefix. Function keys, Alt+, and multi-byte
- * sequences would need a full key decoder (which the pre-readline pipeline
- * deliberately avoids).
- *
- * Throws on malformed input so misconfiguration surfaces at startup, not at
- * keypress time.
+ * Parse a "ctrl-<char>" binding into the raw byte the terminal sends in
+ * raw mode. Only Ctrl-<char> is supported because it is the only family
+ * the pre-readline pipeline can recognize without a full key decoder.
  *
  * @param {string | undefined} spec
  * @returns {VoiceToggleKey}
  */
 export function parseVoiceToggleKey(spec) {
-  const raw = (spec ?? "ctrl-g").trim().toLowerCase();
+  const raw = (spec ?? "ctrl-o").trim().toLowerCase();
   const match = /^ctrl-(.)$/.exec(raw);
   if (!match) {
     throw new Error(
-      `Invalid voiceInput.toggleKey "${spec}". Expected "ctrl-<char>" (e.g. "ctrl-g", "ctrl-o", "ctrl-\\").`,
+      `Invalid voiceInput.toggleKey "${spec}". Expected "ctrl-<char>".`,
     );
   }
   const ch = match[1];
   const code = ch.charCodeAt(0);
-  // Map printable ASCII to its Ctrl-modified byte: Ctrl-<@..._> => 0x00..0x1f.
-  // Letters a-z map to 0x01..0x1a; the symbols [ \ ] ^ _ map to 0x1b..0x1f;
-  // `@` and `` ` `` both map to 0x00 (NUL) which we disallow because NUL is
-  // frequently dropped by terminals and intermediate layers.
   let byte;
   if (code >= 0x61 && code <= 0x7a) {
-    byte = code - 0x60; // a-z -> 0x01-0x1a
+    byte = code - 0x60;
   } else if (code >= 0x5b && code <= 0x5f) {
-    byte = code - 0x40; // [ \ ] ^ _ -> 0x1b-0x1f
+    byte = code - 0x40;
   } else {
     throw new Error(
       `Unsupported voiceInput.toggleKey "${spec}". Use ctrl-<letter> or ctrl-<[ \\ ] ^ _>.`,
     );
   }
-  // Reject bytes that readline / the terminal already reserve.
-  // Ctrl-C / Ctrl-D are handled separately; Ctrl-J (0x0a) / Ctrl-M (0x0d) are
-  // newline/carriage return; Ctrl-I (0x09) is TAB; Ctrl-S / Ctrl-Q are flow
-  // control. Letting the user pick those would break line editing.
-  const reserved = new Set([
-    0x03, // Ctrl-C
-    0x04, // Ctrl-D
-    0x09, // Tab
-    0x0a, // LF
-    0x0d, // CR
-    0x11, // Ctrl-Q (XON)
-    0x13, // Ctrl-S (XOFF)
-  ]);
+  const reserved = new Set([0x03, 0x04, 0x09, 0x0a, 0x0d, 0x11, 0x13]);
   if (reserved.has(byte)) {
     throw new Error(
       `voiceInput.toggleKey "${spec}" conflicts with a reserved terminal/readline key.`,
@@ -222,32 +157,23 @@ export function parseVoiceToggleKey(spec) {
   return { byte, label: `Ctrl-${ch.toUpperCase()}` };
 }
 
-const DEFAULT_WS_BASE =
-  "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent";
-
 /**
- * Candidate recorder commands tried in order. Each candidate writes raw
- * 16-bit little-endian 16 kHz mono PCM samples to stdout.
- *
- * We prefer commands that produce a quiet, terminal-friendly output on stderr
- * (no progress bars) so that errors are visible but noise is minimal.
- *
+ * @param {number} sampleRate
  * @returns {VoiceRecorderConfig[]}
  */
-export function getRecorderCandidates() {
+export function getRecorderCandidates(sampleRate = OPENAI_SAMPLE_RATE) {
+  const rate = String(sampleRate);
   const isMac = process.platform === "darwin";
   /** @type {VoiceRecorderConfig[]} */
   const candidates = [];
 
   if (!isMac) {
-    // Linux / BSD: ALSA arecord is ubiquitous.
     candidates.push({
       command: "arecord",
-      args: ["-q", "-f", "S16_LE", "-c", "1", "-r", "16000", "-t", "raw"],
+      args: ["-q", "-f", "S16_LE", "-c", "1", "-r", rate, "-t", "raw"],
     });
   }
 
-  // Cross-platform: sox reads from the default audio device with `-d`.
   candidates.push({
     command: "sox",
     args: [
@@ -258,7 +184,7 @@ export function getRecorderCandidates() {
       "-c",
       "1",
       "-r",
-      "16000",
+      rate,
       "-e",
       "signed-integer",
       "-t",
@@ -267,55 +193,30 @@ export function getRecorderCandidates() {
     ],
   });
 
-  if (isMac) {
-    candidates.push({
-      command: "ffmpeg",
-      args: [
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-f",
-        "avfoundation",
-        "-i",
-        ":0",
-        "-ac",
-        "1",
-        "-ar",
-        "16000",
-        "-f",
-        "s16le",
-        "-",
-      ],
-    });
-  } else {
-    candidates.push({
-      command: "ffmpeg",
-      args: [
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-f",
-        "alsa",
-        "-i",
-        "default",
-        "-ac",
-        "1",
-        "-ar",
-        "16000",
-        "-f",
-        "s16le",
-        "-",
-      ],
-    });
-  }
+  const ffmpegInput = isMac
+    ? ["-f", "avfoundation", "-i", ":0"]
+    : ["-f", "alsa", "-i", "default"];
+  candidates.push({
+    command: "ffmpeg",
+    args: [
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      ...ffmpegInput,
+      "-ac",
+      "1",
+      "-ar",
+      rate,
+      "-f",
+      "s16le",
+      "-",
+    ],
+  });
 
   return candidates;
 }
 
 /**
- * Return the first recorder candidate whose `command` is found on PATH.
- * Returns `null` when nothing is available.
- *
  * @param {VoiceRecorderConfig[]} [candidates]
  * @returns {VoiceRecorderConfig | null}
  */
@@ -329,18 +230,11 @@ export function detectRecorder(candidates = getRecorderCandidates()) {
 }
 
 /**
- * Check whether an executable exists on PATH without relying on the shell.
- *
  * @param {string} command
- * @returns {boolean}
  */
 function isCommandAvailable(command) {
-  const probe = process.platform === "win32" ? "where" : "command";
-  const args = process.platform === "win32" ? [command] : ["-v", command];
-  // Fallback to `/usr/bin/env` style lookup on POSIX. `command -v` requires a
-  // shell builtin, so we invoke it through `sh`.
   if (process.platform === "win32") {
-    const result = spawnSync(probe, args, { stdio: "ignore" });
+    const result = spawnSync("where", [command], { stdio: "ignore" });
     return result.status === 0;
   }
   const result = spawnSync("sh", ["-c", `command -v ${command}`], {
@@ -350,10 +244,146 @@ function isCommandAvailable(command) {
 }
 
 /**
- * Start a voice input session. Spawns a recorder producing raw 16 kHz mono
- * PCM on stdout, opens a WebSocket to Gemini Live, sends the setup message,
- * and streams audio. Transcript deltas are delivered via
- * `callbacks.onTranscript`.
+ * @typedef {Object} VoiceDriver
+ * @property {string} label
+ * @property {number} sampleRate
+ * @property {() => WebSocket} connect
+ * @property {() => object} buildSetup
+ * @property {(message: Record<string, unknown>) => boolean} isReady
+ * @property {(base64: string) => object} buildAudioMessage
+ * @property {(message: Record<string, unknown>) => string | null} parseTranscript
+ */
+
+/**
+ * @param {VoiceInputConfig} config
+ * @returns {VoiceDriver}
+ */
+function createDriver(config) {
+  if (config.provider === "openai") {
+    return createOpenAIDriver(config);
+  }
+  if (config.provider === "gemini") {
+    return createGeminiDriver(config);
+  }
+  throw new Error(
+    `Unsupported voiceInput.provider: ${/** @type {{provider: string}} */ (config).provider}`,
+  );
+}
+
+/**
+ * @param {VoiceInputOpenAIConfig} config
+ * @returns {VoiceDriver}
+ */
+function createOpenAIDriver(config) {
+  const model = config.model ?? OPENAI_DEFAULT_MODEL;
+  const base = config.baseURL ?? OPENAI_DEFAULT_WS;
+  return {
+    label: "OpenAI Realtime",
+    sampleRate: OPENAI_SAMPLE_RATE,
+    connect() {
+      // Node's global WebSocket (undici) accepts a non-standard `headers`
+      // option. The built-in typings only declare the standards-compliant
+      // constructor, so cast through `WebSocket`-as-constructor.
+      const Ctor =
+        /** @type {new (url: string, opts?: unknown) => WebSocket} */ (
+          /** @type {unknown} */ (WebSocket)
+        );
+      return new Ctor(`${base}?intent=transcription`, {
+        headers: {
+          Authorization: `Bearer ${config.apiKey}`,
+          "OpenAI-Beta": "realtime=v1",
+        },
+      });
+    },
+    buildSetup() {
+      return {
+        type: "session.update",
+        session: {
+          audio: {
+            input: {
+              format: { type: "audio/pcm", rate: OPENAI_SAMPLE_RATE },
+              transcription: { model },
+              turn_detection: { type: "server_vad" },
+            },
+          },
+        },
+      };
+    },
+    isReady(message) {
+      return (
+        message.type === "session.updated" || message.type === "session.created"
+      );
+    },
+    buildAudioMessage(base64) {
+      return { type: "input_audio_buffer.append", audio: base64 };
+    },
+    parseTranscript(message) {
+      if (
+        message.type === "conversation.item.input_audio_transcription.delta" &&
+        typeof message.delta === "string" &&
+        message.delta.length > 0
+      ) {
+        return message.delta;
+      }
+      return null;
+    },
+  };
+}
+
+/**
+ * @param {VoiceInputGeminiConfig} config
+ * @returns {VoiceDriver}
+ */
+function createGeminiDriver(config) {
+  const model = config.model ?? GEMINI_DEFAULT_MODEL;
+  const base = config.baseURL ?? GEMINI_DEFAULT_WS;
+  return {
+    label: "Gemini Live",
+    sampleRate: GEMINI_SAMPLE_RATE,
+    connect() {
+      return new WebSocket(`${base}?key=${encodeURIComponent(config.apiKey)}`);
+    },
+    buildSetup() {
+      // responseModalities is AUDIO not TEXT: the 3.1 preview model returns
+      // a 1011 internal error for TEXT-only output
+      // (https://github.com/googleapis/python-genai/issues/2238). We discard
+      // the audio response; `inputAudioTranscription` is emitted regardless.
+      return {
+        setup: {
+          model: `models/${model}`,
+          generationConfig: { responseModalities: ["AUDIO"] },
+          inputAudioTranscription: {},
+        },
+      };
+    },
+    isReady(message) {
+      return "setupComplete" in message;
+    },
+    buildAudioMessage(base64) {
+      return {
+        realtimeInput: {
+          audio: {
+            data: base64,
+            mimeType: `audio/pcm;rate=${GEMINI_SAMPLE_RATE}`,
+          },
+        },
+      };
+    },
+    parseTranscript(message) {
+      const serverContent = message.serverContent;
+      if (!isObject(serverContent)) return null;
+      const t = serverContent.inputTranscription;
+      if (isObject(t) && typeof t.text === "string" && t.text.length > 0) {
+        return t.text;
+      }
+      return null;
+    },
+  };
+}
+
+/**
+ * Start a voice input session. Spawns a recorder, opens a WebSocket to the
+ * configured provider, and streams transcript deltas via `onTranscript`.
  *
  * @param {object} options
  * @param {VoiceInputConfig} options.config
@@ -361,13 +391,25 @@ function isCommandAvailable(command) {
  * @returns {VoiceSession}
  */
 export function startVoiceSession({ config, callbacks }) {
-  const recorder = config.recorder ?? detectRecorder();
+  /** @type {VoiceDriver} */
+  let driver;
+  try {
+    driver = createDriver(config);
+  } catch (err) {
+    queueMicrotask(() => {
+      callbacks.onError(err instanceof Error ? err : new Error(String(err)));
+      callbacks.onClose?.();
+    });
+    return { stop: async () => {} };
+  }
+
+  const recorder =
+    config.recorder ?? detectRecorder(getRecorderCandidates(driver.sampleRate));
   if (!recorder) {
     queueMicrotask(() => {
       callbacks.onError(
         new Error(
-          "No voice recorder found. Install one of: arecord, sox, ffmpeg " +
-            "(or configure `voiceInput.recorder` in your config).",
+          "No voice recorder found. Install arecord, sox, or ffmpeg (or set `voiceInput.recorder`).",
         ),
       );
       callbacks.onClose?.();
@@ -375,9 +417,6 @@ export function startVoiceSession({ config, callbacks }) {
     return { stop: async () => {} };
   }
 
-  // Verify the recorder command actually exists before opening the WebSocket.
-  // This avoids a dangling outbound connection (which would hang in offline
-  // environments like CI) when the user misconfigures `voiceInput.recorder`.
   if (!isCommandAvailable(recorder.command)) {
     queueMicrotask(() => {
       callbacks.onError(
@@ -390,28 +429,20 @@ export function startVoiceSession({ config, callbacks }) {
     return { stop: async () => {} };
   }
 
-  const model = config.model ?? DEFAULT_MODEL;
-  const wsUrl = `${config.baseURL ?? DEFAULT_WS_BASE}?key=${encodeURIComponent(config.apiKey)}`;
-
   let stopped = false;
   let closeEmitted = false;
+  let ready = false;
+  /** @type {Buffer[]} */
+  const pendingAudio = [];
+  const normalizer = createCJKSpaceNormalizer();
+
   const emitClose = () => {
     if (closeEmitted) return;
     closeEmitted = true;
     callbacks.onClose?.();
   };
 
-  // Buffer audio arriving before the WebSocket is open / setupComplete.
-  /** @type {Buffer[]} */
-  const pendingAudio = [];
-  let setupComplete = false;
-
-  // Gemini Live returns Japanese transcripts as morpheme-separated text
-  // (e.g. "そう 、 声 で 入力 できる"), so strip whitespace sitting between
-  // two CJK characters before forwarding deltas to the consumer.
-  const normalizer = createCJKSpaceNormalizer();
-
-  const ws = new WebSocket(wsUrl);
+  const ws = driver.connect();
   ws.binaryType = "arraybuffer";
 
   const child = spawn(recorder.command, recorder.args, {
@@ -453,34 +484,16 @@ export function startVoiceSession({ config, callbacks }) {
 
   child.stdout.on("data", (chunk) => {
     if (stopped) return;
-    if (setupComplete && ws.readyState === WebSocket.OPEN) {
-      sendAudioChunk(ws, chunk);
+    if (ready && ws.readyState === WebSocket.OPEN) {
+      sendAudio(chunk);
     } else {
       pendingAudio.push(chunk);
     }
   });
 
   ws.addEventListener("open", () => {
-    // `responseModalities: ["AUDIO"]` is intentional: the current
-    // `gemini-3.1-flash-live-preview` model returns a 1011 internal
-    // error when asked for TEXT-only output
-    // (https://github.com/googleapis/python-genai/issues/2238). We don't
-    // actually consume the audio output — `inputAudioTranscription`
-    // delivers the user speech transcript via `serverContent
-    // .inputTranscription` regardless of `responseModalities`, and we
-    // discard `modelTurn` parts in `handleServerMessage`.
-    //
-    // `speechConfig` is omitted: the audio output is discarded, so the
-    // default voice is fine and configuring it would just cost bytes.
-    const setupPayload = {
-      model: `models/${model}`,
-      generationConfig: {
-        responseModalities: ["AUDIO"],
-      },
-      inputAudioTranscription: {},
-    };
     try {
-      ws.send(JSON.stringify({ setup: setupPayload }));
+      ws.send(JSON.stringify(driver.buildSetup()));
     } catch (err) {
       callbacks.onError(
         new Error(
@@ -510,14 +523,33 @@ export function startVoiceSession({ config, callbacks }) {
       );
       return;
     }
-    handleServerMessage(message);
+    if (!isObject(message)) return;
+
+    if (!ready && driver.isReady(message)) {
+      ready = true;
+      while (pendingAudio.length > 0) {
+        const chunk = pendingAudio.shift();
+        if (chunk && ws.readyState === WebSocket.OPEN) {
+          sendAudio(chunk);
+        }
+      }
+      return;
+    }
+
+    const text = driver.parseTranscript(message);
+    if (text !== null) {
+      const normalized = normalizer.push(text);
+      if (normalized.length > 0) {
+        callbacks.onTranscript(normalized);
+      }
+    }
   });
 
   ws.addEventListener("error", (event) => {
     if (stopped) return;
     const message =
       /** @type {{ message?: string }} */ (event).message ?? "WebSocket error";
-    callbacks.onError(new Error(`Gemini Live WebSocket error: ${message}`));
+    callbacks.onError(new Error(`${driver.label} WebSocket error: ${message}`));
     stop();
   });
 
@@ -525,7 +557,9 @@ export function startVoiceSession({ config, callbacks }) {
     if (!stopped && event.code !== 1000 && event.code !== 1005) {
       const reason = event.reason ? `: ${event.reason}` : "";
       callbacks.onError(
-        new Error(`Gemini Live WebSocket closed (code ${event.code}${reason})`),
+        new Error(
+          `${driver.label} WebSocket closed (code ${event.code}${reason})`,
+        ),
       );
     }
     stopped = true;
@@ -538,45 +572,22 @@ export function startVoiceSession({ config, callbacks }) {
   });
 
   /**
-   * @param {unknown} message
+   * @param {Buffer} chunk
    */
-  function handleServerMessage(message) {
-    if (!isObject(message)) return;
-    if ("setupComplete" in message) {
-      setupComplete = true;
-      // Flush any audio captured before the setup handshake completed.
-      while (pendingAudio.length > 0) {
-        const chunk = pendingAudio.shift();
-        if (chunk && ws.readyState === WebSocket.OPEN) {
-          sendAudioChunk(ws, chunk);
-        }
-      }
-      return;
+  function sendAudio(chunk) {
+    const payload = driver.buildAudioMessage(chunk.toString("base64"));
+    try {
+      ws.send(JSON.stringify(payload));
+    } catch {
+      // connection may have just closed
     }
-    if ("serverContent" in message && isObject(message.serverContent)) {
-      const inputTranscription = message.serverContent.inputTranscription;
-      if (
-        isObject(inputTranscription) &&
-        typeof inputTranscription.text === "string" &&
-        inputTranscription.text.length > 0
-      ) {
-        const normalized = normalizer.push(inputTranscription.text);
-        if (normalized.length > 0) {
-          callbacks.onTranscript(normalized);
-        }
-      }
-    }
-    // Other server messages (goAway, usageMetadata, etc.) are ignored here —
-    // we only care about input transcriptions for the CLI input use case.
   }
 
   /**
    * @returns {Promise<void>}
    */
   async function stop() {
-    if (stopped) {
-      return;
-    }
+    if (stopped) return;
     stopped = true;
     try {
       child.kill("SIGTERM");
@@ -605,25 +616,4 @@ export function startVoiceSession({ config, callbacks }) {
  */
 function isObject(value) {
   return typeof value === "object" && value !== null;
-}
-
-/**
- * @param {WebSocket} ws
- * @param {Buffer} chunk
- */
-function sendAudioChunk(ws, chunk) {
-  const data = chunk.toString("base64");
-  const payload = {
-    realtimeInput: {
-      audio: {
-        data,
-        mimeType: "audio/pcm;rate=16000",
-      },
-    },
-  };
-  try {
-    ws.send(JSON.stringify(payload));
-  } catch {
-    // Connection may have just closed; ignore — the close handler will clean up.
-  }
 }

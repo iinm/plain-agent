@@ -9,10 +9,10 @@ import {
 } from "./voiceInput.mjs";
 
 describe("parseVoiceToggleKey", () => {
-  it("defaults to Ctrl-G when spec is undefined", () => {
+  it("defaults to Ctrl-O when spec is undefined", () => {
     const key = parseVoiceToggleKey(undefined);
-    assert.strictEqual(key.byte, 0x07);
-    assert.strictEqual(key.label, "Ctrl-G");
+    assert.strictEqual(key.byte, 0x0f);
+    assert.strictEqual(key.label, "Ctrl-O");
   });
 
   it("parses ctrl-<letter> case-insensitively", () => {
@@ -101,6 +101,16 @@ describe("getRecorderCandidates", () => {
     for (const candidate of candidates) {
       assert.strictEqual(typeof candidate.command, "string");
       assert.ok(Array.isArray(candidate.args));
+    }
+  });
+
+  it("uses the given sample rate in the recorder args", () => {
+    const candidates = getRecorderCandidates(24000);
+    for (const candidate of candidates) {
+      assert.ok(
+        candidate.args.includes("24000"),
+        `${candidate.command} args should include 24000: ${JSON.stringify(candidate.args)}`,
+      );
     }
   });
 
@@ -207,6 +217,51 @@ describe("startVoiceSession", () => {
     });
     await session.stop();
     await session.stop();
+    await session.stop();
+  });
+
+  it("rejects unsupported providers", async () => {
+    /** @type {Error[]} */
+    const errors = [];
+    let closed = false;
+    const session = startVoiceSession({
+      config: /** @type {never} */ ({
+        provider: "bogus",
+        apiKey: "fake-key",
+      }),
+      callbacks: {
+        onTranscript: () => {},
+        onError: (err) => {
+          errors.push(err);
+        },
+        onClose: () => {
+          closed = true;
+        },
+      },
+    });
+    await session.stop();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.ok(closed);
+    assert.strictEqual(errors.length, 1);
+    assert.match(errors[0].message, /Unsupported voiceInput\.provider/);
+  });
+
+  it("accepts an openai config without throwing synchronously", async () => {
+    const session = startVoiceSession({
+      config: {
+        provider: "openai",
+        apiKey: "fake-key",
+        recorder: {
+          command: "__definitely_not_a_real_binary__",
+          args: [],
+        },
+      },
+      callbacks: {
+        onTranscript: () => {},
+        onError: () => {},
+        onClose: () => {},
+      },
+    });
     await session.stop();
   });
 });
