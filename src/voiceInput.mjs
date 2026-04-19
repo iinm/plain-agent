@@ -13,18 +13,21 @@ import { spawn, spawnSync } from "node:child_process";
  * @property {"gemini"} provider
  * @property {string} apiKey - Gemini API key
  * @property {string=} model
- *   Gemini Live model name. Defaults to "gemini-3.1-flash-live-preview",
- *   matching the model used in the official WebSocket tutorial
- *   (https://ai.google.dev/gemini-api/docs/live-api/get-started-websocket).
- *   Other known-valid names at the time of writing:
- *     - "gemini-live-2.5-flash-preview"
+ *   Gemini Live model name. Defaults to "gemini-live-2.5-flash-preview",
+ *   which is the model the official `@google/genai` SDK uses in its live
+ *   integration tests (MLDEV_MODEL) and is known to accept `TEXT`-only
+ *   response modality with `inputAudioTranscription`.
+ *
+ *   Other preview models you may try:
+ *     - "gemini-3.1-flash-live-preview" (newer, audio-to-audio
+ *       optimized — may reject TEXT-only response modality and return
+ *       a 1011 internal error on this endpoint)
  *     - "gemini-2.0-flash-live-001" (older stable tier)
+ *
  *   Live API model names are preview-track and change over time — see
  *   https://ai.google.dev/gemini-api/docs/live for the current list.
  * @property {string=} baseURL
  *   Override the WebSocket base URL. Defaults to the public Gemini endpoint.
- * @property {string=} language
- *   BCP-47 language code passed as `speechConfig.languageCode` (optional).
  * @property {VoiceRecorderConfig=} recorder
  *   Override auto-detection with an explicit recording command.
  * @property {string=} toggleKey
@@ -56,7 +59,7 @@ import { spawn, spawnSync } from "node:child_process";
  *   Stop the recorder and close the WebSocket. Resolves after both are done.
  */
 
-const DEFAULT_MODEL = "gemini-3.1-flash-live-preview";
+const DEFAULT_MODEL = "gemini-live-2.5-flash-preview";
 
 /**
  * Parsed voice toggle key: the raw byte value that appears on stdin in raw
@@ -362,20 +365,15 @@ export function startVoiceSession({ config, callbacks }) {
   });
 
   ws.addEventListener("open", () => {
-    /** @type {Record<string, unknown>} */
-    const generationConfig = {
-      responseModalities: ["TEXT"],
-    };
-    if (config.language) {
-      // `speechConfig` is nested under `generationConfig` per the Live API
-      // schema (https://ai.google.dev/api/live). Putting it at the top level
-      // of `setup` makes the server reject the message with
-      // "Unknown name speechConfig at 'setup'".
-      generationConfig.speechConfig = { languageCode: config.language };
-    }
+    // `speechConfig` is intentionally omitted: it only affects *output*
+    // TTS and is incompatible with `responseModalities: ["TEXT"]` on some
+    // Live models (observed as a 1011 internal error on 3.1). Input
+    // transcription language is auto-detected by the model.
     const setupPayload = {
       model: `models/${model}`,
-      generationConfig,
+      generationConfig: {
+        responseModalities: ["TEXT"],
+      },
       inputAudioTranscription: {},
     };
     try {
