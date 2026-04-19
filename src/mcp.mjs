@@ -15,6 +15,7 @@ const OUTPUT_MAX_LENGTH = 1024 * 8;
 /**
  * @typedef {Object} SetupMCPServrResult
  * @property {Tool[]} tools
+ * @property {string} stderrLogPath
  * @property {() => Promise<void>} cleanup
  */
 
@@ -26,7 +27,7 @@ const OUTPUT_MAX_LENGTH = 1024 * 8;
 export async function setupMCPServer(serverName, serverConfig) {
   const { options, ...params } = serverConfig;
 
-  const { client, cleanup } = await startMCPServer({
+  const { client, stderrLogPath, cleanup } = await startMCPServer({
     serverName,
     params,
   });
@@ -41,6 +42,7 @@ export async function setupMCPServer(serverName, serverConfig) {
 
   return {
     tools,
+    stderrLogPath,
     cleanup: async () => {
       cleanup();
       await client.close();
@@ -56,7 +58,7 @@ export async function setupMCPServer(serverName, serverConfig) {
 
 /**
  * @param {MCPClientOptions} options - The options for the client.
- * @returns {Promise<{client: Client; cleanup: () => void}>} - The MCP client and cleanup function.
+ * @returns {Promise<{client: Client; stderrLogPath: string; cleanup: () => void}>} - The MCP client, stderr log path, and cleanup function.
  */
 async function startMCPServer(options) {
   const mcpClient = await import("@modelcontextprotocol/client");
@@ -88,6 +90,7 @@ async function startMCPServer(options) {
 
   return {
     client,
+    stderrLogPath: logPath,
     cleanup: () => {
       stderrLogFile.close();
     },
