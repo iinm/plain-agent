@@ -11,6 +11,49 @@
 import { styleText } from "node:util";
 import { createPatch } from "diff";
 
+/** Length above which a single-line arg forces block-form rendering. */
+const ARG_BLOCK_LENGTH_THRESHOLD = 60;
+
+/**
+ * Format an args array for display.
+ * Uses compact JSON for short single-line args; switches to a YAML-style
+ * block form when any arg contains newlines or exceeds
+ * {@link ARG_BLOCK_LENGTH_THRESHOLD} characters so that long scripts passed
+ * to `bash -c`, `python -c`, `node -e`, etc. stay readable.
+ * @param {unknown} args
+ * @returns {string}
+ */
+export function formatArgs(args) {
+  if (!Array.isArray(args) || args.length === 0) {
+    return `args: ${JSON.stringify(args ?? [])}`;
+  }
+
+  const needsBlock = args.some(
+    (a) =>
+      typeof a === "string" &&
+      (a.includes("\n") || a.length > ARG_BLOCK_LENGTH_THRESHOLD),
+  );
+  if (!needsBlock) {
+    return `args: ${JSON.stringify(args)}`;
+  }
+
+  const lines = ["args:"];
+  for (const arg of args) {
+    if (
+      typeof arg === "string" &&
+      (arg.includes("\n") || arg.length > ARG_BLOCK_LENGTH_THRESHOLD)
+    ) {
+      lines.push("  - |");
+      for (const line of arg.split("\n")) {
+        lines.push(`      ${line}`);
+      }
+    } else {
+      lines.push(`  - ${JSON.stringify(arg)}`);
+    }
+  }
+  return lines.join("\n");
+}
+
 /**
  * Format tool use for display.
  * @param {MessageContentToolUse} toolUse
@@ -25,7 +68,7 @@ export function formatToolUse(toolUse) {
     return [
       `tool: ${toolName}`,
       `command: ${JSON.stringify(execCommandInput.command)}`,
-      `args: ${JSON.stringify(execCommandInput.args)}`,
+      formatArgs(execCommandInput.args),
     ].join("\n");
   }
 
@@ -82,7 +125,7 @@ export function formatToolUse(toolUse) {
     return [
       `tool: ${toolName}`,
       `command: ${tmuxCommandInput.command}`,
-      `args: ${JSON.stringify(tmuxCommandInput.args)}`,
+      formatArgs(tmuxCommandInput.args),
     ].join("\n");
   }
 
