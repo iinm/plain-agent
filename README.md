@@ -67,6 +67,54 @@ Create the configuration.
       "variant": "default",
       "apiKey": "FIXME"
     },
+  ],
+
+  // Optional
+  "tools": {
+    // askWeb: Searches the web to answer questions requiring up-to-date information or external sources.
+    "askWeb": {
+      "provider": "gemini",
+      "apiKey": "FIXME",
+      "model": "gemini-3-flash-preview"
+      // Optional
+      // "baseURL": "<proxy_url>"
+
+      // Or use Vertex AI (Requires gcloud CLI to get authentication token)
+      // "provider": "gemini-vertex-ai",
+      // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
+      // "model": "gemini-3-flash-preview"
+      // Optional:
+      // "account": "<service_account_email>"
+    },
+
+    // askURL: Answers questions based on provided URL content.
+    //         Directly injecting URL content into context is not supported to prevent prompt injection.
+    "askURL": {
+      "provider": "gemini",
+      "apiKey": "FIXME"
+      "model": "gemini-3-flash-preview"
+      // Optional
+      // "baseURL": "<proxy_url>"
+
+      // Or use Vertex AI (Requires gcloud CLI to get authentication token)
+      // "provider": "gemini-vertex-ai",
+      // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
+      // "model": "gemini-3-flash-preview"
+      // Optional:
+      // "account": "<service_account_email>"
+    }
+  },
+
+}
+
+```
+
+<details>
+<summary><b>Azure / Bedrock / Vertex AI provider examples</b></summary>
+
+```js
+{
+  "platforms": [
     {
       // Requires Azure CLI to get access token
       "name": "azure",
@@ -89,47 +137,13 @@ Create the configuration.
       // Optional
       "account": "<service_account_email>"
     }
-  ],
-
-  // Optional
-  "tools": {
-    "askWeb": {
-      "provider": "gemini",
-      "apiKey": "FIXME",
-      "model": "gemini-3-flash-preview"
-      // Optional
-      // "baseURL": "<proxy_url>"
-
-      // Or use Vertex AI (Requires gcloud CLI to get authentication token)
-      // "provider": "gemini-vertex-ai",
-      // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
-      // "model": "gemini-3-flash-preview"
-      // Optional:
-      // "account": "<service_account_email>"
-    },
-
-    "askURL": {
-      "provider": "gemini",
-      "apiKey": "FIXME"
-      "model": "gemini-3-flash-preview"
-      // Optional
-      // "baseURL": "<proxy_url>"
-
-      // Or use Vertex AI (Requires gcloud CLI to get authentication token)
-      // "provider": "gemini-vertex-ai",
-      // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
-      // "model": "gemini-3-flash-preview"
-      // Optional:
-      // "account": "<service_account_email>"
-    }
-  },
-
+  ]
 }
-
 ```
+</details>
 
 <details>
-<summary><b>Other provider examples</b></summary>
+<summary><b>OpenAI compatible provider examples</b></summary>
 
 ```js
 {
