@@ -1,6 +1,7 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
 import {
+  createCJKSpaceNormalizer,
   detectRecorder,
   getRecorderCandidates,
   parseVoiceToggleKey,
@@ -45,6 +46,51 @@ describe("parseVoiceToggleKey", () => {
     assert.throws(() => parseVoiceToggleKey("ctrl-m")); // CR
     assert.throws(() => parseVoiceToggleKey("ctrl-q")); // XON
     assert.throws(() => parseVoiceToggleKey("ctrl-s")); // XOFF
+  });
+});
+
+describe("createCJKSpaceNormalizer", () => {
+  it("drops whitespace sitting between two CJK characters", () => {
+    const n = createCJKSpaceNormalizer();
+    assert.strictEqual(
+      n.push("そう 、 声 で 入力 できる よう に なっ た の 。"),
+      "そう、声で入力できるようになったの。",
+    );
+  });
+
+  it("keeps whitespace when either side is not CJK", () => {
+    const n = createCJKSpaceNormalizer();
+    assert.strictEqual(n.push("Hello world"), "Hello world");
+  });
+
+  it("keeps space between Latin and CJK in mixed text", () => {
+    const n = createCJKSpaceNormalizer();
+    assert.strictEqual(n.push("Windows を 使う"), "Windows を使う");
+  });
+
+  it("handles whitespace split across delta boundaries", () => {
+    const n = createCJKSpaceNormalizer();
+    // Trailing space on the first delta is held until the next delta's
+    // leading character decides whether to keep or drop it.
+    assert.strictEqual(n.push("そう "), "そう");
+    assert.strictEqual(n.push("、声"), "、声");
+  });
+
+  it("keeps a held space when the next delta starts with Latin", () => {
+    const n = createCJKSpaceNormalizer();
+    assert.strictEqual(n.push("これ "), "これ");
+    assert.strictEqual(n.push("test"), " test");
+  });
+
+  it("treats fullwidth punctuation and kana as CJK", () => {
+    const n = createCJKSpaceNormalizer();
+    assert.strictEqual(n.push("カタカナ 、 テスト"), "カタカナ、テスト");
+  });
+
+  it("flush() returns any whitespace that was still pending", () => {
+    const n = createCJKSpaceNormalizer();
+    assert.strictEqual(n.push("ほげ "), "ほげ");
+    assert.strictEqual(n.flush(), " ");
   });
 });
 

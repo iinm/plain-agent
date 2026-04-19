@@ -63,6 +63,96 @@ import { spawn, spawnSync } from "node:child_process";
 const DEFAULT_MODEL = "gemini-3.1-flash-live-preview";
 
 /**
+ * Test whether `ch` belongs to a script where whitespace is not used as a
+ * word separator (so Gemini Live's morpheme-separated output should have
+ * those spaces stripped out).
+ *
+ * Covers the CJK + Japanese kana + Hangul ranges, plus CJK-range punctuation
+ * and fullwidth forms. Non-CJK punctuation (.,!? etc.) is intentionally NOT
+ * included so "Windows を" style mixed text keeps its space.
+ *
+ * @param {string} ch
+ * @returns {boolean}
+ */
+function isCJKChar(ch) {
+  if (!ch) return false;
+  const code = ch.codePointAt(0);
+  if (code === undefined) return false;
+  return (
+    // CJK Symbols and Punctuation, Hiragana, Katakana, Bopomofo, Hangul Compat
+    (code >= 0x3000 && code <= 0x33ff) ||
+    // CJK Unified Ideographs Extension A
+    (code >= 0x3400 && code <= 0x4dbf) ||
+    // CJK Unified Ideographs
+    (code >= 0x4e00 && code <= 0x9fff) ||
+    // Hangul Syllables
+    (code >= 0xac00 && code <= 0xd7af) ||
+    // CJK Compatibility Ideographs
+    (code >= 0xf900 && code <= 0xfaff) ||
+    // Halfwidth/Fullwidth Forms (includes fullwidth Latin and halfwidth kana)
+    (code >= 0xff00 && code <= 0xffef) ||
+    // CJK Unified Ideographs Extension B (supplementary plane)
+    (code >= 0x20000 && code <= 0x2ffff)
+  );
+}
+
+/**
+ * Create a streaming normalizer that drops whitespace sitting between two
+ * CJK characters. Gemini Live sends Japanese transcripts as
+ * morpheme-separated text ("そう 、 声 で 入力 できる") even though
+ * Japanese doesn't use inter-word spaces; mixed strings like "Windows を
+ * 使う" should still keep the space between the Latin and Japanese tokens.
+ *
+ * The normalizer is stateful: whitespace at the tail of a delta is held
+ * until the following delta arrives so we can decide based on the *next*
+ * real character. Call `flush()` when no more input is expected.
+ *
+ * @returns {{
+ *   push: (text: string) => string,
+ *   flush: () => string,
+ * }}
+ */
+export function createCJKSpaceNormalizer() {
+  /** @type {string} */
+  let prevChar = "";
+  /** @type {string} */
+  let pendingSpaces = "";
+
+  /**
+   * @param {string} ch
+   * @returns {boolean}
+   */
+  const isSpace = (ch) => ch === " " || ch === "\t" || ch === "\u3000";
+
+  return {
+    push(text) {
+      let out = "";
+      for (const ch of text) {
+        if (isSpace(ch)) {
+          pendingSpaces += ch;
+          continue;
+        }
+        if (pendingSpaces.length > 0) {
+          if (!(isCJKChar(prevChar) && isCJKChar(ch))) {
+            out += pendingSpaces;
+          }
+          pendingSpaces = "";
+        }
+        out += ch;
+        prevChar = ch;
+      }
+      return out;
+    },
+    flush() {
+      const out = pendingSpaces;
+      pendingSpaces = "";
+      prevChar = "";
+      return out;
+    },
+  };
+}
+
+/**
  * Parsed voice toggle key: the raw byte value that appears on stdin in raw
  * mode, plus a human-readable label for UI messages.
  *
@@ -316,6 +406,11 @@ export function startVoiceSession({ config, callbacks }) {
   const pendingAudio = [];
   let setupComplete = false;
 
+  // Gemini Live returns Japanese transcripts as morpheme-separated text
+  // (e.g. "そう 、 声 で 入力 できる"), so strip whitespace sitting between
+  // two CJK characters before forwarding deltas to the consumer.
+  const normalizer = createCJKSpaceNormalizer();
+
   const ws = new WebSocket(wsUrl);
   ws.binaryType = "arraybuffer";
 
@@ -465,7 +560,10 @@ export function startVoiceSession({ config, callbacks }) {
         typeof inputTranscription.text === "string" &&
         inputTranscription.text.length > 0
       ) {
-        callbacks.onTranscript(inputTranscription.text);
+        const normalized = normalizer.push(inputTranscription.text);
+        if (normalized.length > 0) {
+          callbacks.onTranscript(normalized);
+        }
       }
     }
     // Other server messages (goAway, usageMetadata, etc.) are ignored here —
