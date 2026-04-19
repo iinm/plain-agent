@@ -551,12 +551,15 @@ function createGeminiDriver(config) {
       return new WebSocket(`${base}?key=${encodeURIComponent(config.apiKey)}`);
     },
     buildSetup() {
+      // Gemini Live was designed for voice agents, not pure STT.
+      // Force maxOutputTokens: 1 and disable thinking on 2.5 models
+      // to minimise wasted audio output.
+
       /** @type {Record<string, unknown>} */
       const generationConfig = {
         // https://ai.google.dev/gemini-api/docs/live-api/capabilities#response-modalities
         // > The native audio models only support `AUDIO response modality.
         responseModalities: ["AUDIO"],
-        // We don't use model output.
         maxOutputTokens: 1,
       };
       if (model.includes("2.5")) {

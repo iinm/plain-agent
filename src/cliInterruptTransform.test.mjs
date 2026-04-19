@@ -153,5 +153,4 @@ describe("createInterruptTransform", () => {
     assert.strictEqual(toggled, 0);
     assert.strictEqual(out, "");
   });
-
 });

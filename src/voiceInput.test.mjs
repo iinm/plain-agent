@@ -96,7 +96,7 @@ describe("createCJKSpaceNormalizer", () => {
 
 describe("getRecorderCandidates", () => {
   it("returns a non-empty list of recorder candidates", () => {
-    const candidates = getRecorderCandidates();
+    const candidates = getRecorderCandidates(16000);
     assert.ok(candidates.length > 0);
     for (const candidate of candidates) {
       assert.strictEqual(typeof candidate.command, "string");
@@ -118,7 +118,7 @@ describe("getRecorderCandidates", () => {
     if (process.platform === "darwin") {
       return;
     }
-    const candidates = getRecorderCandidates();
+    const candidates = getRecorderCandidates(16000);
     assert.strictEqual(candidates[0].command, "arecord");
   });
 
@@ -126,7 +126,7 @@ describe("getRecorderCandidates", () => {
     if (process.platform !== "darwin") {
       return;
     }
-    const candidates = getRecorderCandidates();
+    const candidates = getRecorderCandidates(16000);
     const names = candidates.map((c) => c.command);
     assert.ok(!names.includes("arecord"));
   });
