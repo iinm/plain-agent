@@ -486,9 +486,66 @@ The agent loads configuration files in the following order. Settings in later fi
 
   // Override default notification command
   // "notifyCmd": "/path/to/notification-command"
+
+  // (Optional) Voice input via Gemini Live API (press Ctrl-G to toggle).
+  // See "Voice Input" below for details.
+  // "voiceInput": {
+  //   "provider": "gemini",
+  //   "apiKey": "FIXME",
+  //   "model": "gemini-2.5-flash-live-preview",
+  //   "language": "ja-JP"
+  // }
 }
 ```
 </details>
+
+## Voice Input
+
+Press **Ctrl-G** during an interactive session to toggle voice recording.
+While recording, your speech is streamed to the Gemini Live API and the
+real-time transcription is inserted into the prompt as you speak. Press
+Ctrl-G again to stop.
+
+### Requirements
+
+- A recording command on `PATH`. The CLI auto-detects the first of:
+  `arecord` (Linux), `sox`, `ffmpeg`. Install via your package manager
+  (`apt install alsa-utils` / `brew install sox`, etc.).
+- A Gemini API key with access to a Live model (e.g.
+  `gemini-2.5-flash-live-preview`). Voice input uses its own key; it is
+  independent of the API key used for agent inference.
+- Voice input runs on the host and does **not** require (or interact
+  with) the sandbox. It will not work when `plain` itself is launched
+  inside a sandbox with no microphone access.
+
+### Configuration
+
+Add a top-level `voiceInput` block to your config (typically in
+`~/.config/plain-agent/config.local.json` so the API key is not
+committed):
+
+```js
+{
+  "voiceInput": {
+    "provider": "gemini",
+    "apiKey": "YOUR_GEMINI_API_KEY",
+    // Optional. Defaults to "gemini-2.5-flash-live-preview".
+    "model": "gemini-2.5-flash-live-preview",
+    // Optional BCP-47 language hint passed to the model.
+    "language": "ja-JP",
+    // Optional: override the recorder command. Must produce raw 16-bit
+    // little-endian 16 kHz mono PCM on stdout.
+    // "recorder": {
+    //   "command": "sox",
+    //   "args": ["-q", "-d", "-b", "16", "-c", "1", "-r", "16000",
+    //            "-e", "signed-integer", "-t", "raw", "-"]
+    // }
+  }
+}
+```
+
+Gemini Live is a preview API; model names, pricing, and rate limits may
+change.
 
 ## Prompts
 

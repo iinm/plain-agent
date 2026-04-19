@@ -83,4 +83,86 @@ describe("createInterruptTransform", () => {
     assert.strictEqual(ctrlD, 0);
     assert.strictEqual(out, "");
   });
+
+  it("invokes onCtrlG on Ctrl-G and drops the chunk", async () => {
+    let ctrlG = 0;
+    const transform = createInterruptTransform({
+      onCtrlC: () => {},
+      onCtrlD: () => {},
+      onCtrlG: () => {
+        ctrlG += 1;
+      },
+    });
+    const out = await feedChunks(transform, ["\x07"]);
+    assert.strictEqual(ctrlG, 1);
+    assert.strictEqual(out, "");
+  });
+
+  it("passes Ctrl-G through when onCtrlG is not provided", async () => {
+    const transform = createInterruptTransform({
+      onCtrlC: () => {},
+      onCtrlD: () => {},
+    });
+    const out = await feedChunks(transform, ["\x07"]);
+    assert.strictEqual(out, "\x07");
+  });
+
+  it("prefers Ctrl-C over Ctrl-G when both are in the same chunk", async () => {
+    let ctrlC = 0;
+    let ctrlG = 0;
+    const transform = createInterruptTransform({
+      onCtrlC: () => {
+        ctrlC += 1;
+      },
+      onCtrlD: () => {},
+      onCtrlG: () => {
+        ctrlG += 1;
+      },
+    });
+    const out = await feedChunks(transform, ["\x03\x07"]);
+    assert.strictEqual(ctrlC, 1);
+    assert.strictEqual(ctrlG, 0);
+    assert.strictEqual(out, "");
+  });
+
+  it("swallows non-handled chunks when shouldSwallowOthers returns true", async () => {
+    let swallow = true;
+    const transform = createInterruptTransform({
+      onCtrlC: () => {},
+      onCtrlD: () => {},
+      shouldSwallowOthers: () => swallow,
+    });
+    const out = await feedChunks(transform, ["abc", "def"]);
+    assert.strictEqual(out, "");
+    swallow = false;
+  });
+
+  it("still invokes handlers when shouldSwallowOthers is true", async () => {
+    let ctrlC = 0;
+    let ctrlG = 0;
+    const transform = createInterruptTransform({
+      onCtrlC: () => {
+        ctrlC += 1;
+      },
+      onCtrlD: () => {},
+      onCtrlG: () => {
+        ctrlG += 1;
+      },
+      shouldSwallowOthers: () => true,
+    });
+    const out = await feedChunks(transform, ["a", "\x07", "\x03"]);
+    assert.strictEqual(ctrlC, 1);
+    assert.strictEqual(ctrlG, 1);
+    assert.strictEqual(out, "");
+  });
+
+  it("passes data through when shouldSwallowOthers returns false", async () => {
+    const transform = createInterruptTransform({
+      onCtrlC: () => {},
+      onCtrlD: () => {},
+      shouldSwallowOthers: () => false,
+    });
+    const out = await feedChunks(transform, ["hello"]);
+    assert.strictEqual(out, "hello");
+  });
 });

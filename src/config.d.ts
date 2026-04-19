@@ -4,6 +4,7 @@ import { AskURLToolOptions } from "./tools/askURL.mjs";
 import { AskWebToolOptions } from "./tools/askWeb.mjs";
 import { ExecCommandSanboxConfig } from "./tools/execCommand";
 import { ClaudeCodePluginRepo } from "./claudeCodePlugin.mjs";
+import { VoiceInputConfig } from "./voiceInput.mjs";
 
 export type AppConfig = {
   model?: string;
@@ -21,6 +22,7 @@ export type AppConfig = {
   };
   mcpServers?: Record<string, MCPServerConfig>;
   notifyCmd?: string;
+  voiceInput?: VoiceInputConfig;
   claudeCodePlugins?: ClaudeCodePluginRepo[];
 };
 

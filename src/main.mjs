@@ -257,6 +257,7 @@ if (cliArgs.subcommand.type === "install-claude-code-plugins") {
       ...sessionOptions,
       notifyCmd: appConfig.notifyCmd || AGENT_NOTIFY_CMD_DEFAULT,
       claudeCodePlugins: resolvePluginPaths(appConfig.claudeCodePlugins ?? []),
+      voiceInput: appConfig.voiceInput,
     });
   }
 })().catch((err) => {

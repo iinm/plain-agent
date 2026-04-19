@@ -1,6 +1,7 @@
 /**
  * @import { UserEventEmitter, AgentEventEmitter, AgentCommands } from "./agent"
  * @import { ClaudeCodePlugin } from "./claudeCodePlugin.mjs"
+ * @import { VoiceInputConfig, VoiceSession } from "./voiceInput.mjs"
  */
 
 import readline from "node:readline";
@@ -15,6 +16,7 @@ import {
 import { createInterruptTransform } from "./cliInterruptTransform.mjs";
 import { createPasteHandler } from "./cliPasteTransform.mjs";
 import { notify } from "./utils/notify.mjs";
+import { startVoiceSession } from "./voiceInput.mjs";
 
 const HELP_MESSAGE = [
   "Commands:",
@@ -57,6 +59,7 @@ const HELP_MESSAGE = [
  * @property {boolean} sandbox
  * @property {() => Promise<void>} onStop
  * @property {ClaudeCodePlugin[]} [claudeCodePlugins]
+ * @property {VoiceInputConfig} [voiceInput]
  */
 
 /**
@@ -72,6 +75,7 @@ export function startInteractiveSession({
   sandbox,
   onStop,
   claudeCodePlugins,
+  voiceInput,
 }) {
   /** @type {{ turn: boolean, multiLineBuffer: string[] | null, subagentName: string }} */
   const state = {
@@ -79,6 +83,12 @@ export function startInteractiveSession({
     multiLineBuffer: null,
     subagentName: "",
   };
+
+  /**
+   * Active voice input session, or null when not recording.
+   * @type {{ session: VoiceSession, startCursor: number, transcriptLength: number } | null}
+   */
+  let voice = null;
 
   const getCliPrompt = (subagentName = "", flashMessage = "") =>
     [
@@ -136,7 +146,100 @@ export function startInteractiveSession({
     cli.prompt();
   };
 
+  const stopVoiceSession = async () => {
+    if (!voice) return;
+    const current = voice;
+    voice = null;
+    await current.session.stop();
+    cli.setPrompt(currentCliPrompt);
+    // @ts-expect-error - internal property
+    cli._refreshLine?.();
+  };
+
+  const handleCtrlG = () => {
+    // Ignore while the agent is working.
+    if (!state.turn) return;
+
+    if (voice) {
+      stopVoiceSession();
+      return;
+    }
+
+    if (!voiceInput) {
+      cli.setPrompt(
+        getCliPrompt(
+          state.subagentName,
+          styleText(
+            "yellow",
+            "Voice input not configured. Set `voiceInput` in your config to enable Ctrl-G.",
+          ),
+        ),
+      );
+      cli.prompt(true);
+      return;
+    }
+
+    const startCursor = cli.cursor;
+    const session = startVoiceSession({
+      config: voiceInput,
+      callbacks: {
+        onTranscript: (delta) => {
+          if (!voice) return;
+          const insertAt = voice.startCursor + voice.transcriptLength;
+          // Insert delta at the recording's insertion point. User input is
+          // swallowed while recording, so the buffer around `insertAt` is
+          // stable.
+          const before = cli.line.slice(0, insertAt);
+          const after = cli.line.slice(insertAt);
+          // `line` and `cursor` are declared readonly in the Node typings but
+          // are writable at runtime — the existing code already patches
+          // `_refreshLine` in the same way.
+          const mutableCli = /** @type {{ line: string, cursor: number }} */ (
+            /** @type {unknown} */ (cli)
+          );
+          mutableCli.line = before + delta + after;
+          mutableCli.cursor = insertAt + delta.length;
+          voice.transcriptLength += delta.length;
+          // @ts-expect-error - internal property
+          cli._refreshLine?.();
+        },
+        onError: (err) => {
+          voice = null;
+          cli.setPrompt(
+            getCliPrompt(
+              state.subagentName,
+              styleText("red", `Voice input error: ${err.message}`),
+            ),
+          );
+          cli.prompt(true);
+        },
+        onClose: () => {
+          if (!voice) return;
+          voice = null;
+          cli.setPrompt(currentCliPrompt);
+          // @ts-expect-error - internal property
+          cli._refreshLine?.();
+        },
+      },
+    });
+    voice = { session, startCursor, transcriptLength: 0 };
+    cli.setPrompt(
+      getCliPrompt(
+        state.subagentName,
+        styleText(["red", "bold"], "● REC  (Ctrl-G to stop)"),
+      ),
+    );
+    // @ts-expect-error - internal property
+    cli._refreshLine?.();
+  };
+
   const handleCtrlC = () => {
+    // Stop voice recording first if active.
+    if (voice) {
+      stopVoiceSession();
+      return;
+    }
+
     // Agent turn: pause auto-approve; do not clear input.
     if (!state.turn) {
       agentCommands.pauseAutoApprove();
@@ -196,6 +299,10 @@ export function startInteractiveSession({
   const interrupt = createInterruptTransform({
     onCtrlC: handleCtrlC,
     onCtrlD: handleCtrlD,
+    onCtrlG: handleCtrlG,
+    // While a voice session is recording, swallow all stdin bytes other than
+    // Ctrl-C / Ctrl-D / Ctrl-G so transcript insertion stays consistent.
+    shouldSwallowOthers: () => voice !== null,
   });
   const paste = createPasteHandler();
 
