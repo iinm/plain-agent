@@ -14,7 +14,7 @@ import { spawn, spawnSync } from "node:child_process";
  * @property {"openai"} provider
  * @property {string} apiKey
  * @property {string} [model] - Defaults to "gpt-4o-transcribe".
- * @property {string} [language] - ISO-639-1 code (e.g. "ja", "en"). Optional; improves accuracy and latency when set.
+ * @property {string} [language] - ISO-639-1 code (e.g. "ja", "en"). Improves accuracy and latency when set.
  * @property {string} [baseURL]
  * @property {VoiceRecorderConfig} [recorder]
  * @property {string} [toggleKey] - "ctrl-<char>". Defaults to "ctrl-o".
@@ -25,10 +25,31 @@ import { spawn, spawnSync } from "node:child_process";
  * @property {"gemini"} provider
  * @property {string} apiKey
  * @property {string} [model] - Defaults to "gemini-3.1-flash-live-preview".
+ * @property {string} [language] - ISO-639-1 code (e.g. "ja", "en"). Passed to the model as a system instruction since Gemini Live has no native language hint for input transcription.
  * @property {string} [baseURL]
  * @property {VoiceRecorderConfig} [recorder]
  * @property {string} [toggleKey]
  */
+
+const LANGUAGE_NAMES = Object.freeze({
+  ja: "Japanese",
+  en: "English",
+  ko: "Korean",
+  zh: "Chinese",
+  es: "Spanish",
+  fr: "French",
+  de: "German",
+  it: "Italian",
+  pt: "Portuguese",
+  ru: "Russian",
+  ar: "Arabic",
+  hi: "Hindi",
+  nl: "Dutch",
+  tr: "Turkish",
+  vi: "Vietnamese",
+  th: "Thai",
+  id: "Indonesian",
+});
 
 /**
  * @typedef {VoiceInputOpenAIConfig | VoiceInputGeminiConfig} VoiceInputConfig
@@ -365,13 +386,24 @@ function createGeminiDriver(config) {
       if (model.includes("2.5")) {
         generationConfig.thinkingConfig = { thinkingBudget: 0 };
       }
-      return {
-        setup: {
-          model: `models/${model}`,
-          generationConfig,
-          inputAudioTranscription: {},
-        },
+      /** @type {Record<string, unknown>} */
+      const setup = {
+        model: `models/${model}`,
+        generationConfig,
+        inputAudioTranscription: {},
       };
+      if (config.language) {
+        const name =
+          LANGUAGE_NAMES[
+            /** @type {keyof typeof LANGUAGE_NAMES} */ (
+              config.language.toLowerCase()
+            )
+          ] ?? config.language;
+        setup.systemInstruction = {
+          parts: [{ text: `The user is speaking in ${name}.` }],
+        };
+      }
+      return { setup };
     },
     isReady(message) {
       return "setupComplete" in message;

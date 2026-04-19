@@ -646,15 +646,17 @@ and send them like regular text.
   "voiceInput": {
     "provider": "gemini",
     "apiKey": "YOUR_GEMINI_API_KEY"
-    // "model": "gemini-3.1-flash-live-preview"
+    // "model": "gemini-3.1-flash-live-preview",
+    // "language": "ja"
   }
 }
 ```
 
 Gemini Live was designed for voice agents, not pure STT. The driver forces
 `maxOutputTokens: 1` and disables thinking on 2.5 models to minimise the
-wasted audio output. For lowest cost, use `"provider": "openai"` with
-`"model": "gpt-4o-mini-transcribe"` instead.
+wasted audio output. `language` is delivered via a system instruction since
+Gemini Live has no native language hint. For lowest cost, use
+`"provider": "openai"` with `"model": "gpt-4o-mini-transcribe"` instead.
 
 ### Options
 
