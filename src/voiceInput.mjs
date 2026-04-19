@@ -14,6 +14,7 @@ import { spawn, spawnSync } from "node:child_process";
  * @property {"openai"} provider
  * @property {string} apiKey
  * @property {string} [model] - Defaults to "gpt-4o-transcribe".
+ * @property {string} [language] - ISO-639-1 code (e.g. "ja", "en"). Optional; improves accuracy and latency when set.
  * @property {string} [baseURL]
  * @property {VoiceRecorderConfig} [recorder]
  * @property {string} [toggleKey] - "ctrl-<char>". Defaults to "ctrl-o".
@@ -298,13 +299,16 @@ function createOpenAIDriver(config) {
       });
     },
     buildSetup() {
+      /** @type {{ model: string, language?: string }} */
+      const transcription = { model };
+      if (config.language) transcription.language = config.language;
       // The `?intent=transcription` endpoint uses the flat transcription-session
       // schema, not the nested `session.audio.input.*` realtime schema.
       return {
         type: "transcription_session.update",
         session: {
           input_audio_format: "pcm16",
-          input_audio_transcription: { model },
+          input_audio_transcription: transcription,
           turn_detection: { type: "server_vad" },
         },
       };

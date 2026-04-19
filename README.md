@@ -517,7 +517,8 @@ and send them like regular text.
   "voiceInput": {
     "provider": "openai",
     "apiKey": "YOUR_OPENAI_API_KEY"
-    // "model": "gpt-4o-transcribe"   // or "gpt-4o-mini-transcribe", "whisper-1"
+    // "model": "gpt-4o-transcribe",  // or "gpt-4o-mini-transcribe", "whisper-1"
+    // "language": "ja"                // ISO-639-1 code. Improves accuracy and latency.
   }
 }
 ```
