@@ -4,21 +4,28 @@
 
 # Plain Agent
 
-A lightweight CLI-based coding agent.
+A lightweight CLI-based coding agent with zero framework dependencies.
 
-- **Safety controls** — Configure approval rules and sandboxing for safe execution
-- **Multi-provider** — Supports Anthropic, OpenAI, Gemini, Bedrock, Azure, Vertex AI, and more
-- **Sequential subagent delegation** — Delegate subtasks to specialized subagents with full visibility
-- **MCP support** — Connect to external MCP servers to extend available tools
-- **Claude Code compatible** — Reuse Claude Code plugins, agents, commands, and skills
+## Why Plain Agent?
 
-## Safety Controls
+- **Multi-provider** — Use Claude, GPT, Gemini, or any OpenAI-compatible model.
+  Switch providers without changing your workflow.
+- **Fine-grained approval rules** — Auto-approve commands by name, arguments,
+  and file paths using regex patterns
+  ([`config.predefined.json`](https://github.com/iinm/plain-agent/blob/main/config/config.predefined.json)).
+- **Path validation** — File paths must stay within the working directory
+  and git-ignored files (`.env`, etc.) are blocked.
+- **Sandboxed execution** — Run the agent's shell commands inside a Docker
+  container with network access restricted to allowlisted destinations
+  (e.g., `registry.npmjs.org` only for `npm install`).
+- **Extensible** — Define prompts and subagents in Markdown.
+  Connect MCP servers. Reuse Claude Code plugins.
 
-**Auto-Approval**: Tools with no side effects and no sensitive data access are automatically approved based on patterns defined in [`config.predefined.json#autoApproval`](https://github.com/iinm/plain-agent/blob/main/config/config.predefined.json).
+## Limitations
 
-**Path Validation**: All file paths in tool inputs are validated to remain within the working directory and under git control.
-
-⚠️ `write_file` and `patch_file` require explicit path arguments. However, `exec_command` can run arbitrary code where file access cannot be validated. Use a sandbox for stronger isolation.
+- **Sequential subagent execution** — Subagents run one at a time rather than
+  in parallel. The trade-off is full visibility: every step is streamed to
+  your terminal so you can follow exactly what each subagent is doing.
 
 ## Requirements
 
