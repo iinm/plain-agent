@@ -54,6 +54,8 @@ const GEMINI_DEFAULT_WS =
   "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent";
 const GEMINI_SAMPLE_RATE = 16000;
 
+const DEBUG = process.env.PLAIN_VOICE_DEBUG === "1";
+
 /**
  * @param {string} ch
  * @returns {boolean}
@@ -299,6 +301,7 @@ function createOpenAIDriver(config) {
       return {
         type: "session.update",
         session: {
+          type: "transcription",
           audio: {
             input: {
               format: { type: "audio/pcm", rate: OPENAI_SAMPLE_RATE },
@@ -507,8 +510,9 @@ export function startVoiceSession({ config, callbacks }) {
   ws.addEventListener("message", (event) => {
     if (stopped) return;
     let message;
+    let raw = "";
     try {
-      const raw =
+      raw =
         typeof event.data === "string"
           ? event.data
           : Buffer.from(/** @type {ArrayBuffer} */ (event.data)).toString(
@@ -524,6 +528,9 @@ export function startVoiceSession({ config, callbacks }) {
       return;
     }
     if (!isObject(message)) return;
+    if (DEBUG) {
+      process.stderr.write(`[voiceInput] <- ${raw.slice(0, 800)}\n`);
+    }
 
     if (!ready && driver.isReady(message)) {
       ready = true;
@@ -581,6 +588,12 @@ export function startVoiceSession({ config, callbacks }) {
     } catch {
       // connection may have just closed
     }
+  }
+
+  if (DEBUG) {
+    process.stderr.write(
+      `[voiceInput] driver=${driver.label} recorder=${recorder.command} ${recorder.args.join(" ")}\n`,
+    );
   }
 
   /**
