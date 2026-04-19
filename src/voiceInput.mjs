@@ -198,6 +198,21 @@ export function startVoiceSession({ config, callbacks }) {
     return { stop: async () => {} };
   }
 
+  // Verify the recorder command actually exists before opening the WebSocket.
+  // This avoids a dangling outbound connection (which would hang in offline
+  // environments like CI) when the user misconfigures `voiceInput.recorder`.
+  if (!isCommandAvailable(recorder.command)) {
+    queueMicrotask(() => {
+      callbacks.onError(
+        new Error(
+          `Voice recorder command "${recorder.command}" not found on PATH.`,
+        ),
+      );
+      callbacks.onClose?.();
+    });
+    return { stop: async () => {} };
+  }
+
   const model = config.model ?? DEFAULT_MODEL;
   const wsUrl = `${config.baseURL ?? DEFAULT_WS_BASE}?key=${encodeURIComponent(config.apiKey)}`;
 
