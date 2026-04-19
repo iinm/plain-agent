@@ -13,16 +13,19 @@ A lightweight CLI-based coding agent with zero framework dependencies.
 - **Fine-grained approval rules** — Auto-approve commands by name, arguments,
   and file paths using regex patterns
   ([`config.predefined.json`](https://github.com/iinm/plain-agent/blob/main/config/config.predefined.json)).
-  Everything else requires confirmation.
 - **Path validation** — File paths must stay within the working directory
   and git-ignored files (`.env`, etc.) are blocked.
 - **Sandboxed execution** — Run the agent's shell commands inside a Docker
   container with network access restricted to allowlisted destinations
   (e.g., `registry.npmjs.org` only for `npm install`).
-- **Sequential subagents** — Subagents run one at a time. You trade
-  parallelism for full visibility into every step they take.
 - **Extensible** — Define prompts and subagents in Markdown.
   Connect MCP servers. Reuse Claude Code plugins.
+
+## Limitations
+
+- **Sequential subagent execution** — Subagents run one at a time rather than
+  in parallel. The trade-off is full visibility: every step is streamed to
+  your terminal so you can follow exactly what each subagent is doing.
 
 ## Requirements
 
