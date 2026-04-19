@@ -356,16 +356,21 @@ export function startVoiceSession({ config, callbacks }) {
 
   ws.addEventListener("open", () => {
     /** @type {Record<string, unknown>} */
-    const setupPayload = {
-      model: `models/${model}`,
-      generationConfig: {
-        responseModalities: ["TEXT"],
-      },
-      inputAudioTranscription: {},
+    const generationConfig = {
+      responseModalities: ["TEXT"],
     };
     if (config.language) {
-      setupPayload.speechConfig = { languageCode: config.language };
+      // `speechConfig` is nested under `generationConfig` per the Live API
+      // schema (https://ai.google.dev/api/live). Putting it at the top level
+      // of `setup` makes the server reject the message with
+      // "Unknown name speechConfig at 'setup'".
+      generationConfig.speechConfig = { languageCode: config.language };
     }
+    const setupPayload = {
+      model: `models/${model}`,
+      generationConfig,
+      inputAudioTranscription: {},
+    };
     try {
       ws.send(JSON.stringify({ setup: setupPayload }));
     } catch (err) {
