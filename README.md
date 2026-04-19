@@ -19,10 +19,10 @@ A lightweight CLI-based coding agent with zero framework dependencies.
 - **Sandboxed execution** — Run the agent's shell commands inside a Docker
   container with network access restricted to allowlisted destinations
   (e.g., `registry.npmjs.org` only for `npm install`).
+- **Sequential subagents** — Subagents run one at a time. You trade
+  parallelism for full visibility into every step they take.
 - **Extensible** — Define prompts and subagents in Markdown.
   Connect MCP servers. Reuse Claude Code plugins.
-
-⚠️ `write_file` and `patch_file` require explicit path arguments. However, `exec_command` can run arbitrary code where file access cannot be validated. Use a sandbox for stronger isolation.
 
 ## Requirements
 
