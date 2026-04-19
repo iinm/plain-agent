@@ -14,6 +14,7 @@ import {
   printMessage,
 } from "./cliFormatter.mjs";
 import { createInterruptTransform } from "./cliInterruptTransform.mjs";
+import { createMuteTransform } from "./cliMuteTransform.mjs";
 import { createPasteHandler } from "./cliPasteTransform.mjs";
 import { notify } from "./utils/notify.mjs";
 import { parseVoiceToggleKey, startVoiceSession } from "./voiceInput.mjs";
@@ -299,20 +300,20 @@ export function startInteractiveSession({
   };
 
   // Pre-readline pipeline:
-  //   stdin -> interrupt (Ctrl-C / Ctrl-D) -> paste (bracketed paste) -> readline
+  //   stdin -> interrupt (Ctrl-C / Ctrl-D) -> mute (voice recording) -> paste (bracketed paste) -> readline
   const interrupt = createInterruptTransform({
     onCtrlC: handleCtrlC,
     onCtrlD: handleCtrlD,
     onVoiceToggle: handleVoiceToggle,
     voiceToggleByte: voiceToggle.byte,
-    // While a voice session is recording, swallow all stdin bytes other than
-    // Ctrl-C / Ctrl-D / the voice toggle key so transcript insertion stays
-    // consistent.
-    shouldSwallowOthers: () => voice !== null,
   });
+  // While a voice session is recording, swallow all stdin bytes other than
+  // Ctrl-C / Ctrl-D / the voice toggle key so transcript insertion stays
+  // consistent.
+  const mute = createMuteTransform({ isMuted: () => voice !== null });
   const paste = createPasteHandler();
 
-  process.stdin.pipe(interrupt).pipe(paste.transform);
+  process.stdin.pipe(interrupt).pipe(mute).pipe(paste.transform);
 
   // Enable bracketed paste mode
   if (process.stdout.isTTY) {
