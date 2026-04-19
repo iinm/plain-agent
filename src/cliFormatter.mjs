@@ -11,10 +11,14 @@
 import { styleText } from "node:util";
 import { createPatch } from "diff";
 
+/** Length above which a single-line arg forces block-form rendering. */
+const ARG_BLOCK_LENGTH_THRESHOLD = 60;
+
 /**
  * Format an args array for display.
  * Uses compact JSON for short single-line args; switches to a YAML-style
- * block form when any arg contains newlines so that long scripts passed
+ * block form when any arg contains newlines or exceeds
+ * {@link ARG_BLOCK_LENGTH_THRESHOLD} characters so that long scripts passed
  * to `bash -c`, `python -c`, `node -e`, etc. stay readable.
  * @param {unknown} args
  * @returns {string}
@@ -24,16 +28,21 @@ export function formatArgs(args) {
     return `args: ${JSON.stringify(args ?? [])}`;
   }
 
-  const hasMultiline = args.some(
-    (a) => typeof a === "string" && a.includes("\n"),
+  const needsBlock = args.some(
+    (a) =>
+      typeof a === "string" &&
+      (a.includes("\n") || a.length > ARG_BLOCK_LENGTH_THRESHOLD),
   );
-  if (!hasMultiline) {
+  if (!needsBlock) {
     return `args: ${JSON.stringify(args)}`;
   }
 
   const lines = ["args:"];
   for (const arg of args) {
-    if (typeof arg === "string" && arg.includes("\n")) {
+    if (
+      typeof arg === "string" &&
+      (arg.includes("\n") || arg.length > ARG_BLOCK_LENGTH_THRESHOLD)
+    ) {
       lines.push("  - |");
       for (const line of arg.split("\n")) {
         lines.push(`      ${line}`);

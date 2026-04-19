@@ -37,6 +37,22 @@ describe("formatArgs", () => {
       ["args:", '  - "-c"', "  - |", "      echo hi", "      "].join("\n"),
     );
   });
+
+  it("switches to block form for long single-line args", () => {
+    const script =
+      "total=0; for i in {1..1000}; do ((total += i)); done; echo $total";
+    assert.equal(
+      formatArgs(["-c", script]),
+      ["args:", '  - "-c"', "  - |", `      ${script}`].join("\n"),
+    );
+  });
+
+  it("keeps short single-line args compact even when many are present", () => {
+    assert.equal(
+      formatArgs(["-n", "5", "-A", "2", "pattern", "src"]),
+      'args: ["-n","5","-A","2","pattern","src"]',
+    );
+  });
 });
 
 describe("formatToolUse", () => {
