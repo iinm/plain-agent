@@ -13,16 +13,17 @@ import { spawn, spawnSync } from "node:child_process";
  * @property {"gemini"} provider
  * @property {string} apiKey - Gemini API key
  * @property {string=} model
- *   Gemini Live model name. Defaults to "gemini-live-2.5-flash-preview",
- *   which is the model the official `@google/genai` SDK uses in its live
- *   integration tests (MLDEV_MODEL) and is known to accept `TEXT`-only
- *   response modality with `inputAudioTranscription`.
+ *   Gemini Live model name. Defaults to "gemini-3.1-flash-live-preview",
+ *   the current audio-to-audio preview model. As of Dec 9, 2025 Google
+ *   shut down the older `gemini-2.0-flash-live-001` and
+ *   `gemini-live-2.5-flash-preview` endpoints, so those no longer work.
  *
- *   Other preview models you may try:
- *     - "gemini-3.1-flash-live-preview" (newer, audio-to-audio
- *       optimized — may reject TEXT-only response modality and return
- *       a 1011 internal error on this endpoint)
- *     - "gemini-2.0-flash-live-001" (older stable tier)
+ *   Note: `gemini-3.1-flash-live-preview` rejects `responseModalities:
+ *   ["TEXT"]` with a 1011 internal error
+ *   (https://github.com/googleapis/python-genai/issues/2238), so we
+ *   request `["AUDIO"]` and simply discard the audio response parts —
+ *   transcriptions come from `serverContent.inputTranscription`
+ *   regardless of the response modality.
  *
  *   Live API model names are preview-track and change over time — see
  *   https://ai.google.dev/gemini-api/docs/live for the current list.
@@ -59,7 +60,7 @@ import { spawn, spawnSync } from "node:child_process";
  *   Stop the recorder and close the WebSocket. Resolves after both are done.
  */
 
-const DEFAULT_MODEL = "gemini-live-2.5-flash-preview";
+const DEFAULT_MODEL = "gemini-3.1-flash-live-preview";
 
 /**
  * Parsed voice toggle key: the raw byte value that appears on stdin in raw
@@ -365,14 +366,21 @@ export function startVoiceSession({ config, callbacks }) {
   });
 
   ws.addEventListener("open", () => {
-    // `speechConfig` is intentionally omitted: it only affects *output*
-    // TTS and is incompatible with `responseModalities: ["TEXT"]` on some
-    // Live models (observed as a 1011 internal error on 3.1). Input
-    // transcription language is auto-detected by the model.
+    // `responseModalities: ["AUDIO"]` is intentional: the current
+    // `gemini-3.1-flash-live-preview` model returns a 1011 internal
+    // error when asked for TEXT-only output
+    // (https://github.com/googleapis/python-genai/issues/2238). We don't
+    // actually consume the audio output — `inputAudioTranscription`
+    // delivers the user speech transcript via `serverContent
+    // .inputTranscription` regardless of `responseModalities`, and we
+    // discard `modelTurn` parts in `handleServerMessage`.
+    //
+    // `speechConfig` is omitted: the audio output is discarded, so the
+    // default voice is fine and configuring it would just cost bytes.
     const setupPayload = {
       model: `models/${model}`,
       generationConfig: {
-        responseModalities: ["TEXT"],
+        responseModalities: ["AUDIO"],
       },
       inputAudioTranscription: {},
     };

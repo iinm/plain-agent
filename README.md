@@ -492,7 +492,7 @@ The agent loads configuration files in the following order. Settings in later fi
   // "voiceInput": {
   //   "provider": "gemini",
   //   "apiKey": "FIXME",
-  //   "model": "gemini-live-2.5-flash-preview"
+  //   "model": "gemini-3.1-flash-live-preview"
   // }
 }
 ```
@@ -515,7 +515,7 @@ If Ctrl-G is intercepted by a wrapping program (for example, neovim's
   `arecord` (Linux), `sox`, `ffmpeg`. Install via your package manager
   (`apt install alsa-utils` / `brew install sox`, etc.).
 - A Gemini API key with access to a Live model (default is
-  `gemini-live-2.5-flash-preview`). Voice input uses its own key; it is
+  `gemini-3.1-flash-live-preview`). Voice input uses its own key; it is
   independent of the API key used for agent inference.
 - Voice input runs on the host and does **not** require (or interact
   with) the sandbox. It will not work when `plain` itself is launched
@@ -532,17 +532,12 @@ committed):
   "voiceInput": {
     "provider": "gemini",
     "apiKey": "YOUR_GEMINI_API_KEY",
-    // Optional. Defaults to "gemini-live-2.5-flash-preview" (the model
-    // the official @google/genai SDK uses in its Live integration tests
-    // and which is known to accept TEXT-only response modality with
-    // inputAudioTranscription). Live API model names are preview-track;
-    // see https://ai.google.dev/gemini-api/docs/live for the current list.
-    // Other names you may try:
-    //   "gemini-3.1-flash-live-preview"  (audio-to-audio optimized;
-    //       has returned 1011 internal errors on v1beta with TEXT-only
-    //       output in our testing)
-    //   "gemini-2.0-flash-live-001"
-    "model": "gemini-live-2.5-flash-preview",
+    // Optional. Defaults to "gemini-3.1-flash-live-preview". As of
+    // Dec 9, 2025 Google shut down gemini-2.0-flash-live-001 and
+    // gemini-live-2.5-flash-preview, so those no longer work. Live API
+    // model names are preview-track; see
+    // https://ai.google.dev/gemini-api/docs/live for the current list.
+    "model": "gemini-3.1-flash-live-preview",
     // (Input transcription language is auto-detected by the model; no
     // explicit language hint is required.)
     // Optional: change the toggle key. Accepts "ctrl-<char>" where <char>
