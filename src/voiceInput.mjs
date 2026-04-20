@@ -1,7 +1,8 @@
 import { spawn, spawnSync } from "node:child_process";
+import { getGoogleCloudAccessToken } from "./providers/platform/googleCloud.mjs";
 
 /**
- * @typedef {VoiceInputOpenAIConfig | VoiceInputGeminiConfig} VoiceInputConfig
+ * @typedef {VoiceInputOpenAIConfig | VoiceInputGeminiConfig | VoiceInputGeminiVertexAIConfig} VoiceInputConfig
  */
 
 /**
@@ -22,6 +23,17 @@ import { spawn, spawnSync } from "node:child_process";
  * @property {string} [model] - Defaults to "gemini-3.1-flash-live-preview".
  * @property {string} [language] - ISO-639-1 code (e.g. "ja", "en"). Passed to the model as a system instruction since Gemini Live has no native language hint for input transcription.
  * @property {string} [baseURL]
+ * @property {VoiceRecorderConfig} [recorder]
+ * @property {string} [toggleKey]
+ */
+
+/**
+ * @typedef {Object} VoiceInputGeminiVertexAIConfig
+ * @property {"gemini-vertex-ai"} provider
+ * @property {string} baseURL - Vertex AI REST base, e.g. `https://aiplatform.googleapis.com/v1beta1/projects/<project>/locations/<location>`. Used to derive the Live API WebSocket endpoint and model resource path.
+ * @property {string} [account] - Optional gcloud account or service account email passed to `gcloud auth print-access-token`.
+ * @property {string} [model] - Defaults to "gemini-3.1-flash-live-preview".
+ * @property {string} [language]
  * @property {VoiceRecorderConfig} [recorder]
  * @property {string} [toggleKey]
  */
@@ -248,15 +260,14 @@ export function startVoiceSession({ config, callbacks }) {
   /** @type {Buffer[]} */
   const pendingAudio = [];
   const normalizer = createCJKSpaceNormalizer();
+  /** @type {WebSocket | null} */
+  let ws = null;
 
   const emitClose = () => {
     if (closeEmitted) return;
     closeEmitted = true;
     callbacks.onClose?.();
   };
-
-  const ws = driver.connect();
-  ws.binaryType = "arraybuffer";
 
   const child = spawn(recorder.command, recorder.args, {
     stdio: ["ignore", "pipe", "pipe"],
@@ -297,110 +308,138 @@ export function startVoiceSession({ config, callbacks }) {
 
   child.stdout.on("data", (chunk) => {
     if (stopped) return;
-    if (ready && ws.readyState === WebSocket.OPEN) {
-      sendAudio(chunk);
+    if (ready && ws !== null && ws.readyState === WebSocket.OPEN) {
+      sendAudio(ws, chunk);
     } else {
       pendingAudio.push(chunk);
     }
   });
 
-  ws.addEventListener("open", () => {
+  (async () => {
+    let connected;
     try {
-      ws.send(JSON.stringify(driver.buildSetup()));
+      connected = await driver.connect();
     } catch (err) {
+      if (stopped) return;
+      callbacks.onError(err instanceof Error ? err : new Error(String(err)));
+      stop();
+      return;
+    }
+    if (stopped) {
+      try {
+        connected.close(1000, "client stop");
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    ws = connected;
+    ws.binaryType = "arraybuffer";
+
+    ws.addEventListener("open", () => {
+      if (stopped || ws === null) return;
+      try {
+        ws.send(JSON.stringify(driver.buildSetup()));
+      } catch (err) {
+        callbacks.onError(
+          new Error(
+            `Failed to send setup message: ${err instanceof Error ? err.message : String(err)}`,
+          ),
+        );
+        stop();
+      }
+    });
+
+    ws.addEventListener("message", (event) => {
+      if (stopped || ws === null) return;
+      let message;
+      let raw = "";
+      try {
+        raw =
+          typeof event.data === "string"
+            ? event.data
+            : Buffer.from(/** @type {ArrayBuffer} */ (event.data)).toString(
+                "utf8",
+              );
+        message = JSON.parse(raw);
+      } catch (err) {
+        callbacks.onError(
+          new Error(
+            `Failed to parse server message: ${err instanceof Error ? err.message : String(err)}`,
+          ),
+        );
+        return;
+      }
+      if (!isObject(message)) return;
+      if (DEBUG) {
+        process.stderr.write(`[voiceInput] <- ${raw.slice(0, 800)}\n`);
+      }
+
+      if (message.type === "error" && isObject(message.error)) {
+        const detail =
+          typeof message.error.message === "string"
+            ? message.error.message
+            : JSON.stringify(message.error);
+        callbacks.onError(new Error(`${driver.label} error: ${detail}`));
+        return;
+      }
+
+      if (!ready && driver.isReady(message)) {
+        ready = true;
+        for (const chunk of pendingAudio.splice(0)) {
+          if (ws.readyState === WebSocket.OPEN) sendAudio(ws, chunk);
+        }
+        return;
+      }
+
+      const text = driver.parseTranscript(message);
+      if (text !== null) {
+        const normalized = normalizer.push(text);
+        if (normalized.length > 0) {
+          callbacks.onTranscript(normalized);
+        }
+      }
+    });
+
+    ws.addEventListener("error", (event) => {
+      if (stopped) return;
+      const message =
+        /** @type {{ message?: string }} */ (event).message ??
+        "WebSocket error";
       callbacks.onError(
-        new Error(
-          `Failed to send setup message: ${err instanceof Error ? err.message : String(err)}`,
-        ),
+        new Error(`${driver.label} WebSocket error: ${message}`),
       );
       stop();
-    }
-  });
+    });
 
-  ws.addEventListener("message", (event) => {
-    if (stopped) return;
-    let message;
-    let raw = "";
-    try {
-      raw =
-        typeof event.data === "string"
-          ? event.data
-          : Buffer.from(/** @type {ArrayBuffer} */ (event.data)).toString(
-              "utf8",
-            );
-      message = JSON.parse(raw);
-    } catch (err) {
-      callbacks.onError(
-        new Error(
-          `Failed to parse server message: ${err instanceof Error ? err.message : String(err)}`,
-        ),
-      );
-      return;
-    }
-    if (!isObject(message)) return;
-    if (DEBUG) {
-      process.stderr.write(`[voiceInput] <- ${raw.slice(0, 800)}\n`);
-    }
-
-    if (message.type === "error" && isObject(message.error)) {
-      const detail =
-        typeof message.error.message === "string"
-          ? message.error.message
-          : JSON.stringify(message.error);
-      callbacks.onError(new Error(`${driver.label} error: ${detail}`));
-      return;
-    }
-
-    if (!ready && driver.isReady(message)) {
-      ready = true;
-      for (const chunk of pendingAudio.splice(0)) {
-        if (ws.readyState === WebSocket.OPEN) sendAudio(chunk);
+    ws.addEventListener("close", (event) => {
+      if (!stopped && event.code !== 1000 && event.code !== 1005) {
+        const reason = event.reason ? `: ${event.reason}` : "";
+        callbacks.onError(
+          new Error(
+            `${driver.label} WebSocket closed (code ${event.code}${reason})`,
+          ),
+        );
       }
-      return;
-    }
-
-    const text = driver.parseTranscript(message);
-    if (text !== null) {
-      const normalized = normalizer.push(text);
-      if (normalized.length > 0) {
-        callbacks.onTranscript(normalized);
+      stopped = true;
+      try {
+        child.kill("SIGTERM");
+      } catch {
+        // ignore
       }
-    }
-  });
-
-  ws.addEventListener("error", (event) => {
-    if (stopped) return;
-    const message =
-      /** @type {{ message?: string }} */ (event).message ?? "WebSocket error";
-    callbacks.onError(new Error(`${driver.label} WebSocket error: ${message}`));
-    stop();
-  });
-
-  ws.addEventListener("close", (event) => {
-    if (!stopped && event.code !== 1000 && event.code !== 1005) {
-      const reason = event.reason ? `: ${event.reason}` : "";
-      callbacks.onError(
-        new Error(
-          `${driver.label} WebSocket closed (code ${event.code}${reason})`,
-        ),
-      );
-    }
-    stopped = true;
-    try {
-      child.kill("SIGTERM");
-    } catch {
-      // ignore
-    }
-    emitClose();
-  });
+      emitClose();
+    });
+  })();
 
   /**
+   * @param {WebSocket} socket
    * @param {Buffer} chunk
    */
-  function sendAudio(chunk) {
+  function sendAudio(socket, chunk) {
     const payload = driver.buildAudioMessage(chunk.toString("base64"));
     try {
-      ws.send(JSON.stringify(payload));
+      socket.send(JSON.stringify(payload));
     } catch {
       // connection may have just closed
     }
@@ -424,8 +463,9 @@ export function startVoiceSession({ config, callbacks }) {
       // ignore
     }
     if (
-      ws.readyState === WebSocket.OPEN ||
-      ws.readyState === WebSocket.CONNECTING
+      ws !== null &&
+      (ws.readyState === WebSocket.OPEN ||
+        ws.readyState === WebSocket.CONNECTING)
     ) {
       try {
         ws.close(1000, "client stop");
@@ -443,7 +483,7 @@ export function startVoiceSession({ config, callbacks }) {
  * @typedef {Object} VoiceDriver
  * @property {string} label
  * @property {number} sampleRate
- * @property {() => WebSocket} connect
+ * @property {() => WebSocket | Promise<WebSocket>} connect
  * @property {() => object} buildSetup
  * @property {(message: Record<string, unknown>) => boolean} isReady
  * @property {(base64: string) => object} buildAudioMessage
@@ -460,6 +500,9 @@ function createDriver(config) {
   }
   if (config.provider === "gemini") {
     return createGeminiDriver(config);
+  }
+  if (config.provider === "gemini-vertex-ai") {
+    return createGeminiVertexAIDriver(config);
   }
   throw new Error(
     `Unsupported voiceInput.provider: ${/** @type {{provider: string}} */ (config).provider}`,
@@ -551,56 +594,153 @@ function createGeminiDriver(config) {
       return new WebSocket(`${base}?key=${encodeURIComponent(config.apiKey)}`);
     },
     buildSetup() {
-      // Gemini Live was designed for voice agents, not pure STT.
-      // Force maxOutputTokens: 1 and disable thinking on 2.5 models
-      // to minimise wasted audio output.
+      return buildGeminiLiveSetup({
+        model,
+        modelPath: `models/${model}`,
+        language: config.language,
+      });
+    },
+    isReady: isGeminiLiveReady,
+    buildAudioMessage: buildGeminiLiveAudioMessage,
+    parseTranscript: parseGeminiLiveTranscript,
+  };
+}
 
-      /** @type {Record<string, unknown>} */
-      const generationConfig = {
-        // https://ai.google.dev/gemini-api/docs/live-api/capabilities#response-modalities
-        // > The native audio models only support `AUDIO response modality.
-        responseModalities: ["AUDIO"],
-        maxOutputTokens: 1,
-      };
-      if (model.includes("2.5")) {
-        generationConfig.thinkingConfig = { thinkingBudget: 0 };
-      }
-      /** @type {Record<string, unknown>} */
-      const setup = {
-        model: `models/${model}`,
-        generationConfig,
-        inputAudioTranscription: {},
-      };
-      if (config.language) {
-        setup.systemInstruction = {
-          parts: [{ text: `The user is speaking in ${config.language}.` }],
-        };
-      }
-      return { setup };
-    },
-    isReady(message) {
-      return "setupComplete" in message;
-    },
-    buildAudioMessage(base64) {
-      return {
-        realtimeInput: {
-          audio: {
-            data: base64,
-            mimeType: `audio/pcm;rate=${GEMINI_SAMPLE_RATE}`,
-          },
+/**
+ * Parse a Vertex AI REST base URL into its components, e.g.
+ * `https://aiplatform.googleapis.com/v1beta1/projects/<project>/locations/<location>`
+ * → { host, version, project, location }.
+ *
+ * @param {string} baseURL
+ */
+function parseVertexAIBaseURL(baseURL) {
+  const match =
+    /^https?:\/\/([^/]+)\/(v[0-9][^/]*)\/projects\/([^/]+)\/locations\/([^/]+)\/?$/.exec(
+      baseURL,
+    );
+  if (!match) {
+    throw new Error(
+      `voiceInput: invalid gemini-vertex-ai baseURL "${baseURL}". Expected ".../v1beta1/projects/<project>/locations/<location>".`,
+    );
+  }
+  const [, host, version, project, location] = match;
+  return { host, version, project, location };
+}
+
+/**
+ * @param {VoiceInputGeminiVertexAIConfig} config
+ * @returns {VoiceDriver}
+ */
+function createGeminiVertexAIDriver(config) {
+  const model = config.model ?? GEMINI_DEFAULT_MODEL;
+  const { host, version, project, location } = parseVertexAIBaseURL(
+    config.baseURL,
+  );
+  // Prefer the location-specific host when the caller passed the generic
+  // global host, matching the Python `google-genai` SDK's behaviour.
+  const wsHost =
+    host === "aiplatform.googleapis.com"
+      ? `${location}-aiplatform.googleapis.com`
+      : host;
+  const wsUrl = `wss://${wsHost}/ws/google.cloud.aiplatform.${version}.LlmBidiService/BidiGenerateContent`;
+  const modelPath = `projects/${project}/locations/${location}/publishers/google/models/${model}`;
+
+  return {
+    label: "Gemini Live (Vertex AI)",
+    sampleRate: GEMINI_SAMPLE_RATE,
+    async connect() {
+      const token = await getGoogleCloudAccessToken(config.account);
+      // Node's global WebSocket (undici) accepts a non-standard `headers`
+      // option. The built-in typings only declare the standards-compliant
+      // constructor, so cast through `WebSocket`-as-constructor.
+      const Ctor =
+        /** @type {new (url: string, opts?: unknown) => WebSocket} */ (
+          /** @type {unknown} */ (WebSocket)
+        );
+      return new Ctor(wsUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      };
+      });
     },
-    parseTranscript(message) {
-      const serverContent = message.serverContent;
-      if (!isObject(serverContent)) return null;
-      const t = serverContent.inputTranscription;
-      if (isObject(t) && typeof t.text === "string" && t.text.length > 0) {
-        return t.text;
-      }
-      return null;
+    buildSetup() {
+      return buildGeminiLiveSetup({
+        model,
+        modelPath,
+        language: config.language,
+      });
+    },
+    isReady: isGeminiLiveReady,
+    buildAudioMessage: buildGeminiLiveAudioMessage,
+    parseTranscript: parseGeminiLiveTranscript,
+  };
+}
+
+/**
+ * Gemini Live was designed for voice agents, not pure STT. Force
+ * `maxOutputTokens: 1` and disable thinking on 2.5 models to minimise
+ * wasted audio output.
+ *
+ * @param {{ model: string, modelPath: string, language?: string }} params
+ */
+function buildGeminiLiveSetup({ model, modelPath, language }) {
+  /** @type {Record<string, unknown>} */
+  const generationConfig = {
+    // https://ai.google.dev/gemini-api/docs/live-api/capabilities#response-modalities
+    // > The native audio models only support `AUDIO` response modality.
+    responseModalities: ["AUDIO"],
+    maxOutputTokens: 1,
+  };
+  if (model.includes("2.5")) {
+    generationConfig.thinkingConfig = { thinkingBudget: 0 };
+  }
+  /** @type {Record<string, unknown>} */
+  const setup = {
+    model: modelPath,
+    generationConfig,
+    inputAudioTranscription: {},
+  };
+  if (language) {
+    setup.systemInstruction = {
+      parts: [{ text: `The user is speaking in ${language}.` }],
+    };
+  }
+  return { setup };
+}
+
+/**
+ * @param {Record<string, unknown>} message
+ */
+function isGeminiLiveReady(message) {
+  return "setupComplete" in message;
+}
+
+/**
+ * @param {string} base64
+ */
+function buildGeminiLiveAudioMessage(base64) {
+  return {
+    realtimeInput: {
+      audio: {
+        data: base64,
+        mimeType: `audio/pcm;rate=${GEMINI_SAMPLE_RATE}`,
+      },
     },
   };
+}
+
+/**
+ * @param {Record<string, unknown>} message
+ * @returns {string | null}
+ */
+function parseGeminiLiveTranscript(message) {
+  const serverContent = message.serverContent;
+  if (!isObject(serverContent)) return null;
+  const t = serverContent.inputTranscription;
+  if (isObject(t) && typeof t.text === "string" && t.text.length > 0) {
+    return t.text;
+  }
+  return null;
 }
 
 /**

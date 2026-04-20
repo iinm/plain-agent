@@ -264,4 +264,34 @@ describe("startVoiceSession", () => {
     });
     await session.stop();
   });
+
+  it("rejects a gemini-vertex-ai config with an invalid baseURL", async () => {
+    /** @type {Error[]} */
+    const errors = [];
+    let closed = false;
+    const session = startVoiceSession({
+      config: {
+        provider: "gemini-vertex-ai",
+        baseURL: "https://example.com/not-vertex",
+        recorder: {
+          command: "__definitely_not_a_real_binary__",
+          args: [],
+        },
+      },
+      callbacks: {
+        onTranscript: () => {},
+        onError: (err) => {
+          errors.push(err);
+        },
+        onClose: () => {
+          closed = true;
+        },
+      },
+    });
+    await session.stop();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.ok(closed);
+    assert.ok(errors.length >= 1);
+    assert.match(errors[0].message, /invalid gemini-vertex-ai baseURL/);
+  });
 });
