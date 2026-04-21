@@ -265,14 +265,14 @@ describe("startVoiceSession", () => {
     await session.stop();
   });
 
-  it("rejects a gemini-vertex-ai config with an invalid baseURL", async () => {
-    /** @type {Error[]} */
-    const errors = [];
-    let closed = false;
+  it("accepts a gemini-vertex-ai config without throwing synchronously", async () => {
     const session = startVoiceSession({
       config: {
         provider: "gemini-vertex-ai",
-        baseURL: "https://example.com/not-vertex",
+        baseURL:
+          "wss://us-central1-aiplatform.googleapis.com/ws/google.cloud.aiplatform.v1beta1.LlmBidiService/BidiGenerateContent",
+        model:
+          "projects/example/locations/us-central1/publishers/google/models/gemini-3.1-flash-live-preview",
         recorder: {
           command: "__definitely_not_a_real_binary__",
           args: [],
@@ -280,18 +280,10 @@ describe("startVoiceSession", () => {
       },
       callbacks: {
         onTranscript: () => {},
-        onError: (err) => {
-          errors.push(err);
-        },
-        onClose: () => {
-          closed = true;
-        },
+        onError: () => {},
+        onClose: () => {},
       },
     });
     await session.stop();
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    assert.ok(closed);
-    assert.ok(errors.length >= 1);
-    assert.match(errors[0].message, /invalid gemini-vertex-ai baseURL/);
   });
 });

@@ -658,8 +658,8 @@ and send them like regular text.
 {
   "voiceInput": {
     "provider": "gemini-vertex-ai",
-    "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>"
-    // "model": "gemini-3.1-flash-live-preview",
+    "baseURL": "wss://<location>-aiplatform.googleapis.com/ws/google.cloud.aiplatform.v1beta1.LlmBidiService/BidiGenerateContent",
+    "model": "projects/<project_id>/locations/<location>/publishers/google/models/gemini-3.1-flash-live-preview"
     // "language": "ja",
     // "account": "<EMAIL>"  // Optional gcloud account or service account to impersonate.
   }

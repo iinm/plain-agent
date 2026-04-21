@@ -30,9 +30,9 @@ import { getGoogleCloudAccessToken } from "./providers/platform/googleCloud.mjs"
 /**
  * @typedef {Object} VoiceInputGeminiVertexAIConfig
  * @property {"gemini-vertex-ai"} provider
- * @property {string} baseURL - Vertex AI REST base, e.g. `https://aiplatform.googleapis.com/v1beta1/projects/<project>/locations/<location>`. Used to derive the Live API WebSocket endpoint and model resource path.
+ * @property {string} baseURL - Vertex AI Live API WebSocket endpoint, e.g. `wss://<location>-aiplatform.googleapis.com/ws/google.cloud.aiplatform.v1beta1.LlmBidiService/BidiGenerateContent`.
  * @property {string} [account] - Optional gcloud account or service account email passed to `gcloud auth print-access-token`.
- * @property {string} [model] - Defaults to "gemini-3.1-flash-live-preview".
+ * @property {string} model - Full Vertex AI model resource path, e.g. `projects/<project>/locations/<location>/publishers/google/models/gemini-3.1-flash-live-preview`.
  * @property {string} [language]
  * @property {VoiceRecorderConfig} [recorder]
  * @property {string} [toggleKey]
@@ -607,44 +607,10 @@ function createGeminiDriver(config) {
 }
 
 /**
- * Parse a Vertex AI REST base URL into its components, e.g.
- * `https://aiplatform.googleapis.com/v1beta1/projects/<project>/locations/<location>`
- * → { host, version, project, location }.
- *
- * @param {string} baseURL
- */
-function parseVertexAIBaseURL(baseURL) {
-  const match =
-    /^https?:\/\/([^/]+)\/(v[0-9][^/]*)\/projects\/([^/]+)\/locations\/([^/]+)\/?$/.exec(
-      baseURL,
-    );
-  if (!match) {
-    throw new Error(
-      `voiceInput: invalid gemini-vertex-ai baseURL "${baseURL}". Expected ".../v1beta1/projects/<project>/locations/<location>".`,
-    );
-  }
-  const [, host, version, project, location] = match;
-  return { host, version, project, location };
-}
-
-/**
  * @param {VoiceInputGeminiVertexAIConfig} config
  * @returns {VoiceDriver}
  */
 function createGeminiVertexAIDriver(config) {
-  const model = config.model ?? GEMINI_DEFAULT_MODEL;
-  const { host, version, project, location } = parseVertexAIBaseURL(
-    config.baseURL,
-  );
-  // Prefer the location-specific host when the caller passed the generic
-  // global host, matching the Python `google-genai` SDK's behaviour.
-  const wsHost =
-    host === "aiplatform.googleapis.com"
-      ? `${location}-aiplatform.googleapis.com`
-      : host;
-  const wsUrl = `wss://${wsHost}/ws/google.cloud.aiplatform.${version}.LlmBidiService/BidiGenerateContent`;
-  const modelPath = `projects/${project}/locations/${location}/publishers/google/models/${model}`;
-
   return {
     label: "Gemini Live (Vertex AI)",
     sampleRate: GEMINI_SAMPLE_RATE,
@@ -657,7 +623,7 @@ function createGeminiVertexAIDriver(config) {
         /** @type {new (url: string, opts?: unknown) => WebSocket} */ (
           /** @type {unknown} */ (WebSocket)
         );
-      return new Ctor(wsUrl, {
+      return new Ctor(config.baseURL, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -665,8 +631,8 @@ function createGeminiVertexAIDriver(config) {
     },
     buildSetup() {
       return buildGeminiLiveSetup({
-        model,
-        modelPath,
+        model: config.model,
+        modelPath: config.model,
         language: config.language,
       });
     },
