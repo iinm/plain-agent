@@ -911,37 +911,6 @@
     },
 
     {
-      "name": "grok-4-1-fast-reasoning",
-      "variant": "default",
-      "platform": {
-        "name": "openai",
-        "variant": "xai",
-        "baseURL": "https://api.x.ai"
-      },
-      "model": {
-        "format": "openai-messages",
-        "config": {
-          "model": "grok-4-1-fast-reasoning"
-        }
-      }
-    },
-    {
-      "name": "grok-4.20-0309-reasoning",
-      "variant": "default",
-      "platform": {
-        "name": "openai",
-        "variant": "xai",
-        "baseURL": "https://api.x.ai"
-      },
-      "model": {
-        "format": "openai-messages",
-        "config": {
-          "model": "grok-4.20-0309-reasoning"
-        }
-      }
-    },
-
-    {
       "name": "glm-5",
       "variant": "vertex-ai",
       "platform": {
@@ -961,21 +930,6 @@
           "prompt_tokens": 1,
           "completion_tokens": 3.2,
           "prompt_tokens_details.cached_tokens": -0.9
-        }
-      }
-    },
-    {
-      "name": "glm-5",
-      "variant": "bedrock",
-      "platform": {
-        "name": "bedrock",
-        "variant": "default"
-      },
-      "model": {
-        "format": "openai-messages",
-        "config": {
-          "model": "zai.glm-5",
-          "reasoning_effort": "high"
         }
       }
     },
@@ -1002,52 +956,9 @@
         }
       }
     },
-    {
-      "name": "glm-5.1",
-      "variant": "ollama",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "ollama"
-      },
-      "model": {
-        "format": "openai-responses",
-        "config": {
-          "model": "glm-5:cloud"
-        }
-      }
-    },
-    {
-      "name": "glm-5.1",
-      "variant": "huggingface",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "huggingface"
-      },
-      "model": {
-        "format": "openai-messages",
-        "config": {
-          "model": "zai-org/GLM-5.1:together"
-        }
-      }
-    },
 
     {
-      "name": "kimi-k2.5",
-      "variant": "bedrock",
-      "platform": {
-        "name": "bedrock",
-        "variant": "default"
-      },
-      "model": {
-        "format": "openai-messages",
-        "config": {
-          "model": "moonshotai.kimi-k2.5",
-          "reasoning_effort": "high"
-        }
-      }
-    },
-    {
-      "name": "kimi-k2.5",
+      "name": "kimi-k2.6",
       "variant": "fireworks",
       "platform": {
         "name": "openai-compatible",
@@ -1056,16 +967,16 @@
       "model": {
         "format": "openai-messages",
         "config": {
-          "model": "accounts/fireworks/models/kimi-k2p5"
+          "model": "accounts/fireworks/models/kimi-k2p6"
         }
       },
       "cost": {
         "currency": "USD",
         "unit": "1M",
         "costs": {
-          "prompt_tokens": 0.6,
-          "prompt_tokens_details.cached_tokens": -0.5,
-          "completion_tokens": 3
+          "prompt_tokens": 0.95,
+          "prompt_tokens_details.cached_tokens": -0.79,
+          "completion_tokens": 4
         }
       }
     },
@@ -1082,21 +993,6 @@
         "config": {
           "model": "deepseek-ai/deepseek-v3.2-maas",
           "chat_template_kwargs": { "thinking": true }
-        }
-      }
-    },
-    {
-      "name": "deepseek-v3.2",
-      "variant": "bedrock",
-      "platform": {
-        "name": "bedrock",
-        "variant": "default"
-      },
-      "model": {
-        "format": "openai-messages",
-        "config": {
-          "model": "deepseek.v3.2",
-          "reasoning_effort": "high"
         }
       }
     },
@@ -1123,23 +1019,9 @@
         }
       }
     },
+
     {
-      "name": "minimax-m2.1",
-      "variant": "bedrock",
-      "platform": {
-        "name": "bedrock",
-        "variant": "default"
-      },
-      "model": {
-        "format": "openai-messages",
-        "config": {
-          "model": "minimax.minimax-m2.1",
-          "reasoning_effort": "high"
-        }
-      }
-    },
-    {
-      "name": "minimax-m2.5",
+      "name": "minimax-m2.7",
       "variant": "fireworks",
       "platform": {
         "name": "openai-compatible",
@@ -1148,7 +1030,7 @@
       "model": {
         "format": "openai-messages",
         "config": {
-          "model": "accounts/fireworks/models/minimax-m2p5"
+          "model": "accounts/fireworks/models/minimax-m2p7"
         }
       },
       "cost": {
@@ -1158,21 +1040,6 @@
           "prompt_tokens": 0.3,
           "prompt_tokens_details.cached_tokens": -0.27,
           "completion_tokens": 1.2
-        }
-      }
-    },
-
-    {
-      "name": "minimax-m2.7",
-      "variant": "ollama",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "ollama"
-      },
-      "model": {
-        "format": "openai-responses",
-        "config": {
-          "model": "minimax-m2.7:cloud"
         }
       }
     },
@@ -1211,35 +1078,6 @@
           "prompt_tokens": 0.5,
           "prompt_tokens_details.cached_tokens": -0.4,
           "completion_tokens": 3
-        }
-      }
-    },
-
-    {
-      "name": "gemma4",
-      "variant": "ollama",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "ollama"
-      },
-      "model": {
-        "format": "openai-responses",
-        "config": {
-          "model": "gemma4:31b-cloud"
-        }
-      }
-    },
-    {
-      "name": "gemma4",
-      "variant": "huggingface",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "huggingface"
-      },
-      "model": {
-        "format": "openai-messages",
-        "config": {
-          "model": "google/gemma-4-31B-it:together"
         }
       }
     },

@@ -157,24 +157,42 @@ Create the configuration.
   "platforms": [
     {
       "name": "openai-compatible",
-      "variant": "ollama",
-      "baseURL": "https://ollama.com",
-      "apiKey": "<API_KEY>"
-    },
-    {
-      "name": "openai-compatible",
-      "variant": "huggingface",
-      "baseURL": "https://router.huggingface.co",
-      "apiKey": "<HUGGINGFACE_API_KEY>"
-    },
-    {
-      "name": "openai-compatible",
       "variant": "fireworks",
       "baseURL": "https://api.fireworks.ai/inference",
       "apiKey": "<FIREWORKS_API_KEY>"
     }
   ]
 }
+```
+
+```js
+{
+  "platforms": [
+    {
+      "name": "openai-compatible",
+      "variant": "ollama",
+      "baseURL": "https://ollama.com",
+      "apiKey": "<API_KEY>"
+    }
+  ],
+  "models": [
+    {
+      "name": "gpt-oss",
+      "variant": "ollama",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "ollama"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-oss:120b-cloud"
+        }
+      }
+    }
+  ]
+}
+
 ```
 </details>
 
@@ -183,6 +201,14 @@ Create the configuration.
 
 ```js
 {
+  "platforms": [
+    {
+      "name": "bedrock",
+      "variant": "jp",
+      "baseURL": "https://bedrock-runtime.ap-northeast-1.amazonaws.com",
+      "awsProfile": "<AWS_PROFILE>"
+    }
+  ],
   "models": [
     {
       "name": "claude-haiku-4-5",
@@ -236,14 +262,6 @@ Create the configuration.
           "cache_creation_input_tokens": 4.125
         }
       }
-    }
-  ],
-  "platforms": [
-    {
-      "name": "bedrock",
-      "variant": "jp",
-      "baseURL": "https://bedrock-runtime.ap-northeast-1.amazonaws.com",
-      "awsProfile": "<AWS_PROFILE>"
     }
   ]
 }
@@ -307,7 +325,7 @@ The agent can use the following tools to assist with tasks:
 - **report_as_subagent**: Report completion and return to the main agent. Used by subagents to communicate results and restore the main agent role. After reporting, the subagent's conversation history is removed from the context.
 - **compact_context**: Compact the conversation context by discarding prior messages and reloading task state from a memory file. Use when the context has grown large but the task is not yet complete. Can also be invoked via the `/compact` slash command.
 
-## Directory Structure
+## Configuration
 
 ```
 ~/.config/plain-agent/
@@ -325,14 +343,12 @@ The agent can use the following tools to assist with tasks:
         \__ agents/                # Project-specific agent roles
 ```
 
-## Configuration
-
 The agent loads configuration files in the following order. Settings in later files will override those in earlier files.
 
-- `~/.config/plain-agent/config.json`: User configuration for all projects.
-- `~/.config/plain-agent/config.local.json`: User local configuration, typically for API keys.
-- `.plain-agent/config.json`: Project-specific configuration.
-- `.plain-agent/config.local.json`: Project-specific local configuration, typically for API keys or local development overrides.
+- `~/.config/plain-agent/config.json`
+- `~/.config/plain-agent/config.local.json`
+- `.plain-agent/config.json`
+- `.plain-agent/config.local.json`
 
 ### Example
 
