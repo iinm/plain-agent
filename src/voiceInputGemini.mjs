@@ -7,10 +7,10 @@ import {
   isObjectLike,
   startRecorder,
   VOICE_DEBUG,
-} from "./voiceInputCommon.mjs";
+} from "./voiceInputSession.mjs";
 
 /**
- * @import { VoiceRecorderConfig, VoiceSession, VoiceSessionCallbacks } from "./voiceInputCommon.mjs"
+ * @import { VoiceRecorderConfig, VoiceSession, VoiceSessionCallbacks } from "./voiceInputSession.mjs"
  */
 
 /**
