@@ -3,6 +3,7 @@
  */
 
 import { formatCostForBatch } from "./cliFormatter.mjs";
+import { appendUsageRecord, buildUsageRecord } from "./usageStore.mjs";
 
 /**
  * @typedef {object} BatchSessionOptions
@@ -46,6 +47,27 @@ export async function startBatchSession({
         timestamp: new Date().toISOString(),
         cost: formatCostForBatch(costSummary),
       });
+
+      try {
+        const record = buildUsageRecord({
+          sessionId,
+          mode: "batch",
+          modelName,
+          workingDir: process.cwd(),
+          costSummary,
+        });
+        if (record) {
+          await appendUsageRecord(record);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        outputEvent({
+          type: "error",
+          error: { message: `failed to record usage: ${message}` },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
       await onStop();
       resolve();
     });
