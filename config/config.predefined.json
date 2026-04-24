@@ -813,7 +813,7 @@
       }
     },
     {
-      "name": "gpt-5.4",
+      "name": "gpt-5.5",
       "variant": "thinking-medium",
       "platform": {
         "name": "openai",
@@ -823,7 +823,7 @@
       "model": {
         "format": "openai-responses",
         "config": {
-          "model": "gpt-5.4",
+          "model": "gpt-5.5",
           "reasoning": { "effort": "medium", "summary": "auto" },
           "store": false,
           "include": ["reasoning.encrypted_content"]
@@ -833,14 +833,14 @@
         "currency": "USD",
         "unit": "1M",
         "costs": {
-          "input_tokens": 2.5,
-          "input_tokens_details.cached_tokens": -2.25,
-          "output_tokens": 15
+          "input_tokens": 5,
+          "input_tokens_details.cached_tokens": -4.5,
+          "output_tokens": 30
         }
       }
     },
     {
-      "name": "gpt-5.4",
+      "name": "gpt-5.5",
       "variant": "thinking-high",
       "platform": {
         "name": "openai",
@@ -850,7 +850,7 @@
       "model": {
         "format": "openai-responses",
         "config": {
-          "model": "gpt-5.4",
+          "model": "gpt-5.5",
           "reasoning": { "effort": "high", "summary": "auto" },
           "store": false,
           "include": ["reasoning.encrypted_content"]
@@ -860,14 +860,14 @@
         "currency": "USD",
         "unit": "1M",
         "costs": {
-          "input_tokens": 2.5,
-          "input_tokens_details.cached_tokens": -2.25,
-          "output_tokens": 15
+          "input_tokens": 5,
+          "input_tokens_details.cached_tokens": -4.5,
+          "output_tokens": 30
         }
       }
     },
     {
-      "name": "gpt-5.4",
+      "name": "gpt-5.5",
       "variant": "thinking-xhigh",
       "platform": {
         "name": "openai",
@@ -877,7 +877,7 @@
       "model": {
         "format": "openai-responses",
         "config": {
-          "model": "gpt-5.4",
+          "model": "gpt-5.5",
           "reasoning": { "effort": "xhigh", "summary": "auto" },
           "store": false,
           "include": ["reasoning.encrypted_content"]
@@ -887,9 +887,9 @@
         "currency": "USD",
         "unit": "1M",
         "costs": {
-          "input_tokens": 2.5,
-          "input_tokens_details.cached_tokens": -2.25,
-          "output_tokens": 15
+          "input_tokens": 5,
+          "input_tokens_details.cached_tokens": -4.5,
+          "output_tokens": 30
         }
       }
     },
