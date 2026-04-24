@@ -12,6 +12,15 @@ export const AGENT_USER_CONFIG_DIR = path.join(
 );
 export const AGENT_CACHE_DIR = path.join(os.homedir(), ".cache", "plain-agent");
 
+export const AGENT_DATA_DIR = path.join(
+  os.homedir(),
+  ".local",
+  "share",
+  "plain-agent",
+);
+
+export const USAGE_LOG_PATH = path.join(AGENT_DATA_DIR, "usage.jsonl");
+
 export const TRUSTED_CONFIG_HASHES_DIR = path.join(
   AGENT_CACHE_DIR,
   "trusted-config-hashes",

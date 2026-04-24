@@ -16,6 +16,7 @@ import {
 import { createInterruptTransform } from "./cliInterruptTransform.mjs";
 import { createMuteTransform } from "./cliMuteTransform.mjs";
 import { createPasteHandler } from "./cliPasteTransform.mjs";
+import { appendUsageRecord, buildUsageRecord } from "./usageStore.mjs";
 import { notify } from "./utils/notify.mjs";
 import { parseVoiceToggleKey, startVoiceSession } from "./voiceInput.mjs";
 
@@ -62,6 +63,32 @@ const HELP_MESSAGE = [
  * @property {ClaudeCodePlugin[]} [claudeCodePlugins]
  * @property {VoiceInputConfig} [voiceInput]
  */
+
+/**
+ * Persist the session's cost summary to the usage log.
+ * Failures are logged but never thrown so exit is not blocked.
+ *
+ * @param {import("./costTracker.mjs").CostSummary} summary
+ * @param {{ sessionId: string, modelName: string }} meta
+ */
+async function persistUsage(summary, { sessionId, modelName }) {
+  try {
+    const record = buildUsageRecord({
+      sessionId,
+      mode: "interactive",
+      modelName,
+      workingDir: process.cwd(),
+      costSummary: summary,
+    });
+    if (!record) return;
+    await appendUsageRecord(record);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(
+      styleText("yellow", `Warning: failed to record usage: ${message}`),
+    );
+  }
+}
 
 /**
  * @param {CliOptions} options
@@ -126,6 +153,7 @@ export function startInteractiveSession({
     const summary = agentCommands.getCostSummary();
     console.log();
     console.log(formatCostSummary(summary));
+    await persistUsage(summary, { sessionId, modelName });
     await onStop();
     process.exit(0);
   };

@@ -1,5 +1,5 @@
 /**
- * @typedef {HelpSubcommand | InteractiveSubcommand | BatchSubcommand | ListModelsSubcommand | InstallClaudeCodePluginsSubcommand} Subcommand
+ * @typedef {HelpSubcommand | InteractiveSubcommand | BatchSubcommand | ListModelsSubcommand | InstallClaudeCodePluginsSubcommand | CostSubcommand} Subcommand
  */
 
 /**
@@ -20,6 +20,10 @@
 
 /**
  * @typedef {{ type: 'install-claude-code-plugins' }} InstallClaudeCodePluginsSubcommand
+ */
+
+/**
+ * @typedef {{ type: 'cost', from: string | null, to: string | null }} CostSubcommand
  */
 
 /**
@@ -106,6 +110,28 @@ export function parseCliArgs(argv) {
     };
   }
 
+  if (subcommandName === "cost") {
+    const costArgs = args.slice(1);
+    let from = null;
+    let to = null;
+    for (let i = 0; i < costArgs.length; i++) {
+      if (costArgs[i] === "--from") {
+        if (costArgs[i + 1]) {
+          from = costArgs[i + 1];
+          i++;
+        }
+      } else if (costArgs[i] === "--to") {
+        if (costArgs[i + 1]) {
+          to = costArgs[i + 1];
+          i++;
+        }
+      }
+    }
+    return {
+      subcommand: { type: "cost", from, to },
+    };
+  }
+
   return {
     subcommand: { type: "help" },
   };
@@ -119,6 +145,7 @@ export function printHelp(exitCode = 0) {
   console.log(`
 Usage: plain [options]
        plain batch [options] <task>
+       plain cost [--from YYYY-MM-DD] [--to YYYY-MM-DD]
        plain list-models
        plain install-claude-code-plugins
 
@@ -131,6 +158,9 @@ Subcommands:
   batch <task>                 Run in batch mode with the given task instruction.
                                Config files are NOT auto-loaded in batch mode;
                                use -c to specify config files explicitly.
+  cost                         Show aggregated token cost per day for a period.
+                               Defaults to the first day of the current month
+                               through today.
   list-models                  List available models
   install-claude-code-plugins  Install Claude Code plugins
 

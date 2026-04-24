@@ -307,6 +307,17 @@ Display the help message.
 /help
 ```
 
+Show aggregated token cost per day across sessions.
+Each finished session appends a record to `~/.local/share/plain-agent/usage.jsonl`,
+and `plain cost` reads that log. The period defaults to the first day of the
+current month through today; override it with `--from` / `--to`. Multiple
+currencies (e.g., USD and JPY) are aggregated separately.
+
+```sh
+plain cost
+plain cost --from 2026-04-01 --to 2026-04-30
+```
+
 Interrupt the agent while it's running:
 
 Press **Ctrl-C** to pause auto-approve. The agent will finish the current tool call, then return to the prompt.

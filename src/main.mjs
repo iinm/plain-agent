@@ -10,6 +10,7 @@ import {
 } from "./claudeCodePlugin.mjs";
 import { parseCliArgs, printHelp } from "./cliArgs.mjs";
 import { startBatchSession } from "./cliBatch.mjs";
+import { runCostCommand } from "./cliCost.mjs";
 import { startInteractiveSession } from "./cliInteractive.mjs";
 import { loadAppConfig } from "./config.mjs";
 import { loadAgentRoles } from "./context/loadAgentRoles.mjs";
@@ -56,6 +57,20 @@ if (cliArgs.subcommand.type === "list-models") {
 if (cliArgs.subcommand.type === "install-claude-code-plugins") {
   await installClaudeCodePlugins();
   process.exit(0);
+}
+
+if (cliArgs.subcommand.type === "cost") {
+  try {
+    const exitCode = await runCostCommand({
+      from: cliArgs.subcommand.from,
+      to: cliArgs.subcommand.to,
+    });
+    process.exit(exitCode);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(message);
+    process.exit(1);
+  }
 }
 
 (async () => {
