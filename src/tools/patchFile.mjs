@@ -26,7 +26,7 @@ export function createPatchFileTool(
           },
           diff: {
             description: `
-Format: Each marker must include the nonce: <<< ${nonce} <<< SEARCH, === ${nonce} ===, >>> ${nonce} >>> REPLACE
+Format:
 <<< ${nonce} <<< SEARCH
 old content
 === ${nonce} ===
