@@ -26,11 +26,6 @@ export function createPatchFileTool(
           },
           diff: {
             description: `
-- Content is searched as an exact match including indentation and line breaks.
-- The first match found will be replaced if there are multiple matches.
-- Use multiple SEARCH/REPLACE blocks with session-scoped nonce (${nonce}) to replace multiple contents.
-
-
 Format: Each marker must include the nonce: <<<<<<< SEARCH ${nonce}, ======= ${nonce}, >>>>>>> REPLACE ${nonce}
 <<<<<<< SEARCH ${nonce}
 old content
@@ -43,6 +38,9 @@ other old content
 ======= ${nonce}
 other new content
 >>>>>>> REPLACE ${nonce}
+
+- Content is searched as an exact match including indentation and line breaks.
+- The first match found will be replaced if there are multiple matches.
           `.trim(),
             type: "string",
           },
