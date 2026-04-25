@@ -23,6 +23,7 @@ A lightweight CLI-based coding agent with zero framework dependencies.
 
 ## Limitations
 
+- **CLI only** — Plain Agent does not provide a terminal UI.
 - **Sequential subagent execution** — Subagents run one at a time rather than
   in parallel. The trade-off is full visibility: every step is streamed to
   your terminal so you can follow exactly what each subagent is doing.
@@ -31,7 +32,7 @@ A lightweight CLI-based coding agent with zero framework dependencies.
 
 - Node.js 22 or later
 - LLM provider credentials
-- bash / docker for sandboxed execution
+- Bash / Docker for sandboxed execution
 - [ripgrep](https://github.com/burntsushi/ripgrep)
 - [fd](https://github.com/sharkdp/fd)
 
@@ -52,8 +53,8 @@ Create the configuration.
 ```js
 // ~/.config/plain-agent/config.local.json
 {
-  "model": "gpt-5.4+thinking-high",
-  // "model": "claude-sonnet-4-6+thinking-high",
+  "model": "claude-sonnet-4-6+thinking-high",
+  // "model": "gpt-5.5+thinking-high",
 
   // Configure the providers you want to use
   "platforms": [
@@ -83,15 +84,11 @@ Create the configuration.
       "provider": "gemini",
       "apiKey": "<GEMINI_API_KEY>",
       "model": "gemini-3-flash-preview"
-      // Optional
-      // "baseURL": "<proxy_url>"
 
       // Or use Vertex AI (Requires gcloud CLI to get authentication token)
       // "provider": "gemini-vertex-ai",
       // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
       // "model": "gemini-3-flash-preview"
-      // Optional:
-      // "account": "<service_account_email>"
     },
 
     // askURL: Answers questions based on provided URL content.
@@ -100,15 +97,8 @@ Create the configuration.
       "provider": "gemini",
       "apiKey": "<GEMINI_API_KEY>"
       "model": "gemini-3-flash-preview"
-      // Optional
-      // "baseURL": "<proxy_url>"
 
       // Or use Vertex AI (Requires gcloud CLI to get authentication token)
-      // "provider": "gemini-vertex-ai",
-      // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
-      // "model": "gemini-3-flash-preview"
-      // Optional:
-      // "account": "<service_account_email>"
     }
   },
 
@@ -166,6 +156,7 @@ Create the configuration.
 ```
 
 ```js
+// OpenAI-compatible provider (Ollama) example with a custom model
 {
   "platforms": [
     {
@@ -279,6 +270,9 @@ plain
 plain -m <model+variant>
 ```
 
+Interrupt the agent while it's running:
+Press **Ctrl-C** to pause auto-approve. The agent will finish the current tool call, then return to the prompt.
+
 (Optional) Set up a sandbox for your project with the `sandbox-configurator` agent.
 
 ```
@@ -292,7 +286,7 @@ After the agent finishes, run the generated setup script once to build the sandb
 ```
 
 Run in batch mode (non-interactive).
-In batch mode, config files are not loaded automatically. Only the files specified with `--config` are loaded.
+In batch mode, config files are not loaded automatically. Only the files specified with `-c` are loaded.
 
 ```sh
 plain batch \
@@ -307,20 +301,14 @@ Display the help message.
 /help
 ```
 
-Show aggregated token cost per day across sessions.
-Each finished session appends a record to `~/.local/share/plain-agent/usage.jsonl`,
-and `plain cost` reads that log. The period defaults to the first day of the
-current month through today; override it with `--from` / `--to`. Multiple
-currencies (e.g., USD and JPY) are aggregated separately.
+Show daily token costs across sessions. `plain cost` reads
+`~/.local/share/plain-agent/usage.jsonl`; use `--from` / `--to` to set the
+period. Currencies are shown separately.
 
 ```sh
 plain cost
 plain cost --from 2026-04-01 --to 2026-04-30
 ```
-
-Interrupt the agent while it's running:
-
-Press **Ctrl-C** to pause auto-approve. The agent will finish the current tool call, then return to the prompt.
 
 ## Available Tools
 
@@ -338,28 +326,23 @@ The agent can use the following tools to assist with tasks:
 
 ## Configuration
 
+Files are loaded in the following order. Settings in later files override earlier ones.
+
 ```
 ~/.config/plain-agent/
-  \__ config.json        # User configuration
-  \__ config.local.json  # User local configuration (including secrets)
-  \__ prompts/           # Global/User-defined prompts
-  \__ agents/            # Global/User-defined agent roles
+  ├── (1) config.json        # User configuration
+  ├── (2) config.local.json  # User local configuration (including secrets)
+  ├── prompts/               # Global/User-defined prompts
+  └── agents/                # Global/User-defined agent roles
 
 <project-root>
-  \__ .plain-agent/
-        \__ config.json            # Project-specific configuration
-        \__ config.local.json      # Project-specific local configuration (including secrets)
-        \__ memory/                # Task-specific memory files
-        \__ prompts/               # Project-specific prompts
-        \__ agents/                # Project-specific agent roles
+  └── .plain-agent/
+        ├── (3) config.json        # Project-specific configuration
+        ├── (4) config.local.json  # Project-specific local configuration (including secrets)
+        ├── memory/                  # Task-specific memory files
+        ├── prompts/                 # Project-specific prompts
+        └── agents/                  # Project-specific agent roles
 ```
-
-The agent loads configuration files in the following order. Settings in later files will override those in earlier files.
-
-- `~/.config/plain-agent/config.json`
-- `~/.config/plain-agent/config.local.json`
-- `.plain-agent/config.json`
-- `.plain-agent/config.local.json`
 
 ### Example
 
@@ -423,19 +406,19 @@ The agent loads configuration files in the following order. Settings in later fi
     "patterns": [
       {
         "toolName": { "$regex": "^(write_file|patch_file)$" },
-        "input": { "filePath": { "$regex": "^(\\./)?\\.plain-agent/memory/.+\\.md$" } },
+        "input": { "filePath": { "$regex": "^\\.plain-agent/memory/.+\\.md$" } },
         "action": "allow"
       },
       {
         "toolName": { "$regex": "^(write_file|patch_file)$" },
-        "input": { "filePath": { "$regex": "^(\\./)?src/" } },
+        "input": { "filePath": { "$regex": "^src/" } },
         "action": "allow"
       },
 
       // ⚠️ Arbitrary code execution can access unauthorized files and networks. Always use a sandbox.
       {
         "toolName": "exec_command",
-        "input": { "command": "npm", "args": ["run", { "$regex": "^(check|test|lint|fix)$" }] },
+        "input": { "command": "npm", "args": ["run", { "$regex": "^(lint|test)$" }] },
         "action": "allow"
       },
 
@@ -527,6 +510,17 @@ The agent loads configuration files in the following order. Settings in later fi
 
 You can define reusable prompts in Markdown files.
 
+### Locations
+
+The agent searches for prompts in the following directories:
+
+- `~/.config/plain-agent/prompts/`
+- `.plain-agent/prompts/`
+- `.claude/commands/`
+- `.claude/skills/`
+
+The prompt ID is the relative path of the file without the `.md` extension. For example, `.plain-agent/prompts/commit.md` becomes `/prompts:commit`.
+
 ### Prompt File Format
 
 ```md
@@ -548,29 +542,7 @@ import: https://raw.githubusercontent.com/anthropics/claude-code/5cff78741f54a0d
 - Parallel execution of subagents is not supported. Delegate to subagents sequentially.
 ```
 
-```md
----
-import: https://raw.githubusercontent.com/anthropics/claude-code/db8834ba1d72e9a26fba30ac85f3bc4316bb0689/plugins/code-review/commands/code-review.md
----
-
-- Parallel execution of subagents is not supported. Delegate to subagents sequentially.
-- If CLAUDE.md is not found, refer to AGENTS.md instead for project rules and conventions.
-- If the PR branch is already checked out, review changes from local files instead of fetching from GitHub.
-- After explaining the review results to the user, ask whether to post the comments to GitHub as well.
-```
-
 Remote prompts are fetched and cached locally. The local content will be appended to the imported content.
-
-### Locations
-
-The agent searches for prompts in the following directories:
-
-- `~/.config/plain-agent/prompts/`
-- `.plain-agent/prompts/`
-- `.claude/commands/`
-- `.claude/skills/`
-
-The prompt ID is the relative path of the file without the `.md` extension. For example, `.plain-agent/prompts/commit.md` becomes `/prompts:commit`.
 
 ### Shortcuts
 
@@ -579,6 +551,14 @@ Prompts located in a `shortcuts/` subdirectory (e.g., `.plain-agent/prompts/shor
 ## Subagents
 
 Subagents are specialized agents designed for specific tasks.
+
+### Locations
+
+The agent searches for subagent definitions in the following directories:
+
+- `~/.config/plain-agent/agents/`
+- `.plain-agent/agents/`
+- `.claude/agents/`
 
 ### Subagent File Format
 
@@ -601,14 +581,6 @@ Use AGENTS.md instead of CLAUDE.md in this project.
 ```
 
 Remote subagents are fetched and cached locally. The local content will be appended to the imported content.
-
-### Locations
-
-The agent searches for subagent definitions in the following directories:
-
-- `~/.config/plain-agent/agents/`
-- `.plain-agent/agents/`
-- `.claude/agents/`
 
 ## Claude Code Plugin Support
 
@@ -653,7 +625,7 @@ and send them like regular text.
 
 ### Providers
 
-**OpenAI Realtime** (default, recommended):
+**OpenAI Realtime**
 
 ```js
 {
@@ -666,7 +638,7 @@ and send them like regular text.
 }
 ```
 
-**Gemini Live** (preview API; model names and pricing may change):
+**Gemini Live**
 
 ```js
 {
@@ -683,8 +655,7 @@ and send them like regular text.
 
 - `toggleKey` — Rebind the toggle. Accepts `"ctrl-<char>"` where `<char>`
   is a letter (a-z) or one of `[ \ ] ^ _`. Defaults to `"ctrl-o"`.
-- `recorder` — Override recorder auto-detection. Must write raw 16-bit
-  little-endian mono PCM to stdout at 24 kHz (OpenAI) or 16 kHz (Gemini).
+- `recorder` — Override recorder auto-detection, e.g. `{ "command": "sox", "args": ["-q", "-d", "-b", "16", "-c", "1", "-r", "24000", "-e", "signed-integer", "-t", "raw", "-"] }`. Must write raw 16-bit little-endian mono PCM to stdout at 24 kHz (OpenAI) or 16 kHz (Gemini).
 
 ## Development
 
@@ -705,13 +676,9 @@ npx npm-check-updates -t minor -c 3 -u
 ## Release
 
 ```sh
-npm run check
-
-git commit -m "<message>"
-
 npm version <major|minor|patch>
-git push --follow-tags
 
+git push --follow-tags
 gh release create $(git describe --tags) --generate-notes
 
 npm publish --access public
