@@ -26,7 +26,7 @@ gh api --method GET -H "Accept: application/vnd.github.v3.raw" "repos/iinm/plain
 ## Step 2: Read the Current Config
 
 ```sh
-cat .plain-agent/config.json 2>/dev/null || true
+cat .plain-agent/config.json
 ```
 
 ## Step 3: Ask the User What They Want

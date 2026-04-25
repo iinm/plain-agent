@@ -63,9 +63,10 @@ Present the analysis results and ask the user to confirm. Show:
 3. **Volume configuration** (e.g., "node_modules + npm cache")
 4. **Setup install command** (e.g., "npm ci")
 
-Ask only one additional question:
+Ask the following questions one at a time, waiting for the user's answer before proceeding to the next:
 
-> Do you want to mount `~/.gitconfig` into the sandbox? (This allows git commit inside the sandbox.)
+1. Do you want to mount `~/.gitconfig` into the sandbox? (This allows git commit inside the sandbox.)
+2. Are there any commands that must run on the host instead of inside the container? (e.g. `gh`, `docker` — tools that require host credentials or sockets.) If so, which ones?
 
 ## Step 3: Generate run.sh
 
@@ -115,7 +116,7 @@ set -eu -o pipefail
 
 this_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Setup sandbox (install runtime and dependencies with network access)
+# Build Docker image and setup sandbox (install runtime and dependencies with network access)
 "$this_dir/sandbox/run.sh" --verbose --allow-net 0.0.0.0/0 mise use node@lts
 "$this_dir/sandbox/run.sh" --verbose --allow-net 0.0.0.0/0 npm ci
 
@@ -125,21 +126,19 @@ npm ci
 
 `--allow-net 0.0.0.0/0` is needed only during setup for downloading packages. It should NOT be in run.sh for normal usage.
 
-## Step 5: Show config.json Example
+## Step 5: Update config.json
 
-After generating all files, instruct the user to add the following to their `.plain-agent/config.json`:
+Show the user the following config and explain:
+
+- `--skip-build` assumes the image is already built (run `setup.sh` first to build)
+- `--keep-alive 30` reuses the container for 30 seconds between commands for performance
+
+If the user specified any unsandboxed commands in Step 2, also include and explain:
+
+- They run **unsandboxed** because they need host access.
 
 ```json
 {
-  "autoApproval": {
-    "patterns": [
-      {
-        "toolName": "exec_command",
-        "input": { "command": { "$regex": "^(gh|docker)$" } },
-        "action": "ask"
-      }
-    ]
-  },
   "sandbox": {
     "command": ".plain-agent/sandbox/run.sh",
     "args": ["--skip-build", "--keep-alive", "30"],
@@ -154,7 +153,6 @@ After generating all files, instruct the user to add the following to their `.pl
 }
 ```
 
-If the project already has a `.plain-agent/config.json`, show only the keys that should be added/merged. Remind the user:
-- `--skip-build` assumes the image is already built (run `setup.sh` first to build)
-- `--keep-alive 30` reuses the container for 30 seconds between commands for performance
-- `gh` and `docker` run unsandboxed (host access needed), so they should also be set to `ask` in `autoApproval` to avoid being auto-approved alongside other shell commands. Place this `ask` pattern before any broad `allow` pattern for `exec_command`, since `autoApproval` patterns are evaluated in order and the first match wins.
+Adjust the regex to match the commands the user specified. If none, omit `sandbox.rules`.
+
+After the user confirms, write the config into `.plain-agent/config.json` (merge if the file already exists).
