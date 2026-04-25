@@ -255,30 +255,22 @@ Create the configuration.
 ```
 </details>
 
-
-
 Run the agent.
 
 ```sh
 plain
+```
 
-# Or
+```
 plain -m <model+variant>
 ```
 
-Interrupt the agent while it's running:
 Press **Ctrl-C** to pause auto-approve. The agent will finish the current tool call, then return to the prompt.
 
-(Optional) Set up a sandbox for your project with the `sandbox-configurator` agent.
+Display the help message.
 
 ```
-/agents:sandbox-configurator Set up a sandbox for this project
-```
-
-After the agent finishes, run the generated setup script once to build the sandbox image and install dependencies.
-
-```sh
-./.plain-agent/setup.sh
+/help
 ```
 
 Run in batch mode (non-interactive).
@@ -291,34 +283,27 @@ plain batch \
       "Add tests for ..."
 ```
 
-Display the help message.
-
-```
-/help
-```
-
 Show daily token costs across sessions. `plain cost` reads
 `~/.local/share/plain-agent/usage.jsonl`; use `--from` / `--to` to set the
 period. Currencies are shown separately.
 
 ```sh
 plain cost
+```
+
+```
 plain cost --from 2026-04-01 --to 2026-04-30
 ```
 
-## Available Tools
+(Optional) Configure plain-agent for your project.
 
-The agent can use the following tools to assist with tasks:
+```
+/configure Auto-approve file writes and patches
+```
 
-- **exec_command**: Run a command without shell interpretation.
-- **write_file**: Write a file.
-- **patch_file**: Patch a file.
-- **tmux_command**: Run a tmux command.
-- **ask_web**: Use the web search to answer questions that need up-to-date information or supporting sources. (requires Google API key or Vertex AI configuration).
-- **ask_url**: Use one or more provided URLs to answer a question. Include the URLs in your question. (requires Google API key or Vertex AI configuration).
-- **delegate_to_subagent**: Delegate a subtask to a subagent. The agent switches to a subagent role within the same conversation, focusing on the specified goal.
-- **report_as_subagent**: Report completion and return to the main agent. Used by subagents to communicate results and restore the main agent role. After reporting, the subagent's conversation history is removed from the context.
-- **compact_context**: Compact the conversation context by discarding prior messages and reloading task state from a memory file. Use when the context has grown large but the task is not yet complete. Can also be invoked via the `/compact` slash command.
+```
+/configure Set up a sandbox for this project
+```
 
 ## Configuration
 
@@ -502,6 +487,20 @@ Files are loaded in the following order. Settings in later files override earlie
 ```
 </details>
 
+## Available Tools
+
+The agent can use the following tools to assist with tasks:
+
+- **exec_command**: Run a command without shell interpretation.
+- **write_file**: Write a file.
+- **patch_file**: Patch a file.
+- **tmux_command**: Run a tmux command.
+- **ask_web**: Use the web search to answer questions that need up-to-date information or supporting sources. (requires Google API key or Vertex AI configuration).
+- **ask_url**: Use one or more provided URLs to answer a question. Include the URLs in your question. (requires Google API key or Vertex AI configuration).
+- **delegate_to_subagent**: Delegate a subtask to a subagent. The agent switches to a subagent role within the same conversation, focusing on the specified goal.
+- **report_as_subagent**: Report completion and return to the main agent. Used by subagents to communicate results and restore the main agent role. After reporting, the subagent's conversation history is removed from the context.
+- **compact_context**: Compact the conversation context by discarding prior messages and reloading task state from a memory file. Use when the context has grown large but the task is not yet complete. Can also be invoked via the `/compact` slash command.
+
 ## Prompts
 
 You can define reusable prompts in Markdown files.
@@ -624,6 +623,7 @@ and send them like regular text.
 **OpenAI Realtime**
 
 ```js
+// ~/.config/plain-agent/config.local.json
 {
   "voiceInput": {
     "provider": "openai",
@@ -637,6 +637,7 @@ and send them like regular text.
 **Gemini Live**
 
 ```js
+// ~/.config/plain-agent/config.local.json
 {
   "voiceInput": {
     "provider": "gemini",
