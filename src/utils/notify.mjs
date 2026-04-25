@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { noThrowSync } from "./noThrow.mjs";
 
 /**
- * @param {{ command: string; args: string[] } | undefined} notifyCmd
+ * @param {{ command: string; args?: string[] } | undefined} notifyCmd
  * @returns {void | Error}
  */
 export function notify(notifyCmd) {
@@ -12,7 +12,7 @@ export function notify(notifyCmd) {
   }
 
   return noThrowSync(() => {
-    execFileSync(notifyCmd.command, notifyCmd.args, {
+    execFileSync(notifyCmd.command, notifyCmd.args ?? [], {
       shell: false,
       stdio: ["ignore", "inherit", "pipe"],
       env: {

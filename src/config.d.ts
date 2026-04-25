@@ -21,14 +21,14 @@ export type AppConfig = {
     askURL?: AskURLToolOptions;
   };
   mcpServers?: Record<string, MCPServerConfig>;
-  notifyCmd?: { command: string; args: string[] };
+  notifyCmd?: { command: string; args?: string[] };
   voiceInput?: VoiceInputConfig;
   claudeCodePlugins?: ClaudeCodePluginRepo[];
 };
 
 export type MCPServerConfig = {
   command: string;
-  args: string[];
+  args?: string[];
   env?: Record<string, string>;
   options?: {
     enabledTools?: string[];
