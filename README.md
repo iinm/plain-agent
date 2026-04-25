@@ -4,7 +4,7 @@
 
 # Plain Agent
 
-A lightweight CLI-based coding agent with zero framework dependencies.
+A lightweight CLI-based coding agent.
 
 ## Why Plain Agent?
 
