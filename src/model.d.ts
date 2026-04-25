@@ -10,7 +10,7 @@ export type ModelInput = {
 
 export type ModelOutput = {
   message: Message;
-  providerTokenUsage: ProviderTokenUsage;
+  providerTokenUsage?: ProviderTokenUsage;
 };
 
 export type ProviderTokenUsage = Record<

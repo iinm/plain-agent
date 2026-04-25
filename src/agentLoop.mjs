@@ -128,7 +128,9 @@ export function createAgentLoop({
 
       const { message: assistantMessage, providerTokenUsage } = modelOutput;
       stateManager.appendMessages([assistantMessage]);
-      agentEventEmitter.emit("providerTokenUsage", providerTokenUsage);
+      if (providerTokenUsage) {
+        agentEventEmitter.emit("providerTokenUsage", providerTokenUsage);
+      }
 
       // Gemini may stop with "thinking" -> continue
       const lastContent = assistantMessage.content.at(-1);
