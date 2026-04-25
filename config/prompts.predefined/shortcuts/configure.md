@@ -35,13 +35,15 @@ Ask what the user wants to configure. Common topics:
 
 - **Model** — which LLM to use (`model` field)
 - **Auto-approval rules** — which tool calls to allow automatically (`autoApproval`)
-- **Sandbox** — isolated execution environment (`sandbox`) → delegate to the `sandbox-configurator` agent
+- **Sandbox** — isolated execution environment (`sandbox`)
 - **MCP servers** — external tool integrations (`mcpServers`)
 - **Claude Code plugins** — reuse Claude Code plugin prompts/agents (`claudeCodePlugins`)
 - **Voice input** — voice transcription settings (`voiceInput`)
 - **Notifications** — custom notify command (`notifyCmd`)
 
 If the request is vague, ask a focused clarifying question before proceeding.
+
+**If the user wants to configure Sandbox**: immediately delegate to the `sandbox-configurator` agent and do not proceed further yourself.
 
 ## Step 4: Apply Changes
 
