@@ -93,11 +93,13 @@ export function createSubagentManager(agentRoles, handlers) {
     return {
       success: true,
       value: [
-        `You are now the subagent "${actualName}". Start working on the following goal.`,
+        `[SUBAGENT MODE ACTIVATED] You are now operating as the subagent "${actualName}".`,
+        roleContent
+          ? `Role: ${actualName}\n---\n${roleContent}\n---`
+          : `Role: ${actualName}`,
         `Your goal: ${goal}`,
-        `Role: ${actualName}\n---\n${roleContent}\n---`,
-        `Memory file path format: ${AGENT_PROJECT_METADATA_DIR}/memory/<session-id>--${sequenceNumber}--${actualName}--<kebab-case-title>.md (Replace <kebab-case-title> with a short title describing your own goal)`,
-        `When finished, call "report_as_subagent" with the memory file path.`,
+        `Memory file path format: ${AGENT_PROJECT_METADATA_DIR}/memory/<session-id>--${sequenceNumber}--${actualName.replace("/", "-")}--<kebab-case-title>.md (Replace <kebab-case-title> with a short title describing your own goal)`,
+        `When finished, call "report_as_subagent" with the memory file path. Start executing your goal now.`,
       ].join("\n\n"),
     };
   }
