@@ -30,7 +30,8 @@ export function createPatchFileTool(
 - The first match found will be replaced if there are multiple matches.
 - Use multiple SEARCH/REPLACE blocks with session-scoped nonce (${nonce}) to replace multiple contents.
 
-Format:
+
+Format: Each marker must include the nonce: <<<<<<< SEARCH ${nonce}, ======= ${nonce}, >>>>>>> REPLACE ${nonce}
 <<<<<<< SEARCH ${nonce}
 old content
 ======= ${nonce}
@@ -69,12 +70,7 @@ other new content
         );
         if (matches.length === 0) {
           throw new Error(
-            [
-              "Invalid diff format. Each markers must include the nonce:",
-              `<<<<<<< SEARCH ${nonce}`,
-              `======= ${nonce}`,
-              `>>>>>>> REPLACE ${nonce}`,
-            ].join("\n"),
+            `Invalid diff format. Each markers must include the nonce: <<<<<<< SEARCH ${nonce}, ======= ${nonce}, >>>>>>> REPLACE ${nonce}`,
           );
         }
         let newContent = content;
