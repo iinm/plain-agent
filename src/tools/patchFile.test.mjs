@@ -35,17 +35,17 @@ describe("patchFileTool", () => {
     const diff = `
 <<<<<<< SEARCH 012
 Hello World
-======= REPLACE 012
+======= 012
 Hello Universe
->>>>>>> END 012
+>>>>>>> REPLACE 012
 
 <<<<<<< SEARCH 012
 This is a test file content 2.
 This is a test file content 3.
-======= REPLACE 012
+======= 012
 This is a test file content updated 2.
 This is a test file content updated 3.
->>>>>>> END 012
+>>>>>>> REPLACE 012
 `;
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
@@ -78,8 +78,8 @@ This is a test file content updated 3.
     const diff = `
 <<<<<<< SEARCH 012
 Hello World
-======= REPLACE 012
->>>>>>> END 012
+======= 012
+>>>>>>> REPLACE 012
 `.trim();
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
@@ -111,8 +111,8 @@ Hello World
     const diff = `
 <<<<<<< SEARCH 012
 This is a test file content 3.
-======= REPLACE 012
->>>>>>> END 012
+======= 012
+>>>>>>> REPLACE 012
 `.trim();
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
@@ -145,22 +145,22 @@ This is a test file content 3.
 <<<<<<< SEARCH 012
 Hello World
 <<<<<<< SEARCH
-======= REPLACE 012
+======= 012
 Hello Universe
 marker 1
->>>>>>> END 012
+>>>>>>> REPLACE 012
 
 <<<<<<< SEARCH 012
 =======
-======= REPLACE 012
+======= 012
 marker 2
->>>>>>> END 012
+>>>>>>> REPLACE 012
 
 <<<<<<< SEARCH 012
 >>>>>>> REPLACE
-======= REPLACE 012
+======= 012
 marker 3
->>>>>>> END 012
+>>>>>>> REPLACE 012
 `;
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
@@ -188,9 +188,9 @@ marker 3
     const diff = `
 <<<<<<< SEARCH 012
 Hello World
-======= REPLACE 012
+======= 012
 Price: $100 & 50% off $& special $1 deal $$
->>>>>>> END 012
+>>>>>>> REPLACE 012
 `;
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
@@ -214,9 +214,9 @@ Price: $100 & 50% off $& special $1 deal $$
     const diff = `
 <<<<<<< SEARCH 012
 Original text here
-======= REPLACE 012
+======= 012
 $& means match, $1 means first group, $$ means literal dollar
->>>>>>> END 012
+>>>>>>> REPLACE 012
 `;
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
