@@ -15,11 +15,7 @@ import { startInteractiveSession } from "./cliInteractive.mjs";
 import { loadAppConfig } from "./config.mjs";
 import { loadAgentRoles } from "./context/loadAgentRoles.mjs";
 import { loadPrompts } from "./context/loadPrompts.mjs";
-import {
-  AGENT_NOTIFY_CMD_DEFAULT,
-  AGENT_PROJECT_METADATA_DIR,
-  USER_NAME,
-} from "./env.mjs";
+import { AGENT_PROJECT_METADATA_DIR, USER_NAME } from "./env.mjs";
 import { setupMCPServer } from "./mcp.mjs";
 import { createModelCaller } from "./modelCaller.mjs";
 import { createPrompt } from "./prompt.mjs";
@@ -270,7 +266,7 @@ if (cliArgs.subcommand.type === "cost") {
   } else {
     startInteractiveSession({
       ...sessionOptions,
-      notifyCmd: appConfig.notifyCmd || AGENT_NOTIFY_CMD_DEFAULT,
+      notifyCmd: appConfig.notifyCmd,
       claudeCodePlugins: resolvePluginPaths(appConfig.claudeCodePlugins ?? []),
       voiceInput: appConfig.voiceInput,
     });

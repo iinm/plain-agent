@@ -2,16 +2,17 @@ import { execFileSync } from "node:child_process";
 import { noThrowSync } from "./noThrow.mjs";
 
 /**
- * @param {string=} notifyCmd
+ * @param {{ command: string; args: string[] } | undefined} notifyCmd
  * @returns {void | Error}
  */
 export function notify(notifyCmd) {
   if (!notifyCmd) {
+    process.stdout.write("\x07");
     return;
   }
 
   return noThrowSync(() => {
-    execFileSync(/** @type {string} */ (notifyCmd), [], {
+    execFileSync(notifyCmd.command, notifyCmd.args, {
       shell: false,
       stdio: ["ignore", "inherit", "pipe"],
       env: {

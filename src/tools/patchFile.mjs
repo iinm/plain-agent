@@ -70,7 +70,7 @@ other new content
         if (matches.length === 0) {
           throw new Error(
             [
-              `Invalid diff format. Each markers must include the nonce:`,
+              "Invalid diff format. Each markers must include the nonce:",
               `<<<<<<< SEARCH ${nonce}`,
               `======= ${nonce}`,
               `>>>>>>> REPLACE ${nonce}`,

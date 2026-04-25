@@ -12,7 +12,6 @@
     "plain": "./bin/plain",
     "plain-interrupt": "./bin/plain-interrupt",
     "plain-notify-desktop": "./bin/plain-notify-desktop",
-    "plain-notify-terminal-bell": "./bin/plain-notify-terminal-bell",
     "plain-sandbox": "./sandbox/bin/plain-sandbox"
   },
   "files": [

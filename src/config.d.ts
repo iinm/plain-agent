@@ -21,7 +21,7 @@ export type AppConfig = {
     askURL?: AskURLToolOptions;
   };
   mcpServers?: Record<string, MCPServerConfig>;
-  notifyCmd?: string;
+  notifyCmd?: { command: string; args: string[] };
   voiceInput?: VoiceInputConfig;
   claudeCodePlugins?: ClaudeCodePluginRepo[];
 };

@@ -57,7 +57,7 @@ const HELP_MESSAGE = [
  * @property {AgentCommands} agentCommands
  * @property {string} sessionId
  * @property {string} modelName
- * @property {string} notifyCmd
+ * @property {{ command: string; args: string[] } | undefined} notifyCmd
  * @property {boolean} sandbox
  * @property {() => Promise<void>} onStop
  * @property {ClaudeCodePlugin[]} [claudeCodePlugins]

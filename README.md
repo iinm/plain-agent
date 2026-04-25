@@ -494,8 +494,8 @@ Files are loaded in the following order. Settings in later files override earlie
     }
   },
 
-  // Override default notification command
-  // "notifyCmd": "/path/to/notification-command"
+  // Override default notification command (falls back to terminal bell)
+  // "notifyCmd": { "command": "plain-notify-desktop", "args": [] }
 
   // (Optional) Voice input. See "Voice Input" below.
   // "voiceInput": {

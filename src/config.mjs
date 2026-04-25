@@ -93,7 +93,7 @@ export async function loadAppConfig(options = {}) {
         ...(merged.mcpServers ?? {}),
         ...(config.mcpServers ?? {}),
       },
-      notifyCmd: config.notifyCmd || merged.notifyCmd,
+      notifyCmd: config.notifyCmd ?? merged.notifyCmd,
       claudeCodePlugins: [
         ...(merged.claudeCodePlugins ?? []),
         ...(config.claudeCodePlugins ?? []),
