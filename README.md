@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="https://pub-0bb49aa929f242d49c89ed8c297932b5.r2.dev/plain-agent/plain-agent-logo.png" alt="plain-agent logo" width="320">
-</p>
-
 # Plain Agent
 
 A lightweight CLI-based coding agent.

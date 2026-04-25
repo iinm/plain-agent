@@ -91,7 +91,7 @@ export function formatToolUse(toolUse) {
     const diffs = [];
     const matches = Array.from(
       diff.matchAll(
-        /<<<<<<< SEARCH [0-9a-z]{3}\n(.*?)\n======= [0-9a-z]{3}\n(.*?)\n?>>>>>>> REPLACE [0-9a-z]{3}/gs,
+        /<<< [0-9a-z]{3} <<< SEARCH\n(.*?)\n=== [0-9a-z]{3} ===\n(.*?)\n?>>> [0-9a-z]{3} >>> REPLACE/gs,
       ),
     );
     for (const match of matches) {

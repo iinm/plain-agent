@@ -26,18 +26,18 @@ export function createPatchFileTool(
           },
           diff: {
             description: `
-Format: Each marker must include the nonce: <<<<<<< SEARCH ${nonce}, ======= ${nonce}, >>>>>>> REPLACE ${nonce}
-<<<<<<< SEARCH ${nonce}
+Format:
+<<< ${nonce} <<< SEARCH
 old content
-======= ${nonce}
+=== ${nonce} ===
 new content
->>>>>>> REPLACE ${nonce}
+>>> ${nonce} >>> REPLACE
 
-<<<<<<< SEARCH ${nonce}
+<<< ${nonce} <<< SEARCH
 other old content
-======= ${nonce}
+=== ${nonce} ===
 other new content
->>>>>>> REPLACE ${nonce}
+>>> ${nonce} >>> REPLACE
 
 - Content is searched as an exact match including indentation and line breaks.
 - The first match found will be replaced if there are multiple matches.
@@ -61,14 +61,14 @@ other new content
         const matches = Array.from(
           diff.matchAll(
             new RegExp(
-              `<<<<<<< SEARCH ${nonce}\\n(.*?)\\n======= ${nonce}\\n(.*?)\\n?>>>>>>> REPLACE ${nonce}`,
+              `<<< ${nonce} <<< SEARCH\\n(.*?)\\n=== ${nonce} ===\\n(.*?)\\n?>>> ${nonce} >>> REPLACE`,
               "gs",
             ),
           ),
         );
         if (matches.length === 0) {
           throw new Error(
-            `Invalid diff format. Each markers must include the nonce: <<<<<<< SEARCH ${nonce}, ======= ${nonce}, >>>>>>> REPLACE ${nonce}`,
+            `Invalid diff format. Each markers must include the nonce: <<< ${nonce} <<< SEARCH, === ${nonce} ===, >>> ${nonce} >>> REPLACE`,
           );
         }
         let newContent = content;

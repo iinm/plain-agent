@@ -33,19 +33,19 @@ describe("patchFileTool", () => {
 
     // when:
     const diff = `
-<<<<<<< SEARCH 012
+<<< 012 <<< SEARCH
 Hello World
-======= 012
+=== 012 ===
 Hello Universe
->>>>>>> REPLACE 012
+>>> 012 >>> REPLACE
 
-<<<<<<< SEARCH 012
+<<< 012 <<< SEARCH
 This is a test file content 2.
 This is a test file content 3.
-======= 012
+=== 012 ===
 This is a test file content updated 2.
 This is a test file content updated 3.
->>>>>>> REPLACE 012
+>>> 012 >>> REPLACE
 `;
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
@@ -76,10 +76,10 @@ This is a test file content updated 3.
 
     // when:
     const diff = `
-<<<<<<< SEARCH 012
+<<< 012 <<< SEARCH
 Hello World
-======= 012
->>>>>>> REPLACE 012
+=== 012 ===
+>>> 012 >>> REPLACE
 `.trim();
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
@@ -109,10 +109,10 @@ Hello World
 
     // when:
     const diff = `
-<<<<<<< SEARCH 012
+<<< 012 <<< SEARCH
 This is a test file content 3.
-======= 012
->>>>>>> REPLACE 012
+=== 012 ===
+>>> 012 >>> REPLACE
 `.trim();
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
@@ -133,34 +133,34 @@ This is a test file content 3.
     await fs.mkdir("tmp", { recursive: true });
     const initialContent = [
       "Hello World",
-      "<<<<<<< SEARCH",
-      "=======",
-      ">>>>>>> REPLACE",
+      "<<< SEARCH",
+      "===",
+      ">>> REPLACE",
     ].join("\n");
     await fs.writeFile(tmpFilePath, initialContent);
     cleanups.push(() => fs.unlink(tmpFilePath));
 
     // when:
     const diff = `
-<<<<<<< SEARCH 012
+<<< 012 <<< SEARCH
 Hello World
-<<<<<<< SEARCH
-======= 012
+<<< SEARCH
+=== 012 ===
 Hello Universe
 marker 1
->>>>>>> REPLACE 012
+>>> 012 >>> REPLACE
 
-<<<<<<< SEARCH 012
-=======
-======= 012
+<<< 012 <<< SEARCH
+===
+=== 012 ===
 marker 2
->>>>>>> REPLACE 012
+>>> 012 >>> REPLACE
 
-<<<<<<< SEARCH 012
->>>>>>> REPLACE
-======= 012
+<<< 012 <<< SEARCH
+>>> REPLACE
+=== 012 ===
 marker 3
->>>>>>> REPLACE 012
+>>> 012 >>> REPLACE
 `;
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
@@ -186,11 +186,11 @@ marker 3
 
     // when: replacement string contains special characters like $&, $1, $$, %
     const diff = `
-<<<<<<< SEARCH 012
+<<< 012 <<< SEARCH
 Hello World
-======= 012
+=== 012 ===
 Price: $100 & 50% off $& special $1 deal $$
->>>>>>> REPLACE 012
+>>> 012 >>> REPLACE
 `;
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
@@ -212,11 +212,11 @@ Price: $100 & 50% off $& special $1 deal $$
 
     // when: replacement string contains various dollar sign patterns
     const diff = `
-<<<<<<< SEARCH 012
+<<< 012 <<< SEARCH
 Original text here
-======= 012
+=== 012 ===
 $& means match, $1 means first group, $$ means literal dollar
->>>>>>> REPLACE 012
+>>> 012 >>> REPLACE
 `;
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
