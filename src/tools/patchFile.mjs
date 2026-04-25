@@ -69,7 +69,12 @@ other new content
         );
         if (matches.length === 0) {
           throw new Error(
-            `Invalid diff format. All markers must include the nonce, e.g., <<<<<<< SEARCH ${nonce} / ======= ${nonce} / >>>>>>> REPLACE ${nonce}`,
+            [
+              `Invalid diff format. Each markers must include the nonce:`,
+              `<<<<<<< SEARCH ${nonce}`,
+              `======= ${nonce}`,
+              `>>>>>>> REPLACE ${nonce}`,
+            ].join("\n"),
           );
         }
         let newContent = content;
