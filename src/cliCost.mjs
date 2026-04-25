@@ -3,7 +3,7 @@
  */
 
 import { styleText } from "node:util";
-import { readUsageRecords } from "./usageStore.mjs";
+import * as usageStore from "./usageStore.mjs";
 
 /**
  * @typedef {Object} CostPeriod
@@ -72,15 +72,15 @@ export function parseDateOnly(value) {
   if (!match) {
     throw new Error(`Invalid date: "${value}" (expected YYYY-MM-DD)`);
   }
-  const [, y, m, d] = match;
-  const year = Number(y);
-  const month = Number(m);
-  const day = Number(d);
-  const date = new Date(year, month - 1, day);
+  const [, year, month, day] = match;
+  const y = Number(year);
+  const m = Number(month);
+  const d = Number(day);
+  const date = new Date(y, m - 1, d);
   if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day
+    date.getFullYear() !== y ||
+    date.getMonth() !== m - 1 ||
+    date.getDate() !== d
   ) {
     throw new Error(`Invalid date: "${value}"`);
   }
@@ -109,6 +109,10 @@ export function aggregateUsage(records, period) {
   let excludedOutOfRange = 0;
 
   for (const record of records) {
+    if (record.timestamp == null) {
+      excludedOutOfRange++;
+      continue;
+    }
     const recordedAt = new Date(record.timestamp);
     if (Number.isNaN(recordedAt.getTime())) {
       excludedOutOfRange++;
@@ -123,12 +127,13 @@ export function aggregateUsage(records, period) {
       noPricingSessionCount++;
       continue;
     }
-
-    let perDate = byCurrency.get(record.currency);
-    if (!perDate) {
-      perDate = new Map();
-      byCurrency.set(record.currency, perDate);
+    if (!record.currency || typeof record.currency !== "string") {
+      excludedOutOfRange++;
+      continue;
     }
+
+    const perDate = byCurrency.get(record.currency) ?? new Map();
+    byCurrency.set(record.currency, perDate);
     const existing = perDate.get(localDate);
     if (existing) {
       existing.totalCost += record.totalCost;
@@ -146,13 +151,14 @@ export function aggregateUsage(records, period) {
   const aggregations = [];
   for (const [currency, perDate] of byCurrency) {
     const daily = Array.from(perDate.values()).sort((a, b) =>
-      a.date < b.date ? -1 : a.date > b.date ? 1 : 0,
+      a.date.localeCompare(b.date),
     );
-    const totalCost = daily.reduce((sum, entry) => sum + entry.totalCost, 0);
-    const sessionCount = daily.reduce(
-      (sum, entry) => sum + entry.sessionCount,
-      0,
-    );
+    let totalCost = 0;
+    let sessionCount = 0;
+    for (const entry of daily) {
+      totalCost += entry.totalCost;
+      sessionCount += entry.sessionCount;
+    }
     aggregations.push({ currency, daily, totalCost, sessionCount });
   }
   aggregations.sort((a, b) => a.currency.localeCompare(b.currency));
@@ -167,6 +173,14 @@ export function aggregateUsage(records, period) {
 }
 
 /**
+ * @param {number} count
+ * @returns {string}
+ */
+function formatSessions(count) {
+  return `${count} session${count === 1 ? "" : "s"}`;
+}
+
+/**
  * Render a cost report as a human-readable string.
  *
  * @param {CostReport} report
@@ -175,10 +189,9 @@ export function aggregateUsage(records, period) {
  */
 export function formatCostReport(report, options = {}) {
   const color = options.color ?? true;
-  const style = color
-    ? styleText
-    : /** @param {any} _modifiers @param {string} text */ (_modifiers, text) =>
-        text;
+  /** @param {string | string[]} _modifiers @param {string} text @returns {string} */
+  const plainStyle = (_modifiers, text) => text;
+  const style = color ? styleText : plainStyle;
 
   const lines = [];
   lines.push(
@@ -204,14 +217,14 @@ export function formatCostReport(report, options = {}) {
     lines.push(style("bold", `Daily cost (${agg.currency}):`));
     for (const entry of agg.daily) {
       lines.push(
-        `  ${entry.date}   ${formatCost(entry.totalCost)} ${agg.currency}   (${entry.sessionCount} session${entry.sessionCount === 1 ? "" : "s"})`,
+        `  ${entry.date}   ${formatCost(entry.totalCost)} ${agg.currency}   (${formatSessions(entry.sessionCount)})`,
       );
     }
     lines.push("");
     lines.push(
       style(
         "bold",
-        `Total: ${formatCost(agg.totalCost)} ${agg.currency} (${agg.sessionCount} session${agg.sessionCount === 1 ? "" : "s"})`,
+        `Total: ${formatCost(agg.totalCost)} ${agg.currency} (${formatSessions(agg.sessionCount)})`,
       ),
     );
   }
@@ -242,28 +255,50 @@ function formatCost(value) {
  * Run the `plain cost` subcommand.
  *
  * @param {{ from: string | null, to: string | null }} args
+ * @param {{ readUsageRecords?: typeof import("./usageStore.mjs").readUsageRecords }} [deps]
  * @returns {Promise<number>} exit code
  */
-export async function runCostCommand(args) {
-  const { from, to } = resolvePeriod(args);
+export async function runCostCommand(args, deps = {}) {
+  let from;
+  let to;
+  try {
+    ({ from, to } = resolvePeriod(args));
+  } catch (err) {
+    if (err instanceof Error) {
+      console.error(`Error: ${err.message}`);
+    } else {
+      console.error("Error: invalid period arguments");
+    }
+    return 1;
+  }
 
-  const { records, skipped } = await readUsageRecords();
+  const { records, skipped } = await (
+    deps.readUsageRecords ?? usageStore.readUsageRecords
+  )();
   if (skipped.length > 0) {
+    const details = skipped
+      .slice(0, 3)
+      .map((s) => `line ${s.line}: ${s.reason}`)
+      .join(", ");
+    const ellipsis =
+      skipped.length > 3 ? `, and ${skipped.length - 3} more` : "";
     console.error(
-      `Warning: skipped ${skipped.length} malformed line(s) in usage log.`,
+      `Warning: skipped ${skipped.length} malformed line(s) in usage log (${details}${ellipsis}).`,
     );
   }
 
   const report = aggregateUsage(records, { from, to });
   console.log(formatCostReport(report));
-  return 0;
+  return skipped.length > 0 ? 1 : 0;
 }
 
 /**
+ * Resolve a period from CLI arguments, falling back to the current month.
+ *
  * @param {{ from: string | null, to: string | null }} args
  * @returns {CostPeriod}
  */
-function resolvePeriod(args) {
+export function resolvePeriod(args) {
   const fallback = defaultPeriod();
   const from = args.from ?? fallback.from;
   const to = args.to ?? fallback.to;

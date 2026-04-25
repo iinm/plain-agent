@@ -6,15 +6,20 @@ import {
   formatCostReport,
   formatLocalDate,
   parseDateOnly,
+  resolvePeriod,
+  runCostCommand,
 } from "./cliCost.mjs";
 
 /**
  * Build a usage record with sensible defaults for testing.
- * @param {Partial<import("./usageStore.mjs").UsageRecord>} overrides
+ * Properties explicitly set to `undefined` in overrides are ignored,
+ * preserving the default value.
+ * @param {Record<string, unknown>} overrides
  * @returns {import("./usageStore.mjs").UsageRecord}
  */
 function makeRecord(overrides) {
-  return {
+  /** @type {import("./usageStore.mjs").UsageRecord} */
+  const defaults = {
     timestamp: "2026-04-10T12:34:56.000Z",
     sessionId: "s1",
     mode: "interactive",
@@ -24,8 +29,16 @@ function makeRecord(overrides) {
     unit: "1M",
     totalCost: 0.12,
     tokens: { input: 1000, output: 500 },
-    ...overrides,
   };
+  if (!overrides) return defaults;
+  /** @type {any} */
+  const record = { ...defaults };
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value !== undefined) {
+      record[key] = value;
+    }
+  }
+  return record;
 }
 
 describe("parseDateOnly", () => {
@@ -64,6 +77,75 @@ describe("formatLocalDate", () => {
   });
 });
 
+describe("resolvePeriod", () => {
+  it("falls back to default period when both args are null", () => {
+    const fallback = defaultPeriod();
+    const period = resolvePeriod({ from: null, to: null });
+    assert.equal(period.from, fallback.from);
+    assert.equal(period.to, fallback.to);
+  });
+
+  it("uses provided from and falls back to default to", () => {
+    const fallback = defaultPeriod();
+    const period = resolvePeriod({ from: "2026-01-01", to: null });
+    assert.equal(period.from, "2026-01-01");
+    assert.equal(period.to, fallback.to);
+  });
+
+  it("uses provided to and falls back to default from", () => {
+    const fallback = defaultPeriod();
+    const period = resolvePeriod({ from: null, to: "2026-01-31" });
+    assert.equal(period.from, fallback.from);
+    assert.equal(period.to, "2026-01-31");
+  });
+
+  it("throws on invalid from", () => {
+    assert.throws(() => resolvePeriod({ from: "bad", to: null }));
+  });
+
+  it("throws on invalid to", () => {
+    assert.throws(() => resolvePeriod({ from: null, to: "bad" }));
+  });
+});
+
+describe("runCostCommand", () => {
+  it("returns 0 on success with no skipped lines", async () => {
+    const code = await runCostCommand(
+      { from: "2026-04-01", to: "2026-04-30" },
+      {
+        readUsageRecords: async () => ({
+          records: [
+            makeRecord({
+              timestamp: localIso(2026, 4, 10, 10),
+              totalCost: 1,
+            }),
+          ],
+          skipped: [],
+        }),
+      },
+    );
+    assert.equal(code, 0);
+  });
+
+  it("returns 1 when skipped lines exist", async () => {
+    const code = await runCostCommand(
+      { from: "2026-04-01", to: "2026-04-30" },
+      {
+        readUsageRecords: async () => ({
+          records: [],
+          skipped: [{ line: 2, reason: "invalid json" }],
+        }),
+      },
+    );
+    assert.equal(code, 1);
+  });
+
+  it("returns 1 when resolvePeriod throws", async () => {
+    const code = await runCostCommand({ from: "bad", to: null });
+    assert.equal(code, 1);
+  });
+});
+
 describe("aggregateUsage", () => {
   // Use a timezone-independent timestamp: noon UTC on an ambiguous day can
   // shift to a different local date, so pick timestamps that are the same
@@ -96,10 +178,10 @@ describe("aggregateUsage", () => {
     assert.equal(usd.daily.length, 2);
     assert.equal(usd.daily[0].date, "2026-04-10");
     assert.equal(usd.daily[0].sessionCount, 2);
-    assert.ok(Math.abs(usd.daily[0].totalCost - 0.35) < 1e-9);
+    assert.equal(usd.daily[0].totalCost, 0.35);
     assert.equal(usd.daily[1].date, "2026-04-11");
     assert.equal(usd.daily[1].sessionCount, 1);
-    assert.ok(Math.abs(usd.totalCost - 1.85) < 1e-9);
+    assert.equal(usd.totalCost, 1.85);
     assert.equal(usd.sessionCount, 3);
   });
 
@@ -154,6 +236,49 @@ describe("aggregateUsage", () => {
     assert.equal(report.byCurrency[0].sessionCount, 1);
   });
 
+  it("excludes records with null, undefined, or invalid timestamps", () => {
+    /** @type {any} */
+    const recordWithUndefinedTs = makeRecord({ totalCost: 2 });
+    delete recordWithUndefinedTs.timestamp;
+    const records = [
+      makeRecord({ timestamp: null, totalCost: 1 }),
+      recordWithUndefinedTs,
+      makeRecord({ timestamp: "not-a-date", totalCost: 3 }),
+      makeRecord({
+        timestamp: localIso(2026, 4, 10, 10),
+        totalCost: 4,
+      }),
+    ];
+    const report = aggregateUsage(records, period);
+    assert.equal(report.byCurrency.length, 1);
+    assert.equal(report.byCurrency[0].totalCost, 4);
+    assert.equal(report.excludedOutOfRange, 3);
+  });
+
+  it("excludes records with missing or invalid currency", () => {
+    const records = [
+      makeRecord({
+        timestamp: localIso(2026, 4, 10, 10),
+        totalCost: 1,
+        currency: null,
+      }),
+      makeRecord({
+        timestamp: localIso(2026, 4, 10, 10),
+        totalCost: 2,
+        currency: "",
+      }),
+      makeRecord({
+        timestamp: localIso(2026, 4, 10, 10),
+        totalCost: 3,
+        currency: "USD",
+      }),
+    ];
+    const report = aggregateUsage(records, period);
+    assert.equal(report.byCurrency.length, 1);
+    assert.equal(report.byCurrency[0].totalCost, 3);
+    assert.equal(report.excludedOutOfRange, 2);
+  });
+
   it("rejects a reversed period", () => {
     assert.throws(() =>
       aggregateUsage([], { from: "2026-04-10", to: "2026-04-01" }),
@@ -203,14 +328,18 @@ describe("formatCostReport", () => {
 });
 
 /**
- * Build an ISO-like timestamp that evaluates to the same local date as
- * `year-month-day` in any reasonable timezone. We use a non-UTC (`Z`)
- * timestamp at local noon so the Date parser treats it as local time.
+ * Build an ISO-like timestamp from a local-time Date.
+ *
+ * The hour parameter lets tests pick a local hour that usually stays
+ * within the same calendar date after conversion to UTC in typical
+ * timezone offsets.
+ *
+ * Note: `toISOString()` always returns a UTC string ending with `Z`.
  *
  * @param {number} year
  * @param {number} month 1-indexed
  * @param {number} day
- * @param {number} hour 0-23
+ * @param {number} hour local hour (0-23)
  * @returns {string}
  */
 function localIso(year, month, day, hour) {
