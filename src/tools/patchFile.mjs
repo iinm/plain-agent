@@ -33,15 +33,15 @@ export function createPatchFileTool(
 Format:
 <<<<<<< SEARCH ${nonce}
 old content
-======= ${nonce}
+======= REPLACE ${nonce}
 new content
->>>>>>> REPLACE ${nonce}
+>>>>>>> END ${nonce}
 
 <<<<<<< SEARCH ${nonce}
 other old content
-======= ${nonce}
+======= REPLACE ${nonce}
 other new content
->>>>>>> REPLACE ${nonce}
+>>>>>>> END ${nonce}
           `.trim(),
             type: "string",
           },
@@ -62,14 +62,14 @@ other new content
         const matches = Array.from(
           diff.matchAll(
             new RegExp(
-              `<<<<<<< SEARCH ${nonce}\\n(.*?)\\n======= ${nonce}\\n(.*?)\\n?>>>>>>> REPLACE ${nonce}`,
+              `<<<<<<< SEARCH ${nonce}\\n(.*?)\\n======= REPLACE ${nonce}\\n(.*?)\\n?>>>>>>> END ${nonce}`,
               "gs",
             ),
           ),
         );
         if (matches.length === 0) {
           throw new Error(
-            `Invalid diff format. All markers must include the nonce, e.g., <<<<<<< SEARCH ${nonce} / ======= ${nonce} / >>>>>>> REPLACE ${nonce}`,
+            `Invalid diff format. All markers must include the nonce, e.g., <<<<<<< SEARCH ${nonce} / ======= REPLACE ${nonce} / >>>>>>> END ${nonce}`,
           );
         }
         let newContent = content;
