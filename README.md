@@ -2,24 +2,20 @@
 
 A lightweight CLI-based coding agent.
 
-## Why Plain Agent?
-
 - **Multi-provider** — Use Claude, GPT, Gemini, or any OpenAI-compatible model.
-  Switch providers without changing your workflow.
 - **Fine-grained approval rules** — Auto-approve commands by name, arguments,
   and file paths using regex patterns
-  ([`config.predefined.json`](https://github.com/iinm/plain-agent/blob/main/config/config.predefined.json)).
-- **Path validation** — File paths must stay within the working directory
-  and git-ignored files (`.env`, etc.) are blocked.
+  ([`config.predefined.json#autoApproval`](https://github.com/iinm/plain-agent/blob/main/config/config.predefined.json)).
+- **Path validation** — Restricts access to the working directory.
+  Git-ignored and untracked files require explicit approval.
 - **Sandboxed execution** — Run the agent's shell commands inside a Docker
   container with network access restricted to allowlisted destinations
   (e.g., `registry.npmjs.org` only for `npm install`).
-- **Extensible** — Define prompts and subagents in Markdown.
-  Connect MCP servers. Reuse Claude Code plugins.
+- **Extensible** — Define prompts and subagents in Markdown. Connect MCP servers.
+  Supports Claude Code plugins and `.claude/` commands, subagents, and skills.
 
 ## Limitations
 
-- **CLI only** — Plain Agent does not provide a terminal UI.
 - **Sequential subagent execution** — Subagents run one at a time rather than
   in parallel. The trade-off is full visibility: every step is streamed to
   your terminal so you can follow exactly what each subagent is doing.
@@ -491,9 +487,9 @@ Files are loaded in the following order. Settings in later files override earlie
 
 The agent can use the following tools to assist with tasks:
 
-- **exec_command**: Run a command without shell interpretation.
 - **write_file**: Write a file.
 - **patch_file**: Patch a file.
+- **exec_command**: Run a command without shell interpretation.
 - **tmux_command**: Run a tmux command.
 - **ask_web**: Use the web search to answer questions that need up-to-date information or supporting sources. (requires Google API key or Vertex AI configuration).
 - **ask_url**: Use one or more provided URLs to answer a question. Include the URLs in your question. (requires Google API key or Vertex AI configuration).
