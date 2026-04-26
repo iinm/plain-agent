@@ -956,6 +956,29 @@
         }
       }
     },
+    {
+      "name": "glm-5.1",
+      "variant": "novita",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "novita"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "zai-org/glm-5.1"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "prompt_tokens": 1.4,
+          "prompt_tokens_details.cached_tokens": -1.14,
+          "completion_tokens": 4.4
+        }
+      }
+    },
 
     {
       "name": "kimi-k2.6",
@@ -980,42 +1003,50 @@
         }
       }
     },
-
     {
-      "name": "deepseek-v3.2",
-      "variant": "vertex-ai",
-      "platform": {
-        "name": "vertex-ai",
-        "variant": "default"
-      },
-      "model": {
-        "format": "openai-messages",
-        "config": {
-          "model": "deepseek-ai/deepseek-v3.2-maas",
-          "chat_template_kwargs": { "thinking": true }
-        }
-      }
-    },
-    {
-      "name": "deepseek-v3.2",
-      "variant": "fireworks",
+      "name": "kimi-k2.6",
+      "variant": "novita",
       "platform": {
         "name": "openai-compatible",
-        "variant": "fireworks"
+        "variant": "novita"
       },
       "model": {
         "format": "openai-messages",
         "config": {
-          "model": "accounts/fireworks/models/deepseek-v3p2"
+          "model": "moonshotai/kimi-k2.6"
         }
       },
       "cost": {
         "currency": "USD",
         "unit": "1M",
         "costs": {
-          "prompt_tokens": 0.56,
-          "prompt_tokens_details.cached_tokens": -0.28,
-          "completion_tokens": 1.68
+          "prompt_tokens": 0.95,
+          "prompt_tokens_details.cached_tokens": -0.79,
+          "completion_tokens": 4
+        }
+      }
+    },
+
+    {
+      "name": "deepseek-v4-pro",
+      "variant": "novita",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "novita"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "deepseek/deepseek-v4-pro"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "prompt_tokens": 1.74,
+          "prompt_tokens_details.cached_tokens": -1.595,
+          "completion_tokens": 3.48
         }
       }
     },
@@ -1038,26 +1069,35 @@
         "unit": "1M",
         "costs": {
           "prompt_tokens": 0.3,
-          "prompt_tokens_details.cached_tokens": -0.27,
+          "prompt_tokens_details.cached_tokens": -0.24,
+          "completion_tokens": 1.2
+        }
+      }
+    },
+    {
+      "name": "minimax-m2.7",
+      "variant": "novita",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "novita"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "minimax/minimax-m2.7"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "prompt_tokens": 0.3,
+          "prompt_tokens_details.cached_tokens": -0.24,
           "completion_tokens": 1.2
         }
       }
     },
 
-    {
-      "name": "qwen3-next",
-      "variant": "vertex-ai",
-      "platform": {
-        "name": "vertex-ai",
-        "variant": "default"
-      },
-      "model": {
-        "format": "openai-messages",
-        "config": {
-          "model": "qwen/qwen3-next-80b-a3b-thinking-maas"
-        }
-      }
-    },
     {
       "name": "qwen3.6-plus",
       "variant": "fireworks",
@@ -1078,6 +1118,28 @@
           "prompt_tokens": 0.5,
           "prompt_tokens_details.cached_tokens": -0.4,
           "completion_tokens": 3
+        }
+      }
+    },
+    {
+      "name": "qwen3.6-27b",
+      "variant": "novita",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "novita"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "qwen/qwen3.6-27b"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "prompt_tokens": 0.6,
+          "completion_tokens": 3.6
         }
       }
     },

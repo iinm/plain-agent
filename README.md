@@ -142,6 +142,12 @@ Create the configuration.
       "variant": "fireworks",
       "baseURL": "https://api.fireworks.ai/inference",
       "apiKey": "<FIREWORKS_API_KEY>"
+    },
+    {
+      "name": "openai-compatible",
+      "variant": "novita",
+      "baseURL": "https://api.novita.ai/openai",
+      "apiKey": "<NOVITA_API_KEY>"
     }
   ]
 }
