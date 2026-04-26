@@ -10,6 +10,7 @@
     "noEmit": true,
     "target": "esnext",
     "module": "esnext",
-    "moduleResolution": "bundler"
+    "moduleResolution": "bundler",
+    "types": ["node"]
   }
 }
