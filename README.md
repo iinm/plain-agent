@@ -3,6 +3,7 @@
 A lightweight CLI-based coding agent.
 
 - **Multi-provider** — Use Claude, GPT, Gemini, or any OpenAI-compatible model.
+- **Compact system prompt** — Under 3.5 KB, keeping per-request overhead and cost low ([src/prompt.mjs](https://github.com/iinm/plain-agent/blob/main/src/prompt.mjs)).
 - **Fine-grained approval rules** — Auto-approve commands by name, arguments,
   and file paths using regex patterns
   ([`config.predefined.json#autoApproval`](https://github.com/iinm/plain-agent/blob/main/config/config.predefined.json)).
