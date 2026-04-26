@@ -1,9 +1,9 @@
+import { ClaudeCodePluginRepo } from "./claudeCodePlugin.mjs";
 import { ModelDefinition, PlatformConfig } from "./modelDefinition";
 import { ToolUsePattern } from "./tool";
 import { AskURLToolOptions } from "./tools/askURL.mjs";
 import { AskWebToolOptions } from "./tools/askWeb.mjs";
 import { ExecCommandSanboxConfig } from "./tools/execCommand";
-import { ClaudeCodePluginRepo } from "./claudeCodePlugin.mjs";
 import { VoiceInputConfig } from "./voiceInput.mjs";
 
 export type AppConfig = {

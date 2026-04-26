@@ -1,4 +1,6 @@
 import type { EventEmitter } from "node:events";
+import type { AgentRole } from "./context/loadAgentRoles.mjs";
+import type { CostConfig, CostSummary } from "./costTracker.mjs";
 import type {
   CallModel,
   Message,
@@ -8,8 +10,6 @@ import type {
   ProviderTokenUsage,
 } from "./model";
 import type { Tool, ToolUseApprover } from "./tool";
-import type { AgentRole } from "./context/loadAgentRoles.mjs";
-import type { CostSummary, CostConfig } from "./costTracker.mjs";
 
 export type Agent = {
   userEventEmitter: UserEventEmitter;
