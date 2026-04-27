@@ -15,5 +15,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - run: bash test.sh
-        working-directory: sandbox
+      - run: bash sandbox/test.sh
