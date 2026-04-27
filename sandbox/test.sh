@@ -2,7 +2,7 @@
 
 set -eu -o pipefail
 
-SCRIPT_DIR=$(dirname "${BASH_SOURCE[0]}")
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 export PATH=$SCRIPT_DIR/bin:$PATH
 
 cd "$SCRIPT_DIR"
