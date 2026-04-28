@@ -1050,6 +1050,29 @@
         }
       }
     },
+    {
+      "name": "deepseek-v4-pro",
+      "variant": "fireworks",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "fireworks"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "accounts/fireworks/models/deepseek-v4-pro"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "prompt_tokens": 1.74,
+          "prompt_tokens_details.cached_tokens": -1.59,
+          "completion_tokens": 3.48
+        }
+      }
+    },
 
     {
       "name": "minimax-m2.7",
