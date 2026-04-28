@@ -1068,7 +1068,7 @@
         "unit": "1M",
         "costs": {
           "prompt_tokens": 1.74,
-          "prompt_tokens_details.cached_tokens": -1.59,
+          "prompt_tokens_details.cached_tokens": -1.6,
           "completion_tokens": 3.48
         }
       }
