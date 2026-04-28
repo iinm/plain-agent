@@ -6,7 +6,7 @@ A lightweight CLI-based coding agent.
 - **Compact system prompt** — Under 3.5 KB, keeping per-request overhead and cost low ([src/prompt.mjs](https://github.com/iinm/plain-agent/blob/main/src/prompt.mjs)).
 - **Fine-grained approval rules** — Auto-approve commands by name, arguments,
   and file paths using regex patterns
-  ([`config.predefined.json#autoApproval`](https://github.com/iinm/plain-agent/blob/main/config/config.predefined.json)).
+  ([config.predefined.json#autoApproval](https://github.com/iinm/plain-agent/blob/main/config/config.predefined.json)).
 - **Path validation** — Restricts access to the working directory.
   Git-ignored and untracked files require explicit approval.
 - **Sandboxed execution** — Run the agent's shell commands inside a Docker
