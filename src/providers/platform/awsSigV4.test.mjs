@@ -4,11 +4,13 @@ import { signAwsRequest } from "./awsSigV4.mjs";
 
 describe("signAwsRequest", () => {
   test("produces correct Authorization header structure", (t) => {
+    // given: a fixed date and request parameters
     t.mock.timers.enable({
       apis: ["Date"],
       now: Date.parse("2024-01-15T12:30:00.000Z"),
     });
 
+    // when: signing the request
     const result = signAwsRequest(
       {
         method: "POST",
@@ -30,6 +32,7 @@ describe("signAwsRequest", () => {
       },
     );
 
+    // then: the Authorization header matches the known-correct signature
     assert.equal(
       result.headers.Authorization,
       "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20240115/us-east-1/bedrock/aws4_request, SignedHeaders=content-type;host;x-amz-date, Signature=e2ccf415c6a9959ede96069e7252fd5294bbb2eba00c60676beec49ad606a375",
@@ -41,11 +44,13 @@ describe("signAwsRequest", () => {
   });
 
   test("includes x-amz-security-token when sessionToken is provided", (t) => {
+    // given: a fixed date and credentials with a session token
     t.mock.timers.enable({
       apis: ["Date"],
       now: Date.parse("2024-01-15T12:30:00.000Z"),
     });
 
+    // when: signing the request
     const result = signAwsRequest(
       {
         method: "POST",
@@ -68,6 +73,7 @@ describe("signAwsRequest", () => {
       },
     );
 
+    // then: the session token is included in the signed headers
     assert.equal(result.headers["x-amz-security-token"], "tokenXXX");
     assert.match(
       result.headers.Authorization,
@@ -76,6 +82,7 @@ describe("signAwsRequest", () => {
   });
 
   test("signature is deterministic for same inputs", (t) => {
+    // given: a fixed date and identical request parameters
     t.mock.timers.enable({
       apis: ["Date"],
       now: Date.parse("2024-01-15T12:30:00.000Z"),
@@ -102,8 +109,11 @@ describe("signAwsRequest", () => {
       },
     ]);
 
+    // when: signing the same request twice
     const a = signAwsRequest(...args);
     const b = signAwsRequest(...args);
+
+    // then: both signatures are identical
     assert.equal(a.headers.Authorization, b.headers.Authorization);
   });
 });

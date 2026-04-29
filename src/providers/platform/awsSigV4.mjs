@@ -44,25 +44,6 @@ export async function loadAwsCredentials(profile) {
   };
 }
 
-// --- SigV4 signing ---
-
-/**
- * @param {string} data
- * @returns {string}
- */
-function sha256Hex(data) {
-  return createHash("sha256").update(data, "utf-8").digest("hex");
-}
-
-/**
- * @param {string | Buffer} key
- * @param {string} data
- * @returns {Buffer}
- */
-function hmacSha256(key, data) {
-  return createHmac("sha256", key).update(data, "utf-8").digest();
-}
-
 /**
  * Sign an HTTP request with AWS Signature V4.
  *
@@ -160,4 +141,21 @@ export function signAwsRequest(request, options) {
     headers: { ...signedHeaders, Authorization: authorization },
     body,
   };
+}
+
+/**
+ * @param {string} data
+ * @returns {string}
+ */
+function sha256Hex(data) {
+  return createHash("sha256").update(data, "utf-8").digest("hex");
+}
+
+/**
+ * @param {string | Buffer} key
+ * @param {string} data
+ * @returns {Buffer}
+ */
+function hmacSha256(key, data) {
+  return createHmac("sha256", key).update(data, "utf-8").digest();
 }
