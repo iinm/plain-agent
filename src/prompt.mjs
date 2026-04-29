@@ -2,9 +2,10 @@
  * @typedef {object} PromptConfig
  * @property {string} username
  * @property {string} modelName
+ * @property {string} workingDir - The current working directory.
+ * @property {string} today - Today's date in YYYY-MM-DD format.
  * @property {string} sessionId
  * @property {string} tmuxSessionId
- * @property {string} workingDir - The current working directory.
  * @property {string} projectMetadataDir - The directory where memory files are stored.
  * @property {Map<string, import('./context/loadAgentRoles.mjs').AgentRole>} agentRoles - Available agent roles.
  * @property {{filePath: string, description: string}[]} skills
@@ -18,6 +19,7 @@ export function createPrompt({
   username,
   modelName,
   sessionId,
+  today,
   tmuxSessionId,
   workingDir,
   projectMetadataDir,
@@ -117,6 +119,7 @@ ${skillDescriptions}
 - User name: ${username}
 - Your model name: ${modelName}
 - Current working directory: ${workingDir}
+- Today's date: ${today}
 - Session id: ${sessionId}
 - Tmux session id: ${tmuxSessionId}
 - Memory file path: ${projectMetadataDir}/memory/${sessionId}--<kebab-case-title>.md

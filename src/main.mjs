@@ -164,9 +164,10 @@ if (cliArgs.subcommand.type === "cost") {
   const prompt = createPrompt({
     username: USER_NAME,
     modelName: modelNameWithVariant,
+    workingDir: process.cwd(),
+    today: new Date().toISOString().split("T")[0],
     sessionId,
     tmuxSessionId,
-    workingDir: process.cwd(),
     projectMetadataDir: AGENT_PROJECT_METADATA_DIR,
     agentRoles,
     skills: Array.from(prompts.values()).filter((p) => p.isSkill),
