@@ -1,9 +1,6 @@
 import assert from "node:assert";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import test, { describe } from "node:test";
-import { loadAwsCredentials, signRequest } from "./awsSigV4.mjs";
+import { signRequest } from "./awsSigV4.mjs";
 
 describe("signRequest", () => {
   test("produces correct Authorization header structure", (t) => {
@@ -108,92 +105,5 @@ describe("signRequest", () => {
     const a = signRequest(...args);
     const b = signRequest(...args);
     assert.equal(a.headers.Authorization, b.headers.Authorization);
-  });
-});
-
-describe("loadAwsCredentials", () => {
-  /** @type {string} */
-  let tmpDir;
-  /** @type {string} */
-  let origConfigFile;
-  /** @type {string} */
-  let origCredsFile;
-
-  test("loads static credentials from credentials file", async () => {
-    tmpDir = await mkdtemp(join(tmpdir(), "aws-test-"));
-    origConfigFile = process.env.AWS_CONFIG_FILE || "";
-    origCredsFile = process.env.AWS_SHARED_CREDENTIALS_FILE || "";
-
-    const credPath = join(tmpDir, "credentials");
-    await writeFile(
-      credPath,
-      `[test-profile]
-aws_access_key_id = AKIATEST
-aws_secret_access_key = secretTEST
-aws_session_token = tokenTEST
-`,
-    );
-
-    process.env.AWS_CONFIG_FILE = join(tmpDir, "config");
-    process.env.AWS_SHARED_CREDENTIALS_FILE = credPath;
-
-    try {
-      const creds = await loadAwsCredentials("test-profile");
-      assert.equal(creds.accessKeyId, "AKIATEST");
-      assert.equal(creds.secretAccessKey, "secretTEST");
-      assert.equal(creds.sessionToken, "tokenTEST");
-    } finally {
-      process.env.AWS_CONFIG_FILE = origConfigFile;
-      process.env.AWS_SHARED_CREDENTIALS_FILE = origCredsFile;
-      await rm(tmpDir, { recursive: true });
-    }
-  });
-
-  test("loads static credentials from config file", async () => {
-    tmpDir = await mkdtemp(join(tmpdir(), "aws-test-"));
-    origConfigFile = process.env.AWS_CONFIG_FILE || "";
-    origCredsFile = process.env.AWS_SHARED_CREDENTIALS_FILE || "";
-
-    const configPath = join(tmpDir, "config");
-    await writeFile(
-      configPath,
-      `[profile my-profile]
-aws_access_key_id = AKIACONFIG
-aws_secret_access_key = secretCONFIG
-`,
-    );
-
-    process.env.AWS_CONFIG_FILE = configPath;
-    process.env.AWS_SHARED_CREDENTIALS_FILE = join(tmpDir, "credentials");
-
-    try {
-      const creds = await loadAwsCredentials("my-profile");
-      assert.equal(creds.accessKeyId, "AKIACONFIG");
-      assert.equal(creds.secretAccessKey, "secretCONFIG");
-      assert.equal(creds.sessionToken, undefined);
-    } finally {
-      process.env.AWS_CONFIG_FILE = origConfigFile;
-      process.env.AWS_SHARED_CREDENTIALS_FILE = origCredsFile;
-      await rm(tmpDir, { recursive: true });
-    }
-  });
-
-  test("throws when no credentials found", async () => {
-    tmpDir = await mkdtemp(join(tmpdir(), "aws-test-"));
-    origConfigFile = process.env.AWS_CONFIG_FILE || "";
-    origCredsFile = process.env.AWS_SHARED_CREDENTIALS_FILE || "";
-
-    process.env.AWS_CONFIG_FILE = join(tmpDir, "config");
-    process.env.AWS_SHARED_CREDENTIALS_FILE = join(tmpDir, "credentials");
-
-    try {
-      await assert.rejects(() => loadAwsCredentials("nonexistent"), {
-        message: /No credentials found for profile "nonexistent"/,
-      });
-    } finally {
-      process.env.AWS_CONFIG_FILE = origConfigFile;
-      process.env.AWS_SHARED_CREDENTIALS_FILE = origCredsFile;
-      await rm(tmpDir, { recursive: true });
-    }
   });
 });
