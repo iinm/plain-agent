@@ -103,7 +103,7 @@ Discover and apply project-specific rules and reusable skills.
 ## AGENTS.md (falling back to CLAUDE.md if not found): Project-specific rules, conventions, and commands.
 
 Find: fd ["^(AGENTS|CLAUDE)\\.md$", "./", "--hidden", "--max-depth", "5"]
-Read from root to target: ./AGENTS.md → dir/AGENTS.md → dir/subdir/AGENTS.md
+Read from the project root to the directory you're working in: ./AGENTS.md → dir/AGENTS.md → dir/subdir/AGENTS.md
 Apply rules when working in that directory
 
 ## SKILL.md: Reusable workflows with specialized knowledge
