@@ -3,7 +3,7 @@
  * @import { MCPServerConfig } from "./config";
  */
 
-import { mkdir, open } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { AGENT_PROJECT_METADATA_DIR } from "./env.mjs";
 import { createMCPClient } from "./mcpClient.mjs";
@@ -67,21 +67,16 @@ async function startMCPServer(options) {
   const logDir = path.join(AGENT_PROJECT_METADATA_DIR, "logs");
   await mkdir(logDir, { recursive: true });
   const logPath = path.join(logDir, `mcp--${options.serverName}.stderr`);
-  const stderrLogFile = await open(logPath, "a");
 
-  const { env, ...restParams } = options.params;
   const client = await createMCPClient({
-    ...restParams,
-    env,
-    stderr: stderrLogFile,
+    ...options.params,
+    stderr: logPath,
   });
 
   return {
     client,
     stderrLogPath: logPath,
-    cleanup: () => {
-      stderrLogFile.close();
-    },
+    cleanup: () => {},
   };
 }
 
