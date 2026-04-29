@@ -15,14 +15,7 @@ export async function loadAwsCredentials(profile) {
   const stdout = await new Promise((resolve, reject) => {
     execFile(
       "aws",
-      [
-        "configure",
-        "export-credentials",
-        "--profile",
-        profile,
-        "--format",
-        "json",
-      ],
+      ["configure", "export-credentials", "--profile", profile],
       {
         shell: false,
         timeout: 30 * 1000,
@@ -113,9 +106,16 @@ export function signAwsRequest(request, options) {
 
   const payloadHash = sha256Hex(body || "");
 
+  // AWS SigV4 Canonical URI requires each path segment to be URI-encoded.
+  // URL.pathname returns a decoded string, so we need to re-encode it.
+  const canonicalUri = path
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+
   const canonicalRequest = [
     method,
-    path,
+    canonicalUri,
     "", // query string (empty for POST)
     `${canonicalHeaders}\n`,
     signedHeadersList,
