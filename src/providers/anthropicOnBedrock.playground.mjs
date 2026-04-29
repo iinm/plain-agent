@@ -1,7 +1,4 @@
-import { Sha256 } from "@aws-crypto/sha256-js";
-import { fromIni } from "@aws-sdk/credential-providers";
-import { HttpRequest } from "@smithy/protocol-http";
-import { SignatureV4 } from "@smithy/signature-v4";
+import { loadAwsCredentials, signAwsRequest } from "./platform/awsSigV4.mjs";
 
 (async () => {
   const modelId = "jp.anthropic.claude-haiku-4-5-20251001-v1:0";
@@ -46,26 +43,21 @@ import { SignatureV4 } from "@smithy/signature-v4";
     ],
   };
 
-  const signer = new SignatureV4({
-    credentials: fromIni({ profile: process.env.AWS_PROFILE }),
-    region,
-    service: "bedrock",
-    sha256: Sha256,
-  });
+  const credentials = await loadAwsCredentials(process.env.AWS_PROFILE ?? "");
 
-  const req = new HttpRequest({
-    protocol: "https:",
-    method: "POST",
-    hostname,
-    path: pathname,
-    headers: {
-      host: hostname,
-      "Content-Type": "application/json",
+  const signed = signAwsRequest(
+    {
+      method: "POST",
+      hostname,
+      path: pathname,
+      headers: {
+        host: hostname,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
-  });
-
-  const signed = await signer.sign(req);
+    { region, service: "bedrock", credentials },
+  );
 
   const response = await fetch(url, {
     method: signed.method,
