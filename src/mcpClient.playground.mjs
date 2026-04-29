@@ -1,23 +1,16 @@
-import { Client, StdioClientTransport } from "@modelcontextprotocol/client";
+import { createMCPClient } from "./mcpClient.mjs";
 
 (async () => {
-  const client = new Client({
-    name: "undefined",
-    version: "undefined",
-  });
-
-  const transport = new StdioClientTransport({
+  const client = await createMCPClient({
     command: "npx",
     args: ["@playwright/mcp@latest", "--headless"],
+    stderr: "inherit",
   });
 
-  await client.connect(transport);
-
+  // Navigate
   const navigateResult = await client.callTool({
     name: "browser_navigate",
-    arguments: {
-      url: "https://example.com",
-    },
+    arguments: { url: "https://example.com" },
   });
   console.log(JSON.stringify(navigateResult, null, 2));
   // {
@@ -29,6 +22,7 @@ import { Client, StdioClientTransport } from "@modelcontextprotocol/client";
   //   ]
   // }
 
+  // Screenshot
   const screenshotResult = await client.callTool({
     name: "browser_take_screenshot",
     arguments: {},

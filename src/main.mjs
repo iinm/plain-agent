@@ -16,7 +16,7 @@ import { loadAppConfig } from "./config.mjs";
 import { loadAgentRoles } from "./context/loadAgentRoles.mjs";
 import { loadPrompts } from "./context/loadPrompts.mjs";
 import { AGENT_PROJECT_METADATA_DIR, USER_NAME } from "./env.mjs";
-import { setupMCPServer } from "./mcp.mjs";
+import { setupMCPServer } from "./mcpIntegration.mjs";
 import { createModelCaller } from "./modelCaller.mjs";
 import { createPrompt } from "./prompt.mjs";
 import { createAskURLTool } from "./tools/askURL.mjs";

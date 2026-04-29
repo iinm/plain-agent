@@ -1,14 +1,16 @@
 /**
- * @import { Client } from "@modelcontextprotocol/client";
  * @import { StructuredToolResultContent, Tool, ToolImplementation } from "./tool";
  * @import { MCPServerConfig } from "./config";
  */
 
-import { mkdir, open } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { AGENT_PROJECT_METADATA_DIR } from "./env.mjs";
+import { createMCPClient } from "./mcpClient.mjs";
 import { writeTmpFile } from "./tmpfile.mjs";
 import { noThrow } from "./utils/noThrow.mjs";
+
+/** @typedef {import("./mcpClient.mjs").MCPClient} MCPClient */
 
 const OUTPUT_MAX_LENGTH = 1024 * 8;
 
@@ -27,9 +29,14 @@ const OUTPUT_MAX_LENGTH = 1024 * 8;
 export async function setupMCPServer(serverName, serverConfig) {
   const { options, ...params } = serverConfig;
 
-  const { client, stderrLogPath, cleanup } = await startMCPServer({
-    serverName,
-    params,
+  // Ensure log directory exists and open stderr log file
+  const logDir = path.join(AGENT_PROJECT_METADATA_DIR, "logs");
+  await mkdir(logDir, { recursive: true });
+  const logPath = path.join(logDir, `mcp--${serverName}.stderr`);
+
+  const client = await createMCPClient({
+    ...params,
+    stderr: logPath,
   });
 
   const tools = (await createMCPTools(serverName, client)).filter(
@@ -42,65 +49,17 @@ export async function setupMCPServer(serverName, serverConfig) {
 
   return {
     tools,
-    stderrLogPath,
+    stderrLogPath: logPath,
     cleanup: async () => {
-      cleanup();
       await client.close();
     },
   };
 }
 
 /**
- * @typedef {Object} MCPClientOptions
- * @property {string} serverName - The name of the MCP server.
- * @property {import("@modelcontextprotocol/client").StdioServerParameters} params - The transport to use for the client.
- */
-
-/**
- * @param {MCPClientOptions} options - The options for the client.
- * @returns {Promise<{client: Client; stderrLogPath: string; cleanup: () => void}>} - The MCP client, stderr log path, and cleanup function.
- */
-async function startMCPServer(options) {
-  const mcpClient = await import("@modelcontextprotocol/client");
-
-  const client = new mcpClient.Client({
-    name: "undefined",
-    version: "undefined",
-  });
-
-  const { env, ...restParams } = options.params;
-  const defaultEnv = {
-    PWD: process.env.PWD || "",
-    PATH: process.env.PATH || "",
-    HOME: process.env.HOME || "",
-  };
-
-  // Ensure log directory exists and open stderr log file
-  const logDir = path.join(AGENT_PROJECT_METADATA_DIR, "logs");
-  await mkdir(logDir, { recursive: true });
-  const logPath = path.join(logDir, `mcp--${options.serverName}.stderr`);
-  const stderrLogFile = await open(logPath, "a");
-
-  const transport = new mcpClient.StdioClientTransport({
-    ...restParams,
-    env: env ? { ...defaultEnv, ...env } : undefined,
-    stderr: stderrLogFile.fd,
-  });
-  await client.connect(transport);
-
-  return {
-    client,
-    stderrLogPath: logPath,
-    cleanup: () => {
-      stderrLogFile.close();
-    },
-  };
-}
-
-/**
  * @param {string} serverName
- * @param {Client} client - The MCP client.
- * @returns {Promise<Tool[]>} - The list of tools.
+ * @param {MCPClient} client
+ * @returns {Promise<Tool[]>}
  */
 async function createMCPTools(serverName, client) {
   const { tools: mcpTools } = await client.listTools();
