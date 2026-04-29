@@ -80,7 +80,7 @@ function hmacSha256(key, data) {
  * }} options
  * @returns {{ method: string, headers: Record<string, string>, body: string }}
  */
-export function signRequest(request, options) {
+export function signAwsRequest(request, options) {
   const { method, hostname, path, headers, body } = request;
   const { region, service, credentials } = options;
 

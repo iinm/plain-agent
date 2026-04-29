@@ -7,10 +7,7 @@
 import { styleText } from "node:util";
 import { noThrow } from "../utils/noThrow.mjs";
 import { retryOnError } from "../utils/retryOnError.mjs";
-import {
-  loadAwsCredentials,
-  signRequest as signAwsRequest,
-} from "./platform/awsSigV4.mjs";
+import { loadAwsCredentials, signAwsRequest } from "./platform/awsSigV4.mjs";
 import { readBedrockStreamEvents } from "./platform/bedrock.mjs";
 import { getGoogleCloudAccessToken } from "./platform/googleCloud.mjs";
 

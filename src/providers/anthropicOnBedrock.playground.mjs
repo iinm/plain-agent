@@ -1,7 +1,4 @@
-import {
-  loadAwsCredentials,
-  signRequest as signAwsRequest,
-} from "./platform/awsSigV4.mjs";
+import { loadAwsCredentials, signAwsRequest } from "./platform/awsSigV4.mjs";
 
 (async () => {
   const modelId = "jp.anthropic.claude-haiku-4-5-20251001-v1:0";

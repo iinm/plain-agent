@@ -1,7 +1,4 @@
-import {
-  loadAwsCredentials,
-  signRequest as signAwsRequest,
-} from "./platform/awsSigV4.mjs";
+import { loadAwsCredentials, signAwsRequest } from "./platform/awsSigV4.mjs";
 
 (async () => {
   const modelId = "moonshotai.kimi-k2.5";

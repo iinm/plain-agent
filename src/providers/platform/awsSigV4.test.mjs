@@ -1,15 +1,15 @@
 import assert from "node:assert";
 import test, { describe } from "node:test";
-import { signRequest } from "./awsSigV4.mjs";
+import { signAwsRequest } from "./awsSigV4.mjs";
 
-describe("signRequest", () => {
+describe("signAwsRequest", () => {
   test("produces correct Authorization header structure", (t) => {
     t.mock.timers.enable({
       apis: ["Date"],
       now: Date.parse("2024-01-15T12:30:00.000Z"),
     });
 
-    const result = signRequest(
+    const result = signAwsRequest(
       {
         method: "POST",
         hostname: "bedrock-runtime.us-east-1.amazonaws.com",
@@ -46,7 +46,7 @@ describe("signRequest", () => {
       now: Date.parse("2024-01-15T12:30:00.000Z"),
     });
 
-    const result = signRequest(
+    const result = signAwsRequest(
       {
         method: "POST",
         hostname: "bedrock-runtime.ap-northeast-1.amazonaws.com",
@@ -102,8 +102,8 @@ describe("signRequest", () => {
       },
     ]);
 
-    const a = signRequest(...args);
-    const b = signRequest(...args);
+    const a = signAwsRequest(...args);
+    const b = signAwsRequest(...args);
     assert.equal(a.headers.Authorization, b.headers.Authorization);
   });
 });
