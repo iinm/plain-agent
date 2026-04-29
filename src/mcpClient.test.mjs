@@ -3,61 +3,19 @@ import { spawn } from "node:child_process";
 import test, { describe } from "node:test";
 import { MCPClient } from "./mcpClient.mjs";
 
+const MOCK_SERVER_PATH = new URL(
+  "./mcpClient.test.mockServer.mjs",
+  import.meta.url,
+).pathname;
+
 /**
  * Spawn a mock MCP server that speaks JSON-RPC 2.0 over stdio.
- * The server handles: initialize, tools/list, tools/call.
  * @returns {import("node:child_process").ChildProcess}
  */
 function spawnMockServer() {
-  return spawn(
-    process.execPath,
-    [
-      "-e",
-      `
-const readline = require("node:readline");
-const rl = readline.createInterface({ input: process.stdin });
-rl.on("line", (line) => {
-  const msg = JSON.parse(line);
-  if (msg.method === "initialize") {
-    process.stdout.write(JSON.stringify({
-      jsonrpc: "2.0", id: msg.id,
-      result: { protocolVersion: "2025-03-26", capabilities: {}, serverInfo: { name: "mock", version: "0.0.0" } }
-    }) + "\\n");
-  } else if (msg.method === "notifications/initialized") {
-    // no response for notifications
-  } else if (msg.method === "tools/list") {
-    process.stdout.write(JSON.stringify({
-      jsonrpc: "2.0", id: msg.id,
-      result: { tools: [
-        { name: "echo", description: "Echo tool", inputSchema: { type: "object", properties: { text: { type: "string" } } } },
-        { name: "add", description: "Add numbers", inputSchema: { type: "object", properties: { a: { type: "number" }, b: { type: "number" } } } }
-      ] }
-    }) + "\\n");
-  } else if (msg.method === "tools/call") {
-    const toolName = msg.params.name;
-    if (toolName === "echo") {
-      process.stdout.write(JSON.stringify({
-        jsonrpc: "2.0", id: msg.id,
-        result: { content: [{ type: "text", text: msg.params.arguments.text }] }
-      }) + "\\n");
-    } else if (toolName === "add") {
-      const sum = msg.params.arguments.a + msg.params.arguments.b;
-      process.stdout.write(JSON.stringify({
-        jsonrpc: "2.0", id: msg.id,
-        result: { content: [{ type: "text", text: String(sum) }] }
-      }) + "\\n");
-    } else if (toolName === "error_tool") {
-      process.stdout.write(JSON.stringify({
-        jsonrpc: "2.0", id: msg.id,
-        error: { code: -1, message: "tool failed" }
-      }) + "\\n");
-    }
-  }
-});
-`,
-    ],
-    { stdio: ["pipe", "pipe", "ignore"] },
-  );
+  return spawn(process.execPath, [MOCK_SERVER_PATH], {
+    stdio: ["pipe", "pipe", "ignore"],
+  });
 }
 
 describe("MCPClient", () => {
