@@ -9,6 +9,15 @@ export class MCPClient {
   #nextId = 1;
   /** @type {Map<number, { resolve: (value: any) => void, reject: (reason: any) => void }>} */
   #pendingRequests = new Map();
+  #closed = false;
+  /** @type {Error | undefined} */
+  #earlyExitError;
+  /** @type {((line: string) => void) | undefined} */
+  #onLine;
+  /** @type {((code: number | null) => void) | undefined} */
+  #onClose;
+  /** @type {((err: Error) => void) | undefined} */
+  #onError;
 
   /**
    * @param {import("node:child_process").ChildProcess} childProcess
@@ -19,7 +28,8 @@ export class MCPClient {
       throw new Error("MCP server stdout is not available");
     }
     this.#rl = createInterface({ input: childProcess.stdout });
-    this.#rl.on("line", (line) => {
+
+    this.#onLine = (line) => {
       if (!line.trim()) return;
       try {
         const msg = JSON.parse(line);
@@ -38,21 +48,31 @@ export class MCPClient {
       } catch {
         // Ignore non-JSON lines
       }
-    });
+    };
+    this.#rl.on("line", this.#onLine);
 
-    childProcess.on("close", (code) => {
-      for (const [, { reject }] of this.#pendingRequests) {
-        reject(new Error(`MCP server exited with code ${code}`));
-      }
-      this.#pendingRequests.clear();
-    });
+    this.#onClose = (code) => {
+      const err = new Error(`MCP server exited with code ${code}`);
+      this.#earlyExitError = err;
+      this.#rejectAllPending(err);
+    };
+    childProcess.on("close", this.#onClose);
 
-    childProcess.on("error", (err) => {
-      for (const [, { reject }] of this.#pendingRequests) {
-        reject(err);
-      }
-      this.#pendingRequests.clear();
-    });
+    this.#onError = (err) => {
+      this.#earlyExitError = err;
+      this.#rejectAllPending(err);
+    };
+    childProcess.on("error", this.#onError);
+  }
+
+  /**
+   * @param {Error} error
+   */
+  #rejectAllPending(error) {
+    for (const [, { reject }] of this.#pendingRequests) {
+      reject(error);
+    }
+    this.#pendingRequests.clear();
   }
 
   /**
@@ -61,6 +81,9 @@ export class MCPClient {
    * @returns {Promise<any>}
    */
   #request(method, params) {
+    if (this.#closed) {
+      return Promise.reject(new Error("MCP client is closed"));
+    }
     const id = this.#nextId++;
     return new Promise((resolve, reject) => {
       this.#pendingRequests.set(id, { resolve, reject });
@@ -79,13 +102,19 @@ export class MCPClient {
    * @param {Record<string, unknown>} [params]
    */
   #notify(method, params) {
+    if (this.#closed) return;
     const msg = JSON.stringify(
       params ? { jsonrpc: "2.0", method, params } : { jsonrpc: "2.0", method },
     );
-    this.#process.stdin?.write(`${msg}\n`);
+    this.#process.stdin?.write(`${msg}\n`, () => {
+      // Ignore write errors in notifications
+    });
   }
 
   async initialize() {
+    if (this.#earlyExitError) {
+      throw this.#earlyExitError;
+    }
     const result = await this.#request("initialize", {
       protocolVersion: "2025-03-26",
       capabilities: {},
@@ -111,8 +140,13 @@ export class MCPClient {
   }
 
   async close() {
+    this.#closed = true;
+    this.#rejectAllPending(new Error("MCP client is closed"));
+    if (this.#onLine) this.#rl.off("line", this.#onLine);
     this.#rl.close();
     this.#process.stdin?.end();
+    if (this.#onClose) this.#process.off("close", this.#onClose);
+    if (this.#onError) this.#process.off("error", this.#onError);
     this.#process.kill();
   }
 }
@@ -147,7 +181,19 @@ export async function createMCPClient(options) {
     stdio: ["pipe", "pipe", stderrFd],
   });
 
+  // Detect immediate exit (e.g. command not found or immediate crash)
+  if (childProcess.exitCode !== null || childProcess.signalCode !== null) {
+    throw new Error(
+      `MCP server exited with code ${childProcess.exitCode} before initialization`,
+    );
+  }
+
   const client = new MCPClient(childProcess);
-  await client.initialize();
+  try {
+    await client.initialize();
+  } catch (err) {
+    childProcess.kill();
+    throw err;
+  }
   return client;
 }

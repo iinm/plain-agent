@@ -9,7 +9,12 @@ import { createInterface } from "node:readline";
 const rl = createInterface({ input: process.stdin });
 
 rl.on("line", (line) => {
-  const msg = JSON.parse(line);
+  let msg;
+  try {
+    msg = JSON.parse(line);
+  } catch {
+    return;
+  }
 
   if (msg.method === "initialize") {
     respond(msg.id, {
