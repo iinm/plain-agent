@@ -1,16 +1,137 @@
 /**
- * @import { Client } from "@modelcontextprotocol/client";
  * @import { StructuredToolResultContent, Tool, ToolImplementation } from "./tool";
  * @import { MCPServerConfig } from "./config";
  */
 
+import { spawn } from "node:child_process";
 import { mkdir, open } from "node:fs/promises";
 import path from "node:path";
+import { createInterface } from "node:readline";
 import { AGENT_PROJECT_METADATA_DIR } from "./env.mjs";
 import { writeTmpFile } from "./tmpfile.mjs";
 import { noThrow } from "./utils/noThrow.mjs";
 
 const OUTPUT_MAX_LENGTH = 1024 * 8;
+
+// --- Minimal MCP Client (JSON-RPC 2.0 over stdio) ---
+
+class MCPClient {
+  /** @type {import("node:child_process").ChildProcess} */
+  #process;
+  /** @type {import("node:readline").Interface} */
+  #rl;
+  #nextId = 1;
+  /** @type {Map<number, { resolve: (value: any) => void, reject: (reason: any) => void }>} */
+  #pendingRequests = new Map();
+
+  /**
+   * @param {import("node:child_process").ChildProcess} childProcess
+   */
+  constructor(childProcess) {
+    this.#process = childProcess;
+    if (!childProcess.stdout) {
+      throw new Error("MCP server stdout is not available");
+    }
+    this.#rl = createInterface({ input: childProcess.stdout });
+    this.#rl.on("line", (line) => {
+      if (!line.trim()) return;
+      try {
+        const msg = JSON.parse(line);
+        if ("id" in msg && this.#pendingRequests.has(msg.id)) {
+          const pending = this.#pendingRequests.get(msg.id);
+          if (!pending) return;
+          this.#pendingRequests.delete(msg.id);
+          if (msg.error) {
+            pending.reject(
+              new Error(msg.error.message || JSON.stringify(msg.error)),
+            );
+          } else {
+            pending.resolve(msg.result);
+          }
+        }
+      } catch {
+        // Ignore non-JSON lines
+      }
+    });
+
+    childProcess.on("close", (code) => {
+      for (const [, { reject }] of this.#pendingRequests) {
+        reject(new Error(`MCP server exited with code ${code}`));
+      }
+      this.#pendingRequests.clear();
+    });
+
+    childProcess.on("error", (err) => {
+      for (const [, { reject }] of this.#pendingRequests) {
+        reject(err);
+      }
+      this.#pendingRequests.clear();
+    });
+  }
+
+  /**
+   * @param {string} method
+   * @param {Record<string, unknown>} [params]
+   * @returns {Promise<any>}
+   */
+  #request(method, params) {
+    const id = this.#nextId++;
+    return new Promise((resolve, reject) => {
+      this.#pendingRequests.set(id, { resolve, reject });
+      const msg = JSON.stringify({ jsonrpc: "2.0", id, method, params });
+      this.#process.stdin?.write(`${msg}\n`, (err) => {
+        if (err) {
+          this.#pendingRequests.delete(id);
+          reject(err);
+        }
+      });
+    });
+  }
+
+  /**
+   * @param {string} method
+   * @param {Record<string, unknown>} [params]
+   */
+  #notify(method, params) {
+    const msg = JSON.stringify(
+      params ? { jsonrpc: "2.0", method, params } : { jsonrpc: "2.0", method },
+    );
+    this.#process.stdin?.write(`${msg}\n`);
+  }
+
+  async initialize() {
+    const result = await this.#request("initialize", {
+      protocolVersion: "2025-03-26",
+      capabilities: {},
+      clientInfo: { name: "plain-agent", version: "0.0.0" },
+    });
+    this.#notify("notifications/initialized");
+    return result;
+  }
+
+  /**
+   * @returns {Promise<{ tools: Array<{ name: string, description?: string, inputSchema: Record<string, unknown> }> }>}
+   */
+  async listTools() {
+    return await this.#request("tools/list", {});
+  }
+
+  /**
+   * @param {{ name: string, arguments?: Record<string, unknown> }} params
+   * @returns {Promise<{ content?: Array<{ type: string, text?: string, data?: string, mimeType?: string }>, isError?: boolean }>}
+   */
+  async callTool(params) {
+    return await this.#request("tools/call", params);
+  }
+
+  async close() {
+    this.#rl.close();
+    this.#process.stdin?.end();
+    this.#process.kill();
+  }
+}
+
+// --- Setup and Tool Creation ---
 
 /**
  * @typedef {Object} SetupMCPServrResult
@@ -52,22 +173,15 @@ export async function setupMCPServer(serverName, serverConfig) {
 
 /**
  * @typedef {Object} MCPClientOptions
- * @property {string} serverName - The name of the MCP server.
- * @property {import("@modelcontextprotocol/client").StdioServerParameters} params - The transport to use for the client.
+ * @property {string} serverName
+ * @property {{ command: string, args?: string[], env?: Record<string, string> }} params
  */
 
 /**
- * @param {MCPClientOptions} options - The options for the client.
- * @returns {Promise<{client: Client; stderrLogPath: string; cleanup: () => void}>} - The MCP client, stderr log path, and cleanup function.
+ * @param {MCPClientOptions} options
+ * @returns {Promise<{client: MCPClient; stderrLogPath: string; cleanup: () => void}>}
  */
 async function startMCPServer(options) {
-  const mcpClient = await import("@modelcontextprotocol/client");
-
-  const client = new mcpClient.Client({
-    name: "undefined",
-    version: "undefined",
-  });
-
   const { env, ...restParams } = options.params;
   const defaultEnv = {
     PWD: process.env.PWD || "",
@@ -81,12 +195,13 @@ async function startMCPServer(options) {
   const logPath = path.join(logDir, `mcp--${options.serverName}.stderr`);
   const stderrLogFile = await open(logPath, "a");
 
-  const transport = new mcpClient.StdioClientTransport({
-    ...restParams,
+  const childProcess = spawn(restParams.command, restParams.args || [], {
     env: env ? { ...defaultEnv, ...env } : undefined,
-    stderr: stderrLogFile.fd,
+    stdio: ["pipe", "pipe", stderrLogFile.fd],
   });
-  await client.connect(transport);
+
+  const client = new MCPClient(childProcess);
+  await client.initialize();
 
   return {
     client,
@@ -99,8 +214,8 @@ async function startMCPServer(options) {
 
 /**
  * @param {string} serverName
- * @param {Client} client - The MCP client.
- * @returns {Promise<Tool[]>} - The list of tools.
+ * @param {MCPClient} client
+ * @returns {Promise<Tool[]>}
  */
 async function createMCPTools(serverName, client) {
   const { tools: mcpTools } = await client.listTools();
