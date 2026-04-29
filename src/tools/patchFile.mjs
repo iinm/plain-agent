@@ -57,6 +57,32 @@ other new content
       await noThrow(async () => {
         const { filePath, diff } = input;
 
+        // Validate marker counts: each block needs exactly one of each marker.
+        // Since nonce is random, duplicate markers mean the user accidentally
+        // included a marker line in their search/replace content (copy-paste error).
+        const searchMarker = `<<< ${nonce} <<< SEARCH`;
+        const sepMarker = `=== ${nonce} ===`;
+        const replaceMarker = `>>> ${nonce} >>> REPLACE`;
+        /** @type {(s: string, sub: string) => number} */
+        const count = (s, sub) => s.split(sub).length - 1;
+        const nSearch = count(diff, searchMarker);
+        const nSep = count(diff, sepMarker);
+        const nReplace = count(diff, replaceMarker);
+
+        if (nSearch !== nReplace) {
+          throw new Error(
+            `Mismatched block markers: found ${nSearch} "${searchMarker}" but ${nReplace} "${replaceMarker}". ` +
+              "Did you accidentally include a marker in your search/replace content?",
+          );
+        }
+        if (nSep !== nSearch) {
+          throw new Error(
+            `Each diff block needs exactly one "${sepMarker}" separator, ` +
+              `but found ${nSep} separators for ${nSearch} block(s). ` +
+              "Did you accidentally include the separator marker in your search/replace content?",
+          );
+        }
+
         const content = await fs.readFile(filePath, "utf8");
         const matches = Array.from(
           diff.matchAll(

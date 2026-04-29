@@ -227,4 +227,60 @@ $& means match, $1 means first group, $$ means literal dollar
       "$& means match, $1 means first group, $$ means literal dollar";
     assert.equal(patchedContent, expectedContent);
   });
+
+  it("errors when nonce marker appears inside content", async () => {
+    // given:
+    const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;
+    await fs.mkdir("tmp", { recursive: true });
+    const initialContent = "dummy";
+    await fs.writeFile(tmpFilePath, initialContent);
+    cleanups.push(() => fs.unlink(tmpFilePath));
+
+    // when: search/replace content accidentally includes the separator marker
+    const diff = `
+<<< 012 <<< SEARCH
+first section
+=== 012 ===
+second section
+=== 012 ===
+replaced!
+>>> 012 >>> REPLACE
+`;
+
+    // then: validation catches duplicate separator (nSep > nSearch)
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    assert.ok(result instanceof Error);
+    assert.equal(
+      result.message,
+      'Each diff block needs exactly one "=== 012 ===" separator, but found 2 separators for 1 block(s). Did you accidentally include the separator marker in your search/replace content?',
+    );
+  });
+
+  it("errors when block markers appear inside content", async () => {
+    // given:
+    const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;
+    await fs.mkdir("tmp", { recursive: true });
+    const initialContent = "dummy";
+    await fs.writeFile(tmpFilePath, initialContent);
+    cleanups.push(() => fs.unlink(tmpFilePath));
+
+    // when: search content accidentally includes <<< 012 <<< SEARCH
+    const diff = `
+<<< 012 <<< SEARCH
+some text
+<<< 012 <<< SEARCH
+oops
+=== 012 ===
+replacement
+>>> 012 >>> REPLACE
+`;
+
+    // then: validation catches mismatched block markers (2 <<< but 1 >>>)
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    assert.ok(result instanceof Error);
+    assert.equal(
+      result.message,
+      'Mismatched block markers: found 2 "<<< 012 <<< SEARCH" but 1 ">>> 012 >>> REPLACE". Did you accidentally include a marker in your search/replace content?',
+    );
+  });
 });
