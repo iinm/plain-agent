@@ -12,6 +12,7 @@ import { createInterface } from "node:readline";
  * @property {{ name: string, version: string }} [clientInfo]
  * @property {Record<string, unknown>} [capabilities]
  * @property {(method: string, params?: unknown) => void} [onNotification]
+ *   Currently unused by callers, but provided for MCP protocol compliance (e.g. notifications/progress).
  */
 
 /**
@@ -71,7 +72,7 @@ export class MCPClient {
       protocolVersion: options.protocolVersion ?? "2025-03-26",
       capabilities: options.capabilities ?? {},
       clientInfo: options.clientInfo ?? {
-        name: "plain-agent",
+        name: "unknown",
         version: "0.0.0",
       },
     });
@@ -138,6 +139,7 @@ export class StdioTransport {
   /** @type {number | undefined} */
   #stderrFd;
   /** @type {((method: string, params?: unknown) => void) | undefined} */
+  // Currently unused by callers, but provided for MCP protocol compliance (e.g. notifications/progress).
   #onNotification;
 
   /**

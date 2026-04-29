@@ -29,9 +29,14 @@ const OUTPUT_MAX_LENGTH = 1024 * 8;
 export async function setupMCPServer(serverName, serverConfig) {
   const { options, ...params } = serverConfig;
 
-  const { client, stderrLogPath, cleanup } = await startMCPServer({
-    serverName,
-    params,
+  // Ensure log directory exists and open stderr log file
+  const logDir = path.join(AGENT_PROJECT_METADATA_DIR, "logs");
+  await mkdir(logDir, { recursive: true });
+  const logPath = path.join(logDir, `mcp--${serverName}.stderr`);
+
+  const client = await createMCPClient({
+    ...params,
+    stderr: logPath,
   });
 
   const tools = (await createMCPTools(serverName, client)).filter(
@@ -44,39 +49,10 @@ export async function setupMCPServer(serverName, serverConfig) {
 
   return {
     tools,
-    stderrLogPath,
+    stderrLogPath: logPath,
     cleanup: async () => {
-      cleanup();
       await client.close();
     },
-  };
-}
-
-/**
- * @typedef {Object} MCPServerOptions
- * @property {string} serverName
- * @property {{ command: string, args?: string[], env?: Record<string, string> }} params
- */
-
-/**
- * @param {MCPServerOptions} options
- * @returns {Promise<{client: MCPClient; stderrLogPath: string; cleanup: () => void}>}
- */
-async function startMCPServer(options) {
-  // Ensure log directory exists and open stderr log file
-  const logDir = path.join(AGENT_PROJECT_METADATA_DIR, "logs");
-  await mkdir(logDir, { recursive: true });
-  const logPath = path.join(logDir, `mcp--${options.serverName}.stderr`);
-
-  const client = await createMCPClient({
-    ...options.params,
-    stderr: logPath,
-  });
-
-  return {
-    client,
-    stderrLogPath: logPath,
-    cleanup: () => {},
   };
 }
 
