@@ -30,6 +30,13 @@ export async function loadAwsCredentials(profile) {
     );
   });
   const parsed = JSON.parse(stdout);
+  for (const key of ["AccessKeyId", "SecretAccessKey"]) {
+    if (!parsed[key] || typeof parsed[key] !== "string") {
+      throw new Error(
+        `AWS credentials output missing ${key}. Raw output: ${stdout.slice(0, 200)}`,
+      );
+    }
+  }
   return {
     accessKeyId: parsed.AccessKeyId,
     secretAccessKey: parsed.SecretAccessKey,

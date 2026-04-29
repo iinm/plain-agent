@@ -30,9 +30,9 @@ describe("signAwsRequest", () => {
       },
     );
 
-    assert.match(
+    assert.equal(
       result.headers.Authorization,
-      /^AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE\/20240115\/us-east-1\/bedrock\/aws4_request, SignedHeaders=content-type;host;x-amz-date, Signature=[a-f0-9]{64}$/,
+      "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20240115/us-east-1/bedrock/aws4_request, SignedHeaders=content-type;host;x-amz-date, Signature=e2ccf415c6a9959ede96069e7252fd5294bbb2eba00c60676beec49ad606a375",
     );
     assert.equal(result.headers["x-amz-date"], "20240115T123000Z");
     assert.equal(result.headers["x-amz-security-token"], undefined);
