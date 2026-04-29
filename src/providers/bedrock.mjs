@@ -6,6 +6,7 @@
 
 import { styleText } from "node:util";
 import { noThrow } from "../utils/noThrow.mjs";
+import { loadAwsCredentials, signAwsRequest } from "./platform/awsSigV4.mjs";
 import { readBedrockStreamEvents } from "./platform/bedrock.mjs";
 
 /**
@@ -21,11 +22,6 @@ export async function callBedrockConverseModel(
   input,
   retryCount = 0,
 ) {
-  const { Sha256 } = await import("@aws-crypto/sha256-js");
-  const { fromIni } = await import("@aws-sdk/credential-providers");
-  const { HttpRequest } = await import("@smithy/protocol-http");
-  const { SignatureV4 } = await import("@smithy/signature-v4");
-
   return await noThrow(async () => {
     const messages = convertGenericMessageToBedrockFormat(input.messages);
     const cachedMessages = modelConfig.enablePromptCaching
@@ -75,29 +71,23 @@ export async function callBedrockConverseModel(
     const payload = JSON.stringify(request);
 
     // Sign request with AWS Signature V4
-    const signer = new SignatureV4({
-      credentials: fromIni({ profile: platformConfig.awsProfile }),
-      region,
-      service: "bedrock",
-      sha256: Sha256,
-    });
-
+    const credentials = await loadAwsCredentials(platformConfig.awsProfile);
     const urlParsed = new URL(url);
     const { hostname, pathname } = urlParsed;
 
-    const req = new HttpRequest({
-      protocol: "https:",
-      method: "POST",
-      hostname,
-      path: pathname,
-      headers: {
-        host: hostname,
-        "Content-Type": "application/json",
+    const signed = signAwsRequest(
+      {
+        method: "POST",
+        hostname,
+        path: pathname,
+        headers: {
+          host: hostname,
+          "Content-Type": "application/json",
+        },
+        body: payload,
       },
-      body: payload,
-    });
-
-    const signed = await signer.sign(req);
+      { region, service: "bedrock", credentials },
+    );
 
     const response = await fetch(url, {
       method: signed.method,
