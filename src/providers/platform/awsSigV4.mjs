@@ -5,12 +5,26 @@ import { createHash, createHmac } from "node:crypto";
  * @typedef {{ accessKeyId: string, secretAccessKey: string, sessionToken?: string }} AwsCredentials
  */
 
+/** @type {Map<string, { credentials: AwsCredentials, expiration: Date }>} */
+const credentialCache = new Map();
+
+const EXPIRATION_MARGIN_MS = 60 * 1000;
+
 /**
  * Load AWS credentials for the given profile using the AWS CLI.
+ * Results are cached and reused until the credentials expire.
  * @param {string} profile
  * @returns {Promise<AwsCredentials>}
  */
 export async function loadAwsCredentials(profile) {
+  const cached = credentialCache.get(profile);
+  if (
+    cached &&
+    Date.now() < cached.expiration.getTime() - EXPIRATION_MARGIN_MS
+  ) {
+    return cached.credentials;
+  }
+
   /** @type {string} */
   const stdout = await new Promise((resolve, reject) => {
     execFile(
@@ -37,11 +51,20 @@ export async function loadAwsCredentials(profile) {
       );
     }
   }
-  return {
+  const credentials = {
     accessKeyId: parsed.AccessKeyId,
     secretAccessKey: parsed.SecretAccessKey,
     ...(parsed.SessionToken && { sessionToken: parsed.SessionToken }),
   };
+
+  if (parsed.Expiration) {
+    const expiration = new Date(parsed.Expiration);
+    if (!Number.isNaN(expiration.getTime())) {
+      credentialCache.set(profile, { credentials, expiration });
+    }
+  }
+
+  return credentials;
 }
 
 /**
