@@ -59,6 +59,11 @@ function hmacSha256(key, data) {
 /**
  * Sign an HTTP request with AWS Signature V4.
  *
+ * Known limitation: if duplicate header names with different casing exist
+ * (e.g. `Content-Type` and `content-type`), only the first match is used.
+ * Per AWS SigV4 spec, values should be combined with commas. Callers should
+ * ensure header names are unique (case-insensitive) before signing.
+ *
  * @param {{
  *   method: string,
  *   hostname: string,
