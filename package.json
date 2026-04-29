@@ -33,12 +33,8 @@
     "fix": "npx @biomejs/biome check --fix"
   },
   "dependencies": {
-    "@aws-crypto/sha256-js": "^5.2.0",
-    "@aws-sdk/credential-providers": "^3.1030.0",
     "@cfworker/json-schema": "^4.1.1",
     "@modelcontextprotocol/client": "^2.0.0-alpha.2",
-    "@smithy/protocol-http": "^5.3.13",
-    "@smithy/signature-v4": "^5.3.13",
     "diff": "^8.0.4",
     "js-yaml": "^4.1.1"
   },

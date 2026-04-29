@@ -7,6 +7,10 @@
 import { styleText } from "node:util";
 import { noThrow } from "../utils/noThrow.mjs";
 import { retryOnError } from "../utils/retryOnError.mjs";
+import {
+  loadAwsCredentials,
+  signRequest as signAwsRequest,
+} from "./platform/awsSigV4.mjs";
 import { readBedrockStreamEvents } from "./platform/bedrock.mjs";
 import { getGoogleCloudAccessToken } from "./platform/googleCloud.mjs";
 
@@ -111,39 +115,28 @@ export async function callOpenAICompatibleModel(
 
     // bedrock + sso profile
     const runFetchForBedrock = async () => {
-      const { Sha256 } = await import("@aws-crypto/sha256-js");
-      const { fromIni } = await import("@aws-sdk/credential-providers");
-      const { HttpRequest } = await import("@smithy/protocol-http");
-      const { SignatureV4 } = await import("@smithy/signature-v4");
-
       const region =
         url.match(/bedrock-runtime\.([\w-]+)\.amazonaws\.com/)?.[1] ?? "";
       const urlParsed = new URL(url);
       const { hostname, pathname } = urlParsed;
 
-      const signer = new SignatureV4({
-        credentials: fromIni({
-          profile:
-            platformConfig.name === "bedrock" ? platformConfig.awsProfile : "",
-        }),
-        region,
-        service: "bedrock",
-        sha256: Sha256,
-      });
+      const credentials = await loadAwsCredentials(
+        platformConfig.name === "bedrock" ? platformConfig.awsProfile : "",
+      );
 
-      const req = new HttpRequest({
-        protocol: "https:",
-        method: "POST",
-        hostname,
-        path: pathname,
-        headers: {
-          host: hostname,
-          "Content-Type": "application/json",
+      const signed = signAwsRequest(
+        {
+          method: "POST",
+          hostname,
+          path: pathname,
+          headers: {
+            host: hostname,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(request),
         },
-        body: JSON.stringify(request),
-      });
-
-      const signed = await signer.sign(req);
+        { region, service: "bedrock", credentials },
+      );
 
       return fetch(url, {
         method: signed.method,
