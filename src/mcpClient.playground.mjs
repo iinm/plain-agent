@@ -1,58 +1,14 @@
-import { spawn } from "node:child_process";
-import { createInterface } from "node:readline";
+import { createMCPClient } from "./mcpClient.mjs";
 
 (async () => {
-  // Minimal MCP client over stdio (JSON-RPC 2.0)
-  const childProcess = spawn("npx", ["@playwright/mcp@latest", "--headless"], {
-    stdio: ["pipe", "pipe", "inherit"],
+  const client = await createMCPClient({
+    command: "npx",
+    args: ["@playwright/mcp@latest", "--headless"],
+    stderr: "inherit",
   });
-
-  const rl = createInterface({ input: childProcess.stdout });
-  let nextId = 1;
-  /** @type {Map<number, { resolve: (value: any) => void, reject: (reason: any) => void }>} */
-  const pending = new Map();
-
-  rl.on("line", (line) => {
-    try {
-      const msg = JSON.parse(line);
-      if ("id" in msg && pending.has(msg.id)) {
-        const p = pending.get(msg.id);
-        pending.delete(msg.id);
-        if (msg.error) {
-          p?.reject(new Error(msg.error.message));
-        } else {
-          p?.resolve(msg.result);
-        }
-      }
-    } catch {
-      // ignore
-    }
-  });
-
-  /** @param {string} method @param {Record<string, unknown>} [params] */
-  const request = (method, params) => {
-    const id = nextId++;
-    return new Promise((resolve, reject) => {
-      pending.set(id, { resolve, reject });
-      childProcess.stdin.write(
-        `${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`,
-      );
-    });
-  };
-
-  // Initialize
-  await request("initialize", {
-    protocolVersion: "2025-03-26",
-    capabilities: {},
-    clientInfo: { name: "playground", version: "0.0.0" },
-  });
-  childProcess.stdin.write(
-    JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) +
-      "\n",
-  );
 
   // Navigate
-  const navigateResult = await request("tools/call", {
+  const navigateResult = await client.callTool({
     name: "browser_navigate",
     arguments: { url: "https://example.com" },
   });
@@ -67,7 +23,7 @@ import { createInterface } from "node:readline";
   // }
 
   // Screenshot
-  const screenshotResult = await request("tools/call", {
+  const screenshotResult = await client.callTool({
     name: "browser_take_screenshot",
     arguments: {},
   });
@@ -82,8 +38,6 @@ import { createInterface } from "node:readline";
   //   ]
   // }
 
-  rl.close();
-  childProcess.stdin.end();
-  childProcess.kill();
+  await client.close();
   process.exit(0);
 })();

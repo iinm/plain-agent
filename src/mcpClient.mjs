@@ -156,7 +156,7 @@ export class MCPClient {
  * @property {string} command
  * @property {string[]} [args]
  * @property {Record<string, string>} [env]
- * @property {import("node:fs/promises").FileHandle | number} [stderr]
+ * @property {import("node:fs/promises").FileHandle | number | string} [stderr]
  */
 
 /**
@@ -172,13 +172,19 @@ export async function createMCPClient(options) {
   };
 
   const stderrFd =
-    typeof options.stderr === "number"
+    typeof options.stderr === "string"
       ? options.stderr
-      : (options.stderr?.fd ?? "ignore");
+      : typeof options.stderr === "number"
+        ? options.stderr
+        : (options.stderr?.fd ?? "ignore");
 
   const childProcess = spawn(options.command, options.args || [], {
     env: options.env ? { ...defaultEnv, ...options.env } : undefined,
-    stdio: ["pipe", "pipe", stderrFd],
+    stdio: /** @type {import("node:child_process").StdioOptions} */ ([
+      "pipe",
+      "pipe",
+      stderrFd,
+    ]),
   });
 
   // Detect immediate exit (e.g. command not found or immediate crash)
