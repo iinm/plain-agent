@@ -5,7 +5,7 @@ import { execFile } from "node:child_process";
  * @returns {Promise<string>}
  */
 export async function getGoogleCloudAccessToken(account) {
-  const accountOption = account?.endsWith("iam.gserviceaccount.com")
+  const accountOption = account?.endsWith(".iam.gserviceaccount.com")
     ? ["--impersonate-service-account", account]
     : account
       ? [account]
