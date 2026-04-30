@@ -9,9 +9,9 @@
     "url": "git+https://github.com/iinm/plain-agent.git"
   },
   "bin": {
-    "plain": "./bin/plain",
-    "plain-notify-desktop": "./bin/plain-notify-desktop",
-    "plain-sandbox": "./sandbox/bin/plain-sandbox"
+    "plain": "bin/plain",
+    "plain-notify-desktop": "bin/plain-notify-desktop",
+    "plain-sandbox": "sandbox/bin/plain-sandbox"
   },
   "files": [
     "bin",
@@ -20,8 +20,9 @@
     "src/**/*.mjs",
     "src/**/*.d.ts",
     "!src/**/*.test.mjs",
+    "!src/**/*.test.*.mjs",
     "!src/**/*.playground.mjs",
-    "!src/utils/test/"
+    "!src/**/test/"
   ],
   "engines": {
     "node": ">=22"
