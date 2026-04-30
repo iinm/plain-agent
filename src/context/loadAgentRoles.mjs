@@ -3,7 +3,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import yaml from "js-yaml";
+import { parse as parseYaml } from "yaml";
 import {
   AGENT_CACHE_DIR,
   AGENT_PROJECT_METADATA_DIR,
@@ -246,7 +246,7 @@ function parseAgentRole(relativePath, fileContent, fullPath, idPrefix = "") {
   let frontmatter;
   try {
     frontmatter = /** @type {{description?:string; import?:string}} */ (
-      yaml.load(match[1])
+      parseYaml(match[1])
     );
   } catch (_err) {
     return {
