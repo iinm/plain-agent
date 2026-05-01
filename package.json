@@ -17,17 +17,14 @@
     "bin",
     "sandbox/bin",
     "config",
-    "src/**/*.mjs",
-    "src/**/*.d.ts",
-    "!src/**/*.test.mjs",
-    "!src/**/*.test.*.mjs",
-    "!src/**/*.playground.mjs",
-    "!src/**/test/"
+    "dist"
   ],
   "engines": {
     "node": ">=22"
   },
   "scripts": {
+    "build": "esbuild src/main.mjs --bundle --platform=node --target=node22 --outfile=dist/main.mjs --minify --sourcemap --format=esm --banner:js='import { createRequire } from \"node:module\";const require=createRequire(import.meta.url);'",
+    "prepublishOnly": "npm run build",
     "check": "npm run lint && tsc && npm run test",
     "test": "node --test",
     "lint": "npx @biomejs/biome check",
@@ -40,6 +37,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.12",
     "@types/node": "^22.19.17",
+    "esbuild": "^0.28.0",
     "typescript": "^6.0.2"
   }
 }

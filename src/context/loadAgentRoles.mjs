@@ -52,41 +52,47 @@ export async function loadAgentRoles(claudeCodePlugins) {
     }
   }
 
-  /** @type {Map<string, AgentRole>} */
-  const roles = new Map();
+  const files = (
+    await Promise.all(
+      agentDirs.map(async ({ dir, idPrefix, only }) => {
+        const files = await getMarkdownFiles(dir).catch((err) => {
+          if (err.code !== "ENOENT") {
+            console.warn(`Failed to list agent roles in ${dir}:`, err);
+          }
+          return /** @type {string[]} */ ([]);
+        });
+        return files.map((file) => ({ dir, file, idPrefix, only }));
+      }),
+    )
+  )
+    .flat()
+    // Filter by only pattern if specified
+    .filter(({ file, only }) => !(only && !only.test(file)));
 
-  for (const { dir, idPrefix, only } of agentDirs) {
-    const files = await getMarkdownFiles(dir).catch((err) => {
-      if (err.code !== "ENOENT") {
-        console.warn(`Failed to list agent roles in ${dir}:`, err);
-      }
-      return [];
-    });
+  const roles = /** @type {AgentRole[]} */ (
+    (
+      await Promise.all(
+        files.map(async ({ dir, file, idPrefix }) => {
+          const fullPath = path.join(dir, file);
+          const content = await fs.readFile(fullPath, "utf-8").catch((err) => {
+            console.warn(`Failed to read agent role file ${fullPath}:`, err);
+            return null;
+          });
 
-    for (const file of files) {
-      const fullPath = path.join(dir, file);
-      const content = await fs.readFile(fullPath, "utf-8").catch((err) => {
-        console.warn(`Failed to read agent role file ${fullPath}:`, err);
-        return null;
-      });
+          if (content === null) return null;
 
-      if (content === null) continue;
+          let role = parseAgentRole(file, content, fullPath, idPrefix);
+          if (role.import) {
+            role = await mergeRemoteRole(role, file, fullPath);
+          }
 
-      // Filter by only pattern if specified
-      if (only && !only.test(file)) {
-        continue;
-      }
+          return role;
+        }),
+      )
+    ).filter((role) => role)
+  );
 
-      let role = parseAgentRole(file, content, fullPath, idPrefix);
-      if (role.import) {
-        role = await mergeRemoteRole(role, file, fullPath);
-      }
-
-      roles.set(role.id, role);
-    }
-  }
-
-  return roles;
+  return new Map(roles.map((role) => [role.id, role]));
 }
 
 /**

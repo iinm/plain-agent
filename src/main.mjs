@@ -158,8 +158,10 @@ if (cliArgs.subcommand.type === "cost") {
   const modelNameWithVariant = modelFromArgs || modelFromConfig;
 
   const pluginPaths = resolvePluginPaths(appConfig.claudeCodePlugins ?? []);
-  const agentRoles = await loadAgentRoles(pluginPaths);
-  const prompts = await loadPrompts(pluginPaths);
+  const [prompts, agentRoles] = await Promise.all([
+    loadPrompts(pluginPaths),
+    loadAgentRoles(pluginPaths),
+  ]);
 
   const prompt = createPrompt({
     username: USER_NAME,
