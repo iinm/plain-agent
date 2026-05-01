@@ -57,6 +57,7 @@ const HELP_MESSAGE = [
  * @property {AgentCommands} agentCommands
  * @property {string} sessionId
  * @property {string} modelName
+ * @property {Date} startTime
  * @property {{ command: string; args?: string[] } | undefined} notifyCmd
  * @property {boolean} sandbox
  * @property {() => Promise<void>} onStop
@@ -69,9 +70,9 @@ const HELP_MESSAGE = [
  * Failures are logged but never thrown so exit is not blocked.
  *
  * @param {import("./costTracker.mjs").CostSummary} summary
- * @param {{ sessionId: string, modelName: string }} meta
+ * @param {{ sessionId: string, modelName: string, startTime: Date }} meta
  */
-async function persistUsage(summary, { sessionId, modelName }) {
+async function persistUsage(summary, { sessionId, modelName, startTime }) {
   try {
     const record = buildUsageRecord({
       sessionId,
@@ -79,6 +80,7 @@ async function persistUsage(summary, { sessionId, modelName }) {
       modelName,
       workingDir: process.cwd(),
       costSummary: summary,
+      now: startTime,
     });
     if (!record) return;
     await appendUsageRecord(record);
@@ -99,6 +101,7 @@ export function startInteractiveSession({
   agentCommands,
   sessionId,
   modelName,
+  startTime,
   notifyCmd,
   sandbox,
   onStop,
@@ -153,7 +156,7 @@ export function startInteractiveSession({
     const summary = agentCommands.getCostSummary();
     console.log();
     console.log(formatCostSummary(summary));
-    await persistUsage(summary, { sessionId, modelName });
+    await persistUsage(summary, { sessionId, modelName, startTime });
     await onStop();
     process.exit(0);
   };

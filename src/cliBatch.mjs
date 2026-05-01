@@ -14,6 +14,7 @@ import { appendUsageRecord, buildUsageRecord } from "./usageStore.mjs";
  * @property {string} sessionId
  * @property {string} modelName
  * @property {boolean} sandbox
+ * @property {Date} startTime
  * @property {() => Promise<void>} onStop
  */
 
@@ -32,6 +33,7 @@ export async function startBatchSession({
   sessionId,
   modelName,
   sandbox,
+  startTime,
   onStop,
 }) {
   setupEventHandlers(agentEventEmitter, { sessionId, modelName, sandbox });
@@ -55,6 +57,7 @@ export async function startBatchSession({
           modelName,
           workingDir: process.cwd(),
           costSummary,
+          now: startTime,
         });
         if (record) {
           await appendUsageRecord(record);
