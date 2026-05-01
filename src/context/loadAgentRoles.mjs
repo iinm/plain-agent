@@ -83,7 +83,12 @@ export async function loadAgentRoles(claudeCodePlugins) {
 
           let role = parseAgentRole(file, content, fullPath, idPrefix);
           if (role.import) {
-            role = await mergeRemoteRole(role, file, fullPath);
+            try {
+              role = await mergeRemoteRole(role, file, fullPath);
+            } catch (err) {
+              console.warn(`Failed to import remote role ${role.id}:`, err);
+              return null;
+            }
           }
 
           return role;

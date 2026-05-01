@@ -184,7 +184,7 @@ describe("createToolUseApprover", () => {
     });
 
     /** @type {MessageContentToolUse} */
-    const delegateToolUse = {
+    const switchToSubagentToolUse = {
       type: "tool_use",
       toolUseId: "test1",
       toolName: "switch_to_subagent",
@@ -201,7 +201,7 @@ describe("createToolUseApprover", () => {
 
     // when/then:
     assert.deepStrictEqual(
-      toolApprover.isAllowedToolUse(delegateToolUse),
+      toolApprover.isAllowedToolUse(switchToSubagentToolUse),
       { action: "allow" },
       "should approve switch_to_subagent without input pattern",
     );
