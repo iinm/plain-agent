@@ -504,8 +504,8 @@ The agent can use the following tools to assist with tasks:
 - **tmux_command**: Run a tmux command.
 - **ask_web**: Use the web search to answer questions that need up-to-date information or supporting sources. (requires Google API key or Vertex AI configuration).
 - **ask_url**: Use one or more provided URLs to answer a question. Include the URLs in your question. (requires Google API key or Vertex AI configuration).
-- **delegate_to_subagent**: Delegate a subtask to a subagent. The agent switches to a subagent role within the same conversation, focusing on the specified goal.
-- **report_as_subagent**: Report completion and return to the main agent. Used by subagents to communicate results and restore the main agent role. After reporting, the subagent's conversation history is removed from the context.
+- **switch_to_subagent**: Switch to a subagent role within the same conversation, focusing on the specified goal.
+- **switch_to_main_agent**: Switch back to the main agent role and report the result. After reporting, the subagent's conversation history is removed from the context.
 - **compact_context**: Compact the conversation context by discarding prior messages and reloading task state from a memory file. Use when the context has grown large but the task is not yet complete. Can also be invoked via the `/compact` slash command.
 
 ## Prompts

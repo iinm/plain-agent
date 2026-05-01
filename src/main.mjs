@@ -22,10 +22,10 @@ import { createPrompt } from "./prompt.mjs";
 import { createAskURLTool } from "./tools/askURL.mjs";
 import { createAskWebTool } from "./tools/askWeb.mjs";
 import { createCompactContextTool } from "./tools/compactContext.mjs";
-import { createDelegateToSubagentTool } from "./tools/delegateToSubagent.mjs";
+import { createSwitchToSubagentTool } from "./tools/switchToSubagent.mjs";
 import { createExecCommandTool } from "./tools/execCommand.mjs";
 import { createPatchFileTool } from "./tools/patchFile.mjs";
-import { createReportAsSubagentTool } from "./tools/reportAsSubagent.mjs";
+import { createSwitchToMainAgentTool } from "./tools/switchToMainAgent.mjs";
 import { createTmuxCommandTool } from "./tools/tmuxCommand.mjs";
 import { writeFileTool } from "./tools/writeFile.mjs";
 import { createToolUseApprover } from "./toolUseApprover.mjs";
@@ -179,8 +179,8 @@ if (cliArgs.subcommand.type === "cost") {
     createPatchFileTool(),
     createTmuxCommandTool({ sandbox: appConfig.sandbox }),
     createCompactContextTool(),
-    createDelegateToSubagentTool(),
-    createReportAsSubagentTool(),
+    createSwitchToSubagentTool(),
+    createSwitchToMainAgentTool(),
   ];
 
   if (appConfig.tools?.askWeb) {

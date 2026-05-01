@@ -2,10 +2,10 @@
  * @import { Tool, ToolImplementation } from '../tool'
  */
 
-export const reportAsSubagentToolName = "report_as_subagent";
+export const switchToMainAgentToolName = "switch_to_main_agent";
 
 /** @returns {Tool} */
-export function createReportAsSubagentTool() {
+export function createSwitchToMainAgentTool() {
   /** @type {ToolImplementation} */
   let impl = async () => {
     throw new Error("Not implemented");
@@ -14,9 +14,9 @@ export function createReportAsSubagentTool() {
   /** @type {Tool} */
   const tool = {
     def: {
-      name: reportAsSubagentToolName,
+      name: switchToMainAgentToolName,
       description:
-        "End the subagent role and report the result to the main agent.",
+        "Switch back to the main agent role and report the result.",
       inputSchema: {
         type: "object",
         properties: {

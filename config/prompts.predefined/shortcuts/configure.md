@@ -43,7 +43,7 @@ Ask what the user wants to configure. Common topics:
 
 If the request is vague, ask a focused clarifying question before proceeding.
 
-**If the user wants to configure Sandbox**: immediately delegate to the `sandbox-configurator` agent and do not proceed further yourself.
+**If the user wants to configure Sandbox**: immediately switch to the `sandbox-configurator` subagent and do not proceed further yourself.
 
 ## Step 4: Apply Changes
 

@@ -2,10 +2,10 @@
  * @import { Tool, ToolImplementation } from '../tool'
  */
 
-export const delegateToSubagentToolName = "delegate_to_subagent";
+export const switchToSubagentToolName = "switch_to_subagent";
 
 /** @returns {Tool} */
-export function createDelegateToSubagentTool() {
+export function createSwitchToSubagentTool() {
   /** @type {ToolImplementation} */
   let impl = async () => {
     throw new Error("Not implemented");
@@ -14,9 +14,9 @@ export function createDelegateToSubagentTool() {
   /** @type {Tool} */
   const tool = {
     def: {
-      name: delegateToSubagentToolName,
+      name: switchToSubagentToolName,
       description:
-        "Delegate a subtask to a subagent. You inherit the current context and work on the delegated goal.",
+        "Switch to a subagent role within the same conversation, focusing on the specified goal. You inherit the current context.",
       inputSchema: {
         type: "object",
         properties: {

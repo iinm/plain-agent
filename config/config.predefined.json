@@ -34,7 +34,7 @@
         "action": "ask"
       },
       {
-        "toolName": { "$regex": "^(delegate_to_subagent|report_as_subagent)$" },
+        "toolName": { "$regex": "^(switch_to_subagent|switch_to_main_agent)$" },
         "action": "allow"
       },
       {
