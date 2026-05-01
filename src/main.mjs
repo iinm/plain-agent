@@ -1,17 +1,11 @@
 /**
  * @import { Tool } from "./tool";
+ * @import { CliArgs } from "./cliArgs.mjs";
  */
 
 import { styleText } from "node:util";
 import { createAgent } from "./agent.mjs";
-import {
-  installClaudeCodePlugins,
-  resolvePluginPaths,
-} from "./claudeCodePlugin.mjs";
-import { parseCliArgs, printHelp } from "./cliArgs.mjs";
-import { startBatchSession } from "./cliBatch.mjs";
-import { runCostCommand } from "./cliCost.mjs";
-import { startInteractiveSession } from "./cliInteractive.mjs";
+import { resolvePluginPaths } from "./claudeCodePlugin.mjs";
 import { loadAppConfig } from "./config.mjs";
 import { loadAgentRoles } from "./context/loadAgentRoles.mjs";
 import { loadPrompts } from "./context/loadPrompts.mjs";
@@ -30,46 +24,10 @@ import { createTmuxCommandTool } from "./tools/tmuxCommand.mjs";
 import { writeFileTool } from "./tools/writeFile.mjs";
 import { createToolUseApprover } from "./toolUseApprover.mjs";
 
-const cliArgs = parseCliArgs(process.argv);
-if (cliArgs.subcommand.type === "help") {
-  printHelp();
-}
-
-if (cliArgs.subcommand.type === "list-models") {
-  const { appConfig } = await loadAppConfig({ skipTrustCheck: true });
-  if (!appConfig.models || appConfig.models.length === 0) {
-    console.error("No models found in configuration.");
-    process.exit(1);
-  }
-  for (const model of appConfig.models) {
-    const platform = model.platform;
-    console.log(
-      `${model.name}+${model.variant} (platform: ${platform.name}+${platform.variant})`,
-    );
-  }
-  process.exit(0);
-}
-
-if (cliArgs.subcommand.type === "install-claude-code-plugins") {
-  await installClaudeCodePlugins();
-  process.exit(0);
-}
-
-if (cliArgs.subcommand.type === "cost") {
-  try {
-    const exitCode = await runCostCommand({
-      from: cliArgs.subcommand.from,
-      to: cliArgs.subcommand.to,
-    });
-    process.exit(exitCode);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(message);
-    process.exit(1);
-  }
-}
-
-(async () => {
+/**
+ * @param {CliArgs} cliArgs
+ */
+export async function run(cliArgs) {
   const startTime = new Date();
   const sessionId = [
     `${startTime.getFullYear()}-${`0${startTime.getMonth() + 1}`.slice(-2)}-${`0${startTime.getDate()}`.slice(-2)}`,
@@ -158,8 +116,10 @@ if (cliArgs.subcommand.type === "cost") {
   const modelNameWithVariant = modelFromArgs || modelFromConfig;
 
   const pluginPaths = resolvePluginPaths(appConfig.claudeCodePlugins ?? []);
-  const agentRoles = await loadAgentRoles(pluginPaths);
-  const prompts = await loadPrompts(pluginPaths);
+  const [agentRoles, prompts] = await Promise.all([
+    loadAgentRoles(pluginPaths),
+    loadPrompts(pluginPaths),
+  ]);
 
   const prompt = createPrompt({
     username: USER_NAME,
@@ -227,7 +187,7 @@ if (cliArgs.subcommand.type === "cost") {
   }
 
   const { userEventEmitter, agentEventEmitter, agentCommands } = createAgent({
-    callModel: createModelCaller({
+    callModel: await createModelCaller({
       ...modelDef,
       platform: {
         ...modelDef.platform,
@@ -256,6 +216,7 @@ if (cliArgs.subcommand.type === "cost") {
   };
 
   if (cliArgs.subcommand.type === "batch") {
+    const { startBatchSession } = await import("./cliBatch.mjs");
     const task = cliArgs.subcommand.task;
     if (!task) {
       throw new Error("Batch task is required in batch mode");
@@ -265,6 +226,7 @@ if (cliArgs.subcommand.type === "cost") {
       task,
     });
   } else {
+    const { startInteractiveSession } = await import("./cliInteractive.mjs");
     startInteractiveSession({
       ...sessionOptions,
       notifyCmd: appConfig.notifyCmd,
@@ -272,7 +234,4 @@ if (cliArgs.subcommand.type === "cost") {
       voiceInput: appConfig.voiceInput,
     });
   }
-})().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+}

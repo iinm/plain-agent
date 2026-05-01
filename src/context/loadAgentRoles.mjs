@@ -55,34 +55,41 @@ export async function loadAgentRoles(claudeCodePlugins) {
   /** @type {Map<string, AgentRole>} */
   const roles = new Map();
 
-  for (const { dir, idPrefix, only } of agentDirs) {
-    const files = await getMarkdownFiles(dir).catch((err) => {
-      if (err.code !== "ENOENT") {
-        console.warn(`Failed to list agent roles in ${dir}:`, err);
-      }
-      return [];
-    });
-
-    for (const file of files) {
-      const fullPath = path.join(dir, file);
-      const content = await fs.readFile(fullPath, "utf-8").catch((err) => {
-        console.warn(`Failed to read agent role file ${fullPath}:`, err);
-        return null;
+  // Scan all directories in parallel
+  const dirResults = await Promise.all(
+    agentDirs.map(async ({ dir, idPrefix, only }) => {
+      const files = await getMarkdownFiles(dir).catch((err) => {
+        if (err.code !== "ENOENT") {
+          console.warn(`Failed to list agent roles in ${dir}:`, err);
+        }
+        return [];
       });
 
-      if (content === null) continue;
+      return Promise.all(
+        files.map(async (file) => {
+          if (only && !only.test(file)) return null;
 
-      // Filter by only pattern if specified
-      if (only && !only.test(file)) {
-        continue;
-      }
+          const fullPath = path.join(dir, file);
+          const content = await fs.readFile(fullPath, "utf-8").catch((err) => {
+            console.warn(`Failed to read agent role file ${fullPath}:`, err);
+            return null;
+          });
 
-      let role = parseAgentRole(file, content, fullPath, idPrefix);
-      if (role.import) {
-        role = await mergeRemoteRole(role, file, fullPath);
-      }
+          if (content === null) return null;
 
-      roles.set(role.id, role);
+          let role = parseAgentRole(file, content, fullPath, idPrefix);
+          if (role.import) {
+            role = await mergeRemoteRole(role, file, fullPath);
+          }
+          return role;
+        }),
+      );
+    }),
+  );
+
+  for (const dirRoles of dirResults) {
+    for (const role of dirRoles) {
+      if (role) roles.set(role.id, role);
     }
   }
 
