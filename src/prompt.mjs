@@ -133,6 +133,6 @@ ${agentRoleDescriptions}
 export const CLAUDE_CODE_COMPATIBILITY_NOTES = `# Environment Constraints
 
 - Use memory file to manage todo list.
-- Subagents cannot run in parallel. Delegate to them one at a time.
+- Subagents cannot run in parallel. Switch to them one at a time.
 - Use AGENTS.md instead when CLAUDE.md is absent.
 - If instructed to use "haiku agent", "sonnet agent", or "opus agent", use "worker" instead.`;

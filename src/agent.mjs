@@ -2,8 +2,8 @@
  * @import { Agent, AgentConfig, AgentEventEmitter, UserEventEmitter } from "./agent"
  * @import { Tool, ToolDefinition } from "./tool"
  * @import { CompactContextInput } from "./tools/compactContext"
- * @import { DelegateToSubagentInput } from "./tools/delegateToSubagent"
- * @import { ReportAsSubagentInput } from "./tools/reportAsSubagent"
+ * @import { SwitchToSubagentInput } from "./tools/switchToSubagent"
+ * @import { SwitchToMainAgentInput } from "./tools/switchToMainAgent"
  */
 
 import { EventEmitter } from "node:events";
@@ -18,8 +18,8 @@ import {
   compactContextToolName,
   readMemoryForCompaction,
 } from "./tools/compactContext.mjs";
-import { delegateToSubagentToolName } from "./tools/delegateToSubagent.mjs";
-import { reportAsSubagentToolName } from "./tools/reportAsSubagent.mjs";
+import { switchToMainAgentToolName } from "./tools/switchToMainAgent.mjs";
+import { switchToSubagentToolName } from "./tools/switchToSubagent.mjs";
 
 /**
  * @param {AgentConfig} config
@@ -69,10 +69,10 @@ export function createAgent({
   });
 
   /**
-   * @param {DelegateToSubagentInput} input
+   * @param {SwitchToSubagentInput} input
    */
-  const delegateToSubagentImpl = async (input) => {
-    const result = subagentManager.delegateToSubagent(
+  const switchToSubagentImpl = async (input) => {
+    const result = subagentManager.switchToSubagent(
       input.name,
       input.goal,
       stateManager.getMessages().length - 1,
@@ -84,10 +84,10 @@ export function createAgent({
   };
 
   /**
-   * @param {ReportAsSubagentInput} input
+   * @param {SwitchToMainAgentInput} input
    */
-  const reportAsSubagentImpl = async (input) => {
-    const result = await subagentManager.reportAsSubagent(input.memoryPath);
+  const switchToMainAgentImpl = async (input) => {
+    const result = await subagentManager.switchToMainAgent(input.memoryPath);
     if (!result.success) {
       return new Error(result.error);
     }
@@ -101,7 +101,7 @@ export function createAgent({
     if (subagentManager.isSubagentActive()) {
       return new Error(
         "compact_context cannot be used while running as a subagent. " +
-          "Call report_as_subagent to return to the main agent first.",
+          "Call switch_to_main_agent to return to the main agent first.",
       );
     }
     const input = /** @type {CompactContextInput} */ (rawInput);
@@ -111,11 +111,11 @@ export function createAgent({
   /** @type {Map<string, Tool>} */
   const toolByName = new Map();
   for (const tool of tools) {
-    if (tool.def.name === delegateToSubagentToolName && tool.injectImpl) {
-      tool.injectImpl(delegateToSubagentImpl);
+    if (tool.def.name === switchToSubagentToolName && tool.injectImpl) {
+      tool.injectImpl(switchToSubagentImpl);
     }
-    if (tool.def.name === reportAsSubagentToolName && tool.injectImpl) {
-      tool.injectImpl(reportAsSubagentImpl);
+    if (tool.def.name === switchToMainAgentToolName && tool.injectImpl) {
+      tool.injectImpl(switchToMainAgentImpl);
     }
     if (tool.def.name === compactContextToolName && tool.injectImpl) {
       tool.injectImpl(compactContextImpl);
@@ -127,7 +127,7 @@ export function createAgent({
   const toolDefs = tools.map(({ def }) => def);
 
   const toolExecutor = createToolExecutor(toolByName, {
-    exclusiveToolNames: [delegateToSubagentToolName, reportAsSubagentToolName],
+    exclusiveToolNames: [switchToSubagentToolName, switchToMainAgentToolName],
   });
 
   async function dumpMessages() {

@@ -54,7 +54,7 @@ export function createCommandHandler({
     const goalText =
       goalTextContent?.type === "text" ? goalTextContent.text : goal;
 
-    const messageText = `Delegate to "${name}" agent with goal: ${goalText}`;
+    const messageText = `Switch to "${name}" subagent with goal: ${goalText}`;
     userEventEmitter.emit("userInput", [
       { type: "text", text: messageText },
       ...goalImages,

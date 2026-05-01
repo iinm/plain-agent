@@ -175,8 +175,8 @@ describe("createToolUseApprover", () => {
     // given:
     const toolApprover = createToolUseApprover({
       patterns: [
-        { toolName: "delegate_to_subagent", action: "allow" },
-        { toolName: /^report_as_subagent$/, action: "allow" },
+        { toolName: "switch_to_subagent", action: "allow" },
+        { toolName: /^switch_to_main_agent$/, action: "allow" },
       ],
       maxApprovals: 5,
       defaultAction: "ask",
@@ -184,10 +184,10 @@ describe("createToolUseApprover", () => {
     });
 
     /** @type {MessageContentToolUse} */
-    const delegateToolUse = {
+    const switchToSubagentToolUse = {
       type: "tool_use",
       toolUseId: "test1",
-      toolName: "delegate_to_subagent",
+      toolName: "switch_to_subagent",
       input: { name: "researcher", goal: "Find information" },
     };
 
@@ -195,20 +195,20 @@ describe("createToolUseApprover", () => {
     const reportToolUse = {
       type: "tool_use",
       toolUseId: "test2",
-      toolName: "report_as_subagent",
+      toolName: "switch_to_main_agent",
       input: { memoryPath: ".agent/memory/test.md" },
     };
 
     // when/then:
     assert.deepStrictEqual(
-      toolApprover.isAllowedToolUse(delegateToolUse),
+      toolApprover.isAllowedToolUse(switchToSubagentToolUse),
       { action: "allow" },
-      "should approve delegate_to_subagent without input pattern",
+      "should approve switch_to_subagent without input pattern",
     );
     assert.deepStrictEqual(
       toolApprover.isAllowedToolUse(reportToolUse),
       { action: "allow" },
-      "should approve report_as_subagent without input pattern",
+      "should approve switch_to_main_agent without input pattern",
     );
   });
 

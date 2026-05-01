@@ -86,7 +86,11 @@ export async function loadPrompts(claudeCodePlugins) {
     .filter(({ file, only }) => !(only && !only.test(file)))
     // Ignore all files in the skills/ directory except for SKILL.md.
     .filter(
-      ({ file }) => !(file.match(/\/skills\//) && !file.endsWith("/SKILL.md")),
+      ({ file, dir }) =>
+        !(
+          path.join(dir, file).includes("/skills/") &&
+          !file.endsWith("/SKILL.md")
+        ),
     );
 
   const prompts = /** @type {Prompt[]} */ (
@@ -103,7 +107,12 @@ export async function loadPrompts(claudeCodePlugins) {
 
           let prompt = parsePrompt(file, content, fullPath, idPrefix);
           if (prompt.import) {
-            prompt = await mergeRemotePrompt(prompt, file, fullPath);
+            try {
+              prompt = await mergeRemotePrompt(prompt, file, fullPath);
+            } catch (err) {
+              console.warn(`Failed to import remote prompt ${prompt.id}:`, err);
+              return null;
+            }
           }
 
           if (prompt.userInvocable === false) {
@@ -113,7 +122,7 @@ export async function loadPrompts(claudeCodePlugins) {
         }),
       )
     ).filter((prompt) => prompt)
-  ).filter((prompt) => !(prompt.userInvocable === false));
+  );
 
   return new Map(prompts.map((prompt) => [prompt.id, prompt]));
 }

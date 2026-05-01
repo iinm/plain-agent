@@ -5,7 +5,7 @@
  * @import { PatchFileInput } from "./tools/patchFile"
  * @import { WriteFileInput } from "./tools/writeFile"
  * @import { TmuxCommandInput } from "./tools/tmuxCommand"
- * @import { DelegateToSubagentInput } from "./tools/delegateToSubagent"
+ * @import { SwitchToSubagentInput } from "./tools/switchToSubagent"
  */
 
 import { styleText } from "node:util";
@@ -129,13 +129,13 @@ export function formatToolUse(toolUse) {
     ].join("\n");
   }
 
-  if (toolName === "delegate_to_subagent") {
-    /** @type {Partial<DelegateToSubagentInput>} */
-    const delegateInput = input;
+  if (toolName === "switch_to_subagent") {
+    /** @type {Partial<SwitchToSubagentInput>} */
+    const switchToSubagentInput = input;
     return [
       `tool: ${toolName}`,
-      `name: ${delegateInput.name}`,
-      `goal: ${delegateInput.goal}`,
+      `name: ${switchToSubagentInput.name}`,
+      `goal: ${switchToSubagentInput.goal}`,
     ].join("\n");
   }
 
@@ -149,12 +149,12 @@ export function formatToolUse(toolUse) {
     ].join("\n");
   }
 
-  if (toolName === "report_as_subagent") {
-    /** @type {Partial<import("./tools/reportAsSubagent").ReportAsSubagentInput>} */
-    const reportAsSubagentInput = input;
+  if (toolName === "switch_to_main_agent") {
+    /** @type {Partial<import("./tools/switchToMainAgent").SwitchToMainAgentInput>} */
+    const switchToMainAgentInput = input;
     return [
       `tool: ${toolName}`,
-      `memoryPath: ${reportAsSubagentInput.memoryPath}`,
+      `memoryPath: ${switchToMainAgentInput.memoryPath}`,
     ].join("\n");
   }
 

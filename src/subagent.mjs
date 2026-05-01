@@ -1,6 +1,6 @@
 /**
  * @import { Message, MessageContentToolResult, MessageContentToolUse } from "./model"
- * @import { ReportAsSubagentInput } from "./tools/reportAsSubagent"
+ * @import { SwitchToMainAgentInput } from "./tools/switchToMainAgent"
  * @import { AgentRole } from "./context/loadAgentRoles.mjs"
  */
 
@@ -8,7 +8,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { AGENT_PROJECT_METADATA_DIR } from "./env.mjs";
 import { CLAUDE_CODE_COMPATIBILITY_NOTES } from "./prompt.mjs";
-import { reportAsSubagentToolName } from "./tools/reportAsSubagent.mjs";
+import { switchToMainAgentToolName } from "./tools/switchToMainAgent.mjs";
 
 /** @typedef {ReturnType<typeof createSubagentManager>} SubagentManager */
 
@@ -23,39 +23,39 @@ import { reportAsSubagentToolName } from "./tools/reportAsSubagent.mjs";
  * @param {SubagentStateEventHandlers} handlers
  */
 export function createSubagentManager(agentRoles, handlers) {
-  /** @type {{name: string; goal: string; delegationMessageIndex: number}[]} */
+  /** @type {{name: string; goal: string; switchMessageIndex: number}[]} */
   const subagents = [];
   let subagentCount = 0;
 
   /**
-   * @typedef {DelegateSuccess | DelegateFailure} DelegateResult
+   * @typedef {SwitchToSubagentSuccess | SwitchToSubagentFailure} SwitchToSubagentResult
    */
 
   /**
-   * @typedef {Object} DelegateSuccess
+   * @typedef {Object} SwitchToSubagentSuccess
    * @property {true} success
    * @property {string} value
    */
 
   /**
-   * @typedef {Object} DelegateFailure
+   * @typedef {Object} SwitchToSubagentFailure
    * @property {false} success
    * @property {string} error
    */
 
   /**
-   * Delegate a task to a subagent.
+   * Switch to a subagent role.
    * @param {string} name
    * @param {string} goal
-   * @param {number} delegationMessageIndex
-   * @returns {DelegateResult}
+   * @param {number} switchMessageIndex
+   * @returns {SwitchToSubagentResult}
    */
-  function delegateToSubagent(name, goal, delegationMessageIndex) {
+  function switchToSubagent(name, goal, switchMessageIndex) {
     if (subagents.length > 0) {
       return {
         success: false,
         error:
-          "Cannot call delegate_to_subagent while already acting as a subagent.",
+          "Cannot call switch_to_subagent while already acting as a subagent.",
       };
     }
 
@@ -86,7 +86,7 @@ export function createSubagentManager(agentRoles, handlers) {
     subagents.push({
       name: actualName,
       goal,
-      delegationMessageIndex,
+      switchMessageIndex,
     });
     handlers.onSubagentSwitched({ name: actualName });
 
@@ -99,37 +99,37 @@ export function createSubagentManager(agentRoles, handlers) {
           : `Role: ${actualName}`,
         `Your goal: ${goal}`,
         `Memory file path format: ${AGENT_PROJECT_METADATA_DIR}/memory/<session-id>--${sequenceNumber}--${actualName.replace("/", "-")}--<kebab-case-title>.md (Replace <kebab-case-title> with a short title describing your own goal)`,
-        `When finished, call "report_as_subagent" with the memory file path. Start executing your goal now.`,
+        `When finished, call "switch_to_main_agent" with the memory file path. Start executing your goal now.`,
       ].join("\n\n"),
     };
   }
 
   /**
-   * @typedef {ReportSuccess | ReportFailure} ReportResult
+   * @typedef {SwitchToMainAgentSuccess | SwitchToMainAgentFailure} SwitchToMainAgentResult
    */
 
   /**
-   * @typedef {Object} ReportSuccess
+   * @typedef {Object} SwitchToMainAgentSuccess
    * @property {true} success
    * @property {string} memoryContent
    */
 
   /**
-   * @typedef {Object} ReportFailure
+   * @typedef {Object} SwitchToMainAgentFailure
    * @property {false} success
    * @property {string} error
    */
 
   /**
-   * Report as a subagent and read the memory file.
+   * Switch back to the main agent role and read the memory file.
    * @param {string} memoryPath
-   * @returns {Promise<ReportResult>}
+   * @returns {Promise<SwitchToMainAgentResult>}
    */
-  async function reportAsSubagent(memoryPath) {
+  async function switchToMainAgent(memoryPath) {
     if (subagents.length === 0) {
       return {
         success: false,
-        error: "Cannot call report_as_subagent from the main agent.",
+        error: "Cannot call switch_to_main_agent from the main agent.",
       };
     }
 
@@ -171,7 +171,7 @@ export function createSubagentManager(agentRoles, handlers) {
    */
   function processToolResults(toolUseParts, toolResults, messages) {
     const reportSubagentToolUse = toolUseParts.find(
-      (toolUse) => toolUse.toolName === reportAsSubagentToolName,
+      (toolUse) => toolUse.toolName === switchToMainAgentToolName,
     );
 
     if (reportSubagentToolUse) {
@@ -193,7 +193,7 @@ export function createSubagentManager(agentRoles, handlers) {
 
   /**
    * Handle the result of a subagent reporting back.
-   * On success, truncates conversation history back to the delegation point
+   * On success, truncates conversation history back to the switch point
    * and converts the report into a standard user message.
    * @param {MessageContentToolUse} reportToolUse
    * @param {MessageContentToolResult} reportResult
@@ -214,10 +214,10 @@ export function createSubagentManager(agentRoles, handlers) {
 
     handlers.onSubagentSwitched(subagents.at(-1) ?? null);
 
-    // Truncate history back to the delegation point
+    // Truncate history back to the switch point
     const truncatedMessages = messages.slice(
       0,
-      currentSubagent.delegationMessageIndex,
+      currentSubagent.switchMessageIndex,
     );
 
     // Convert the tool result into a standard user message
@@ -225,7 +225,7 @@ export function createSubagentManager(agentRoles, handlers) {
       .map((c) => (c.type === "text" ? c.text : ""))
       .join("\n\n");
 
-    const reportInput = /** @type {ReportAsSubagentInput} */ (
+    const reportInput = /** @type {SwitchToMainAgentInput} */ (
       reportToolUse.input
     );
 
@@ -257,8 +257,8 @@ export function createSubagentManager(agentRoles, handlers) {
   }
 
   return {
-    delegateToSubagent,
-    reportAsSubagent,
+    switchToSubagent,
+    switchToMainAgent,
     processToolResults,
     isSubagentActive,
   };
