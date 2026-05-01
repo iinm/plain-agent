@@ -68,50 +68,54 @@ export async function loadPrompts(claudeCodePlugins) {
     }
   }
 
-  /** @type {Map<string, Prompt>} */
-  const prompts = new Map();
+  const files = (
+    await Promise.all(
+      promptDirs.map(async ({ dir, idPrefix, only }) => {
+        const files = await getMarkdownFiles(dir).catch((err) => {
+          if (err.code !== "ENOENT") {
+            console.warn(`Failed to list prompts in ${dir}:`, err);
+          }
+          return /** @type {string[]} */ ([]);
+        });
+        return files.map((file) => ({ dir, file, idPrefix, only }));
+      }),
+    )
+  )
+    .flat()
+    // Filter by only pattern if specified
+    .filter(({ file, only }) => !(only && !only.test(file)))
+    // Ignore all files in the skills/ directory except for SKILL.md.
+    .filter(
+      ({ file }) => !(file.match(/\/skills\//) && !file.endsWith("/SKILL.md")),
+    );
 
-  for (const { dir, idPrefix, only } of promptDirs) {
-    const files = await getMarkdownFiles(dir).catch((err) => {
-      if (err.code !== "ENOENT") {
-        console.warn(`Failed to list prompts in ${dir}:`, err);
-      }
-      return [];
-    });
+  const prompts = /** @type {Prompt[]} */ (
+    (
+      await Promise.all(
+        files.map(async ({ dir, file, idPrefix }) => {
+          const fullPath = path.join(dir, file);
+          const content = await fs.readFile(fullPath, "utf-8").catch((err) => {
+            console.warn(`Failed to read prompt file ${fullPath}:`, err);
+            return null;
+          });
 
-    for (const file of files) {
-      const fullPath = path.join(dir, file);
-      const content = await fs.readFile(fullPath, "utf-8").catch((err) => {
-        console.warn(`Failed to read prompt file ${fullPath}:`, err);
-        return null;
-      });
+          if (content === null) return null;
 
-      if (content === null) continue;
+          let prompt = parsePrompt(file, content, fullPath, idPrefix);
+          if (prompt.import) {
+            prompt = await mergeRemotePrompt(prompt, file, fullPath);
+          }
 
-      // Filter by only pattern if specified
-      if (only && !only.test(file)) {
-        continue;
-      }
+          if (prompt.userInvocable === false) {
+            return null;
+          }
+          return prompt;
+        }),
+      )
+    ).filter((prompt) => prompt)
+  ).filter((prompt) => !(prompt.userInvocable === false));
 
-      //  Ignore all files in the skills/ directory except for SKILL.md.
-      if (fullPath.match(/\/skills\//) && !file.endsWith("/SKILL.md")) {
-        continue;
-      }
-
-      let prompt = parsePrompt(file, content, fullPath, idPrefix);
-      if (prompt.import) {
-        prompt = await mergeRemotePrompt(prompt, file, fullPath);
-      }
-
-      if (prompt.userInvocable === false) {
-        continue;
-      }
-
-      prompts.set(prompt.id, prompt);
-    }
-  }
-
-  return prompts;
+  return new Map(prompts.map((prompt) => [prompt.id, prompt]));
 }
 
 /**
