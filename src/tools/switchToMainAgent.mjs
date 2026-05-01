@@ -15,8 +15,7 @@ export function createSwitchToMainAgentTool() {
   const tool = {
     def: {
       name: switchToMainAgentToolName,
-      description:
-        "Switch back to the main agent role and report the result.",
+      description: "Switch back to the main agent role and report the result.",
       inputSchema: {
         type: "object",
         properties: {

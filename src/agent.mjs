@@ -18,8 +18,8 @@ import {
   compactContextToolName,
   readMemoryForCompaction,
 } from "./tools/compactContext.mjs";
-import { switchToSubagentToolName } from "./tools/switchToSubagent.mjs";
 import { switchToMainAgentToolName } from "./tools/switchToMainAgent.mjs";
+import { switchToSubagentToolName } from "./tools/switchToSubagent.mjs";
 
 /**
  * @param {AgentConfig} config

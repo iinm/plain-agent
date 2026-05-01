@@ -42,6 +42,17 @@ export function createSwitchToSubagentTool() {
     injectImpl(fn) {
       impl = fn;
     },
+
+    /**
+     * @param {Record<string, unknown>} input
+     * @returns {Record<string, unknown>}
+     */
+    maskApprovalInput: (input) => {
+      const { name } = /** @type {{name: string}} */ (input);
+      return {
+        name,
+      };
+    },
   };
 
   return tool;
