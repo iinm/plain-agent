@@ -248,6 +248,7 @@ if (cliArgs.subcommand.type === "cost") {
     sessionId,
     modelName: modelNameWithVariant,
     sandbox: Boolean(appConfig.sandbox),
+    startTime,
     onStop: async () => {
       for (const cleanup of mcpCleanups) {
         await cleanup();
