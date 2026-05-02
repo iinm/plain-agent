@@ -30,6 +30,10 @@ export const AGENT_PROJECT_METADATA_DIR = ".plain-agent";
 
 export const AGENT_MEMORY_DIR = path.join(AGENT_PROJECT_METADATA_DIR, "memory");
 export const AGENT_TMP_DIR = path.join(AGENT_PROJECT_METADATA_DIR, "tmp");
+export const AGENT_SANDBOX_DIR = path.join(
+  AGENT_PROJECT_METADATA_DIR,
+  "sandbox",
+);
 
 export const CLAUDE_CODE_PLUGIN_DIR = path.join(
   AGENT_PROJECT_METADATA_DIR,

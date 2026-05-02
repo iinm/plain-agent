@@ -75,8 +75,14 @@ Generate `.plain-agent/sandbox/run.sh`. Use the following Node.js example as the
 
 set -eu -o pipefail
 
+# Mount this script as read-only so the sandboxed agent cannot rewrite it.
+# Otherwise a compromised sandbox could overwrite run.sh and gain host code execution
+# the next time it is invoked.
+script_path=$(realpath "${BASH_SOURCE[0]}")
+
 options=(
   --allow-write
+  --mount-readonly "$script_path:$script_path"
   --volume plain-sandbox--global--home-npm:/home/sandbox/.npm
   --volume node_modules
 )

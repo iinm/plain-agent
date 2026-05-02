@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   AGENT_MEMORY_DIR,
+  AGENT_SANDBOX_DIR,
   AGENT_TMP_DIR,
   CLAUDE_CODE_PLUGIN_DIR,
 } from "./env.mjs";
@@ -61,6 +62,13 @@ export function isSafeToolInputItem(arg) {
   // - When write_file is allowed for ^safe-dir/.+
   // - "safe-dir/../unsafe-path" should be disallowed
   if (arg.split(path.sep).includes("..")) {
+    return false;
+  }
+
+  // Disallow paths under unsafe directories even if git-managed.
+  // Sandbox scripts are executed on the host outside the sandbox,
+  // so unintended modifications could lead to arbitrary host code execution.
+  if (isUnsafePath(realPath)) {
     return false;
   }
 
@@ -147,6 +155,26 @@ function isSafePath(targetPath) {
     if (
       targetPath === safeAbsPath ||
       targetPath.startsWith(`${safeAbsPath}${path.sep}`)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * @param {string} targetPath
+ * @returns {boolean}
+ */
+function isUnsafePath(targetPath) {
+  const unsafePaths = [AGENT_SANDBOX_DIR];
+
+  for (const unsafePath of unsafePaths) {
+    const unsafeAbsPath = path.resolve(unsafePath);
+    if (
+      targetPath === unsafeAbsPath ||
+      targetPath.startsWith(`${unsafeAbsPath}${path.sep}`)
     ) {
       return true;
     }

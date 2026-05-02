@@ -180,6 +180,18 @@ describe("isSafeToolInputItem", () => {
     },
     { desc: "git ignored file", arg: "node_modules", expected: false },
 
+    // Unsafe even if git-managed: scripts that run on the host outside the sandbox
+    {
+      desc: "git managed file under .plain-agent/sandbox",
+      arg: `${AGENT_PROJECT_METADATA_DIR}/sandbox/run.sh`,
+      expected: false,
+    },
+    {
+      desc: ".plain-agent/sandbox directory itself",
+      arg: `${AGENT_PROJECT_METADATA_DIR}/sandbox`,
+      expected: false,
+    },
+
     // Non-path arguments containing ".." or "..." should be allowed
     // as long as they are not path segments.
     {
