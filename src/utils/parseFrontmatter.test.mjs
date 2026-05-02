@@ -5,7 +5,7 @@ import { parseFrontmatter } from "./parseFrontmatter.mjs";
 describe("parseFrontmatter", () => {
   it("should parse simple key-value pairs", () => {
     // given:
-    const input = "description: Hello world\nimport: some-url";
+    const input = "description: Hello world\nfoo: bar";
 
     // when:
     const result = parseFrontmatter(input);
@@ -13,7 +13,7 @@ describe("parseFrontmatter", () => {
     // then:
     assert.deepStrictEqual(result, {
       description: "Hello world",
-      import: "some-url",
+      foo: "bar",
     });
   });
 
@@ -84,7 +84,7 @@ describe("parseFrontmatter", () => {
 
   it("should handle CRLF line endings", () => {
     // given:
-    const input = "description: Hello\r\nimport: url";
+    const input = "description: Hello\r\nfoo: bar";
 
     // when:
     const result = parseFrontmatter(input);
@@ -92,7 +92,7 @@ describe("parseFrontmatter", () => {
     // then:
     assert.deepStrictEqual(result, {
       description: "Hello",
-      import: "url",
+      foo: "bar",
     });
   });
 

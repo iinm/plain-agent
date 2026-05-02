@@ -1,11 +1,8 @@
 /** @import { ClaudeCodePlugin } from "../claudeCodePlugin.mjs" */
 
-import { execFileSync } from "node:child_process";
-import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
-  AGENT_CACHE_DIR,
   AGENT_PROJECT_METADATA_DIR,
   AGENT_ROOT,
   AGENT_USER_CONFIG_DIR,
@@ -19,7 +16,6 @@ import { parseFrontmatter } from "../utils/parseFrontmatter.mjs";
  * @property {string} content
  * @property {string} filePath
  * @property {boolean} claudeOriginated
- * @property {string} [import]
  * @property {boolean} [userInvocable]
  * @property {boolean} [isShortcut]
  * @property {boolean} [isSkill]
@@ -105,15 +101,7 @@ export async function loadPrompts(claudeCodePlugins) {
 
           if (content === null) return null;
 
-          let prompt = parsePrompt(file, content, fullPath, idPrefix);
-          if (prompt.import) {
-            try {
-              prompt = await mergeRemotePrompt(prompt, file, fullPath);
-            } catch (err) {
-              console.warn(`Failed to import remote prompt ${prompt.id}:`, err);
-              return null;
-            }
-          }
+          const prompt = parsePrompt(file, content, fullPath, idPrefix);
 
           if (prompt.userInvocable === false) {
             return null;
@@ -125,98 +113,6 @@ export async function loadPrompts(claudeCodePlugins) {
   );
 
   return new Map(prompts.map((prompt) => [prompt.id, prompt]));
-}
-
-/**
- * Merges a remote prompt into a local prompt if an import URL is provided.
- * @param {Prompt} localPrompt
- * @param {string} relativePath
- * @param {string} fullPath
- * @returns {Promise<Prompt>}
- */
-async function mergeRemotePrompt(localPrompt, relativePath, fullPath) {
-  const importUrl = localPrompt.import;
-  if (!importUrl) {
-    return localPrompt;
-  }
-
-  const fetchedContent = await fetchAndCachePrompt(importUrl).catch((err) => {
-    console.warn(`Failed to fetch prompt from ${importUrl}:`, err);
-    return null;
-  });
-
-  if (!fetchedContent) {
-    return localPrompt;
-  }
-
-  const remotePrompt = parsePrompt(relativePath, fetchedContent, fullPath);
-
-  return {
-    ...remotePrompt,
-    ...localPrompt, // Local overrides
-    content: `${remotePrompt.content}\n\n---\n\n${localPrompt.content}`.trim(),
-    description: localPrompt.description || remotePrompt.description || "",
-  };
-}
-
-/**
- * Fetch a prompt from a URL and cache it.
- * @param {string} url
- * @returns {Promise<string>}
- */
-async function fetchAndCachePrompt(url) {
-  const hash = crypto.createHash("sha256").update(url).digest("hex");
-  const cacheDir = path.join(AGENT_CACHE_DIR, "prompts");
-  const cachePath = path.join(cacheDir, hash);
-
-  const cachedContent = await fs.readFile(cachePath, "utf-8").catch(() => null);
-  if (cachedContent !== null) {
-    return cachedContent;
-  }
-
-  const fetchedContent = await fetchContent(url);
-
-  // Attempt to cache, but don't block or fail on errors
-  fs.mkdir(cacheDir, { recursive: true })
-    .then(() => fs.writeFile(cachePath, fetchedContent, "utf-8"))
-    .catch((err) => {
-      console.warn(`Failed to write cache for ${url}:`, err);
-    });
-
-  return fetchedContent;
-}
-
-/**
- * Fetch content from a URL.
- * @param {string} url
- * @returns {Promise<string>}
- */
-async function fetchContent(url) {
-  const githubMatch = url.match(
-    /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/,
-  );
-
-  if (githubMatch) {
-    const [, owner, repo, ref, path] = githubMatch;
-    const apiUrl = `repos/${owner}/${repo}/contents/${path}?ref=${ref}`;
-    try {
-      return execFileSync(
-        "gh",
-        ["api", "-H", "Accept: application/vnd.github.v3.raw", apiUrl],
-        { encoding: "utf-8" },
-      );
-    } catch (err) {
-      throw new Error(`Failed to fetch from GitHub via gh CLI: ${err}`);
-    }
-  }
-
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch prompt from ${url}: ${response.status} ${response.statusText}`,
-    );
-  }
-  return response.text();
 }
 
 /**
@@ -295,7 +191,6 @@ function parsePrompt(relativePath, fileContent, fullPath, idPrefix = "") {
     content,
     filePath: fullPath,
     claudeOriginated,
-    import: frontmatter.import,
     userInvocable: frontmatter["user-invocable"] === "true" ? true : undefined,
     isShortcut,
     isSkill: relativePath.endsWith("SKILL.md"),

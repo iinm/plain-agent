@@ -417,7 +417,7 @@ Files are loaded in the following order. Settings in later files override earlie
 
       // MCP Tool naming convention: mcp__<serverName>__<toolName>
       {
-        "toolName": { "$regex": "slack_(read|search)_.+" },
+        "toolName": { "$regex": "mcp__slack__slack_(read|search)_.+" },
         "action": "allow"
       }
     ]
@@ -533,19 +533,6 @@ description: Create a commit message based on staged changes
 Review the staged changes and create a concise commit message following the conventional commits specification.
 ```
 
-You can also import remote prompts with the `import` field:
-
-```md
----
-import: https://raw.githubusercontent.com/anthropics/claude-code/5cff78741f54a0dcfaeb11d29b9ea9a83f3882ff/plugins/feature-dev/commands/feature-dev.md
----
-
-- Use memory file instead of TodoWrite
-- Parallel execution of subagents is not supported. Delegate to subagents sequentially.
-```
-
-Remote prompts are fetched and cached locally. The local content will be appended to the imported content.
-
 ### Shortcuts
 
 Prompts located in a `shortcuts/` subdirectory (e.g., `.plain-agent/prompts/shortcuts/commit.md`) can be invoked directly as a top-level command (e.g., `/commit`).
@@ -571,18 +558,6 @@ description: Simplifies and refines code for clarity and maintainability
 
 You are a code simplifier. Your role is to refactor code while preserving its functionality.
 ```
-
-You can also import remote subagent definitions with the `import` field:
-
-```md
----
-import: https://raw.githubusercontent.com/anthropics/claude-code/f7ab5c799caf2ec8c7cd1b99d2bc2f158459ef5e/plugins/pr-review-toolkit/agents/code-simplifier.md
----
-
-Use AGENTS.md instead of CLAUDE.md in this project.
-```
-
-Remote subagents are fetched and cached locally. The local content will be appended to the imported content.
 
 ## Claude Code Plugin Support
 
