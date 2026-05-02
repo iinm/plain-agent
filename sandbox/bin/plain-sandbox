@@ -731,6 +731,14 @@ setup_container_firewall() {
   # allow established connections
   iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
   iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+  # allow localhost on IPv6
+  ip6tables -A INPUT -i lo -j ACCEPT
+  ip6tables -A OUTPUT -o lo -j ACCEPT
+
+  # allow established connections on IPv6
+  ip6tables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+  ip6tables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
   
   # allow given addresses
   for address in "${addresses[@]}"; do
@@ -750,6 +758,11 @@ setup_container_firewall() {
     fi
   done
   iptables -A OUTPUT -p tcp -m set --match-set allow_list dst,dst -j ACCEPT
+
+  # Reject unauthorized TCP connections immediately with RST
+  # instead of silently dropping and causing timeout
+  iptables -A OUTPUT -p tcp -j REJECT --reject-with tcp-reset
+  ip6tables -A OUTPUT -p tcp -j REJECT --reject-with tcp-reset
 }
 
 setup_container_user() {

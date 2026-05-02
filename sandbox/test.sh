@@ -174,7 +174,7 @@ nc_pid=$!
 # when:
 out=$(plain-sandbox --dockerfile Dockerfile.minimum --allow-net host.docker.internal busybox nc -w 2 host.docker.internal 8000 < /dev/null 2>&1) || status=$?
 # then:
-grep -qE "nc: timed out" <<< "$out"
+grep -qE "Connection refused" <<< "$out"
 # cleanup:
 if lsof -i:8000 | grep -q "$nc_pid"; then
   kill "$nc_pid"
