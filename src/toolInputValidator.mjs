@@ -9,6 +9,17 @@ import {
 } from "./env.mjs";
 import { noThrowSync } from "./utils/noThrow.mjs";
 
+// Paths that must never be auto-approvable as tool input, even when
+// git-managed. Sandbox scripts run on the host and the project config files
+// drive auto-approval policy itself, so silent in-sandbox modification of
+// either could lead to host code execution or self-granted privilege
+// escalation.
+const UNSAFE_PROJECT_PATHS = [
+  path.join(AGENT_PROJECT_METADATA_DIR, "sandbox"),
+  path.join(AGENT_PROJECT_METADATA_DIR, "config.json"),
+  path.join(AGENT_PROJECT_METADATA_DIR, "config.local.json"),
+];
+
 /**
  * @param {unknown} input
  * @returns {boolean}
@@ -65,15 +76,14 @@ export function isSafeToolInputItem(arg) {
     return false;
   }
 
-  // Inside the agent metadata directory, only the agent's known scratch
-  // directories (memory, tmp, claude-code-plugins) are auto-approvable
-  // (and that exception applies even when those subdirectories are
-  // git-ignored). Other entries (sandbox/, setup.sh, config.json,
-  // prompts/, agents/, ...) are executed on the host or change agent
-  // behavior across sessions, so tool uses targeting them must require
-  // explicit approval even if the file is git-managed.
-  if (isInsideAgentMetadataDir(realPath)) {
-    return isSafePath(realPath);
+  // Always require approval for these, even if git-managed.
+  if (isUnsafeProjectPath(realPath)) {
+    return false;
+  }
+
+  // Always allow these even if git-ignored.
+  if (isSafePath(realPath)) {
+    return true;
   }
 
   // Deny git ignored files (which may contain sensitive information or should not be accessed)
@@ -166,12 +176,18 @@ function isSafePath(targetPath) {
  * @param {string} targetPath
  * @returns {boolean}
  */
-function isInsideAgentMetadataDir(targetPath) {
-  const metadataAbsPath = path.resolve(AGENT_PROJECT_METADATA_DIR);
-  return (
-    targetPath === metadataAbsPath ||
-    targetPath.startsWith(`${metadataAbsPath}${path.sep}`)
-  );
+function isUnsafeProjectPath(targetPath) {
+  for (const unsafePath of UNSAFE_PROJECT_PATHS) {
+    const unsafeAbsPath = path.resolve(unsafePath);
+    if (
+      targetPath === unsafeAbsPath ||
+      targetPath.startsWith(`${unsafeAbsPath}${path.sep}`)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**

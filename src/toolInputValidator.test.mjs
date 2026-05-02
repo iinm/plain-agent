@@ -180,9 +180,8 @@ describe("isSafeToolInputItem", () => {
     },
     { desc: "git ignored file", arg: "node_modules", expected: false },
 
-    // Inside .plain-agent: only memory/, tmp/, claude-code-plugins/ are safe.
-    // Everything else (host-executed scripts, agent config, prompts, agents)
-    // requires explicit approval even when git-managed.
+    // .plain-agent/{tmp,memory,claude-code-plugins} are auto-approvable as
+    // tool input even when git-ignored.
     {
       desc: "file in agent tmp directory",
       arg: `${AGENT_PROJECT_METADATA_DIR}/tmp/scratch.txt`,
@@ -193,6 +192,12 @@ describe("isSafeToolInputItem", () => {
       arg: `${AGENT_PROJECT_METADATA_DIR}/claude-code-plugins/feature-dev/foo.md`,
       expected: true,
     },
+
+    // .plain-agent/{sandbox/, config.json, config.local.json} always require
+    // explicit approval, even when git-managed: sandbox scripts run on the
+    // host and config files drive the auto-approval policy itself, so silent
+    // in-sandbox modification could lead to host code execution or
+    // self-granted privilege escalation.
     {
       desc: "git managed file under .plain-agent/sandbox",
       arg: `${AGENT_PROJECT_METADATA_DIR}/sandbox/run.sh`,
@@ -204,18 +209,31 @@ describe("isSafeToolInputItem", () => {
       expected: false,
     },
     {
-      desc: "git managed .plain-agent/setup.sh",
-      arg: `${AGENT_PROJECT_METADATA_DIR}/setup.sh`,
-      expected: false,
-    },
-    {
       desc: "git managed .plain-agent/config.json",
       arg: `${AGENT_PROJECT_METADATA_DIR}/config.json`,
       expected: false,
     },
     {
-      desc: ".plain-agent directory itself",
-      arg: AGENT_PROJECT_METADATA_DIR,
+      desc: "git ignored .plain-agent/config.local.json",
+      arg: `${AGENT_PROJECT_METADATA_DIR}/config.local.json`,
+      expected: false,
+    },
+
+    // Other entries under .plain-agent/ follow the standard git rule:
+    // git-managed -> safe, git-ignored -> unsafe.
+    {
+      desc: "git managed .plain-agent/setup.sh",
+      arg: `${AGENT_PROJECT_METADATA_DIR}/setup.sh`,
+      expected: true,
+    },
+    {
+      desc: "git managed file under .plain-agent/prompts",
+      arg: `${AGENT_PROJECT_METADATA_DIR}/prompts/foo.md`,
+      expected: true,
+    },
+    {
+      desc: "git ignored file under .plain-agent/agents",
+      arg: `${AGENT_PROJECT_METADATA_DIR}/agents/foo.md`,
       expected: false,
     },
 
