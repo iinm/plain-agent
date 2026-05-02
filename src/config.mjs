@@ -87,7 +87,7 @@ export async function loadAppConfig(options = {}) {
               ...(merged.tools?.askURL ?? {}),
               ...config.tools.askURL,
             }
-          : merged.tools?.askWeb,
+          : merged.tools?.askURL,
       },
       mcpServers: {
         ...(merged.mcpServers ?? {}),
