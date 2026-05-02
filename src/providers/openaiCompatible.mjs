@@ -578,7 +578,9 @@ function convertOpenAIStreamDataToAgentPartialContent(
       content: [
         firstChoice.delta.tool_calls.at(0)?.function?.name,
         firstChoice.delta.tool_calls.at(0)?.function?.arguments,
-      ].join(" "),
+      ]
+        .filter((s) => s)
+        .join(" "),
       position: previousPartialContent?.type === "tool_use" ? "delta" : "start",
     });
   }
