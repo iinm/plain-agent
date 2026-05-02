@@ -66,18 +66,14 @@ export function isSafeToolInputItem(arg) {
   }
 
   // Inside the agent metadata directory, only the agent's known scratch
-  // directories (memory, tmp, claude-code-plugins) are auto-approvable.
-  // Other entries (sandbox/, setup.sh, config.json, prompts/, agents/, ...)
-  // are executed on the host or change agent behavior across sessions, so
-  // tool uses targeting them must require explicit approval even if the file
-  // is git-managed.
+  // directories (memory, tmp, claude-code-plugins) are auto-approvable
+  // (and that exception applies even when those subdirectories are
+  // git-ignored). Other entries (sandbox/, setup.sh, config.json,
+  // prompts/, agents/, ...) are executed on the host or change agent
+  // behavior across sessions, so tool uses targeting them must require
+  // explicit approval even if the file is git-managed.
   if (isInsideAgentMetadataDir(realPath)) {
     return isSafePath(realPath);
-  }
-
-  // Allow safe path even if git-ignored.
-  if (isSafePath(realPath)) {
-    return true;
   }
 
   // Deny git ignored files (which may contain sensitive information or should not be accessed)
