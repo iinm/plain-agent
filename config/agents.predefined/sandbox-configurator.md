@@ -75,8 +75,23 @@ Generate `.plain-agent/sandbox/run.sh`. Use the following Node.js example as the
 
 set -eu -o pipefail
 
+# Mount .plain-agent/ as read-only over the writable project root, then
+# re-overlay the agent's scratch directories as writable. This prevents
+# in-sandbox modification of host-executed scripts (sandbox/run.sh,
+# setup.sh) and agent config (config.json, prompts/, agents/, ...).
+working_dir=$(pwd)
+metadata_dir="$working_dir/.plain-agent"
+mkdir -p \
+  "$metadata_dir/memory" \
+  "$metadata_dir/tmp" \
+  "$metadata_dir/claude-code-plugins"
+
 options=(
   --allow-write
+  --mount-readonly "$metadata_dir:$metadata_dir"
+  --mount-writable "$metadata_dir/memory:$metadata_dir/memory"
+  --mount-writable "$metadata_dir/tmp:$metadata_dir/tmp"
+  --mount-writable "$metadata_dir/claude-code-plugins:$metadata_dir/claude-code-plugins"
   --volume plain-sandbox--global--home-npm:/home/sandbox/.npm
   --volume node_modules
 )

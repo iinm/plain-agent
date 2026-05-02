@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   AGENT_MEMORY_DIR,
+  AGENT_PROJECT_METADATA_DIR,
   AGENT_TMP_DIR,
   CLAUDE_CODE_PLUGIN_DIR,
 } from "./env.mjs";
@@ -64,9 +65,15 @@ export function isSafeToolInputItem(arg) {
     return false;
   }
 
-  // Allow safe path even if git-ignored.
-  if (isSafePath(realPath)) {
-    return true;
+  // Inside the agent metadata directory, only the agent's known scratch
+  // directories (memory, tmp, claude-code-plugins) are auto-approvable
+  // (and that exception applies even when those subdirectories are
+  // git-ignored). Other entries (sandbox/, setup.sh, config.json,
+  // prompts/, agents/, ...) are executed on the host or change agent
+  // behavior across sessions, so tool uses targeting them must require
+  // explicit approval even if the file is git-managed.
+  if (isInsideAgentMetadataDir(realPath)) {
+    return isSafePath(realPath);
   }
 
   // Deny git ignored files (which may contain sensitive information or should not be accessed)
@@ -153,6 +160,18 @@ function isSafePath(targetPath) {
   }
 
   return false;
+}
+
+/**
+ * @param {string} targetPath
+ * @returns {boolean}
+ */
+function isInsideAgentMetadataDir(targetPath) {
+  const metadataAbsPath = path.resolve(AGENT_PROJECT_METADATA_DIR);
+  return (
+    targetPath === metadataAbsPath ||
+    targetPath.startsWith(`${metadataAbsPath}${path.sep}`)
+  );
 }
 
 /**

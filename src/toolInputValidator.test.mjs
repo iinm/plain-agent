@@ -180,6 +180,45 @@ describe("isSafeToolInputItem", () => {
     },
     { desc: "git ignored file", arg: "node_modules", expected: false },
 
+    // Inside .plain-agent: only memory/, tmp/, claude-code-plugins/ are safe.
+    // Everything else (host-executed scripts, agent config, prompts, agents)
+    // requires explicit approval even when git-managed.
+    {
+      desc: "file in agent tmp directory",
+      arg: `${AGENT_PROJECT_METADATA_DIR}/tmp/scratch.txt`,
+      expected: true,
+    },
+    {
+      desc: "file in claude-code-plugins directory",
+      arg: `${AGENT_PROJECT_METADATA_DIR}/claude-code-plugins/feature-dev/foo.md`,
+      expected: true,
+    },
+    {
+      desc: "git managed file under .plain-agent/sandbox",
+      arg: `${AGENT_PROJECT_METADATA_DIR}/sandbox/run.sh`,
+      expected: false,
+    },
+    {
+      desc: ".plain-agent/sandbox directory itself",
+      arg: `${AGENT_PROJECT_METADATA_DIR}/sandbox`,
+      expected: false,
+    },
+    {
+      desc: "git managed .plain-agent/setup.sh",
+      arg: `${AGENT_PROJECT_METADATA_DIR}/setup.sh`,
+      expected: false,
+    },
+    {
+      desc: "git managed .plain-agent/config.json",
+      arg: `${AGENT_PROJECT_METADATA_DIR}/config.json`,
+      expected: false,
+    },
+    {
+      desc: ".plain-agent directory itself",
+      arg: AGENT_PROJECT_METADATA_DIR,
+      expected: false,
+    },
+
     // Non-path arguments containing ".." or "..." should be allowed
     // as long as they are not path segments.
     {
