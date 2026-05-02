@@ -29,9 +29,8 @@ A lightweight CLI-based coding agent.
 
 - Node.js 22 or later
 - LLM provider credentials
+- [ripgrep](https://github.com/burntsushi/ripgrep), [fd](https://github.com/sharkdp/fd)
 - Bash / Docker for sandboxed execution
-- [ripgrep](https://github.com/burntsushi/ripgrep)
-- [fd](https://github.com/sharkdp/fd)
 
 ## Quick Start
 
@@ -50,8 +49,8 @@ Create the configuration.
 ```js
 // ~/.config/plain-agent/config.local.json
 {
+  // Set default model
   "model": "claude-sonnet-4-6+thinking-high",
-  // "model": "gpt-5.5+thinking-high",
 
   // Configure the providers you want to use
   "platforms": [
@@ -59,7 +58,7 @@ Create the configuration.
       "name": "anthropic",
       "variant": "default",
       "apiKey": "<ANTHROPIC_API_KEY>"
-      // Or
+      // Or read from environment variable
       // "apiKey": { "$env": "ANTHROPIC_API_KEY" }
     },
     {
@@ -71,17 +70,16 @@ Create the configuration.
       "name": "openai",
       "variant": "default",
       "apiKey": "<OPENAI_API_KEY>"
-    },
+    }
   ],
 
-  // Optional
+  // (Optional) Enable web search tools
   "tools": {
     // askWeb: Searches the web to answer questions requiring up-to-date information or external sources.
     "askWeb": {
       "provider": "gemini",
       "apiKey": "<GEMINI_API_KEY>",
       "model": "gemini-3-flash-preview"
-
       // Or use Vertex AI (Requires gcloud CLI to get authentication token)
       // "provider": "gemini-vertex-ai",
       // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
@@ -89,18 +87,14 @@ Create the configuration.
     },
 
     // askURL: Answers questions based on provided URL content.
-    //         Directly injecting URL content into context is not supported to prevent prompt injection.
     "askURL": {
       "provider": "gemini",
-      "apiKey": "<GEMINI_API_KEY>"
+      "apiKey": "<GEMINI_API_KEY>",
       "model": "gemini-3-flash-preview"
-
       // Or use Vertex AI (Requires gcloud CLI to get authentication token)
     }
-  },
-
+  }
 }
-
 ```
 
 <details>
@@ -118,6 +112,7 @@ Create the configuration.
       "azureConfigDir": "/home/xxx/.azure-for-agent"
     },
     {
+      // Requires AWS CLI to get credentials
       "name": "bedrock",
       "variant": "default",
       "baseURL": "https://bedrock-runtime.<region>.amazonaws.com",
@@ -128,8 +123,8 @@ Create the configuration.
       "name": "vertex-ai",
       "variant": "default",
       "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project>/locations/<location>",
-      // Optional
-      "account": "<service_account_email>"
+      // (Optional) Impersonate this service account to obtain an auth token
+      "account": "<SERVICE_ACCOUNT_EMAIL>"
     }
   ]
 }
@@ -302,7 +297,7 @@ plain cost
 plain cost --from 2026-04-01 --to 2026-04-30
 ```
 
-(Optional) Configure plain-agent for your project.
+Configure plain-agent for your project.
 
 ```
 /configure Auto-approve file writes and patches
@@ -423,8 +418,7 @@ Files are loaded in the following order. Settings in later files override earlie
     ]
   },
 
-  // (Optional) Sandbox environment for the exec_command and tmux_command tools
-  // https://github.com/iinm/plain-agent/tree/main/sandbox
+  // Sandbox environment for the exec_command and tmux_command tools
   "sandbox": {
     "command": "plain-sandbox",
     "args": ["--allow-write", "--skip-build", "--keep-alive", "30"],
@@ -458,7 +452,7 @@ Files are loaded in the following order. Settings in later files override earlie
       "command": "npx",
       "args": ["-y", "chrome-devtools-mcp@latest", "--isolated"]
     },
-    // ⚠️ Add this to config.local.json to avoid committing secrets to Git
+    // ⚠️ Add to config.local.json to avoid committing secrets to Git
     "slack": {
       "command": "npx",
       "args": ["-y", "mcp-remote", "https://mcp.slack.com/mcp", "--header", "Authorization:Bearer <SLACK_TOKEN>"],
@@ -475,21 +469,22 @@ Files are loaded in the following order. Settings in later files override earlie
       "command": "npx",
       "args": ["-y", "mcp-remote", "https://knowledge-mcp.global.api.aws"]
     },
-    // ⚠️ Add this to config.local.json to avoid committing secrets to Git
+    // ⚠️ Add to config.local.json to avoid committing secrets to Git
     "google_developer-knowledge": {
       "command": "npx",
       "args": ["-y", "mcp-remote", "https://developerknowledge.googleapis.com/mcp", "--header", "X-Goog-Api-Key:<GOOGLE_API_KEY>"]
     }
   },
 
-  // Override default notification command (falls back to terminal bell)
-  // "notifyCmd": { "command": "plain-notify-desktop", "args": [] }
+  // Override default notification command
+  "notifyCmd": { "command": "plain-notify-desktop", "args": [] }
 
-  // (Optional) Voice input. See "Voice Input" below.
-  // "voiceInput": {
-  //   "provider": "openai",
-  //   "apiKey": "<OPENAI_API_KEY>"
-  // }
+  // Voice input. See "Voice Input" below.
+  // ⚠️ Add to config.local.json to avoid committing secrets to Git
+  "voiceInput": {
+    "provider": "openai",
+    "apiKey": "<OPENAI_API_KEY>"
+  }
 }
 ```
 </details>
@@ -518,6 +513,7 @@ The agent searches for prompts in the following directories:
 
 - `~/.config/plain-agent/prompts/`
 - `.plain-agent/prompts/`
+- `.plain-agent/prompts/skills/`
 - `.claude/commands/`
 - `.claude/skills/`
 
