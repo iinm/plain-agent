@@ -3,13 +3,13 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { parse as parseYaml } from "yaml";
 import {
   AGENT_CACHE_DIR,
   AGENT_PROJECT_METADATA_DIR,
   AGENT_ROOT,
   AGENT_USER_CONFIG_DIR,
 } from "../env.mjs";
+import { parseFrontmatter } from "../utils/parseFrontmatter.mjs";
 
 /**
  * @typedef {Object} AgentRole
@@ -253,21 +253,7 @@ function parseAgentRole(relativePath, fileContent, fullPath, idPrefix = "") {
     };
   }
 
-  /** @type {{description?:string; import?:string}} */
-  let frontmatter;
-  try {
-    frontmatter = /** @type {{description?:string; import?:string}} */ (
-      parseYaml(match[1])
-    );
-  } catch (_err) {
-    return {
-      id,
-      description: parseFrontmatterField(match[1], "description") ?? "",
-      content: fileContent.trim(),
-      filePath: fullPath,
-      claudeOriginated,
-    };
-  }
+  const frontmatter = parseFrontmatter(match[1]);
   const content = match[2].trim();
 
   return {
@@ -278,17 +264,4 @@ function parseAgentRole(relativePath, fileContent, fullPath, idPrefix = "") {
     claudeOriginated,
     import: frontmatter.import,
   };
-}
-
-/**
- * Parse a field from YAML frontmatter.
- * @param {string} frontmatter
- * @param {string} field
- * @returns {string | undefined}
- */
-
-function parseFrontmatterField(frontmatter, field) {
-  const regex = new RegExp(`^${field}:\\s*(.*)$`, "m");
-  const match = frontmatter.match(regex);
-  return match ? match[1].trim() : undefined;
 }

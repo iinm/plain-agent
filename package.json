@@ -33,9 +33,7 @@
     "lint": "npx @biomejs/biome check",
     "fix": "npx @biomejs/biome check --fix"
   },
-  "dependencies": {
-    "yaml": "^2.8.3"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@biomejs/biome": "^2.4.12",
     "@types/node": "^22.19.17",

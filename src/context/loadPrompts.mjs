@@ -4,13 +4,13 @@ import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { parse as parseYaml } from "yaml";
 import {
   AGENT_CACHE_DIR,
   AGENT_PROJECT_METADATA_DIR,
   AGENT_ROOT,
   AGENT_USER_CONFIG_DIR,
 } from "../env.mjs";
+import { parseFrontmatter } from "../utils/parseFrontmatter.mjs";
 
 /**
  * @typedef {Object} Prompt
@@ -287,29 +287,7 @@ function parsePrompt(relativePath, fileContent, fullPath, idPrefix = "") {
 
   const content = match[2].trim();
 
-  /** @type {{description?:string; import?:string; "user-invocable"?:boolean}} */
-  let frontmatter;
-  try {
-    frontmatter =
-      /** @type {{description?:string; import?:string; "user-invocable"?:boolean}} */ (
-        parseYaml(match[1])
-      );
-  } catch (_err) {
-    return {
-      id,
-      description: parseFrontmatterField(match[1], "description") ?? "",
-      content,
-      filePath: fullPath,
-      claudeOriginated,
-      import: parseFrontmatterField(match[1], "import"),
-      userInvocable:
-        parseFrontmatterField(match[1], "user-invocable") === "true" ||
-        undefined,
-      isShortcut,
-      isSkill,
-    };
-  }
-  const userInvocable = frontmatter["user-invocable"];
+  const frontmatter = parseFrontmatter(match[1]);
 
   return {
     id,
@@ -318,20 +296,8 @@ function parsePrompt(relativePath, fileContent, fullPath, idPrefix = "") {
     filePath: fullPath,
     claudeOriginated,
     import: frontmatter.import,
-    userInvocable: userInvocable ?? undefined,
+    userInvocable: frontmatter["user-invocable"] === "true" ? true : undefined,
     isShortcut,
     isSkill: relativePath.endsWith("SKILL.md"),
   };
-}
-
-/**
- * Parse a field from YAML frontmatter.
- * @param {string} frontmatter
- * @param {string} field
- * @returns {string | undefined}
- */
-function parseFrontmatterField(frontmatter, field) {
-  const regex = new RegExp(`^${field}:\\s*(.*)$`, "m");
-  const match = frontmatter.match(regex);
-  return match ? match[1].trim() : undefined;
 }
