@@ -6,8 +6,8 @@ set -eu -o pipefail
 # re-overlay the agent's scratch directories as writable. This prevents
 # in-sandbox modification of host-executed scripts (sandbox/run.sh,
 # setup.sh) and agent config (config.json, prompts/, agents/, ...).
-project_root=$(git rev-parse --show-toplevel 2> /dev/null || pwd)
-metadata_dir="$project_root/.plain-agent"
+working_dir=$(pwd)
+metadata_dir="$working_dir/.plain-agent"
 mkdir -p \
   "$metadata_dir/memory" \
   "$metadata_dir/tmp" \

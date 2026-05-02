@@ -79,8 +79,8 @@ set -eu -o pipefail
 # re-overlay the agent's scratch directories as writable. This prevents
 # in-sandbox modification of host-executed scripts (sandbox/run.sh,
 # setup.sh) and agent config (config.json, prompts/, agents/, ...).
-project_root=$(git rev-parse --show-toplevel 2> /dev/null || pwd)
-metadata_dir="$project_root/.plain-agent"
+working_dir=$(pwd)
+metadata_dir="$working_dir/.plain-agent"
 mkdir -p \
   "$metadata_dir/memory" \
   "$metadata_dir/tmp" \
@@ -104,8 +104,9 @@ options=(
 # done
 
 # Mount main worktree if using git worktrees
-if test -f "$project_root/.git"; then
-  main_worktree_path=$(sed -E 's,^gitdir: (.+)/.git/.+,\1,' < "$project_root/.git")
+git_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
+if test -n "$git_root" && test -f "$git_root/.git"; then
+  main_worktree_path=$(sed -E 's,^gitdir: (.+)/.git/.+,\1,' < "$git_root/.git")
   options+=("--mount-writable" "$main_worktree_path:$main_worktree_path")
 fi
 
