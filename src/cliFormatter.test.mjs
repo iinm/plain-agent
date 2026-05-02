@@ -127,11 +127,9 @@ describe("formatToolUse", () => {
 
 describe("formatToolUse (patch_file)", () => {
   it("formats a single search/replace diff pair", async () => {
-    // given: a patch_file tool use with one search/replace pair
     const diff =
       "<<< abc <<< SEARCH\nold line\n=== abc ===\nnew line\n>>> abc >>> REPLACE";
 
-    // when: formatting the tool use
     const output = await formatToolUse({
       type: "tool_use",
       toolUseId: "t4",
@@ -139,14 +137,17 @@ describe("formatToolUse (patch_file)", () => {
       input: { filePath: "src/app.mjs", diff },
     });
 
-    // then: output contains the tool header, file path, and separator
     assert.ok(output.startsWith("tool: patch_file\npath: src/app.mjs\n"));
+    assert.ok(output.includes("diff --git"));
+    assert.ok(
+      output.includes("\x1b["),
+      "Git diff should contain ANSI color codes",
+    );
     assert.ok(output.includes("-------"));
     assert.ok(output.includes("new line"));
   });
 
-  it("formats multiple search/replace diff pairs", async () => {
-    // given: a patch_file tool use with two search/replace pairs
+  it("formats multiple search/replace diff", async () => {
     const diff = [
       "<<< a1a <<< SEARCH",
       "first old",
@@ -160,7 +161,6 @@ describe("formatToolUse (patch_file)", () => {
       ">>> b2b >>> REPLACE",
     ].join("\n");
 
-    // when: formatting the tool use
     const output = await formatToolUse({
       type: "tool_use",
       toolUseId: "t5",
@@ -168,86 +168,76 @@ describe("formatToolUse (patch_file)", () => {
       input: { filePath: "lib/mod.mjs", diff },
     });
 
-    // then: output includes both replacements separated by blank lines
     assert.ok(output.includes("first new"));
     assert.ok(output.includes("second new"));
-    // Each hunk ends with "-------" separator + replacement text
+    assert.ok(output.includes("diff --git"));
     const separatorCount = output.split("-------").length - 1;
     assert.equal(separatorCount, 2);
   });
 
-  it("handles an empty diff string", async () => {
-    // given: a patch_file tool use with no diff content
-    // when: formatting the tool use
-    const output = await formatToolUse({
-      type: "tool_use",
-      toolUseId: "t6",
-      toolName: "patch_file",
-      input: { filePath: "empty.txt", diff: "" },
-    });
+  it("shows plain fallback when git diff returns null", async () => {
+    const diff =
+      "<<< abc <<< SEARCH\nold line\n=== abc ===\nnew line\n>>> abc >>> REPLACE";
 
-    // then: output has the tool header with no diff hunks
-    assert.equal(output, "tool: patch_file\npath: empty.txt\ndiff:\n");
+    const output = await formatToolUse(
+      {
+        type: "tool_use",
+        toolUseId: "t6",
+        toolName: "patch_file",
+        input: { filePath: "src/app.mjs", diff },
+      },
+      { createDiff: async () => null },
+    );
+
+    assert.equal(
+      output,
+      [
+        "tool: patch_file",
+        "path: src/app.mjs",
+        `diff:\n${styleText("yellow", "(git diff unavailable, showing plain diff)")}\n--- old\nold line\n+++ new\nnew line`,
+      ].join("\n"),
+    );
   });
 
-  it("includes git diff output when git is available", async () => {
-    // given: a patch_file tool use with differing content
-    const diff =
-      "<<< abc <<< SEARCH\nold content\n=== abc ===\nnew content\n>>> abc >>> REPLACE";
-
-    // when: formatting the tool use
+  it("handles an empty diff string", async () => {
     const output = await formatToolUse({
       type: "tool_use",
       toolUseId: "t7",
       toolName: "patch_file",
-      input: { filePath: "test.mjs", diff },
+      input: { filePath: "empty.txt", diff: "" },
     });
-
-    // then: output contains either git diff or fallback
-    const hasGitDiff = output.includes("diff --git");
-    const hasFallback =
-      output.includes("--- old") &&
-      output.includes("+++ new") &&
-      output.includes(
-        styleText("yellow", "(git diff unavailable, showing plain diff)"),
-      );
-    assert.ok(
-      hasGitDiff || hasFallback,
-      "Output should contain either git diff or fallback format",
-    );
+    assert.equal(output, "tool: patch_file\npath: empty.txt\ndiff:\n");
   });
 
-  it("shows fallback notice with plain diff when git diff fails", async () => {
-    // given: a patch_file tool use where tryGitDiff returns null
-    // This test verifies the fallback format structure independently
-    // of whether git is available (the previous test covers the happy path)
-    const diff =
-      "<<< xyz <<< SEARCH\noriginal\n=== xyz ===\nmodified\n>>> xyz >>> REPLACE";
-
-    // when: formatting the tool use
+  it("handles undefined diff as empty", async () => {
     const output = await formatToolUse({
       type: "tool_use",
       toolUseId: "t8",
       toolName: "patch_file",
-      input: { filePath: "file.mjs", diff },
+      input: { filePath: "empty.txt", diff: undefined },
     });
+    assert.equal(output, "tool: patch_file\npath: empty.txt\ndiff:\n");
+  });
 
-    // then: output always contains the replacement text and separator
-    assert.ok(output.includes("modified"));
-    assert.ok(output.includes("-------"));
+  it("falls back when git diff returns empty string (identical content)", async () => {
+    const diff =
+      "<<< abc <<< SEARCH\nsame\n=== abc ===\nsame\n>>> abc >>> REPLACE";
 
-    // If git diff failed, verify the fallback notice and plain diff format
-    if (!output.includes("diff --git")) {
-      assert.ok(
-        output.includes(
-          styleText("yellow", "(git diff unavailable, showing plain diff)"),
-        ),
-        "Fallback should include unavailability notice",
-      );
-      assert.ok(
-        output.includes("--- old\noriginal\n+++ new\nmodified"),
-        "Fallback should include plain diff format",
-      );
-    }
+    const output = await formatToolUse(
+      {
+        type: "tool_use",
+        toolUseId: "t9",
+        toolName: "patch_file",
+        input: { filePath: "same.txt", diff },
+      },
+      { createDiff: async () => "" },
+    );
+
+    assert.ok(
+      output.includes(
+        styleText("yellow", "(git diff unavailable, showing plain diff)"),
+      ),
+      "Identical content should trigger fallback because empty git diff is falsy",
+    );
   });
 });

@@ -61,9 +61,11 @@ export function formatArgs(args) {
 /**
  * Format tool use for display.
  * @param {MessageContentToolUse} toolUse
+ * @param {{ createDiff?: (oldContent: string, newContent: string) => Promise<string | null> }} [options]
  * @returns {Promise<string>}
  */
-export async function formatToolUse(toolUse) {
+export async function formatToolUse(toolUse, options = {}) {
+  const { createDiff = tryGitDiff } = options;
   const { toolName, input } = toolUse;
 
   if (toolName === "exec_command") {
@@ -105,13 +107,13 @@ export async function formatToolUse(toolUse) {
 
     const highlightedDiff = await Promise.all(
       diffs.map(async ({ search, replace }) => {
-        const gitDiffOutput = await tryGitDiff(search, replace);
+        const gitDiffOutput = await createDiff(search, replace);
         if (gitDiffOutput) {
           return `${gitDiffOutput}\n-------\n${replace}`;
         }
         return [
           `${styleText("yellow", "(git diff unavailable, showing plain diff)")}`,
-          "\n--- old",
+          "--- old",
           `${search}`,
           "+++ new",
           `${replace}`,
