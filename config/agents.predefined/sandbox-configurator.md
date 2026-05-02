@@ -76,9 +76,7 @@ Generate `.plain-agent/sandbox/run.sh`. Use the following Node.js example as the
 set -eu -o pipefail
 
 # Mount .plain-agent/ as read-only over the writable project root, then
-# re-overlay only memory/ and tmp/ as writable scratch space. claude-code-plugins/
-# is populated by `plain install-claude-code-plugins` on the host, so it does
-# not need write access from inside the sandbox.
+# re-overlay only memory/ and tmp/ as writable scratch space.
 working_dir=$(pwd)
 metadata_dir="$working_dir/.plain-agent"
 mkdir -p \

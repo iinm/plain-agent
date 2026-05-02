@@ -322,16 +322,14 @@ Files are loaded in the following order. Settings in later files override earlie
   └── .plain-agent/
         ├── (3) config.json        # Project-specific configuration
         ├── (4) config.local.json  # Project-specific local configuration (including secrets)
-        ├── memory/                  # Task-specific memory files (auto-approvable, writable in sandbox)
-        ├── tmp/                     # Agent scratch space (auto-approvable, writable in sandbox)
-        ├── claude-code-plugins/     # Cached Claude Code plugins (auto-approvable, read-only in sandbox)
+        ├── memory/                  # Task-specific memory files (auto-approvable)
+        ├── tmp/                     # Agent scratch space (auto-approvable)
+        ├── claude-code-plugins/     # Cached Claude Code plugins
         ├── prompts/                 # Project-specific prompts
         ├── agents/                  # Project-specific agent roles
         ├── sandbox/                 # Sandbox runner scripts (run.sh, Dockerfile); always require approval
         └── setup.sh                 # Initial setup script
 ```
-
-`config.json`, `config.local.json`, and `sandbox/` always require explicit approval as tool input — they drive the auto-approval policy itself or are executed on the host, so silent in-sandbox modification could lead to host code execution or self-granted privilege escalation. `memory/`, `tmp/`, and `claude-code-plugins/` are always auto-approvable. The sandbox runner mounts `.plain-agent/` read-only and re-overlays only `memory/` and `tmp/` as writable; `claude-code-plugins/` is populated by `plain install-claude-code-plugins` on the host.
 
 ### Example
 
