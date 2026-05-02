@@ -324,7 +324,8 @@ Files are loaded in the following order. Settings in later files override earlie
         ├── (4) config.local.json  # Project-specific local configuration (including secrets)
         ├── memory/                  # Task-specific memory files
         ├── prompts/                 # Project-specific prompts
-        └── agents/                  # Project-specific agent roles
+        ├── agents/                  # Project-specific agent roles
+        └── sandbox/                 # Sandbox runner scripts (run.sh, Dockerfile); executed on the host, so writes here always require approval
 ```
 
 ### Example
