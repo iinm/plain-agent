@@ -75,14 +75,23 @@ Generate `.plain-agent/sandbox/run.sh`. Use the following Node.js example as the
 
 set -eu -o pipefail
 
-# Mount this script as read-only so the sandboxed agent cannot rewrite it.
-# Otherwise a compromised sandbox could overwrite run.sh and gain host code execution
-# the next time it is invoked.
-script_path=$(realpath "${BASH_SOURCE[0]}")
+# Mount .plain-agent/ as read-only over the writable project root, then
+# re-overlay the agent's scratch directories as writable. This prevents
+# in-sandbox modification of host-executed scripts (sandbox/run.sh,
+# setup.sh) and agent config (config.json, prompts/, agents/, ...).
+project_root=$(git rev-parse --show-toplevel 2> /dev/null || pwd)
+metadata_dir="$project_root/.plain-agent"
+mkdir -p \
+  "$metadata_dir/memory" \
+  "$metadata_dir/tmp" \
+  "$metadata_dir/claude-code-plugins"
 
 options=(
   --allow-write
-  --mount-readonly "$script_path:$script_path"
+  --mount-readonly "$metadata_dir:$metadata_dir"
+  --mount-writable "$metadata_dir/memory:$metadata_dir/memory"
+  --mount-writable "$metadata_dir/tmp:$metadata_dir/tmp"
+  --mount-writable "$metadata_dir/claude-code-plugins:$metadata_dir/claude-code-plugins"
   --volume plain-sandbox--global--home-npm:/home/sandbox/.npm
   --volume node_modules
 )
@@ -95,9 +104,8 @@ options=(
 # done
 
 # Mount main worktree if using git worktrees
-git_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
-if test -n "$git_root" && test -f "$git_root/.git"; then
-  main_worktree_path=$(sed -E 's,^gitdir: (.+)/.git/.+,\1,' < "$git_root/.git")
+if test -f "$project_root/.git"; then
+  main_worktree_path=$(sed -E 's,^gitdir: (.+)/.git/.+,\1,' < "$project_root/.git")
   options+=("--mount-writable" "$main_worktree_path:$main_worktree_path")
 fi
 

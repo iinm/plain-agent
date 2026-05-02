@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   AGENT_MEMORY_DIR,
-  AGENT_SANDBOX_DIR,
+  AGENT_PROJECT_METADATA_DIR,
   AGENT_TMP_DIR,
   CLAUDE_CODE_PLUGIN_DIR,
 } from "./env.mjs";
@@ -65,11 +65,14 @@ export function isSafeToolInputItem(arg) {
     return false;
   }
 
-  // Disallow paths under unsafe directories even if git-managed.
-  // Sandbox scripts are executed on the host outside the sandbox,
-  // so unintended modifications could lead to arbitrary host code execution.
-  if (isUnsafePath(realPath)) {
-    return false;
+  // Inside the agent metadata directory, only the agent's known scratch
+  // directories (memory, tmp, claude-code-plugins) are auto-approvable.
+  // Other entries (sandbox/, setup.sh, config.json, prompts/, agents/, ...)
+  // are executed on the host or change agent behavior across sessions, so
+  // tool uses targeting them must require explicit approval even if the file
+  // is git-managed.
+  if (isInsideAgentMetadataDir(realPath)) {
+    return isSafePath(realPath);
   }
 
   // Allow safe path even if git-ignored.
@@ -167,20 +170,12 @@ function isSafePath(targetPath) {
  * @param {string} targetPath
  * @returns {boolean}
  */
-function isUnsafePath(targetPath) {
-  const unsafePaths = [AGENT_SANDBOX_DIR];
-
-  for (const unsafePath of unsafePaths) {
-    const unsafeAbsPath = path.resolve(unsafePath);
-    if (
-      targetPath === unsafeAbsPath ||
-      targetPath.startsWith(`${unsafeAbsPath}${path.sep}`)
-    ) {
-      return true;
-    }
-  }
-
-  return false;
+function isInsideAgentMetadataDir(targetPath) {
+  const metadataAbsPath = path.resolve(AGENT_PROJECT_METADATA_DIR);
+  return (
+    targetPath === metadataAbsPath ||
+    targetPath.startsWith(`${metadataAbsPath}${path.sep}`)
+  );
 }
 
 /**
