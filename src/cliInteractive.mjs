@@ -473,7 +473,11 @@ export function startInteractiveSession({
   });
 
   agentEventEmitter.on("message", (message) => {
-    printMessage(message);
+    printMessage(message).catch((err) => {
+      console.error(
+        styleText("red", `Error rendering message: ${err.message}`),
+      );
+    });
   });
 
   agentEventEmitter.on("toolUseRequest", () => {

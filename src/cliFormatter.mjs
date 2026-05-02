@@ -8,8 +8,12 @@
  * @import { SwitchToSubagentInput } from "./tools/switchToSubagent"
  */
 
+import { execFile } from "node:child_process";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { styleText } from "node:util";
-import { createPatch } from "diff";
+import { noThrow } from "./utils/noThrow.mjs";
 
 /** Length above which a single-line arg forces block-form rendering. */
 const ARG_BLOCK_LENGTH_THRESHOLD = 60;
@@ -57,9 +61,9 @@ export function formatArgs(args) {
 /**
  * Format tool use for display.
  * @param {MessageContentToolUse} toolUse
- * @returns {string}
+ * @returns {Promise<string>}
  */
-export function formatToolUse(toolUse) {
+export async function formatToolUse(toolUse) {
   const { toolName, input } = toolUse;
 
   if (toolName === "exec_command") {
@@ -99,23 +103,26 @@ export function formatToolUse(toolUse) {
       diffs.push({ search, replace });
     }
 
-    const highlightedDiff = diffs
-      .map(
-        ({ search, replace }) =>
-          `${createPatch(patchFileInput.filePath || "", search, replace)
-            .replace(/^-.+$/gm, (match) => styleText("red", match))
-            .replace(/^\+.+$/gm, (match) => styleText("green", match))
-            .replace(/^@@.+$/gm, (match) => styleText("gray", match))
-            .replace(/^\\ No newline at end of file$/gm, (match) =>
-              styleText("gray", match),
-            )}\n-------\n${replace}`,
-      )
-      .join("\n\n");
+    const highlightedDiff = await Promise.all(
+      diffs.map(async ({ search, replace }) => {
+        const gitDiffOutput = await tryGitDiff(search, replace);
+        if (gitDiffOutput) {
+          return `${gitDiffOutput}\n-------\n${replace}`;
+        }
+        return [
+          `${styleText("yellow", "(git diff unavailable, showing plain diff)")}`,
+          "\n--- old",
+          `${search}`,
+          "+++ new",
+          `${replace}`,
+        ].join("\n");
+      }),
+    );
 
     return [
       `tool: ${toolName}`,
       `path: ${patchFileInput.filePath}`,
-      `diff:\n${highlightedDiff}`,
+      `diff:\n${highlightedDiff.join("\n\n")}`,
     ].join("\n");
   }
 
@@ -349,11 +356,20 @@ export function formatCostForBatch(summary) {
 /**
  * Print a message to the console.
  * @param {Message} message
+ * @returns {Promise<void>}
  */
-export function printMessage(message) {
+export async function printMessage(message) {
   switch (message.role) {
     case "assistant": {
       // console.log(styleText("bold", "\nAgent:"));
+      // Pre-format all tool_use parts in parallel to avoid sequential awaits
+      const toolUseParts = message.content.filter(
+        (part) => part.type === "tool_use",
+      );
+      const formattedToolUses = await Promise.all(
+        toolUseParts.map((part) => formatToolUse(part)),
+      );
+      let toolUseIndex = 0;
       for (const part of message.content) {
         switch (part.type) {
           // Note: Streamで表示するためここでは表示しない
@@ -371,7 +387,7 @@ export function printMessage(message) {
           //   break;
           case "tool_use":
             console.log(styleText("bold", "\nTool call:"));
-            console.log(formatToolUse(part));
+            console.log(formattedToolUses[toolUseIndex++]);
             break;
         }
       }
@@ -410,4 +426,91 @@ export function printMessage(message) {
       console.log(JSON.stringify(message, null, 2));
     }
   }
+}
+
+/**
+ * Generate a colored unified diff using `git diff --color`.
+ * Falls back to `null` if git is unavailable or if any step fails
+ * (temp directory creation, file writing, git execution, or cleanup).
+ * @param {string} oldContent
+ * @param {string} newContent
+ * @returns {Promise<string | null>}
+ */
+async function tryGitDiff(oldContent, newContent) {
+  const tmpDir = await noThrow(() =>
+    mkdtemp(path.join(os.tmpdir(), "git-diff-")),
+  );
+  if (tmpDir instanceof Error) {
+    console.error(
+      styleText("yellow", `git diff: mkdtemp failed: ${tmpDir.message}`),
+    );
+    return null;
+  }
+
+  const oldPath = path.join(tmpDir, "old");
+  const newPath = path.join(tmpDir, "new");
+
+  try {
+    const w1 = await noThrow(() => writeFile(oldPath, oldContent, "utf8"));
+    if (w1 instanceof Error) {
+      console.error(
+        styleText("yellow", `git diff: writeFile(old) failed: ${w1.message}`),
+      );
+      return null;
+    }
+
+    const w2 = await noThrow(() => writeFile(newPath, newContent, "utf8"));
+    if (w2 instanceof Error) {
+      console.error(
+        styleText("yellow", `git diff: writeFile(new) failed: ${w2.message}`),
+      );
+      return null;
+    }
+
+    const diffResult = await noThrow(() => execGitDiff(oldPath, newPath));
+    if (diffResult instanceof Error) {
+      console.error(
+        styleText("yellow", `git diff: exec failed: ${diffResult.message}`),
+      );
+      return null;
+    }
+
+    return diffResult;
+  } finally {
+    const cleanup = await noThrow(() =>
+      rm(tmpDir, { recursive: true, force: true }),
+    );
+    if (cleanup instanceof Error) {
+      console.error(
+        styleText("yellow", `git diff: cleanup failed: ${cleanup.message}`),
+      );
+    }
+  }
+}
+
+/**
+ * Execute git diff accepting exit code 1 as success (differences found).
+ * @param {string} oldPath
+ * @param {string} newPath
+ * @returns {Promise<string>}
+ */
+function execGitDiff(oldPath, newPath) {
+  return new Promise((resolve, reject) => {
+    execFile(
+      "git",
+      ["--no-pager", "diff", "--color", "--no-index", "--", oldPath, newPath],
+      { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 },
+      (error, stdout, stderr) => {
+        if (stderr) {
+          console.error(styleText("yellow", `git diff stderr: ${stderr}`));
+        }
+        // git diff returns exit code 1 when there are differences, which is expected
+        if (error && error.code !== 1) {
+          reject(error);
+        } else {
+          resolve(stdout);
+        }
+      },
+    );
+  });
 }
