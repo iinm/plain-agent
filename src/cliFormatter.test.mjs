@@ -147,10 +147,8 @@ describe("formatToolUse (patch_file)", () => {
     assert.ok(
       output.startsWith("tool: patch_file\npath: src/app.mjs\ndiff:\n"),
     );
-    assert.ok(
-      output.includes("\x1b["),
-      "Diff output should contain ANSI color codes",
-    );
+    // styleText() is TTY-aware, so ANSI codes may or may not appear
+    // depending on the test environment. Compare on the stripped form.
     assert.equal(
       stripAnsi(output),
       [
@@ -220,8 +218,8 @@ describe("formatToolUse (patch_file)", () => {
     });
     const stripped = stripAnsi(output);
     assert.ok(stripped.includes('@@@ abc 2-2 HEAD="old"'));
-    // The header line should be wrapped in cyan ANSI codes; its raw substring
-    // (without the SGR codes) must NOT appear immediately after the closing reset.
+    // Header lines pass through styleText("cyan", ...) which is TTY-aware,
+    // so we just verify the formatter wraps it the same way.
     const headerStyled = styleText("cyan", '@@@ abc 2-2 HEAD="old"');
     assert.ok(output.includes(headerStyled));
   });
