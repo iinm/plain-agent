@@ -131,6 +131,47 @@ bottom
     assert.equal(patchedContent, ["top", "middle", "bottom"].join("\n"));
   });
 
+  it("inserts into an empty file with 0+ without spurious trailing newline", async () => {
+    // given: an empty file (read_file would report 0 lines).
+    const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;
+    await fs.mkdir("tmp", { recursive: true });
+    await fs.writeFile(tmpFilePath, "");
+    cleanups.push(() => fs.unlink(tmpFilePath));
+
+    // when:
+    const diff = `
+@@@ 012 0+
+new content
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+
+    // then:
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
+    assert.equal(patchedContent, "new content");
+  });
+
+  it("rejects replace 1-1 on an empty file (no line 1 exists)", async () => {
+    // given: an empty file.
+    const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;
+    await fs.mkdir("tmp", { recursive: true });
+    await fs.writeFile(tmpFilePath, "");
+    cleanups.push(() => fs.unlink(tmpFilePath));
+
+    // when:
+    const diff = `
+@@@ 012 1-1
+new
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /extends past end of file \(0 lines\)/);
+  });
+
   it("preserves trailing newline when present", async () => {
     // given:
     const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;

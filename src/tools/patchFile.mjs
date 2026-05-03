@@ -150,48 +150,6 @@ export function parseBlocks(diff, nonce) {
 }
 
 /**
- * @param {string} headerArgs
- * @returns {{ op: "replace"; start: number; end: number; head?: string } | { op: "insert"; after: number }}
- */
-function parseHeaderArgs(headerArgs) {
-  // Replace form: "{start}-{end}" optionally followed by " HEAD=...".
-  // The HEAD value is unquoted and runs to end of line; we trim it later.
-  const replaceMatch = headerArgs.match(/^(\d+)-(\d+)(?:\s+HEAD=(.*))?$/);
-  if (replaceMatch) {
-    const start = Number(replaceMatch[1]);
-    const end = Number(replaceMatch[2]);
-    if (start < 1) {
-      throw new Error(
-        `Invalid replace range "${headerArgs}": start must be >= 1.`,
-      );
-    }
-    if (end < start) {
-      throw new Error(
-        `Invalid replace range "${headerArgs}": end (${end}) must be >= start (${start}).`,
-      );
-    }
-    const headRaw = replaceMatch[3];
-    if (headRaw !== undefined) {
-      const head = headRaw.trim();
-      if (head === "") {
-        throw new Error(
-          `HEAD= value is empty in "${headerArgs}". Drop the HEAD= clause if no staleness check is intended.`,
-        );
-      }
-      return { op: "replace", start, end, head };
-    }
-    return { op: "replace", start, end };
-  }
-  const insertMatch = headerArgs.match(/^(\d+)\+\s*$/);
-  if (insertMatch) {
-    return { op: "insert", after: Number(insertMatch[1]) };
-  }
-  throw new Error(
-    `Invalid block header arguments: ${JSON.stringify(headerArgs)}. Expected "{start}-{end}" or "{N}+".`,
-  );
-}
-
-/**
  * @param {string} original
  * @param {PatchBlock[]} blocks
  * @returns {string}
@@ -199,7 +157,10 @@ function parseHeaderArgs(headerArgs) {
 export function applyBlocks(original, blocks) {
   const hasTrailingNewline = original.endsWith("\n");
   const lines = original.split("\n");
-  if (hasTrailingNewline) {
+  // Drop the trailing empty element produced by split() for both
+  // newline-terminated content and an empty input. This keeps line counts
+  // consistent with read_file (an empty file reports 0 lines).
+  if (lines.length > 0 && lines[lines.length - 1] === "") {
     lines.pop();
   }
   const totalLines = lines.length;
@@ -252,6 +213,48 @@ export function applyBlocks(original, blocks) {
     result += "\n";
   }
   return result;
+}
+
+/**
+ * @param {string} headerArgs
+ * @returns {{ op: "replace"; start: number; end: number; head?: string } | { op: "insert"; after: number }}
+ */
+function parseHeaderArgs(headerArgs) {
+  // Replace form: "{start}-{end}" optionally followed by " HEAD=...".
+  // The HEAD value is unquoted and runs to end of line; we trim it later.
+  const replaceMatch = headerArgs.match(/^(\d+)-(\d+)(?:\s+HEAD=(.*))?$/);
+  if (replaceMatch) {
+    const start = Number(replaceMatch[1]);
+    const end = Number(replaceMatch[2]);
+    if (start < 1) {
+      throw new Error(
+        `Invalid replace range "${headerArgs}": start must be >= 1.`,
+      );
+    }
+    if (end < start) {
+      throw new Error(
+        `Invalid replace range "${headerArgs}": end (${end}) must be >= start (${start}).`,
+      );
+    }
+    const headRaw = replaceMatch[3];
+    if (headRaw !== undefined) {
+      const head = headRaw.trim();
+      if (head === "") {
+        throw new Error(
+          `HEAD= value is empty in "${headerArgs}". Drop the HEAD= clause if no staleness check is intended.`,
+        );
+      }
+      return { op: "replace", start, end, head };
+    }
+    return { op: "replace", start, end };
+  }
+  const insertMatch = headerArgs.match(/^(\d+)\+\s*$/);
+  if (insertMatch) {
+    return { op: "insert", after: Number(insertMatch[1]) };
+  }
+  throw new Error(
+    `Invalid block header arguments: ${JSON.stringify(headerArgs)}. Expected "{start}-{end}" or "{N}+".`,
+  );
 }
 
 /**

@@ -357,22 +357,31 @@ describe("formatToolUse (patch_file)", () => {
 
 describe("formatToolUse (read_file)", () => {
   it("renders filePath alone when no offset/limit set", async () => {
+    // when:
     const output = await formatToolUse({
       type: "tool_use",
       toolUseId: "r1",
       toolName: "read_file",
       input: { filePath: "src/app.mjs" },
     });
+
+    // then:
     assert.equal(output, "tool: read_file\nfilePath: src/app.mjs");
   });
 
   it("includes offset and limit when provided", async () => {
+    // given:
+    const input = { filePath: "src/app.mjs", offset: 10, limit: 50 };
+
+    // when:
     const output = await formatToolUse({
       type: "tool_use",
       toolUseId: "r2",
       toolName: "read_file",
-      input: { filePath: "src/app.mjs", offset: 10, limit: 50 },
+      input,
     });
+
+    // then:
     assert.equal(
       output,
       [
