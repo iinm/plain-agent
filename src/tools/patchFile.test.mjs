@@ -206,7 +206,7 @@ FIVE
 
     // when:
     const diff = `
-@@@ 012 2-2 HEAD="return 1;"
+@@@ 012 2-2 HEAD=return 1;
     return 42;
 @@@ 012
 `.trim();
@@ -221,13 +221,64 @@ FIVE
     );
   });
 
+  it("HEAD verification accepts a prefix of the actual line (startsWith)", async () => {
+    // given:
+    const tmpFilePath = await writeTmp([
+      "export function foo(arg) {",
+      "  return arg;",
+      "}",
+    ]);
+
+    // when: HEAD specifies a prefix of the actual line, not the full text
+    const diff = `
+@@@ 012 1-1 HEAD=export function foo(
+export function foo(arg, opts) {
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+
+    // then:
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
+    assert.equal(
+      patchedContent,
+      ["export function foo(arg, opts) {", "  return arg;", "}"].join("\n"),
+    );
+  });
+
+  it("HEAD verification accepts unquoted values containing spaces and quotes", async () => {
+    // given:
+    const tmpFilePath = await writeTmp([
+      'const greeting = "hello world";',
+      "console.log(greeting);",
+    ]);
+
+    // when:
+    const diff = `
+@@@ 012 1-1 HEAD=const greeting = "hello world";
+const greeting = "Hello, World!";
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+
+    // then:
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
+    assert.equal(
+      patchedContent,
+      ['const greeting = "Hello, World!";', "console.log(greeting);"].join(
+        "\n",
+      ),
+    );
+  });
+
   it("HEAD verification fails when first line does not match", async () => {
     // given:
     const tmpFilePath = await writeTmp(["alpha", "bravo", "charlie"]);
 
     // when: HEAD claims "alpha" but actual line 2 is "bravo"
     const diff = `
-@@@ 012 2-2 HEAD="alpha"
+@@@ 012 2-2 HEAD=alpha
 new
 @@@ 012
 `.trim();
@@ -236,6 +287,23 @@ new
     // then:
     assert.ok(result instanceof Error);
     assert.match(result.message, /HEAD verification failed at line 2/);
+  });
+
+  it("rejects empty HEAD= value", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["alpha"]);
+
+    // when:
+    const diff = `
+@@@ 012 1-1 HEAD=
+new
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /HEAD= value is empty/);
   });
 
   it("rejects overlapping replace ranges", async () => {

@@ -209,7 +209,7 @@ describe("formatToolUse (patch_file)", () => {
   });
 
   it("renders a HEAD-annotated open marker as a styled header", async () => {
-    const diff = ['@@@ abc 2-2 HEAD="old"', "new", "@@@ abc"].join("\n");
+    const diff = ["@@@ abc 2-2 HEAD=old line", "new", "@@@ abc"].join("\n");
     const output = await formatToolUse({
       type: "tool_use",
       toolUseId: "t9",
@@ -217,10 +217,10 @@ describe("formatToolUse (patch_file)", () => {
       input: { filePath: "src/app.mjs", diff },
     });
     const stripped = stripAnsi(output);
-    assert.ok(stripped.includes('@@@ abc 2-2 HEAD="old"'));
+    assert.ok(stripped.includes("@@@ abc 2-2 HEAD=old line"));
     // Header lines pass through styleText("cyan", ...) which is TTY-aware,
     // so we just verify the formatter wraps it the same way.
-    const headerStyled = styleText("cyan", '@@@ abc 2-2 HEAD="old"');
+    const headerStyled = styleText("cyan", "@@@ abc 2-2 HEAD=old line");
     assert.ok(output.includes(headerStyled));
   });
 });

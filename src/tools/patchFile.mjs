@@ -41,9 +41,9 @@ inserted content
   delete the range.
 - "{N}+" inserts the body after original line N. Use "0+" to prepend, and
   "{lastLine}+" to append.
-- Optional staleness check on replace: append HEAD="text" to the open
-  marker. The tool verifies that the original line {start}, trimmed, matches
-  the trimmed text. Inner double quotes are not supported in HEAD.
+- Optional staleness check on replace: append HEAD=text to the open marker
+  (no quotes; the value runs to end of line). The tool verifies that the
+  trimmed original line {start} starts with the trimmed text.
 - Multiple blocks may not target overlapping ranges; an insert at N must not
   fall strictly inside another block's replace range.
 - Blocks must be terminated by a close marker "@@@ ${nonce}" (no arguments).
@@ -154,9 +154,9 @@ export function parseBlocks(diff, nonce) {
  * @returns {{ op: "replace"; start: number; end: number; head?: string } | { op: "insert"; after: number }}
  */
 function parseHeaderArgs(headerArgs) {
-  const replaceMatch = headerArgs.match(
-    /^(\d+)-(\d+)(?:\s+HEAD="([^"]*)")?\s*$/,
-  );
+  // Replace form: "{start}-{end}" optionally followed by " HEAD=...".
+  // The HEAD value is unquoted and runs to end of line; we trim it later.
+  const replaceMatch = headerArgs.match(/^(\d+)-(\d+)(?:\s+HEAD=(.*))?$/);
   if (replaceMatch) {
     const start = Number(replaceMatch[1]);
     const end = Number(replaceMatch[2]);
@@ -170,12 +170,17 @@ function parseHeaderArgs(headerArgs) {
         `Invalid replace range "${headerArgs}": end (${end}) must be >= start (${start}).`,
       );
     }
-    return {
-      op: "replace",
-      start,
-      end,
-      ...(replaceMatch[3] !== undefined && { head: replaceMatch[3] }),
-    };
+    const headRaw = replaceMatch[3];
+    if (headRaw !== undefined) {
+      const head = headRaw.trim();
+      if (head === "") {
+        throw new Error(
+          `HEAD= value is empty in "${headerArgs}". Drop the HEAD= clause if no staleness check is intended.`,
+        );
+      }
+      return { op: "replace", start, end, head };
+    }
+    return { op: "replace", start, end };
   }
   const insertMatch = headerArgs.match(/^(\d+)\+\s*$/);
   if (insertMatch) {
@@ -227,9 +232,11 @@ export function applyBlocks(original, blocks) {
     if (block.op === "replace") {
       if (block.head !== undefined) {
         const actual = lines[block.start - 1];
-        if (actual === undefined || actual.trim() !== block.head.trim()) {
+        const actualTrimmed = (actual ?? "").trim();
+        const headTrimmed = block.head.trim();
+        if (!actualTrimmed.startsWith(headTrimmed)) {
           throw new Error(
-            `HEAD verification failed at line ${block.start}: expected ${JSON.stringify(block.head)} (trimmed) but got ${JSON.stringify(actual ?? "")} (trimmed). The line numbers may be stale; re-read the file with read_file.`,
+            `HEAD verification failed at line ${block.start}: expected line to start with ${JSON.stringify(headTrimmed)} (trimmed) but got ${JSON.stringify(actualTrimmed)}. The line numbers may be stale; re-read the file with read_file.`,
           );
         }
       }
