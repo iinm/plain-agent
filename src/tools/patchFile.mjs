@@ -28,25 +28,20 @@ export function createPatchFileTool(
             description: `
 Format:
 @@@ ${nonce} {start}-{end}
-new content (multiple lines OK)
+new content
 @@@ ${nonce}
 
 @@@ ${nonce} {N}+
 inserted content
 @@@ ${nonce}
 
-- Line numbers are 1-indexed and refer to the original file (not the file as
-  it stands after earlier blocks in the same diff).
-- "{start}-{end}" replaces lines start..end inclusive. Use an empty body to
-  delete the range.
-- "{N}+" inserts the body after original line N. Use "0+" to prepend, and
-  "{lastLine}+" to append.
-- Optional staleness check on replace: append HEAD=text to the open marker
-  (no quotes; the value runs to end of line). The tool verifies that the
-  trimmed original line {start} starts with the trimmed text.
-- Multiple blocks may not target overlapping ranges; an insert at N must not
-  fall strictly inside another block's replace range.
-- Blocks must be terminated by a close marker "@@@ ${nonce}" (no arguments).
+- Line numbers are 1-indexed; "{start}-{end}" is inclusive and refers to
+  the original file (not the file after earlier blocks).
+- "{N}+" inserts after line N; "0+" prepends, "{lastLine}+" appends.
+- Empty body deletes the range.
+- Overlapping blocks are rejected.
+- Optional "HEAD=text" (no quotes, runs to end of line) on the open marker
+  verifies that the trimmed line {start} starts with the trimmed text.
             `.trim(),
             type: "string",
           },

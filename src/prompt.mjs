@@ -72,13 +72,6 @@ Memory files should include:
 
 Call multiple tools at once when they don't depend on each other's results.
 
-## read_file / patch_file
-
-- read_file returns line-numbered content. Use it before patch_file so the
-  block headers point at the correct lines.
-- patch_file addresses content by 1-indexed line ranges; refer to its tool
-  description for the full block syntax.
-
 ## exec_command
 
 - Use relative paths.
