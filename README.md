@@ -322,13 +322,11 @@ Files are loaded in the following order. Settings in later files override earlie
   └── .plain-agent/
         ├── (3) config.json        # Project-specific configuration
         ├── (4) config.local.json  # Project-specific local configuration (including secrets)
-        ├── memory/                  # Task-specific memory files (auto-approvable)
-        ├── tmp/                     # Agent scratch space (auto-approvable)
-        ├── claude-code-plugins/     # Cached Claude Code plugins
         ├── prompts/                 # Project-specific prompts
         ├── agents/                  # Project-specific agent roles
+        ├── memory/                  # Task-specific memory files (auto-approvable)
         ├── sandbox/                 # Sandbox runner scripts (run.sh, Dockerfile); always require approval
-        └── setup.sh                 # Initial setup script
+        └── tmp/                     # Agent scratch space (auto-approvable)
 ```
 
 ### Example
