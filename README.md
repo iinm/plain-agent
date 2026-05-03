@@ -322,11 +322,11 @@ Files are loaded in the following order. Settings in later files override earlie
   └── .plain-agent/
         ├── (3) config.json        # Project-specific configuration
         ├── (4) config.local.json  # Project-specific local configuration (including secrets)
-        ├── prompts/                 # Project-specific prompts
-        ├── agents/                  # Project-specific agent roles
-        ├── memory/                  # Task-specific memory files (auto-approvable)
-        ├── sandbox/                 # Sandbox runner scripts (run.sh, Dockerfile); always require approval
-        └── tmp/                     # Agent scratch space (auto-approvable)
+        ├── prompts/               # Project-specific prompts
+        ├── agents/                # Project-specific agent roles
+        ├── memory/                # Task-specific memory files
+        ├── sandbox/               # Sandbox runner scripts
+        └── tmp/                   # Agent scratch space
 ```
 
 ### Example
