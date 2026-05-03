@@ -225,6 +225,83 @@ describe("formatToolUse (patch_file)", () => {
     assert.ok(stripped.includes("@@@ a1a 5+\n+ second new\n@@@ a1a"));
   });
 
+  it("renders unchanged lines inside a replace range as context (no -/+)", async () => {
+    // given:
+    const tmpFilePath = await writeTmp([
+      "alpha",
+      "bravo",
+      "charlie",
+      "delta",
+      "echo",
+    ]);
+    // Replace 1-5 but only line 3 ("charlie") actually changes; the
+    // first/last two lines round-trip unchanged.
+    const diff = [
+      "@@@ abc 1-5",
+      "alpha",
+      "bravo",
+      "CHARLIE",
+      "delta",
+      "echo",
+      "@@@ abc",
+    ].join("\n");
+
+    // when:
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "t12",
+      toolName: "patch_file",
+      input: { filePath: tmpFilePath, diff },
+    });
+
+    // then: only the changed line shows -/+; the rest are context "  ".
+    assert.equal(
+      stripAnsi(output),
+      [
+        "tool: patch_file",
+        `path: ${tmpFilePath}`,
+        "diff:",
+        "@@@ abc 1-5",
+        "  alpha",
+        "  bravo",
+        "- charlie",
+        "+ CHARLIE",
+        "  delta",
+        "  echo",
+        "@@@ abc",
+      ].join("\n"),
+    );
+  });
+
+  it("renders a no-op replace as all context lines", async () => {
+    // given: body matches the original range exactly.
+    const tmpFilePath = await writeTmp(["one", "two", "three"]);
+    const diff = ["@@@ abc 1-3", "one", "two", "three", "@@@ abc"].join("\n");
+
+    // when:
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "t13",
+      toolName: "patch_file",
+      input: { filePath: tmpFilePath, diff },
+    });
+
+    // then:
+    assert.equal(
+      stripAnsi(output),
+      [
+        "tool: patch_file",
+        `path: ${tmpFilePath}`,
+        "diff:",
+        "@@@ abc 1-3",
+        "  one",
+        "  two",
+        "  three",
+        "@@@ abc",
+      ].join("\n"),
+    );
+  });
+
   it("renders a deletion (empty body) as a removal-only block", async () => {
     // given:
     const tmpFilePath = await writeTmp(["keep", "drop me", "keep too"]);

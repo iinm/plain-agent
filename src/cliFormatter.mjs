@@ -12,6 +12,7 @@
 import fs from "node:fs/promises";
 import { styleText } from "node:util";
 import { parseBlocks } from "./tools/patchFile.mjs";
+import { diffLines } from "./utils/diffLines.mjs";
 import { noThrow } from "./utils/noThrow.mjs";
 
 /** Length above which a single-line arg forces block-form rendering. */
@@ -476,12 +477,25 @@ function renderPatchBlock(block, originalLines, nonce) {
     if (originalLines) {
       const safeStart = Math.max(1, block.start);
       const safeEnd = Math.min(originalLines.length, block.end);
-      for (let i = safeStart - 1; i < safeEnd; i++) {
-        out.push(styleText("red", `- ${originalLines[i]}`));
+      const oldSlice = originalLines.slice(safeStart - 1, safeEnd);
+      // Use a real line diff so unchanged lines render as context
+      // (no color, " " prefix) instead of being shown as both "- " and
+      // "+ ".
+      for (const op of diffLines(oldSlice, block.body)) {
+        if (op.type === "-") {
+          out.push(styleText("red", `- ${op.line}`));
+        } else if (op.type === "+") {
+          out.push(styleText("green", `+ ${op.line}`));
+        } else {
+          out.push(`  ${op.line}`);
+        }
       }
-    }
-    for (const line of block.body) {
-      out.push(styleText("green", `+ ${line}`));
+    } else {
+      // No file context available — fall back to listing the body as
+      // additions so the user can still see the new content.
+      for (const line of block.body) {
+        out.push(styleText("green", `+ ${line}`));
+      }
     }
   } else {
     out.push(styleText("cyan", `@@@ ${nonce} ${block.after}+`));
