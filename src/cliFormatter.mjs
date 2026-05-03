@@ -2,14 +2,17 @@
  * @import { Message, MessageContentToolUse, MessageContentToolResult, ProviderTokenUsage } from "./model"
  * @import { CompactContextInput } from "./tools/compactContext"
  * @import { ExecCommandInput } from "./tools/execCommand"
- * @import { PatchFileInput } from "./tools/patchFile"
+ * @import { PatchBlock, PatchFileInput } from "./tools/patchFile"
  * @import { ReadFileInput } from "./tools/readFile"
  * @import { WriteFileInput } from "./tools/writeFile"
  * @import { TmuxCommandInput } from "./tools/tmuxCommand"
  * @import { SwitchToSubagentInput } from "./tools/switchToSubagent"
  */
 
+import fs from "node:fs/promises";
 import { styleText } from "node:util";
+import { parseBlocks } from "./tools/patchFile.mjs";
+import { noThrow } from "./utils/noThrow.mjs";
 
 /** Length above which a single-line arg forces block-form rendering. */
 const ARG_BLOCK_LENGTH_THRESHOLD = 60;
@@ -85,11 +88,13 @@ export async function formatToolUse(toolUse) {
   if (toolName === "patch_file") {
     /** @type {Partial<PatchFileInput>} */
     const patchFileInput = input;
+    const filePath = patchFileInput.filePath ?? "";
     const diff = patchFileInput.diff || "";
+    const rendered = await renderPatchDiff(filePath, diff);
     return [
       `tool: ${toolName}`,
-      `path: ${patchFileInput.filePath}`,
-      `diff:\n${highlightPatchDiff(diff)}`,
+      `path: ${filePath}`,
+      `diff:\n${rendered}`,
     ].join("\n");
   }
 
@@ -410,12 +415,91 @@ export async function printMessage(message) {
 }
 
 /**
- * Add ANSI color to patch_file diff lines for readability:
- * open/close markers in cyan, body lines in green.
+ * Render patch_file diff for terminal display.
+ *
+ * Best-effort: parses the diff and reads the target file so the original
+ * lines targeted by each block can be shown alongside the new content
+ * (`-` red for removed, `+` green for added). Falls back to a verbatim
+ * highlight (open/close markers cyan, body lines green) on any failure
+ * (empty diff, missing nonce, parse error, file unreadable, etc.).
+ *
+ * @param {string} filePath
+ * @param {string} diff
+ * @returns {Promise<string>}
+ */
+async function renderPatchDiff(filePath, diff) {
+  if (!diff) {
+    return "";
+  }
+  const fallback = highlightPatchDiffPlain(diff);
+
+  const nonce = extractPatchNonce(diff);
+  if (!nonce) {
+    return fallback;
+  }
+
+  /** @type {PatchBlock[]} */
+  let blocks;
+  try {
+    blocks = parseBlocks(diff, nonce);
+  } catch {
+    return fallback;
+  }
+
+  let originalLines = null;
+  if (filePath) {
+    const original = await noThrow(() => fs.readFile(filePath, "utf8"));
+    if (!(original instanceof Error)) {
+      originalLines = splitContentLines(original);
+    }
+  }
+
+  return blocks
+    .map((block) => renderPatchBlock(block, originalLines, nonce))
+    .join("\n\n");
+}
+
+/**
+ * @param {PatchBlock} block
+ * @param {string[] | null} originalLines
+ * @param {string} nonce
+ * @returns {string}
+ */
+function renderPatchBlock(block, originalLines, nonce) {
+  /** @type {string[]} */
+  const out = [];
+  if (block.op === "replace") {
+    const head = block.head !== undefined ? ` HEAD=${block.head}` : "";
+    out.push(
+      styleText("cyan", `@@@ ${nonce} ${block.start}-${block.end}${head}`),
+    );
+    if (originalLines) {
+      const safeStart = Math.max(1, block.start);
+      const safeEnd = Math.min(originalLines.length, block.end);
+      for (let i = safeStart - 1; i < safeEnd; i++) {
+        out.push(styleText("red", `- ${originalLines[i]}`));
+      }
+    }
+    for (const line of block.body) {
+      out.push(styleText("green", `+ ${line}`));
+    }
+  } else {
+    out.push(styleText("cyan", `@@@ ${nonce} ${block.after}+`));
+    for (const line of block.body) {
+      out.push(styleText("green", `+ ${line}`));
+    }
+  }
+  out.push(styleText("cyan", `@@@ ${nonce}`));
+  return out.join("\n");
+}
+
+/**
+ * Verbatim highlighter used as fallback when block-aware rendering is not
+ * possible (parse error, missing nonce, etc.).
  * @param {string} diff
  * @returns {string}
  */
-function highlightPatchDiff(diff) {
+function highlightPatchDiffPlain(diff) {
   if (!diff) {
     return "";
   }
@@ -433,4 +517,28 @@ function highlightPatchDiff(diff) {
       return styleText("green", line);
     })
     .join("\n");
+}
+
+/**
+ * Extract the nonce from the first open marker in a patch_file diff.
+ * @param {string} diff
+ * @returns {string | null}
+ */
+function extractPatchNonce(diff) {
+  const match = diff.match(/^@@@\s+(\S+)/m);
+  return match ? match[1] : null;
+}
+
+/**
+ * Split file content into lines, dropping the trailing empty element when
+ * the file ends with a newline (matches patch_file's own line indexing).
+ * @param {string} content
+ * @returns {string[]}
+ */
+function splitContentLines(content) {
+  const lines = content.split("\n");
+  if (lines.length > 0 && lines[lines.length - 1] === "") {
+    lines.pop();
+  }
+  return lines;
 }
