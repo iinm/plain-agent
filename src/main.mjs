@@ -24,6 +24,7 @@ import { createAskWebTool } from "./tools/askWeb.mjs";
 import { createCompactContextTool } from "./tools/compactContext.mjs";
 import { createExecCommandTool } from "./tools/execCommand.mjs";
 import { createPatchFileTool } from "./tools/patchFile.mjs";
+import { readFileTool } from "./tools/readFile.mjs";
 import { createSwitchToMainAgentTool } from "./tools/switchToMainAgent.mjs";
 import { createSwitchToSubagentTool } from "./tools/switchToSubagent.mjs";
 import { createTmuxCommandTool } from "./tools/tmuxCommand.mjs";
@@ -177,6 +178,7 @@ if (cliArgs.subcommand.type === "cost") {
 
   const builtinTools = [
     createExecCommandTool({ sandbox: appConfig.sandbox }),
+    readFileTool,
     writeFileTool,
     createPatchFileTool(),
     createTmuxCommandTool({ sandbox: appConfig.sandbox }),

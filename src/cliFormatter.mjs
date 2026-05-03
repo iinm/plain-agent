@@ -3,17 +3,13 @@
  * @import { CompactContextInput } from "./tools/compactContext"
  * @import { ExecCommandInput } from "./tools/execCommand"
  * @import { PatchFileInput } from "./tools/patchFile"
+ * @import { ReadFileInput } from "./tools/readFile"
  * @import { WriteFileInput } from "./tools/writeFile"
  * @import { TmuxCommandInput } from "./tools/tmuxCommand"
  * @import { SwitchToSubagentInput } from "./tools/switchToSubagent"
  */
 
-import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
 import { styleText } from "node:util";
-import { noThrow } from "./utils/noThrow.mjs";
 
 /** Length above which a single-line arg forces block-form rendering. */
 const ARG_BLOCK_LENGTH_THRESHOLD = 60;
@@ -61,11 +57,9 @@ export function formatArgs(args) {
 /**
  * Format tool use for display.
  * @param {MessageContentToolUse} toolUse
- * @param {{ createDiff?: (oldContent: string, newContent: string) => Promise<string | null> }} [options]
  * @returns {Promise<string>}
  */
-export async function formatToolUse(toolUse, options = {}) {
-  const { createDiff = tryGitDiff } = options;
+export async function formatToolUse(toolUse) {
   const { toolName, input } = toolUse;
 
   if (toolName === "exec_command") {
@@ -92,40 +86,25 @@ export async function formatToolUse(toolUse, options = {}) {
     /** @type {Partial<PatchFileInput>} */
     const patchFileInput = input;
     const diff = patchFileInput.diff || "";
-
-    /** @type {{search:string; replace:string}[]} */
-    const diffs = [];
-    const matches = Array.from(
-      diff.matchAll(
-        /<<< [0-9a-z]{3} <<< SEARCH\n(.*?)\n=== [0-9a-z]{3} ===\n(.*?)\n?>>> [0-9a-z]{3} >>> REPLACE/gs,
-      ),
-    );
-    for (const match of matches) {
-      const [_, search, replace] = match;
-      diffs.push({ search, replace });
-    }
-
-    const highlightedDiff = await Promise.all(
-      diffs.map(async ({ search, replace }) => {
-        const gitDiffOutput = await createDiff(search, replace);
-        if (gitDiffOutput) {
-          return `${gitDiffOutput}\n-------\n${replace}`;
-        }
-        return [
-          `${styleText("yellow", "(git diff unavailable, showing plain diff)")}`,
-          "--- old",
-          `${search}`,
-          "+++ new",
-          `${replace}`,
-        ].join("\n");
-      }),
-    );
-
     return [
       `tool: ${toolName}`,
       `path: ${patchFileInput.filePath}`,
-      `diff:\n${highlightedDiff.join("\n\n")}`,
+      `diff:\n${highlightPatchDiff(diff)}`,
     ].join("\n");
+  }
+
+  if (toolName === "read_file") {
+    /** @type {Partial<ReadFileInput>} */
+    const readFileInput = input;
+    /** @type {string[]} */
+    const lines = [`tool: ${toolName}`, `filePath: ${readFileInput.filePath}`];
+    if (readFileInput.offset !== undefined) {
+      lines.push(`offset: ${readFileInput.offset}`);
+    }
+    if (readFileInput.limit !== undefined) {
+      lines.push(`limit: ${readFileInput.limit}`);
+    }
+    return lines.join("\n");
   }
 
   if (toolName === "tmux_command") {
@@ -431,88 +410,27 @@ export async function printMessage(message) {
 }
 
 /**
- * Generate a colored unified diff using `git diff --color`.
- * Falls back to `null` if git is unavailable or if any step fails
- * (temp directory creation, file writing, git execution, or cleanup).
- * @param {string} oldContent
- * @param {string} newContent
- * @returns {Promise<string | null>}
+ * Add ANSI color to patch_file diff lines for readability:
+ * open/close markers in cyan, body lines in green.
+ * @param {string} diff
+ * @returns {string}
  */
-async function tryGitDiff(oldContent, newContent) {
-  const tmpDir = await noThrow(() =>
-    mkdtemp(path.join(os.tmpdir(), "git-diff-")),
-  );
-  if (tmpDir instanceof Error) {
-    console.error(
-      styleText("yellow", `git diff: mkdtemp failed: ${tmpDir.message}`),
-    );
-    return null;
+function highlightPatchDiff(diff) {
+  if (!diff) {
+    return "";
   }
-
-  const oldPath = path.join(tmpDir, "old");
-  const newPath = path.join(tmpDir, "new");
-
-  try {
-    const w1 = await noThrow(() => writeFile(oldPath, oldContent, "utf8"));
-    if (w1 instanceof Error) {
-      console.error(
-        styleText("yellow", `git diff: writeFile(old) failed: ${w1.message}`),
-      );
-      return null;
-    }
-
-    const w2 = await noThrow(() => writeFile(newPath, newContent, "utf8"));
-    if (w2 instanceof Error) {
-      console.error(
-        styleText("yellow", `git diff: writeFile(new) failed: ${w2.message}`),
-      );
-      return null;
-    }
-
-    const diffResult = await noThrow(() => execGitDiff(oldPath, newPath));
-    if (diffResult instanceof Error) {
-      console.error(
-        styleText("yellow", `git diff: exec failed: ${diffResult.message}`),
-      );
-      return null;
-    }
-
-    return diffResult;
-  } finally {
-    const cleanup = await noThrow(() =>
-      rm(tmpDir, { recursive: true, force: true }),
-    );
-    if (cleanup instanceof Error) {
-      console.error(
-        styleText("yellow", `git diff: cleanup failed: ${cleanup.message}`),
-      );
-    }
-  }
-}
-
-/**
- * Execute git diff accepting exit code 1 as success (differences found).
- * @param {string} oldPath
- * @param {string} newPath
- * @returns {Promise<string>}
- */
-function execGitDiff(oldPath, newPath) {
-  return new Promise((resolve, reject) => {
-    execFile(
-      "git",
-      ["--no-pager", "diff", "--color", "--no-index", "--", oldPath, newPath],
-      { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 },
-      (error, stdout, stderr) => {
-        if (stderr) {
-          console.error(styleText("yellow", `git diff stderr: ${stderr}`));
-        }
-        // git diff returns exit code 1 when there are differences, which is expected
-        if (error && error.code !== 1) {
-          reject(error);
-        } else {
-          resolve(stdout);
-        }
-      },
-    );
-  });
+  // Patch headers/closes look like "@@@ <nonce> ..." or "@@@ <nonce>".
+  const headerRegex = /^@@@\s+\S+(\s.*)?$/;
+  return diff
+    .split("\n")
+    .map((line) => {
+      if (headerRegex.test(line)) {
+        return styleText("cyan", line);
+      }
+      if (line === "") {
+        return line;
+      }
+      return styleText("green", line);
+    })
+    .join("\n");
 }

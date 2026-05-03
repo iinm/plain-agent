@@ -3,6 +3,12 @@ import { describe, it } from "node:test";
 import { styleText } from "node:util";
 import { formatArgs, formatToolUse } from "./cliFormatter.mjs";
 
+const ESC = String.fromCharCode(27);
+const ANSI_PATTERN = new RegExp(`${ESC}\\[[0-9;]*m`, "g");
+
+/** @param {string} s */
+const stripAnsi = (s) => s.replace(ANSI_PATTERN, "");
+
 describe("formatArgs", () => {
   it("renders an empty array inline", () => {
     assert.equal(formatArgs([]), "args: []");
@@ -126,9 +132,10 @@ describe("formatToolUse", () => {
 });
 
 describe("formatToolUse (patch_file)", () => {
-  it("formats a single search/replace diff pair", async () => {
-    const diff =
-      "<<< abc <<< SEARCH\nold line\n=== abc ===\nnew line\n>>> abc >>> REPLACE";
+  it("formats a replace block with header and body styled", async () => {
+    const diff = ["@@@ abc 3-4", "first new", "second new", "@@@ abc"].join(
+      "\n",
+    );
 
     const output = await formatToolUse({
       type: "tool_use",
@@ -137,28 +144,36 @@ describe("formatToolUse (patch_file)", () => {
       input: { filePath: "src/app.mjs", diff },
     });
 
-    assert.ok(output.startsWith("tool: patch_file\npath: src/app.mjs\n"));
-    assert.ok(output.includes("diff --git"));
+    assert.ok(
+      output.startsWith("tool: patch_file\npath: src/app.mjs\ndiff:\n"),
+    );
     assert.ok(
       output.includes("\x1b["),
-      "Git diff should contain ANSI color codes",
+      "Diff output should contain ANSI color codes",
     );
-    assert.ok(output.includes("-------"));
-    assert.ok(output.includes("new line"));
+    assert.equal(
+      stripAnsi(output),
+      [
+        "tool: patch_file",
+        "path: src/app.mjs",
+        "diff:",
+        "@@@ abc 3-4",
+        "first new",
+        "second new",
+        "@@@ abc",
+      ].join("\n"),
+    );
   });
 
-  it("formats multiple search/replace diff", async () => {
+  it("formats multiple blocks including an insert", async () => {
     const diff = [
-      "<<< a1a <<< SEARCH",
-      "first old",
-      "=== a1a ===",
+      "@@@ a1a 1-1",
       "first new",
-      ">>> a1a >>> REPLACE",
-      "<<< b2b <<< SEARCH",
-      "second old",
-      "=== b2b ===",
+      "@@@ a1a",
+      "",
+      "@@@ a1a 5+",
       "second new",
-      ">>> b2b >>> REPLACE",
+      "@@@ a1a",
     ].join("\n");
 
     const output = await formatToolUse({
@@ -168,35 +183,11 @@ describe("formatToolUse (patch_file)", () => {
       input: { filePath: "lib/mod.mjs", diff },
     });
 
-    assert.ok(output.includes("first new"));
-    assert.ok(output.includes("second new"));
-    assert.ok(output.includes("diff --git"));
-    const separatorCount = output.split("-------").length - 1;
-    assert.equal(separatorCount, 2);
-  });
-
-  it("shows plain fallback when git diff returns null", async () => {
-    const diff =
-      "<<< abc <<< SEARCH\nold line\n=== abc ===\nnew line\n>>> abc >>> REPLACE";
-
-    const output = await formatToolUse(
-      {
-        type: "tool_use",
-        toolUseId: "t6",
-        toolName: "patch_file",
-        input: { filePath: "src/app.mjs", diff },
-      },
-      { createDiff: async () => null },
-    );
-
-    assert.equal(
-      output,
-      [
-        "tool: patch_file",
-        "path: src/app.mjs",
-        `diff:\n${styleText("yellow", "(git diff unavailable, showing plain diff)")}\n--- old\nold line\n+++ new\nnew line`,
-      ].join("\n"),
-    );
+    const stripped = stripAnsi(output);
+    assert.ok(stripped.includes("@@@ a1a 1-1"));
+    assert.ok(stripped.includes("@@@ a1a 5+"));
+    assert.ok(stripped.includes("first new"));
+    assert.ok(stripped.includes("second new"));
   });
 
   it("handles an empty diff string", async () => {
@@ -219,25 +210,49 @@ describe("formatToolUse (patch_file)", () => {
     assert.equal(output, "tool: patch_file\npath: empty.txt\ndiff:\n");
   });
 
-  it("falls back when git diff returns empty string (identical content)", async () => {
-    const diff =
-      "<<< abc <<< SEARCH\nsame\n=== abc ===\nsame\n>>> abc >>> REPLACE";
+  it("renders a HEAD-annotated open marker as a styled header", async () => {
+    const diff = ['@@@ abc 2-2 HEAD="old"', "new", "@@@ abc"].join("\n");
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "t9",
+      toolName: "patch_file",
+      input: { filePath: "src/app.mjs", diff },
+    });
+    const stripped = stripAnsi(output);
+    assert.ok(stripped.includes('@@@ abc 2-2 HEAD="old"'));
+    // The header line should be wrapped in cyan ANSI codes; its raw substring
+    // (without the SGR codes) must NOT appear immediately after the closing reset.
+    const headerStyled = styleText("cyan", '@@@ abc 2-2 HEAD="old"');
+    assert.ok(output.includes(headerStyled));
+  });
+});
 
-    const output = await formatToolUse(
-      {
-        type: "tool_use",
-        toolUseId: "t9",
-        toolName: "patch_file",
-        input: { filePath: "same.txt", diff },
-      },
-      { createDiff: async () => "" },
-    );
+describe("formatToolUse (read_file)", () => {
+  it("renders filePath alone when no offset/limit set", async () => {
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "r1",
+      toolName: "read_file",
+      input: { filePath: "src/app.mjs" },
+    });
+    assert.equal(output, "tool: read_file\nfilePath: src/app.mjs");
+  });
 
-    assert.ok(
-      output.includes(
-        styleText("yellow", "(git diff unavailable, showing plain diff)"),
-      ),
-      "Identical content should trigger fallback because empty git diff is falsy",
+  it("includes offset and limit when provided", async () => {
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "r2",
+      toolName: "read_file",
+      input: { filePath: "src/app.mjs", offset: 10, limit: 50 },
+    });
+    assert.equal(
+      output,
+      [
+        "tool: read_file",
+        "filePath: src/app.mjs",
+        "offset: 10",
+        "limit: 50",
+      ].join("\n"),
     );
   });
 });

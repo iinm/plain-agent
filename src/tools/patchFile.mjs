@@ -1,6 +1,6 @@
 /**
  * @import { Tool } from '../tool'
- * @import { PatchFileInput } from './patchFile'
+ * @import { PatchBlock, PatchFileInput } from './patchFile'
  */
 
 import fs from "node:fs/promises";
@@ -17,7 +17,7 @@ export function createPatchFileTool(
     def: {
       name: "patch_file",
       description:
-        "Modify a file by replacing specific content with new content.",
+        "Modify a file by replacing or inserting content addressed by line numbers (1-indexed).",
       inputSchema: {
         type: "object",
         properties: {
@@ -27,21 +27,27 @@ export function createPatchFileTool(
           diff: {
             description: `
 Format:
-<<< ${nonce} <<< SEARCH
-old content
-=== ${nonce} ===
-new content
->>> ${nonce} >>> REPLACE
+@@@ ${nonce} {start}-{end}
+new content (multiple lines OK)
+@@@ ${nonce}
 
-<<< ${nonce} <<< SEARCH
-other old content
-=== ${nonce} ===
-other new content
->>> ${nonce} >>> REPLACE
+@@@ ${nonce} {N}+
+inserted content
+@@@ ${nonce}
 
-- Content is searched as an exact match including indentation and line breaks.
-- The first match found will be replaced if there are multiple matches.
-          `.trim(),
+- Line numbers are 1-indexed and refer to the original file (not the file as
+  it stands after earlier blocks in the same diff).
+- "{start}-{end}" replaces lines start..end inclusive. Use an empty body to
+  delete the range.
+- "{N}+" inserts the body after original line N. Use "0+" to prepend, and
+  "{lastLine}+" to append.
+- Optional staleness check on replace: append HEAD="text" to the open
+  marker. The tool verifies that the original line {start}, trimmed, matches
+  the trimmed text. Inner double quotes are not supported in HEAD.
+- Multiple blocks may not target overlapping ranges; an insert at N must not
+  fall strictly inside another block's replace range.
+- Blocks must be terminated by a close marker "@@@ ${nonce}" (no arguments).
+            `.trim(),
             type: "string",
           },
         },
@@ -56,65 +62,15 @@ other new content
     impl: async (input) =>
       await noThrow(async () => {
         const { filePath, diff } = input;
-
-        // Validate marker counts: each block needs exactly one of each marker.
-        // Since nonce is random, duplicate markers mean the user accidentally
-        // included a marker line in their search/replace content (copy-paste error).
-        const searchMarker = `<<< ${nonce} <<< SEARCH`;
-        const sepMarker = `=== ${nonce} ===`;
-        const replaceMarker = `>>> ${nonce} >>> REPLACE`;
-        /** @type {(s: string, sub: string) => number} */
-        const count = (s, sub) => s.split(sub).length - 1;
-        const nSearch = count(diff, searchMarker);
-        const nSep = count(diff, sepMarker);
-        const nReplace = count(diff, replaceMarker);
-
-        if (nSearch !== nReplace) {
+        const blocks = parseBlocks(diff, nonce);
+        if (blocks.length === 0) {
           throw new Error(
-            `Mismatched block markers: found ${nSearch} "${searchMarker}" but ${nReplace} "${replaceMarker}". ` +
-              "Did you accidentally include a marker in your search/replace content?",
-          );
-        }
-        if (nSep !== nSearch) {
-          throw new Error(
-            `Each diff block needs exactly one "${sepMarker}" separator, ` +
-              `but found ${nSep} separators for ${nSearch} block(s). ` +
-              "Did you accidentally include the separator marker in your search/replace content?",
+            `No patch blocks found. Each block must start with "@@@ ${nonce} ..." and end with "@@@ ${nonce}".`,
           );
         }
 
-        const content = await fs.readFile(filePath, "utf8");
-        const matches = Array.from(
-          diff.matchAll(
-            new RegExp(
-              `<<< ${nonce} <<< SEARCH\\n(.*?)\\n=== ${nonce} ===\\n(.*?)\\n?>>> ${nonce} >>> REPLACE`,
-              "gs",
-            ),
-          ),
-        );
-        if (matches.length === 0) {
-          throw new Error(
-            `Invalid diff format. Each markers must include the nonce: <<< ${nonce} <<< SEARCH, === ${nonce} ===, >>> ${nonce} >>> REPLACE`,
-          );
-        }
-        let newContent = content;
-        for (const match of matches) {
-          const [_, search, replace] = match;
-          if (!newContent.includes(search)) {
-            throw new Error(
-              JSON.stringify(`Search content not found: ${search}`),
-            );
-          }
-          // Escape $ characters in replacement string to prevent interpretation of $& $1 $$ patterns
-          const escapedReplace = replace.replace(/\$/g, "$$$$");
-          if (replace === "" && newContent.includes(`${search}\n`)) {
-            newContent = newContent.replace(`${search}\n`, "");
-          } else if (replace === "" && newContent.includes(`\n${search}`)) {
-            newContent = newContent.replace(`\n${search}`, "");
-          } else {
-            newContent = newContent.replace(search, escapedReplace);
-          }
-        }
+        const original = await fs.readFile(filePath, "utf8");
+        const newContent = applyBlocks(original, blocks);
         await fs.writeFile(filePath, newContent);
         return `Patched file: ${filePath}`;
       }),
@@ -130,4 +86,222 @@ other new content
       };
     },
   };
+}
+
+/**
+ * Parse a diff string into a list of patch blocks.
+ * @param {string} diff
+ * @param {string} nonce
+ * @returns {PatchBlock[]}
+ */
+export function parseBlocks(diff, nonce) {
+  const openPrefix = `@@@ ${nonce} `;
+  const closeMarker = `@@@ ${nonce}`;
+  const lines = diff.split("\n");
+
+  /** @type {PatchBlock[]} */
+  const blocks = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line === "") {
+      i++;
+      continue;
+    }
+    if (line === closeMarker) {
+      throw new Error(
+        `Unexpected close marker "${closeMarker}" with no matching open block (line ${i + 1} of diff).`,
+      );
+    }
+    if (!line.startsWith(openPrefix)) {
+      throw new Error(
+        `Expected block header starting with "${openPrefix}" but got: ${JSON.stringify(line)} (line ${i + 1} of diff).`,
+      );
+    }
+    const headerArgs = line.slice(openPrefix.length);
+    const block = parseHeaderArgs(headerArgs);
+    i++;
+
+    /** @type {string[]} */
+    const body = [];
+    let foundClose = false;
+    while (i < lines.length) {
+      if (lines[i] === closeMarker) {
+        foundClose = true;
+        i++;
+        break;
+      }
+      body.push(lines[i]);
+      i++;
+    }
+    if (!foundClose) {
+      throw new Error(
+        `Missing close marker "${closeMarker}" for block "${openPrefix}${headerArgs}".`,
+      );
+    }
+    if (block.op === "insert" && body.length === 0) {
+      throw new Error(
+        `Insert block "${openPrefix}${headerArgs}" has empty body. Use a replace block to delete content.`,
+      );
+    }
+    blocks.push({ ...block, body });
+  }
+  return blocks;
+}
+
+/**
+ * @param {string} headerArgs
+ * @returns {{ op: "replace"; start: number; end: number; head?: string } | { op: "insert"; after: number }}
+ */
+function parseHeaderArgs(headerArgs) {
+  const replaceMatch = headerArgs.match(
+    /^(\d+)-(\d+)(?:\s+HEAD="([^"]*)")?\s*$/,
+  );
+  if (replaceMatch) {
+    const start = Number(replaceMatch[1]);
+    const end = Number(replaceMatch[2]);
+    if (start < 1) {
+      throw new Error(
+        `Invalid replace range "${headerArgs}": start must be >= 1.`,
+      );
+    }
+    if (end < start) {
+      throw new Error(
+        `Invalid replace range "${headerArgs}": end (${end}) must be >= start (${start}).`,
+      );
+    }
+    return {
+      op: "replace",
+      start,
+      end,
+      ...(replaceMatch[3] !== undefined && { head: replaceMatch[3] }),
+    };
+  }
+  const insertMatch = headerArgs.match(/^(\d+)\+\s*$/);
+  if (insertMatch) {
+    return { op: "insert", after: Number(insertMatch[1]) };
+  }
+  throw new Error(
+    `Invalid block header arguments: ${JSON.stringify(headerArgs)}. Expected "{start}-{end}" or "{N}+".`,
+  );
+}
+
+/**
+ * @param {string} original
+ * @param {PatchBlock[]} blocks
+ * @returns {string}
+ */
+export function applyBlocks(original, blocks) {
+  const hasTrailingNewline = original.endsWith("\n");
+  const lines = original.split("\n");
+  if (hasTrailingNewline) {
+    lines.pop();
+  }
+  const totalLines = lines.length;
+
+  validateBlocks(blocks, totalLines);
+  detectConflicts(blocks);
+
+  // Sort for bottom-up application.
+  // - Higher splice index first.
+  // - Tie: replace before insert (replace must run first so insert can
+  //   land at the same splice position post-replace).
+  // - Tie among inserts at the same point: later-in-source first, so the
+  //   first-in-source block ends up topmost in the inserted stack.
+  const indexed = blocks.map((block, sourceIdx) => ({
+    block,
+    sourceIdx,
+    spliceIndex: spliceIndexOf(block),
+  }));
+  indexed.sort((a, b) => {
+    if (a.spliceIndex !== b.spliceIndex) {
+      return b.spliceIndex - a.spliceIndex;
+    }
+    if (a.block.op !== b.block.op) {
+      return a.block.op === "replace" ? -1 : 1;
+    }
+    return b.sourceIdx - a.sourceIdx;
+  });
+
+  for (const { block } of indexed) {
+    if (block.op === "replace") {
+      if (block.head !== undefined) {
+        const actual = lines[block.start - 1];
+        if (actual === undefined || actual.trim() !== block.head.trim()) {
+          throw new Error(
+            `HEAD verification failed at line ${block.start}: expected ${JSON.stringify(block.head)} (trimmed) but got ${JSON.stringify(actual ?? "")} (trimmed). The line numbers may be stale; re-read the file with read_file.`,
+          );
+        }
+      }
+      const removeCount = block.end - block.start + 1;
+      lines.splice(block.start - 1, removeCount, ...block.body);
+    } else {
+      lines.splice(block.after, 0, ...block.body);
+    }
+  }
+
+  let result = lines.join("\n");
+  if (hasTrailingNewline) {
+    result += "\n";
+  }
+  return result;
+}
+
+/**
+ * @param {PatchBlock} block
+ * @returns {number}
+ */
+function spliceIndexOf(block) {
+  return block.op === "replace" ? block.start - 1 : block.after;
+}
+
+/**
+ * @param {PatchBlock[]} blocks
+ * @param {number} totalLines
+ */
+function validateBlocks(blocks, totalLines) {
+  for (const block of blocks) {
+    if (block.op === "replace") {
+      if (block.end > totalLines) {
+        throw new Error(
+          `Replace range ${block.start}-${block.end} extends past end of file (${totalLines} lines).`,
+        );
+      }
+    } else if (block.after < 0 || block.after > totalLines) {
+      throw new Error(
+        `Insert position ${block.after}+ is outside [0, ${totalLines}].`,
+      );
+    }
+  }
+}
+
+/**
+ * @param {PatchBlock[]} blocks
+ */
+function detectConflicts(blocks) {
+  for (let i = 0; i < blocks.length; i++) {
+    for (let j = i + 1; j < blocks.length; j++) {
+      const a = blocks[i];
+      const b = blocks[j];
+      if (a.op === "replace" && b.op === "replace") {
+        if (a.start <= b.end && b.start <= a.end) {
+          throw new Error(
+            `Replace ranges overlap: ${a.start}-${a.end} and ${b.start}-${b.end}.`,
+          );
+        }
+      } else if (a.op === "replace" && b.op === "insert") {
+        if (b.after >= a.start && b.after < a.end) {
+          throw new Error(
+            `Insert at ${b.after}+ falls inside replace range ${a.start}-${a.end}.`,
+          );
+        }
+      } else if (a.op === "insert" && b.op === "replace") {
+        if (a.after >= b.start && a.after < b.end) {
+          throw new Error(
+            `Insert at ${a.after}+ falls inside replace range ${b.start}-${b.end}.`,
+          );
+        }
+      }
+    }
+  }
 }

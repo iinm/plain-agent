@@ -11,6 +11,18 @@ describe("patchFileTool", () => {
 
   const generateRandomString = () => Math.random().toString(36).substring(2);
 
+  /**
+   * @param {string[]} lines
+   * @returns {Promise<string>}
+   */
+  const writeTmp = async (lines) => {
+    const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;
+    await fs.mkdir("tmp", { recursive: true });
+    await fs.writeFile(tmpFilePath, lines.join("\n"));
+    cleanups.push(() => fs.unlink(tmpFilePath));
+    return tmpFilePath;
+  };
+
   afterEach(async () => {
     for (const cleanup of [...cleanups].reverse()) {
       await cleanup();
@@ -18,269 +30,418 @@ describe("patchFileTool", () => {
     cleanups.length = 0;
   });
 
-  it("patches a file", async () => {
+  it("replaces a single line range", async () => {
     // given:
-    const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;
-    await fs.mkdir("tmp", { recursive: true });
-    const initialContent = [
+    const tmpFilePath = await writeTmp([
       "Hello World",
       "This is a test file content 1.",
       "This is a test file content 2.",
       "This is a test file content 3.",
-    ].join("\n");
-    await fs.writeFile(tmpFilePath, initialContent);
-    cleanups.push(() => fs.unlink(tmpFilePath));
+    ]);
 
     // when:
     const diff = `
-<<< 012 <<< SEARCH
-Hello World
-=== 012 ===
+@@@ 012 1-1
 Hello Universe
->>> 012 >>> REPLACE
+@@@ 012
 
-<<< 012 <<< SEARCH
-This is a test file content 2.
-This is a test file content 3.
-=== 012 ===
+@@@ 012 3-4
 This is a test file content updated 2.
 This is a test file content updated 3.
->>> 012 >>> REPLACE
-`;
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
-
-    // then:
-    assert.equal(result, `Patched file: ${tmpFilePath}`);
-    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
-    const expectedContent = [
-      "Hello Universe",
-      "This is a test file content 1.",
-      "This is a test file content updated 2.",
-      "This is a test file content updated 3.",
-    ].join("\n");
-    assert.equal(patchedContent, expectedContent);
-  });
-
-  it("removes header content", async () => {
-    // given:
-    const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;
-    await fs.mkdir("tmp", { recursive: true });
-    const initialContent = [
-      "Hello World",
-      "This is a test file content 1.",
-      "This is a test file content 2.",
-      "This is a test file content 3.",
-    ].join("\n");
-    await fs.writeFile(tmpFilePath, initialContent);
-    cleanups.push(() => fs.unlink(tmpFilePath));
-
-    // when:
-    const diff = `
-<<< 012 <<< SEARCH
-Hello World
-=== 012 ===
->>> 012 >>> REPLACE
+@@@ 012
 `.trim();
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
     // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
-    const expectedContent = [
-      "This is a test file content 1.",
-      "This is a test file content 2.",
-      "This is a test file content 3.",
-    ].join("\n");
-    assert.equal(patchedContent, expectedContent);
+    assert.equal(
+      patchedContent,
+      [
+        "Hello Universe",
+        "This is a test file content 1.",
+        "This is a test file content updated 2.",
+        "This is a test file content updated 3.",
+      ].join("\n"),
+    );
   });
 
-  it("removes footer content", async () => {
+  it("deletes a range with an empty body", async () => {
     // given:
-    const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;
-    await fs.mkdir("tmp", { recursive: true });
-    const initialContent = [
+    const tmpFilePath = await writeTmp([
       "Hello World",
-      "This is a test file content 1.",
-      "This is a test file content 2.",
-      "This is a test file content 3.",
-    ].join("\n");
-    await fs.writeFile(tmpFilePath, initialContent);
-    cleanups.push(() => fs.unlink(tmpFilePath));
+      "drop me",
+      "drop me too",
+      "keep me",
+    ]);
 
     // when:
     const diff = `
-<<< 012 <<< SEARCH
-This is a test file content 3.
-=== 012 ===
->>> 012 >>> REPLACE
+@@@ 012 2-3
+@@@ 012
 `.trim();
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
     // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
-    const expectedContent = [
-      "Hello World",
-      "This is a test file content 1.",
-      "This is a test file content 2.",
-    ].join("\n");
-    assert.equal(patchedContent, expectedContent);
+    assert.equal(patchedContent, ["Hello World", "keep me"].join("\n"));
   });
 
-  it("replace content including markers", async () => {
+  it("inserts content with N+ syntax (after a line)", async () => {
     // given:
-    const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;
-    await fs.mkdir("tmp", { recursive: true });
-    const initialContent = [
-      "Hello World",
-      "<<< SEARCH",
-      "===",
-      ">>> REPLACE",
-    ].join("\n");
-    await fs.writeFile(tmpFilePath, initialContent);
-    cleanups.push(() => fs.unlink(tmpFilePath));
+    const tmpFilePath = await writeTmp(["alpha", "bravo", "delta"]);
 
-    // when:
+    // when: insert "charlie" after line 2
     const diff = `
-<<< 012 <<< SEARCH
-Hello World
-<<< SEARCH
-=== 012 ===
-Hello Universe
-marker 1
->>> 012 >>> REPLACE
-
-<<< 012 <<< SEARCH
-===
-=== 012 ===
-marker 2
->>> 012 >>> REPLACE
-
-<<< 012 <<< SEARCH
->>> REPLACE
-=== 012 ===
-marker 3
->>> 012 >>> REPLACE
-`;
+@@@ 012 2+
+charlie
+@@@ 012
+`.trim();
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
     // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
-    const expectedContent = [
-      "Hello Universe",
-      "marker 1",
-      "marker 2",
-      "marker 3",
-    ].join("\n");
-    assert.equal(patchedContent, expectedContent);
+    assert.equal(
+      patchedContent,
+      ["alpha", "bravo", "charlie", "delta"].join("\n"),
+    );
   });
 
-  it("handles special characters in replacement string", async () => {
+  it("prepends with 0+ and appends with {lastLine}+", async () => {
     // given:
-    const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;
-    await fs.mkdir("tmp", { recursive: true });
-    const initialContent = "Hello World\nThis is a test.";
-    await fs.writeFile(tmpFilePath, initialContent);
-    cleanups.push(() => fs.unlink(tmpFilePath));
+    const tmpFilePath = await writeTmp(["middle"]);
 
-    // when: replacement string contains special characters like $&, $1, $$, %
+    // when:
     const diff = `
-<<< 012 <<< SEARCH
-Hello World
-=== 012 ===
-Price: $100 & 50% off $& special $1 deal $$
->>> 012 >>> REPLACE
-`;
+@@@ 012 0+
+top
+@@@ 012
+
+@@@ 012 1+
+bottom
+@@@ 012
+`.trim();
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
-    // then: special characters should be treated literally, not as regex replacement patterns
+    // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
-    const expectedContent =
-      "Price: $100 & 50% off $& special $1 deal $$\nThis is a test.";
-    assert.equal(patchedContent, expectedContent);
+    assert.equal(patchedContent, ["top", "middle", "bottom"].join("\n"));
   });
 
-  it("handles dollar signs in replacement string", async () => {
+  it("preserves trailing newline when present", async () => {
     // given:
     const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;
     await fs.mkdir("tmp", { recursive: true });
-    const initialContent = "Original text here";
-    await fs.writeFile(tmpFilePath, initialContent);
+    await fs.writeFile(tmpFilePath, "alpha\nbravo\n");
     cleanups.push(() => fs.unlink(tmpFilePath));
 
-    // when: replacement string contains various dollar sign patterns
+    // when:
     const diff = `
-<<< 012 <<< SEARCH
-Original text here
-=== 012 ===
+@@@ 012 1-1
+ALPHA
+@@@ 012
+`.trim();
+    await patchFileTool.impl({ filePath: tmpFilePath, diff });
+
+    // then:
+    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
+    assert.equal(patchedContent, "ALPHA\nbravo\n");
+  });
+
+  it("does not introduce trailing newline when original lacked one", async () => {
+    // given:
+    const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;
+    await fs.mkdir("tmp", { recursive: true });
+    await fs.writeFile(tmpFilePath, "alpha\nbravo");
+    cleanups.push(() => fs.unlink(tmpFilePath));
+
+    // when:
+    const diff = `
+@@@ 012 2-2
+BRAVO
+@@@ 012
+`.trim();
+    await patchFileTool.impl({ filePath: tmpFilePath, diff });
+
+    // then:
+    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
+    assert.equal(patchedContent, "alpha\nBRAVO");
+  });
+
+  it("uses original line numbers across multiple blocks", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["one", "two", "three", "four", "five"]);
+
+    // when: line numbers refer to ORIGINAL file even though block 1 changes line count
+    const diff = `
+@@@ 012 1-1
+ONE
+TWO
+@@@ 012
+
+@@@ 012 5-5
+FIVE
+@@@ 012
+`.trim();
+    await patchFileTool.impl({ filePath: tmpFilePath, diff });
+
+    // then:
+    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
+    assert.equal(
+      patchedContent,
+      ["ONE", "TWO", "two", "three", "four", "FIVE"].join("\n"),
+    );
+  });
+
+  it("HEAD verification passes when first line matches (after trim)", async () => {
+    // given:
+    const tmpFilePath = await writeTmp([
+      "  export function foo() {",
+      "    return 1;",
+      "  }",
+    ]);
+
+    // when:
+    const diff = `
+@@@ 012 2-2 HEAD="return 1;"
+    return 42;
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+
+    // then:
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
+    assert.equal(
+      patchedContent,
+      ["  export function foo() {", "    return 42;", "  }"].join("\n"),
+    );
+  });
+
+  it("HEAD verification fails when first line does not match", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["alpha", "bravo", "charlie"]);
+
+    // when: HEAD claims "alpha" but actual line 2 is "bravo"
+    const diff = `
+@@@ 012 2-2 HEAD="alpha"
+new
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /HEAD verification failed at line 2/);
+  });
+
+  it("rejects overlapping replace ranges", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a", "b", "c", "d", "e"]);
+
+    // when: ranges 2-3 and 3-4 overlap on line 3
+    const diff = `
+@@@ 012 2-3
+X
+@@@ 012
+
+@@@ 012 3-4
+Y
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /Replace ranges overlap/);
+  });
+
+  it("rejects insert that falls inside a replace range", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a", "b", "c", "d", "e"]);
+
+    // when: insert at 3+ lies strictly inside replace [2-4]
+    const diff = `
+@@@ 012 2-4
+X
+@@@ 012
+
+@@@ 012 3+
+Y
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /Insert at 3\+ falls inside replace range/);
+  });
+
+  it("allows insert at edges of a replace range", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a", "b", "c", "d", "e"]);
+
+    // when: insert at 1+ (just before replace 2-4) and insert at 4+ (just after)
+    const diff = `
+@@@ 012 2-4
+X
+@@@ 012
+
+@@@ 012 1+
+before
+@@@ 012
+
+@@@ 012 4+
+after
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+
+    // then:
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
+    assert.equal(patchedContent, ["a", "before", "X", "after", "e"].join("\n"));
+  });
+
+  it("stacks multiple inserts at the same position in source order", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a", "b"]);
+
+    // when: two inserts at 1+ - first appears earlier in the diff
+    const diff = `
+@@@ 012 1+
+first
+@@@ 012
+
+@@@ 012 1+
+second
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+
+    // then: source-order is preserved
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
+    assert.equal(patchedContent, ["a", "first", "second", "b"].join("\n"));
+  });
+
+  it("rejects diff with missing close marker", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a", "b"]);
+
+    // when:
+    const diff = `
+@@@ 012 1-1
+new
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /Missing close marker/);
+  });
+
+  it("rejects diff with no blocks", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a"]);
+
+    // when:
+    const result = await patchFileTool.impl({
+      filePath: tmpFilePath,
+      diff: "",
+    });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /No patch blocks found/);
+  });
+
+  it("rejects replace range past end of file", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a", "b"]);
+
+    // when:
+    const diff = `
+@@@ 012 1-5
+X
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /extends past end of file/);
+  });
+
+  it("rejects insert with empty body", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a", "b"]);
+
+    // when:
+    const diff = `
+@@@ 012 1+
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /empty body/);
+  });
+
+  it("treats $ characters in body as literal", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["Original text here"]);
+
+    // when:
+    const diff = `
+@@@ 012 1-1
 $& means match, $1 means first group, $$ means literal dollar
->>> 012 >>> REPLACE
-`;
+@@@ 012
+`.trim();
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
 
-    // then: all dollar signs should be treated literally
+    // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
-    const expectedContent =
-      "$& means match, $1 means first group, $$ means literal dollar";
-    assert.equal(patchedContent, expectedContent);
-  });
-
-  it("errors when nonce marker appears inside content", async () => {
-    // given:
-    const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;
-    await fs.mkdir("tmp", { recursive: true });
-    const initialContent = "dummy";
-    await fs.writeFile(tmpFilePath, initialContent);
-    cleanups.push(() => fs.unlink(tmpFilePath));
-
-    // when: search/replace content accidentally includes the separator marker
-    const diff = `
-<<< 012 <<< SEARCH
-first section
-=== 012 ===
-second section
-=== 012 ===
-replaced!
->>> 012 >>> REPLACE
-`;
-
-    // then: validation catches duplicate separator (nSep > nSearch)
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
-    assert.ok(result instanceof Error);
     assert.equal(
-      result.message,
-      'Each diff block needs exactly one "=== 012 ===" separator, but found 2 separators for 1 block(s). Did you accidentally include the separator marker in your search/replace content?',
+      patchedContent,
+      "$& means match, $1 means first group, $$ means literal dollar",
     );
   });
 
-  it("errors when block markers appear inside content", async () => {
+  it("rejects header with bad arguments", async () => {
     // given:
-    const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;
-    await fs.mkdir("tmp", { recursive: true });
-    const initialContent = "dummy";
-    await fs.writeFile(tmpFilePath, initialContent);
-    cleanups.push(() => fs.unlink(tmpFilePath));
+    const tmpFilePath = await writeTmp(["a"]);
 
-    // when: search content accidentally includes <<< 012 <<< SEARCH
+    // when:
     const diff = `
-<<< 012 <<< SEARCH
-some text
-<<< 012 <<< SEARCH
-oops
-=== 012 ===
-replacement
->>> 012 >>> REPLACE
-`;
-
-    // then: validation catches mismatched block markers (2 <<< but 1 >>>)
+@@@ 012 abc
+nope
+@@@ 012
+`.trim();
     const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+
+    // then:
     assert.ok(result instanceof Error);
-    assert.equal(
-      result.message,
-      'Mismatched block markers: found 2 "<<< 012 <<< SEARCH" but 1 ">>> 012 >>> REPLACE". Did you accidentally include a marker in your search/replace content?',
-    );
+    assert.match(result.message, /Invalid block header arguments/);
+  });
+
+  it("rejects close marker without an open block", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a"]);
+
+    // when:
+    const diff = `
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /Unexpected close marker/);
   });
 });

@@ -72,6 +72,13 @@ Memory files should include:
 
 Call multiple tools at once when they don't depend on each other's results.
 
+## read_file / patch_file
+
+- read_file returns line-numbered content. Use it before patch_file so the
+  block headers point at the correct lines.
+- patch_file addresses content by 1-indexed line ranges; refer to its tool
+  description for the full block syntax.
+
 ## exec_command
 
 - Use relative paths.
@@ -80,7 +87,6 @@ Call multiple tools at once when they don't depend on each other's results.
 Examples:
 - List directories or find files: fd [".", "./", "--max-depth", "3", "--type", "d", "--hidden"]
 - Search for strings: rg ["--heading", "--line-number", "pattern", "./"]
-- Read specific line ranges (max 200 lines): sed ["-n", "1,200p", "file.txt"]
 - Manage GitHub issues and PRs:
   Get PR details: gh ["pr", "view", "123", "--json", "title,body,url"]
   Get PR comment: gh ["api", "--method", "GET", "repos/<owner>/<repo>/pulls/comments/<id>", "--jq", "{user: .user.login, path: .path, line: .line, body: .body}"]
