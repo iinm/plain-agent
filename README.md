@@ -559,6 +559,13 @@ You are a code simplifier. Your role is to refactor code while preserving its fu
 
 ## Claude Code Plugin Support
 
+Plugins are installed under `.plain-agent/claude-code-plugins/` and must be
+installed per project by running `plain install-claude-code-plugins` from
+the project root. Global installation (e.g., under `~/.plain-agent`) is not
+supported, because plugins may include skills that the agent invokes
+autonomously, and scoping them to the project keeps approval rules and
+permission management straightforward.
+
 Example:
 
 ```js
