@@ -35,13 +35,16 @@ new content
 inserted content
 @@@ ${nonce}
 
+@@@ ${nonce} {start}-{end} HEAD=leading text of line {start}
+new content
+@@@ ${nonce}
+
 - Line numbers are 1-indexed; "{start}-{end}" is inclusive and refers to
   the original file (not the file after earlier blocks).
 - "{N}+" inserts after line N; "0+" prepends, "{lastLine}+" appends.
 - Empty body deletes the range.
 - Overlapping blocks are rejected.
-- Optional "HEAD=text" (no quotes, runs to end of line) on the open marker
-  verifies that the trimmed line {start} starts with the trimmed text.
+- HEAD verifies that the trimmed line {start} starts with the trimmed text.
             `.trim(),
             type: "string",
           },
