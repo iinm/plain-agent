@@ -96,11 +96,9 @@ export function parseBlocks(patch, nonce) {
 
   /** @type {PatchBlock[]} */
   const blocks = [];
-  let i = 0;
-  while (i < lines.length) {
+  for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (line === "") {
-      i++;
       continue;
     }
     if (line === closeMarker) {
@@ -113,33 +111,23 @@ export function parseBlocks(patch, nonce) {
         `Expected block header starting with "${openPrefix}" but got: ${JSON.stringify(line)} (line ${i + 1} of patch).`,
       );
     }
-    const headerArgs = line.slice(openPrefix.length);
-    const block = parseHeaderArgs(headerArgs);
-    i++;
 
-    /** @type {string[]} */
-    const body = [];
-    let foundClose = false;
-    while (i < lines.length) {
-      if (lines[i] === closeMarker) {
-        foundClose = true;
-        i++;
-        break;
-      }
-      body.push(lines[i]);
-      i++;
-    }
-    if (!foundClose) {
+    const headerArgs = line.slice(openPrefix.length);
+    const header = parseHeaderArgs(headerArgs);
+    const closeIdx = lines.indexOf(closeMarker, i + 1);
+    if (closeIdx === -1) {
       throw new Error(
         `Missing close marker "${closeMarker}" for block "${openPrefix}${headerArgs}".`,
       );
     }
-    if (block.op === "insert" && body.length === 0) {
+    const body = lines.slice(i + 1, closeIdx);
+    if (header.op === "insert" && body.length === 0) {
       throw new Error(
         `Insert block "${openPrefix}${headerArgs}" has empty body. Use a replace block to delete content.`,
       );
     }
-    blocks.push({ ...block, body });
+    blocks.push({ ...header, body });
+    i = closeIdx;
   }
   return blocks;
 }
