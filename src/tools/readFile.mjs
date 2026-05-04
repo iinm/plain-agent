@@ -77,11 +77,10 @@ async function readLineRange(filePath, offset, limit) {
   /** @type {string[]} */
   const lines = [];
   let lineNo = 0;
-  // Per-line cost excluding the line-number padding, summed over
-  // accepted lines. Padding is added lazily on each iteration since its
-  // width depends on the largest line number we'll emit. Over-counts the
-  // trailing newline (the join uses N-1, not N) which keeps us conservative.
-  let acceptedNonPaddingBytes = 0;
+  // Sum of (content + newline) for accepted lines. The line-number
+  // column and tab separator are not counted toward the cap; the actual
+  // formatted output runs a bit over MAX_OUTPUT_BYTES, which is fine.
+  let acceptedBytes = 0;
 
   try {
     for await (const line of rl) {
@@ -90,12 +89,9 @@ async function readLineRange(filePath, offset, limit) {
         continue;
       }
 
-      const width = String(lineNo).length;
-      const lineNonPadding = 1 + Buffer.byteLength(line, "utf8") + 1;
-      const projected =
-        acceptedNonPaddingBytes + lineNonPadding + width * (lines.length + 1);
+      const lineCost = Buffer.byteLength(line, "utf8") + 1;
 
-      if (projected > MAX_OUTPUT_BYTES) {
+      if (acceptedBytes + lineCost > MAX_OUTPUT_BYTES) {
         if (lines.length === 0) {
           throw new Error(
             `Output would exceed ${MAX_OUTPUT_BYTES} bytes at line ${lineNo}: ` +
@@ -110,7 +106,7 @@ async function readLineRange(filePath, offset, limit) {
         );
       }
 
-      acceptedNonPaddingBytes += lineNonPadding;
+      acceptedBytes += lineCost;
       lines.push(line);
 
       if (limit !== undefined && lines.length >= limit) {
