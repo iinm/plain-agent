@@ -14,7 +14,8 @@ const MAX_OUTPUT_BYTES = 1024 * 8;
 export const readFileTool = {
   def: {
     name: "read_file",
-    description: `Read a file with line numbers (1-indexed). Output format mirrors \`cat -n\` (right-aligned line number, tab, line content). Errors if the resulting output would exceed ${MAX_OUTPUT_BYTES} bytes; pass \`offset\` and \`limit\` to read large files in chunks.`,
+    description:
+      "Read a file with line numbers (1-indexed). Output format mirrors `cat -n` (right-aligned line number, tab, line content).",
     inputSchema: {
       type: "object",
       properties: {
