@@ -1,6 +1,6 @@
 export type PatchFileInput = {
   filePath: string;
-  diff: string;
+  patch: string;
 };
 
 export type PatchBlock =

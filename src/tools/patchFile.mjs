@@ -24,7 +24,7 @@ export function createPatchFileTool(
           filePath: {
             type: "string",
           },
-          diff: {
+          patch: {
             description: `
 Format:
 @@@ ${nonce} {start}-{end}
@@ -48,7 +48,7 @@ new content
             type: "string",
           },
         },
-        required: ["filePath", "diff"],
+        required: ["filePath", "patch"],
       },
     },
 
@@ -58,8 +58,8 @@ new content
      */
     impl: async (input) =>
       await noThrow(async () => {
-        const { filePath, diff } = input;
-        const blocks = parseBlocks(diff, nonce);
+        const { filePath, patch } = input;
+        const blocks = parseBlocks(patch, nonce);
         if (blocks.length === 0) {
           throw new Error(
             `No patch blocks found. Each block must start with "@@@ ${nonce} ..." and end with "@@@ ${nonce}".`,
@@ -86,15 +86,15 @@ new content
 }
 
 /**
- * Parse a diff string into a list of patch blocks.
- * @param {string} diff
+ * Parse a patch string into a list of patch blocks.
+ * @param {string} patch
  * @param {string} nonce
  * @returns {PatchBlock[]}
  */
-export function parseBlocks(diff, nonce) {
+export function parseBlocks(patch, nonce) {
   const openPrefix = `@@@ ${nonce} `;
   const closeMarker = `@@@ ${nonce}`;
-  const lines = diff.split("\n");
+  const lines = patch.split("\n");
 
   /** @type {PatchBlock[]} */
   const blocks = [];
@@ -107,12 +107,12 @@ export function parseBlocks(diff, nonce) {
     }
     if (line === closeMarker) {
       throw new Error(
-        `Unexpected close marker "${closeMarker}" with no matching open block (line ${i + 1} of diff).`,
+        `Unexpected close marker "${closeMarker}" with no matching open block (line ${i + 1} of patch).`,
       );
     }
     if (!line.startsWith(openPrefix)) {
       throw new Error(
-        `Expected block header starting with "${openPrefix}" but got: ${JSON.stringify(line)} (line ${i + 1} of diff).`,
+        `Expected block header starting with "${openPrefix}" but got: ${JSON.stringify(line)} (line ${i + 1} of patch).`,
       );
     }
     const headerArgs = line.slice(openPrefix.length);

@@ -40,7 +40,7 @@ describe("patchFileTool", () => {
     ]);
 
     // when:
-    const diff = `
+    const patch = `
 @@@ 012 1-1
 Hello Universe
 @@@ 012
@@ -50,7 +50,7 @@ This is a test file content updated 2.
 This is a test file content updated 3.
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
@@ -76,11 +76,11 @@ This is a test file content updated 3.
     ]);
 
     // when:
-    const diff = `
+    const patch = `
 @@@ 012 2-3
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
@@ -93,12 +93,12 @@ This is a test file content updated 3.
     const tmpFilePath = await writeTmp(["alpha", "bravo", "delta"]);
 
     // when: insert "charlie" after line 2
-    const diff = `
+    const patch = `
 @@@ 012 2+
 charlie
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
@@ -114,7 +114,7 @@ charlie
     const tmpFilePath = await writeTmp(["middle"]);
 
     // when:
-    const diff = `
+    const patch = `
 @@@ 012 0+
 top
 @@@ 012
@@ -123,7 +123,7 @@ top
 bottom
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
@@ -139,12 +139,12 @@ bottom
     cleanups.push(() => fs.unlink(tmpFilePath));
 
     // when:
-    const diff = `
+    const patch = `
 @@@ 012 0+
 new content
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
@@ -160,12 +160,12 @@ new content
     cleanups.push(() => fs.unlink(tmpFilePath));
 
     // when:
-    const diff = `
+    const patch = `
 @@@ 012 1-1
 new
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.ok(result instanceof Error);
@@ -180,12 +180,12 @@ new
     cleanups.push(() => fs.unlink(tmpFilePath));
 
     // when:
-    const diff = `
+    const patch = `
 @@@ 012 1-1
 ALPHA
 @@@ 012
 `.trim();
-    await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
@@ -200,12 +200,12 @@ ALPHA
     cleanups.push(() => fs.unlink(tmpFilePath));
 
     // when:
-    const diff = `
+    const patch = `
 @@@ 012 2-2
 BRAVO
 @@@ 012
 `.trim();
-    await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
@@ -217,7 +217,7 @@ BRAVO
     const tmpFilePath = await writeTmp(["one", "two", "three", "four", "five"]);
 
     // when: line numbers refer to ORIGINAL file even though block 1 changes line count
-    const diff = `
+    const patch = `
 @@@ 012 1-1
 ONE
 TWO
@@ -227,7 +227,7 @@ TWO
 FIVE
 @@@ 012
 `.trim();
-    await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
@@ -246,12 +246,12 @@ FIVE
     ]);
 
     // when:
-    const diff = `
+    const patch = `
 @@@ 012 2-2 HEAD=return 1;
     return 42;
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
@@ -271,12 +271,12 @@ FIVE
     ]);
 
     // when: HEAD specifies a prefix of the actual line, not the full text
-    const diff = `
+    const patch = `
 @@@ 012 1-1 HEAD=export function foo(
 export function foo(arg, opts) {
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
@@ -295,12 +295,12 @@ export function foo(arg, opts) {
     ]);
 
     // when:
-    const diff = `
+    const patch = `
 @@@ 012 1-1 HEAD=const greeting = "hello world";
 const greeting = "Hello, World!";
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
@@ -318,12 +318,12 @@ const greeting = "Hello, World!";
     const tmpFilePath = await writeTmp(["alpha", "bravo", "charlie"]);
 
     // when: HEAD claims "alpha" but actual line 2 is "bravo"
-    const diff = `
+    const patch = `
 @@@ 012 2-2 HEAD=alpha
 new
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.ok(result instanceof Error);
@@ -335,12 +335,12 @@ new
     const tmpFilePath = await writeTmp(["alpha"]);
 
     // when:
-    const diff = `
+    const patch = `
 @@@ 012 1-1 HEAD=
 new
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.ok(result instanceof Error);
@@ -352,7 +352,7 @@ new
     const tmpFilePath = await writeTmp(["a", "b", "c", "d", "e"]);
 
     // when: ranges 2-3 and 3-4 overlap on line 3
-    const diff = `
+    const patch = `
 @@@ 012 2-3
 X
 @@@ 012
@@ -361,7 +361,7 @@ X
 Y
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.ok(result instanceof Error);
@@ -373,7 +373,7 @@ Y
     const tmpFilePath = await writeTmp(["a", "b", "c", "d", "e"]);
 
     // when: insert at 3+ lies strictly inside replace [2-4]
-    const diff = `
+    const patch = `
 @@@ 012 2-4
 X
 @@@ 012
@@ -382,7 +382,7 @@ X
 Y
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.ok(result instanceof Error);
@@ -394,7 +394,7 @@ Y
     const tmpFilePath = await writeTmp(["a", "b", "c", "d", "e"]);
 
     // when: insert at 1+ (just before replace 2-4) and insert at 4+ (just after)
-    const diff = `
+    const patch = `
 @@@ 012 2-4
 X
 @@@ 012
@@ -407,7 +407,7 @@ before
 after
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
@@ -419,8 +419,8 @@ after
     // given:
     const tmpFilePath = await writeTmp(["a", "b"]);
 
-    // when: two inserts at 1+ - first appears earlier in the diff
-    const diff = `
+    // when: two inserts at 1+ - first appears earlier in the patch
+    const patch = `
 @@@ 012 1+
 first
 @@@ 012
@@ -429,7 +429,7 @@ first
 second
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then: source-order is preserved
     assert.equal(result, `Patched file: ${tmpFilePath}`);
@@ -437,30 +437,30 @@ second
     assert.equal(patchedContent, ["a", "first", "second", "b"].join("\n"));
   });
 
-  it("rejects diff with missing close marker", async () => {
+  it("rejects patch with missing close marker", async () => {
     // given:
     const tmpFilePath = await writeTmp(["a", "b"]);
 
     // when:
-    const diff = `
+    const patch = `
 @@@ 012 1-1
 new
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.ok(result instanceof Error);
     assert.match(result.message, /Missing close marker/);
   });
 
-  it("rejects diff with no blocks", async () => {
+  it("rejects patch with no blocks", async () => {
     // given:
     const tmpFilePath = await writeTmp(["a"]);
 
     // when:
     const result = await patchFileTool.impl({
       filePath: tmpFilePath,
-      diff: "",
+      patch: "",
     });
 
     // then:
@@ -473,12 +473,12 @@ new
     const tmpFilePath = await writeTmp(["a", "b"]);
 
     // when:
-    const diff = `
+    const patch = `
 @@@ 012 1-5
 X
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.ok(result instanceof Error);
@@ -490,11 +490,11 @@ X
     const tmpFilePath = await writeTmp(["a", "b"]);
 
     // when:
-    const diff = `
+    const patch = `
 @@@ 012 1+
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.ok(result instanceof Error);
@@ -506,12 +506,12 @@ X
     const tmpFilePath = await writeTmp(["Original text here"]);
 
     // when:
-    const diff = `
+    const patch = `
 @@@ 012 1-1
 $& means match, $1 means first group, $$ means literal dollar
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
@@ -527,12 +527,12 @@ $& means match, $1 means first group, $$ means literal dollar
     const tmpFilePath = await writeTmp(["a"]);
 
     // when:
-    const diff = `
+    const patch = `
 @@@ 012 abc
 nope
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.ok(result instanceof Error);
@@ -544,10 +544,10 @@ nope
     const tmpFilePath = await writeTmp(["a"]);
 
     // when:
-    const diff = `
+    const patch = `
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, diff });
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.ok(result instanceof Error);

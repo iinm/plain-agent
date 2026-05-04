@@ -166,7 +166,7 @@ describe("formatToolUse (patch_file)", () => {
       "delta",
       "echo",
     ]);
-    const diff = ["@@@ abc 3-4", "first new", "second new", "@@@ abc"].join(
+    const patch = ["@@@ abc 3-4", "first new", "second new", "@@@ abc"].join(
       "\n",
     );
 
@@ -175,19 +175,19 @@ describe("formatToolUse (patch_file)", () => {
       type: "tool_use",
       toolUseId: "t4",
       toolName: "patch_file",
-      input: { filePath: tmpFilePath, diff },
+      input: { filePath: tmpFilePath, patch },
     });
 
     // then:
     assert.ok(
-      output.startsWith(`tool: patch_file\npath: ${tmpFilePath}\ndiff:\n`),
+      output.startsWith(`tool: patch_file\npath: ${tmpFilePath}\npatch:\n`),
     );
     assert.equal(
       stripAnsi(output),
       [
         "tool: patch_file",
         `path: ${tmpFilePath}`,
-        "diff:",
+        "patch:",
         "@@@ abc 3-4",
         "- charlie",
         "- delta",
@@ -201,7 +201,7 @@ describe("formatToolUse (patch_file)", () => {
   it("renders multiple blocks including an insert", async () => {
     // given:
     const tmpFilePath = await writeTmp(["one", "two", "three", "four", "five"]);
-    const diff = [
+    const patch = [
       "@@@ a1a 1-1",
       "first new",
       "@@@ a1a",
@@ -216,7 +216,7 @@ describe("formatToolUse (patch_file)", () => {
       type: "tool_use",
       toolUseId: "t5",
       toolName: "patch_file",
-      input: { filePath: tmpFilePath, diff },
+      input: { filePath: tmpFilePath, patch },
     });
 
     // then:
@@ -236,7 +236,7 @@ describe("formatToolUse (patch_file)", () => {
     ]);
     // Replace 1-5 but only line 3 ("charlie") actually changes; the
     // first/last two lines round-trip unchanged.
-    const diff = [
+    const patch = [
       "@@@ abc 1-5",
       "alpha",
       "bravo",
@@ -251,7 +251,7 @@ describe("formatToolUse (patch_file)", () => {
       type: "tool_use",
       toolUseId: "t12",
       toolName: "patch_file",
-      input: { filePath: tmpFilePath, diff },
+      input: { filePath: tmpFilePath, patch },
     });
 
     // then: only the changed line shows -/+; the rest are context "  ".
@@ -260,7 +260,7 @@ describe("formatToolUse (patch_file)", () => {
       [
         "tool: patch_file",
         `path: ${tmpFilePath}`,
-        "diff:",
+        "patch:",
         "@@@ abc 1-5",
         "  alpha",
         "  bravo",
@@ -276,14 +276,14 @@ describe("formatToolUse (patch_file)", () => {
   it("renders a no-op replace as all context lines", async () => {
     // given: body matches the original range exactly.
     const tmpFilePath = await writeTmp(["one", "two", "three"]);
-    const diff = ["@@@ abc 1-3", "one", "two", "three", "@@@ abc"].join("\n");
+    const patch = ["@@@ abc 1-3", "one", "two", "three", "@@@ abc"].join("\n");
 
     // when:
     const output = await formatToolUse({
       type: "tool_use",
       toolUseId: "t13",
       toolName: "patch_file",
-      input: { filePath: tmpFilePath, diff },
+      input: { filePath: tmpFilePath, patch },
     });
 
     // then:
@@ -292,7 +292,7 @@ describe("formatToolUse (patch_file)", () => {
       [
         "tool: patch_file",
         `path: ${tmpFilePath}`,
-        "diff:",
+        "patch:",
         "@@@ abc 1-3",
         "  one",
         "  two",
@@ -305,14 +305,14 @@ describe("formatToolUse (patch_file)", () => {
   it("renders a deletion (empty body) as a removal-only block", async () => {
     // given:
     const tmpFilePath = await writeTmp(["keep", "drop me", "keep too"]);
-    const diff = ["@@@ a2a 2-2", "@@@ a2a"].join("\n");
+    const patch = ["@@@ a2a 2-2", "@@@ a2a"].join("\n");
 
     // when:
     const output = await formatToolUse({
       type: "tool_use",
       toolUseId: "t6",
       toolName: "patch_file",
-      input: { filePath: tmpFilePath, diff },
+      input: { filePath: tmpFilePath, patch },
     });
 
     // then:
@@ -321,7 +321,7 @@ describe("formatToolUse (patch_file)", () => {
       [
         "tool: patch_file",
         `path: ${tmpFilePath}`,
-        "diff:",
+        "patch:",
         "@@@ a2a 2-2",
         "- drop me",
         "@@@ a2a",
@@ -329,43 +329,43 @@ describe("formatToolUse (patch_file)", () => {
     );
   });
 
-  it("handles an empty diff string", async () => {
+  it("handles an empty patch string", async () => {
     // when:
     const output = await formatToolUse({
       type: "tool_use",
       toolUseId: "t7",
       toolName: "patch_file",
-      input: { filePath: "empty.txt", diff: "" },
+      input: { filePath: "empty.txt", patch: "" },
     });
 
     // then:
-    assert.equal(output, "tool: patch_file\npath: empty.txt\ndiff:\n");
+    assert.equal(output, "tool: patch_file\npath: empty.txt\npatch:\n");
   });
 
-  it("handles undefined diff as empty", async () => {
+  it("handles undefined patch as empty", async () => {
     // when:
     const output = await formatToolUse({
       type: "tool_use",
       toolUseId: "t8",
       toolName: "patch_file",
-      input: { filePath: "empty.txt", diff: undefined },
+      input: { filePath: "empty.txt", patch: undefined },
     });
 
     // then:
-    assert.equal(output, "tool: patch_file\npath: empty.txt\ndiff:\n");
+    assert.equal(output, "tool: patch_file\npath: empty.txt\npatch:\n");
   });
 
   it("renders a HEAD annotation in the open marker", async () => {
     // given:
     const tmpFilePath = await writeTmp(["alpha", "old line", "charlie"]);
-    const diff = ["@@@ abc 2-2 HEAD=old line", "new", "@@@ abc"].join("\n");
+    const patch = ["@@@ abc 2-2 HEAD=old line", "new", "@@@ abc"].join("\n");
 
     // when:
     const output = await formatToolUse({
       type: "tool_use",
       toolUseId: "t9",
       toolName: "patch_file",
-      input: { filePath: tmpFilePath, diff },
+      input: { filePath: tmpFilePath, patch },
     });
 
     // then:
@@ -381,7 +381,7 @@ describe("formatToolUse (patch_file)", () => {
 
   it("falls back to verbatim highlight when the file cannot be read", async () => {
     // given:
-    const diff = ["@@@ abc 3-4", "first new", "second new", "@@@ abc"].join(
+    const patch = ["@@@ abc 3-4", "first new", "second new", "@@@ abc"].join(
       "\n",
     );
 
@@ -390,14 +390,14 @@ describe("formatToolUse (patch_file)", () => {
       type: "tool_use",
       toolUseId: "t10",
       toolName: "patch_file",
-      input: { filePath: "does/not/exist.mjs", diff },
+      input: { filePath: "does/not/exist.mjs", patch },
     });
 
     // then: still shows the new content with `+` markers, but no `- ...` lines
     const stripped = stripAnsi(output);
     assert.ok(
       stripped.startsWith(
-        "tool: patch_file\npath: does/not/exist.mjs\ndiff:\n",
+        "tool: patch_file\npath: does/not/exist.mjs\npatch:\n",
       ),
     );
     assert.ok(stripped.includes("@@@ abc 3-4"));
@@ -406,16 +406,16 @@ describe("formatToolUse (patch_file)", () => {
     assert.ok(!stripped.includes("- "));
   });
 
-  it("falls back to verbatim highlight when the diff fails to parse", async () => {
-    // given: diff with mismatched markers (no close)
-    const diff = ["@@@ abc 1-1", "new"].join("\n");
+  it("falls back to verbatim highlight when the patch fails to parse", async () => {
+    // given: patch with mismatched markers (no close)
+    const patch = ["@@@ abc 1-1", "new"].join("\n");
 
     // when:
     const output = await formatToolUse({
       type: "tool_use",
       toolUseId: "t11",
       toolName: "patch_file",
-      input: { filePath: "anything.mjs", diff },
+      input: { filePath: "anything.mjs", patch },
     });
 
     // then: verbatim styling still applies, headers cyan, body green
@@ -424,7 +424,7 @@ describe("formatToolUse (patch_file)", () => {
       [
         "tool: patch_file",
         "path: anything.mjs",
-        "diff:",
+        "patch:",
         "@@@ abc 1-1",
         "new",
       ].join("\n"),

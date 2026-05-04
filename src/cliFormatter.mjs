@@ -90,12 +90,12 @@ export async function formatToolUse(toolUse) {
     /** @type {Partial<PatchFileInput>} */
     const patchFileInput = input;
     const filePath = patchFileInput.filePath ?? "";
-    const diff = patchFileInput.diff || "";
-    const rendered = await renderPatchDiff(filePath, diff);
+    const patch = patchFileInput.patch || "";
+    const rendered = await renderPatch(filePath, patch);
     return [
       `tool: ${toolName}`,
       `path: ${filePath}`,
-      `diff:\n${rendered}`,
+      `patch:\n${rendered}`,
     ].join("\n");
   }
 
@@ -416,25 +416,26 @@ export async function printMessage(message) {
 }
 
 /**
- * Render patch_file diff for terminal display.
+ * Render a patch_file `patch` string for terminal display.
  *
- * Best-effort: parses the diff and reads the target file so the original
+ * Best-effort: parses the patch and reads the target file so the original
  * lines targeted by each block can be shown alongside the new content
- * (`-` red for removed, `+` green for added). Falls back to a verbatim
- * highlight (open/close markers cyan, body lines green) on any failure
- * (empty diff, missing nonce, parse error, file unreadable, etc.).
+ * (`-` red for removed, `+` green for added, `  ` for unchanged). Falls
+ * back to a verbatim highlight (open/close markers cyan, body lines green)
+ * on any failure (empty patch, missing nonce, parse error, file
+ * unreadable, etc.).
  *
  * @param {string} filePath
- * @param {string} diff
+ * @param {string} patch
  * @returns {Promise<string>}
  */
-async function renderPatchDiff(filePath, diff) {
-  if (!diff) {
+async function renderPatch(filePath, patch) {
+  if (!patch) {
     return "";
   }
-  const fallback = highlightPatchDiffPlain(diff);
+  const fallback = highlightPatchPlain(patch);
 
-  const nonce = extractPatchNonce(diff);
+  const nonce = extractPatchNonce(patch);
   if (!nonce) {
     return fallback;
   }
@@ -442,7 +443,7 @@ async function renderPatchDiff(filePath, diff) {
   /** @type {PatchBlock[]} */
   let blocks;
   try {
-    blocks = parseBlocks(diff, nonce);
+    blocks = parseBlocks(patch, nonce);
   } catch {
     return fallback;
   }
@@ -479,7 +480,7 @@ function renderPatchBlock(block, originalLines, nonce) {
       const safeEnd = Math.min(originalLines.length, block.end);
       const oldSlice = originalLines.slice(safeStart - 1, safeEnd);
       // Use a real line diff so unchanged lines render as context
-      // (no color, " " prefix) instead of being shown as both "- " and
+      // (no color, "  " prefix) instead of being shown as both "- " and
       // "+ ".
       for (const op of diffLines(oldSlice, block.body)) {
         if (op.type === "-") {
@@ -510,16 +511,16 @@ function renderPatchBlock(block, originalLines, nonce) {
 /**
  * Verbatim highlighter used as fallback when block-aware rendering is not
  * possible (parse error, missing nonce, etc.).
- * @param {string} diff
+ * @param {string} patch
  * @returns {string}
  */
-function highlightPatchDiffPlain(diff) {
-  if (!diff) {
+function highlightPatchPlain(patch) {
+  if (!patch) {
     return "";
   }
   // Patch headers/closes look like "@@@ <nonce> ..." or "@@@ <nonce>".
   const headerRegex = /^@@@\s+\S+(\s.*)?$/;
-  return diff
+  return patch
     .split("\n")
     .map((line) => {
       if (headerRegex.test(line)) {
@@ -534,12 +535,12 @@ function highlightPatchDiffPlain(diff) {
 }
 
 /**
- * Extract the nonce from the first open marker in a patch_file diff.
- * @param {string} diff
+ * Extract the nonce from the first open marker in a patch_file patch.
+ * @param {string} patch
  * @returns {string | null}
  */
-function extractPatchNonce(diff) {
-  const match = diff.match(/^@@@\s+(\S+)/m);
+function extractPatchNonce(patch) {
+  const match = patch.match(/^@@@\s+(\S+)/m);
   return match ? match[1] : null;
 }
 
