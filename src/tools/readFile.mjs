@@ -3,7 +3,8 @@
  * @import { ReadFileInput } from './readFile'
  */
 
-import fs from "node:fs/promises";
+import fs from "node:fs";
+import readline from "node:readline";
 import { noThrow } from "../utils/noThrow.mjs";
 
 const DEFAULT_LIMIT = 200;
@@ -50,39 +51,71 @@ export const readFileTool = {
         throw new Error("limit must be a positive integer");
       }
 
-      const content = await fs.readFile(filePath, "utf8");
-      return formatNumberedLines(content, offset, limit);
+      const lines = await readLineRange(filePath, offset, limit);
+      return formatNumberedLines(lines, offset);
     }),
 };
 
 /**
- * @param {string} content
+ * Stream the file line-by-line, skip until `offset`, collect up to `limit`
+ * lines, then close the stream. Avoids loading large files into memory.
+ *
+ * @param {string} filePath
  * @param {number} offset
  * @param {number} limit
+ * @returns {Promise<string[]>}
+ */
+async function readLineRange(filePath, offset, limit) {
+  const stream = fs.createReadStream(filePath, { encoding: "utf8" });
+  const rl = readline.createInterface({
+    input: stream,
+    crlfDelay: Number.POSITIVE_INFINITY,
+  });
+
+  /** @type {string[]} */
+  const lines = [];
+  let lineNo = 0;
+
+  try {
+    for await (const line of rl) {
+      lineNo++;
+      if (lineNo < offset) {
+        continue;
+      }
+      lines.push(line);
+      if (lines.length >= limit) {
+        break;
+      }
+    }
+  } finally {
+    rl.close();
+    if (!stream.destroyed) {
+      stream.destroy();
+    }
+  }
+
+  return lines;
+}
+
+/**
+ * Format an array of lines as `cat -n` style output. The padding width is
+ * based on the largest emitted line number in this call; widths may differ
+ * across calls but the column stays aligned within a single response.
+ *
+ * @param {string[]} lines
+ * @param {number} startLine 1-indexed line number of `lines[0]`.
  * @returns {string}
  */
-function formatNumberedLines(content, offset, limit) {
-  // Split on \n; the trailing empty element after a terminating newline is
-  // dropped to mirror `cat -n` behavior (no spurious blank last line).
-  const lines = content.split("\n");
-  if (lines.length > 0 && lines[lines.length - 1] === "") {
-    lines.pop();
-  }
-
-  const totalLines = lines.length;
-  if (offset > totalLines) {
+function formatNumberedLines(lines, startLine) {
+  if (lines.length === 0) {
     return "";
   }
-
-  const startIdx = offset - 1;
-  const endIdx = Math.min(startIdx + limit, totalLines);
-  // Width is based on the file's total line count so the column stays
-  // stable across calls with different offset/limit.
-  const width = String(totalLines).length;
+  const lastLineNo = startLine + lines.length - 1;
+  const width = String(lastLineNo).length;
 
   const out = [];
-  for (let i = startIdx; i < endIdx; i++) {
-    const lineNo = String(i + 1).padStart(width, " ");
+  for (let i = 0; i < lines.length; i++) {
+    const lineNo = String(startLine + i).padStart(width, " ");
     out.push(`${lineNo}\t${lines[i]}`);
   }
   return out.join("\n");
