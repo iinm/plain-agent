@@ -35,7 +35,7 @@ new content
 inserted content
 @@@ ${nonce}
 
-@@@ ${nonce} {start}-{end} HEAD=leading text of line {start}
+@@@ ${nonce} {start}-{end} HEAD=prefix of original line
 new content
 @@@ ${nonce}
 
