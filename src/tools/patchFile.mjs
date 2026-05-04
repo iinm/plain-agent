@@ -43,8 +43,7 @@ new content
   the original file (not the file after earlier blocks).
 - "{N}+" inserts after line N; "0+" prepends, "{lastLine}+" appends.
 - Empty body deletes the range.
-- Overlapping blocks are rejected.
-- HEAD verifies that the trimmed line {start} starts with the trimmed text.
+- HEAD verifies the trimmed start line begins with the trimmed text.
             `.trim(),
             type: "string",
           },
