@@ -200,4 +200,108 @@ describe("readFileTool", () => {
     // then:
     assert.ok(result instanceof Error);
   });
+
+  it("reads the whole file when no limit is given and output fits the byte cap", async () => {
+    // given: a file that easily fits within 8KB.
+    const tmpFilePath = `tmp/readFileTest-${generateRandomString()}.txt`;
+    await fs.mkdir("tmp", { recursive: true });
+    const lines = Array.from({ length: 50 }, (_, i) => `line ${i + 1}`);
+    await fs.writeFile(tmpFilePath, lines.join("\n"));
+    cleanups.push(() => fs.unlink(tmpFilePath));
+
+    // when:
+    const result = await readFileTool.impl({ filePath: tmpFilePath });
+
+    // then: every line is returned with width=2 padding (max line is 50).
+    assert.ok(typeof result === "string");
+    const out = /** @type {string} */ (result);
+    const outLines = out.split("\n");
+    assert.equal(outLines.length, 50);
+    assert.equal(outLines[0], " 1\tline 1");
+    assert.equal(outLines[49], "50\tline 50");
+  });
+
+  it("errors with a chunking hint when output would exceed the byte cap", async () => {
+    // given: a file whose full output is well past 8KB.
+    const tmpFilePath = `tmp/readFileTest-${generateRandomString()}.txt`;
+    await fs.mkdir("tmp", { recursive: true });
+    // Each line is ~100 bytes; 200 lines => ~20KB of formatted output.
+    const filler = "x".repeat(95);
+    const lines = Array.from({ length: 200 }, (_, i) => `${filler}${i}`);
+    await fs.writeFile(tmpFilePath, lines.join("\n"));
+    cleanups.push(() => fs.unlink(tmpFilePath));
+
+    // when:
+    const result = await readFileTool.impl({ filePath: tmpFilePath });
+
+    // then:
+    assert.ok(result instanceof Error);
+    const err = /** @type {Error} */ (result);
+    assert.match(err.message, /exceed 8192 bytes/);
+    assert.match(err.message, /limit=\d+/);
+    assert.match(err.message, /offset=\d+/);
+  });
+
+  it("errors when an explicit limit still produces output past the byte cap", async () => {
+    // given:
+    const tmpFilePath = `tmp/readFileTest-${generateRandomString()}.txt`;
+    await fs.mkdir("tmp", { recursive: true });
+    const filler = "x".repeat(200);
+    const lines = Array.from({ length: 100 }, (_, i) => `${filler}${i}`);
+    await fs.writeFile(tmpFilePath, lines.join("\n"));
+    cleanups.push(() => fs.unlink(tmpFilePath));
+
+    // when: ask for many lines that together exceed the cap.
+    const result = await readFileTool.impl({
+      filePath: tmpFilePath,
+      limit: 100,
+    });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(/** @type {Error} */ (result).message, /exceed 8192 bytes/);
+  });
+
+  it("returns the requested window when an explicit limit keeps output under the cap", async () => {
+    // given: a huge file but the caller asks for only a few lines.
+    const tmpFilePath = `tmp/readFileTest-${generateRandomString()}.txt`;
+    await fs.mkdir("tmp", { recursive: true });
+    const filler = "x".repeat(200);
+    const lines = Array.from({ length: 1000 }, (_, i) => `${filler}${i}`);
+    await fs.writeFile(tmpFilePath, lines.join("\n"));
+    cleanups.push(() => fs.unlink(tmpFilePath));
+
+    // when:
+    const result = await readFileTool.impl({
+      filePath: tmpFilePath,
+      offset: 10,
+      limit: 5,
+    });
+
+    // then:
+    assert.ok(typeof result === "string");
+    const out = /** @type {string} */ (result);
+    const outLines = out.split("\n");
+    assert.equal(outLines.length, 5);
+    assert.match(outLines[0], /^10\t/);
+    assert.match(outLines[4], /^14\t/);
+  });
+
+  it("errors when the very first line alone exceeds the byte cap", async () => {
+    // given: a single line larger than 8KB.
+    const tmpFilePath = `tmp/readFileTest-${generateRandomString()}.txt`;
+    await fs.mkdir("tmp", { recursive: true });
+    await fs.writeFile(tmpFilePath, "x".repeat(10_000));
+    cleanups.push(() => fs.unlink(tmpFilePath));
+
+    // when:
+    const result = await readFileTool.impl({ filePath: tmpFilePath });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(
+      /** @type {Error} */ (result).message,
+      /that line alone is too large/,
+    );
+  });
 });
