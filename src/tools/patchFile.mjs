@@ -39,8 +39,8 @@ inserted content
 new content
 @@@ ${nonce}
 
-- Line numbers are 1-indexed; "{start}-{end}" is inclusive and refers to
-  the original file (not the file after earlier blocks).
+- Line numbers are 1-indexed and refer to the original file;
+  "{start}-{end}" is inclusive.
 - "{N}+" inserts after line N; "0+" prepends, "{lastLine}+" appends.
 - Empty body deletes the range.
 - HEAD verifies the trimmed start line begins with the trimmed text.
