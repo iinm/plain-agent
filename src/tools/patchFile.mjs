@@ -261,12 +261,12 @@ function spliceIndexOf(block) {
 function validateBlocks(blocks, totalLines) {
   for (const block of blocks) {
     if (block.op === "replace") {
-      if (block.end > totalLines) {
+      if (totalLines < block.end) {
         throw new Error(
           `Replace range ${block.start}-${block.end} extends past end of file (${totalLines} lines).`,
         );
       }
-    } else if (block.after < 0 || block.after > totalLines) {
+    } else if (block.after < 0 || totalLines < block.after) {
       throw new Error(
         `Insert position ${block.after}+ is outside [0, ${totalLines}].`,
       );
@@ -289,13 +289,13 @@ function detectConflicts(blocks) {
           );
         }
       } else if (a.op === "replace" && b.op === "insert") {
-        if (b.after >= a.start && b.after < a.end) {
+        if (a.start <= b.after && b.after < a.end) {
           throw new Error(
             `Insert at ${b.after}+ falls inside replace range ${a.start}-${a.end}.`,
           );
         }
       } else if (a.op === "insert" && b.op === "replace") {
-        if (a.after >= b.start && a.after < b.end) {
+        if (b.start <= a.after && a.after < b.end) {
           throw new Error(
             `Insert at ${a.after}+ falls inside replace range ${b.start}-${b.end}.`,
           );
