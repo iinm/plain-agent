@@ -8,10 +8,6 @@ import fs from "node:fs";
 import readline from "node:readline";
 import { noThrow } from "../utils/noThrow.mjs";
 
-// Cap output at the same size exec_command uses so a single tool call
-// can't blow past the model's context budget. Going over this throws an
-// error rather than silently truncating, since a partial read would let
-// the LLM mistake a clipped file for the complete one.
 const MAX_OUTPUT_BYTES = 1024 * 8;
 
 /** @type {Tool} */
@@ -30,7 +26,7 @@ export const readFileTool = {
           type: "number",
         },
         limit: {
-          description: "Maximum number of lines to return. Optional.",
+          description: "Maximum number of lines to return.",
           type: "number",
         },
       },
@@ -62,12 +58,9 @@ export const readFileTool = {
 
 /**
  * Stream the file line-by-line, skip until `offset`, and collect lines
- * until any of the following stops the read:
- *   1. End of file.
- *   2. `limit` lines collected (when provided by the caller).
- *   3. The next line would push the formatted output past
- *      `MAX_OUTPUT_BYTES`, in which case we throw with a hint that tells
- *      the caller exactly how to chunk the read.
+ * until end of file, `limit` is reached, or the next line would push the
+ * formatted output past `MAX_OUTPUT_BYTES` (in which case we throw with
+ * a hint that tells the caller exactly how to chunk the read).
  *
  * @param {string} filePath
  * @param {number} offset
@@ -84,12 +77,11 @@ async function readLineRange(filePath, offset, limit) {
   /** @type {string[]} */
   const lines = [];
   let lineNo = 0;
-  // Running estimate of the formatted output bytes for the lines we've
-  // already accepted. Slightly over-counts the trailing newline (the
-  // final join uses N-1 newlines, not N) which keeps us conservative.
-  let totalBytes = 0;
-  let currentWidth = 0;
-  let exceededAtLine = -1;
+  // Per-line cost excluding the line-number padding, summed over
+  // accepted lines. Padding is added lazily on each iteration since its
+  // width depends on the largest line number we'll emit. Over-counts the
+  // trailing newline (the join uses N-1, not N) which keeps us conservative.
+  let acceptedNonPaddingBytes = 0;
 
   try {
     for await (const line of rl) {
@@ -98,24 +90,27 @@ async function readLineRange(filePath, offset, limit) {
         continue;
       }
 
-      // The padding width grows as line numbers cross 9->10, 99->100,
-      // etc. When that happens, every line we already accepted needs an
-      // extra padding byte to stay column-aligned.
-      const newWidth = String(lineNo).length;
-      if (newWidth > currentWidth && lines.length > 0) {
-        totalBytes += (newWidth - currentWidth) * lines.length;
+      const width = String(lineNo).length;
+      const lineNonPadding = 1 + Buffer.byteLength(line, "utf8") + 1;
+      const projected =
+        acceptedNonPaddingBytes + lineNonPadding + width * (lines.length + 1);
+
+      if (projected > MAX_OUTPUT_BYTES) {
+        if (lines.length === 0) {
+          throw new Error(
+            `Output would exceed ${MAX_OUTPUT_BYTES} bytes at line ${lineNo}: ` +
+              "that line alone is too large to include. Consider reading the file with a different tool.",
+          );
+        }
+        const lastFitting = offset + lines.length - 1;
+        throw new Error(
+          `Output would exceed ${MAX_OUTPUT_BYTES} bytes at line ${lineNo}. ` +
+            `Lines ${offset}-${lastFitting} fit; read them with limit=${lines.length}, ` +
+            `then continue from offset=${lastFitting + 1}.`,
+        );
       }
-      currentWidth = newWidth;
 
-      // Per-line cost: width + tab + content + newline (used by the join).
-      const lineCost = currentWidth + 1 + Buffer.byteLength(line, "utf8") + 1;
-
-      if (totalBytes + lineCost > MAX_OUTPUT_BYTES) {
-        exceededAtLine = lineNo;
-        break;
-      }
-
-      totalBytes += lineCost;
+      acceptedNonPaddingBytes += lineNonPadding;
       lines.push(line);
 
       if (limit !== undefined && lines.length >= limit) {
@@ -127,21 +122,6 @@ async function readLineRange(filePath, offset, limit) {
     if (!stream.destroyed) {
       stream.destroy();
     }
-  }
-
-  if (exceededAtLine !== -1) {
-    if (lines.length === 0) {
-      throw new Error(
-        `Output would exceed ${MAX_OUTPUT_BYTES} bytes at line ${exceededAtLine}: ` +
-          "that line alone is too large to include. Consider reading the file with a different tool.",
-      );
-    }
-    const lastFitting = offset + lines.length - 1;
-    throw new Error(
-      `Output would exceed ${MAX_OUTPUT_BYTES} bytes at line ${exceededAtLine}. ` +
-        `Lines ${offset}-${lastFitting} fit; read them with limit=${lines.length}, ` +
-        `then continue from offset=${lastFitting + 1}.`,
-    );
   }
 
   return lines;
