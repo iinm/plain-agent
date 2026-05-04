@@ -201,7 +201,7 @@ describe("formatToolUse (patch_file)", () => {
     );
   });
 
-  it("renders multiple blocks including an insert", async () => {
+  it("renders multiple blocks including a multi-line insert", async () => {
     // given:
     const tmpFilePath = await writeTmp(["one", "two", "three", "four", "five"]);
     const patch = [
@@ -210,7 +210,8 @@ describe("formatToolUse (patch_file)", () => {
       "@@@ a1a",
       "",
       "@@@ a1a 5+",
-      "second new",
+      "appended A",
+      "appended B",
       "@@@ a1a",
     ].join("\n");
 
@@ -222,12 +223,14 @@ describe("formatToolUse (patch_file)", () => {
       input: { filePath: tmpFilePath, patch },
     });
 
-    // then:
+    // then: every body line of the insert is prefixed with "+ ".
     const stripped = stripAnsi(output);
     assert.ok(
       stripped.includes("@@@ a1a 1-1 HEAD=one\n- one\n+ first new\n@@@ a1a"),
     );
-    assert.ok(stripped.includes("@@@ a1a 5+\n+ second new\n@@@ a1a"));
+    assert.ok(
+      stripped.includes("@@@ a1a 5+\n+ appended A\n+ appended B\n@@@ a1a"),
+    );
   });
 
   it("renders unchanged lines inside a replace range as context (no -/+)", async () => {
@@ -340,30 +343,45 @@ describe("formatToolUse (patch_file)", () => {
     );
   });
 
-  it("handles an empty patch string", async () => {
-    // when:
-    const output = await formatToolUse({
-      type: "tool_use",
-      toolUseId: "t7",
-      toolName: "patch_file",
-      input: { filePath: "empty.txt", patch: "" },
-    });
-
-    // then:
-    assert.equal(output, "tool: patch_file\npath: empty.txt\npatch:\n");
+  it("renders empty or undefined patch as a blank patch section", async () => {
+    // when/then: both inputs collapse to "" before reaching the renderer.
+    for (const patch of ["", undefined]) {
+      const output = await formatToolUse({
+        type: "tool_use",
+        toolUseId: "t7",
+        toolName: "patch_file",
+        input: { filePath: "empty.txt", patch },
+      });
+      assert.equal(output, "tool: patch_file\npath: empty.txt\npatch:\n");
+    }
   });
 
-  it("handles undefined patch as empty", async () => {
+  it("renders an empty HEAD value in the open marker", async () => {
+    // given: line 2 is blank; the open marker should round-trip ` HEAD=`.
+    const tmpFilePath = await writeTmp(["alpha", "", "charlie"]);
+    const patch = ["@@@ abc 2-2 HEAD=", "bravo", "@@@ abc"].join("\n");
+
     // when:
     const output = await formatToolUse({
       type: "tool_use",
-      toolUseId: "t8",
+      toolUseId: "t14",
       toolName: "patch_file",
-      input: { filePath: "empty.txt", patch: undefined },
+      input: { filePath: tmpFilePath, patch },
     });
 
-    // then:
-    assert.equal(output, "tool: patch_file\npath: empty.txt\npatch:\n");
+    // then: the original blank line shows as a "- " removal, body as "+".
+    assert.equal(
+      stripAnsi(output),
+      [
+        "tool: patch_file",
+        `path: ${tmpFilePath}`,
+        "patch:",
+        "@@@ abc 2-2 HEAD=",
+        "- ",
+        "+ bravo",
+        "@@@ abc",
+      ].join("\n"),
+    );
   });
 
   it("renders a HEAD annotation in the open marker", async () => {
@@ -441,6 +459,31 @@ describe("formatToolUse (patch_file)", () => {
         "patch:",
         "@@@ abc 1-1",
         "new",
+      ].join("\n"),
+    );
+  });
+
+  it("falls back to verbatim highlight when no nonce can be extracted", async () => {
+    // given: patch contains no "@@@ ..." header at all.
+    const patch = ["plain text", "with no markers"].join("\n");
+
+    // when:
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "t15",
+      toolName: "patch_file",
+      input: { filePath: "anything.mjs", patch },
+    });
+
+    // then: body lines are still passed through verbatim styling.
+    assert.equal(
+      stripAnsi(output),
+      [
+        "tool: patch_file",
+        "path: anything.mjs",
+        "patch:",
+        "plain text",
+        "with no markers",
       ].join("\n"),
     );
   });

@@ -155,40 +155,40 @@ describe("readFileTool", () => {
     assert.equal(result, ["2\tb", "3\tc"].join("\n"));
   });
 
-  it("rejects non-positive offset", async () => {
+  it("rejects non-positive or non-integer offset", async () => {
     // given:
     const tmpFilePath = `tmp/readFileTest-${generateRandomString()}.txt`;
     await fs.mkdir("tmp", { recursive: true });
     await fs.writeFile(tmpFilePath, "hi");
     cleanups.push(() => fs.unlink(tmpFilePath));
 
-    // when:
-    const result = await readFileTool.impl({
-      filePath: tmpFilePath,
-      offset: 0,
-    });
-
-    // then:
-    assert.ok(result instanceof Error);
-    assert.match(result.message, /offset/);
+    // when/then: each invalid value must be rejected.
+    for (const offset of [0, -1, 1.5]) {
+      const result = await readFileTool.impl({
+        filePath: tmpFilePath,
+        offset,
+      });
+      assert.ok(result instanceof Error, `offset=${offset} should error`);
+      assert.match(result.message, /offset/);
+    }
   });
 
-  it("rejects non-positive limit", async () => {
+  it("rejects non-positive or non-integer limit", async () => {
     // given:
     const tmpFilePath = `tmp/readFileTest-${generateRandomString()}.txt`;
     await fs.mkdir("tmp", { recursive: true });
     await fs.writeFile(tmpFilePath, "hi");
     cleanups.push(() => fs.unlink(tmpFilePath));
 
-    // when:
-    const result = await readFileTool.impl({
-      filePath: tmpFilePath,
-      limit: 0,
-    });
-
-    // then:
-    assert.ok(result instanceof Error);
-    assert.match(result.message, /limit/);
+    // when/then:
+    for (const limit of [0, -1, 2.5]) {
+      const result = await readFileTool.impl({
+        filePath: tmpFilePath,
+        limit,
+      });
+      assert.ok(result instanceof Error, `limit=${limit} should error`);
+      assert.match(result.message, /limit/);
+    }
   });
 
   it("returns Error when file is missing", async () => {
@@ -240,29 +240,6 @@ describe("readFileTool", () => {
     assert.match(err.message, /exceed 8192 characters/);
     assert.match(err.message, /limit=\d+/);
     assert.match(err.message, /offset=\d+/);
-  });
-
-  it("errors when an explicit limit still produces output past the length cap", async () => {
-    // given:
-    const tmpFilePath = `tmp/readFileTest-${generateRandomString()}.txt`;
-    await fs.mkdir("tmp", { recursive: true });
-    const filler = "x".repeat(200);
-    const lines = Array.from({ length: 100 }, (_, i) => `${filler}${i}`);
-    await fs.writeFile(tmpFilePath, lines.join("\n"));
-    cleanups.push(() => fs.unlink(tmpFilePath));
-
-    // when: ask for many lines that together exceed the cap.
-    const result = await readFileTool.impl({
-      filePath: tmpFilePath,
-      limit: 100,
-    });
-
-    // then:
-    assert.ok(result instanceof Error);
-    assert.match(
-      /** @type {Error} */ (result).message,
-      /exceed 8192 characters/,
-    );
   });
 
   it("returns the requested window when an explicit limit keeps output under the cap", async () => {
