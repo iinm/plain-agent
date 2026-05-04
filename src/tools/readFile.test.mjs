@@ -201,7 +201,7 @@ describe("readFileTool", () => {
     assert.ok(result instanceof Error);
   });
 
-  it("reads the whole file when no limit is given and output fits the byte cap", async () => {
+  it("reads the whole file when no limit is given and output fits the length cap", async () => {
     // given: a file that easily fits within 8KB.
     const tmpFilePath = `tmp/readFileTest-${generateRandomString()}.txt`;
     await fs.mkdir("tmp", { recursive: true });
@@ -221,11 +221,11 @@ describe("readFileTool", () => {
     assert.equal(outLines[49], "50\tline 50");
   });
 
-  it("errors with a chunking hint when output would exceed the byte cap", async () => {
-    // given: a file whose full output is well past 8KB.
+  it("errors with a chunking hint when output would exceed the length cap", async () => {
+    // given: a file whose full output is well past 8K characters.
     const tmpFilePath = `tmp/readFileTest-${generateRandomString()}.txt`;
     await fs.mkdir("tmp", { recursive: true });
-    // Each line is ~100 bytes; 200 lines => ~20KB of formatted output.
+    // Each line is ~100 chars; 200 lines => ~20K chars of formatted output.
     const filler = "x".repeat(95);
     const lines = Array.from({ length: 200 }, (_, i) => `${filler}${i}`);
     await fs.writeFile(tmpFilePath, lines.join("\n"));
@@ -237,12 +237,12 @@ describe("readFileTool", () => {
     // then:
     assert.ok(result instanceof Error);
     const err = /** @type {Error} */ (result);
-    assert.match(err.message, /exceed 8192 bytes/);
+    assert.match(err.message, /exceed 8192 characters/);
     assert.match(err.message, /limit=\d+/);
     assert.match(err.message, /offset=\d+/);
   });
 
-  it("errors when an explicit limit still produces output past the byte cap", async () => {
+  it("errors when an explicit limit still produces output past the length cap", async () => {
     // given:
     const tmpFilePath = `tmp/readFileTest-${generateRandomString()}.txt`;
     await fs.mkdir("tmp", { recursive: true });
@@ -259,7 +259,10 @@ describe("readFileTool", () => {
 
     // then:
     assert.ok(result instanceof Error);
-    assert.match(/** @type {Error} */ (result).message, /exceed 8192 bytes/);
+    assert.match(
+      /** @type {Error} */ (result).message,
+      /exceed 8192 characters/,
+    );
   });
 
   it("returns the requested window when an explicit limit keeps output under the cap", async () => {

@@ -3,12 +3,11 @@
  * @import { ReadFileInput } from './readFile'
  */
 
-import { Buffer } from "node:buffer";
 import fs from "node:fs";
 import readline from "node:readline";
 import { noThrow } from "../utils/noThrow.mjs";
 
-const MAX_OUTPUT_BYTES = 1024 * 8;
+const OUTPUT_MAX_LENGTH = 1024 * 8;
 
 /** @type {Tool} */
 export const readFileTool = {
@@ -60,7 +59,7 @@ export const readFileTool = {
 /**
  * Stream the file line-by-line, skip until `offset`, and collect lines
  * until end of file, `limit` is reached, or the next line would push the
- * formatted output past `MAX_OUTPUT_BYTES` (in which case we throw with
+ * formatted output past `OUTPUT_MAX_LENGTH` (in which case we throw with
  * a hint that tells the caller exactly how to chunk the read).
  *
  * @param {string} filePath
@@ -78,10 +77,10 @@ async function readLineRange(filePath, offset, limit) {
   /** @type {string[]} */
   const lines = [];
   let lineNo = 0;
-  // Sum of (content + newline) for accepted lines. The line-number
+  // Sum of (content length + newline) for accepted lines. The line-number
   // column and tab separator are not counted toward the cap; the actual
-  // formatted output runs a bit over MAX_OUTPUT_BYTES, which is fine.
-  let acceptedBytes = 0;
+  // formatted output runs a bit over OUTPUT_MAX_LENGTH, which is fine.
+  let acceptedLength = 0;
 
   try {
     for await (const line of rl) {
@@ -90,24 +89,24 @@ async function readLineRange(filePath, offset, limit) {
         continue;
       }
 
-      const lineCost = Buffer.byteLength(line, "utf8") + 1;
+      const lineCost = line.length + 1;
 
-      if (acceptedBytes + lineCost > MAX_OUTPUT_BYTES) {
+      if (acceptedLength + lineCost > OUTPUT_MAX_LENGTH) {
         if (lines.length === 0) {
           throw new Error(
-            `Output would exceed ${MAX_OUTPUT_BYTES} bytes at line ${lineNo}: ` +
+            `Output would exceed ${OUTPUT_MAX_LENGTH} characters at line ${lineNo}: ` +
               "that line alone is too large to include. Consider reading the file with a different tool.",
           );
         }
         const lastFitting = offset + lines.length - 1;
         throw new Error(
-          `Output would exceed ${MAX_OUTPUT_BYTES} bytes at line ${lineNo}. ` +
+          `Output would exceed ${OUTPUT_MAX_LENGTH} characters at line ${lineNo}. ` +
             `Lines ${offset}-${lastFitting} fit; read them with limit=${lines.length}, ` +
             `then continue from offset=${lastFitting + 1}.`,
         );
       }
 
-      acceptedBytes += lineCost;
+      acceptedLength += lineCost;
       lines.push(line);
 
       if (limit !== undefined && lines.length >= limit) {
