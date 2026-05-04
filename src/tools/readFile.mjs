@@ -57,11 +57,6 @@ export const readFileTool = {
 };
 
 /**
- * Stream the file line-by-line, skip until `offset`, and collect lines
- * until end of file, `limit` is reached, or the next line would push the
- * formatted output past `OUTPUT_MAX_LENGTH` (in which case we throw with
- * a hint that tells the caller exactly how to chunk the read).
- *
  * @param {string} filePath
  * @param {number} offset
  * @param {number | undefined} limit
@@ -77,9 +72,7 @@ async function readLineRange(filePath, offset, limit) {
   /** @type {string[]} */
   const lines = [];
   let lineNo = 0;
-  // Sum of (content length + newline) for accepted lines. The line-number
-  // column and tab separator are not counted toward the cap; the actual
-  // formatted output runs a bit over OUTPUT_MAX_LENGTH, which is fine.
+  // Line-number padding and tab separator are not counted toward the cap.
   let acceptedLength = 0;
 
   try {
@@ -124,10 +117,6 @@ async function readLineRange(filePath, offset, limit) {
 }
 
 /**
- * Format an array of lines as `cat -n` style output. The padding width is
- * based on the largest emitted line number in this call; widths may differ
- * across calls but the column stays aligned within a single response.
- *
  * @param {string[]} lines
  * @param {number} startLine 1-indexed line number of `lines[0]`.
  * @returns {string}
