@@ -41,11 +41,11 @@ describe("patchFileTool", () => {
 
     // when:
     const patch = `
-@@@ 012 1-1
+@@@ 012 1-1 HEAD=Hello World
 Hello Universe
 @@@ 012
 
-@@@ 012 3-4
+@@@ 012 3-4 HEAD=This is a test file content 2.
 This is a test file content updated 2.
 This is a test file content updated 3.
 @@@ 012
@@ -77,7 +77,7 @@ This is a test file content updated 3.
 
     // when:
     const patch = `
-@@@ 012 2-3
+@@@ 012 2-3 HEAD=drop me
 @@@ 012
 `.trim();
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
@@ -161,7 +161,7 @@ new content
 
     // when:
     const patch = `
-@@@ 012 1-1
+@@@ 012 1-1 HEAD=anything
 new
 @@@ 012
 `.trim();
@@ -181,7 +181,7 @@ new
 
     // when:
     const patch = `
-@@@ 012 1-1
+@@@ 012 1-1 HEAD=alpha
 ALPHA
 @@@ 012
 `.trim();
@@ -201,7 +201,7 @@ ALPHA
 
     // when:
     const patch = `
-@@@ 012 2-2
+@@@ 012 2-2 HEAD=bravo
 BRAVO
 @@@ 012
 `.trim();
@@ -218,12 +218,12 @@ BRAVO
 
     // when: line numbers refer to ORIGINAL file even though block 1 changes line count
     const patch = `
-@@@ 012 1-1
+@@@ 012 1-1 HEAD=one
 ONE
 TWO
 @@@ 012
 
-@@@ 012 5-5
+@@@ 012 5-5 HEAD=five
 FIVE
 @@@ 012
 `.trim();
@@ -330,13 +330,49 @@ new
     assert.match(result.message, /HEAD verification failed at line 2/);
   });
 
-  it("rejects empty HEAD= value", async () => {
+  it("accepts empty HEAD= for a blank target line", async () => {
     // given:
-    const tmpFilePath = await writeTmp(["alpha"]);
+    const tmpFilePath = await writeTmp(["alpha", "", "charlie"]);
 
-    // when:
+    // when: replace the blank line 2 with content; empty HEAD= asserts blankness.
     const patch = `
-@@@ 012 1-1 HEAD=
+@@@ 012 2-2 HEAD=
+bravo
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
+    assert.equal(patchedContent, ["alpha", "bravo", "charlie"].join("\n"));
+  });
+
+  it("accepts empty HEAD= for a whitespace-only target line", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["alpha", "   ", "charlie"]);
+
+    // when: trimmed actual is empty, so empty HEAD= matches.
+    const patch = `
+@@@ 012 2-2 HEAD=
+bravo
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
+    assert.equal(patchedContent, ["alpha", "bravo", "charlie"].join("\n"));
+  });
+
+  it("rejects empty HEAD= when target line is not blank", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["alpha", "bravo", "charlie"]);
+
+    // when: line 2 is "bravo", not blank, so empty HEAD= should fail.
+    const patch = `
+@@@ 012 2-2 HEAD=
 new
 @@@ 012
 `.trim();
@@ -344,7 +380,27 @@ new
 
     // then:
     assert.ok(result instanceof Error);
-    assert.match(result.message, /HEAD= value is empty/);
+    assert.match(
+      result.message,
+      /HEAD verification failed at line 2: expected a blank line/,
+    );
+  });
+
+  it("rejects replace block without HEAD= clause", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["alpha", "bravo"]);
+
+    // when: replace header without HEAD=.
+    const patch = `
+@@@ 012 1-1
+new
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /missing the required HEAD= clause/);
   });
 
   it("rejects overlapping replace ranges", async () => {
@@ -353,11 +409,11 @@ new
 
     // when: ranges 2-3 and 3-4 overlap on line 3
     const patch = `
-@@@ 012 2-3
+@@@ 012 2-3 HEAD=b
 X
 @@@ 012
 
-@@@ 012 3-4
+@@@ 012 3-4 HEAD=c
 Y
 @@@ 012
 `.trim();
@@ -374,7 +430,7 @@ Y
 
     // when: insert at 3+ lies strictly inside replace [2-4]
     const patch = `
-@@@ 012 2-4
+@@@ 012 2-4 HEAD=b
 X
 @@@ 012
 
@@ -395,7 +451,7 @@ Y
 
     // when: insert at 1+ (just before replace 2-4) and insert at 4+ (just after)
     const patch = `
-@@@ 012 2-4
+@@@ 012 2-4 HEAD=b
 X
 @@@ 012
 
@@ -443,7 +499,7 @@ second
 
     // when:
     const patch = `
-@@@ 012 1-1
+@@@ 012 1-1 HEAD=a
 new
 `.trim();
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
@@ -474,7 +530,7 @@ new
 
     // when:
     const patch = `
-@@@ 012 1-5
+@@@ 012 1-5 HEAD=a
 X
 @@@ 012
 `.trim();
@@ -507,7 +563,7 @@ X
 
     // when:
     const patch = `
-@@@ 012 1-1
+@@@ 012 1-1 HEAD=Original
 $& means match, $1 means first group, $$ means literal dollar
 @@@ 012
 `.trim();

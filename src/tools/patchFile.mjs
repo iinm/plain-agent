@@ -27,7 +27,7 @@ export function createPatchFileTool(
           patch: {
             description: `
 Format:
-@@@ ${nonce} {start}-{end}
+@@@ ${nonce} {start}-{end} HEAD=prefix of original line
 new content
 @@@ ${nonce}
 
@@ -35,15 +35,13 @@ new content
 inserted content
 @@@ ${nonce}
 
-@@@ ${nonce} {start}-{end} HEAD=prefix of original line
-new content
-@@@ ${nonce}
-
 - Line numbers are 1-indexed and refer to the original file;
   "{start}-{end}" is inclusive.
 - "{N}+" inserts after line N; "0+" prepends, "{lastLine}+" appends.
 - Empty body deletes the range.
-- HEAD verifies the trimmed start line begins with the trimmed text.
+- HEAD is required on replace blocks and verifies the trimmed start
+  line begins with the trimmed text. Use empty "HEAD=" for a blank
+  line.
             `.trim(),
             type: "string",
           },
@@ -188,15 +186,19 @@ export function applyBlocks(original, blocks) {
 
   for (const { block } of indexed) {
     if (block.op === "replace") {
-      if (block.head !== undefined) {
-        const actual = lines[block.start - 1];
-        const actualTrimmed = (actual ?? "").trim();
-        const headTrimmed = block.head.trim();
-        if (!actualTrimmed.startsWith(headTrimmed)) {
+      const actual = lines[block.start - 1];
+      const actualTrimmed = (actual ?? "").trim();
+      // HEAD is already trimmed in parseHeaderArgs.
+      if (block.head === "") {
+        if (actualTrimmed !== "") {
           throw new Error(
-            `HEAD verification failed at line ${block.start}: expected line to start with ${JSON.stringify(headTrimmed)} (trimmed) but got ${JSON.stringify(actualTrimmed)}. The line numbers may be stale; re-read the file with read_file.`,
+            `HEAD verification failed at line ${block.start}: expected a blank line (empty HEAD=) but got ${JSON.stringify(actualTrimmed)}. The line numbers may be stale; re-read the file with read_file.`,
           );
         }
+      } else if (!actualTrimmed.startsWith(block.head)) {
+        throw new Error(
+          `HEAD verification failed at line ${block.start}: expected line to start with ${JSON.stringify(block.head)} (trimmed) but got ${JSON.stringify(actualTrimmed)}. The line numbers may be stale; re-read the file with read_file.`,
+        );
       }
       const removeCount = block.end - block.start + 1;
       lines.splice(block.start - 1, removeCount, ...block.body);
@@ -214,12 +216,15 @@ export function applyBlocks(original, blocks) {
 
 /**
  * @param {string} headerArgs
- * @returns {{ op: "replace"; start: number; end: number; head?: string } | { op: "insert"; after: number }}
+ * @returns {{ op: "replace"; start: number; end: number; head: string } | { op: "insert"; after: number }}
  */
 function parseHeaderArgs(headerArgs) {
-  // Replace form: "{start}-{end}" optionally followed by " HEAD=...".
-  // The HEAD value is unquoted and runs to end of line; we trim it later.
-  const replaceMatch = headerArgs.match(/^(\d+)-(\d+)(?:\s+HEAD=(.*))?$/);
+  // Replace form: "{start}-{end} HEAD=...". HEAD is required so the
+  // applied edit always re-confirms the targeted line. The HEAD value
+  // is unquoted and runs to end of line; we trim it later. An empty
+  // HEAD value is allowed and means "expect a blank/whitespace-only
+  // line at {start}".
+  const replaceMatch = headerArgs.match(/^(\d+)-(\d+)\s+HEAD=(.*)$/);
   if (replaceMatch) {
     const start = Number(replaceMatch[1]);
     const end = Number(replaceMatch[2]);
@@ -233,24 +238,23 @@ function parseHeaderArgs(headerArgs) {
         `Invalid replace range "${headerArgs}": end (${end}) must be >= start (${start}).`,
       );
     }
-    const headRaw = replaceMatch[3];
-    if (headRaw !== undefined) {
-      const head = headRaw.trim();
-      if (head === "") {
-        throw new Error(
-          `HEAD= value is empty in "${headerArgs}". Drop the HEAD= clause if no staleness check is intended.`,
-        );
-      }
-      return { op: "replace", start, end, head };
-    }
-    return { op: "replace", start, end };
+    const head = replaceMatch[3].trim();
+    return { op: "replace", start, end, head };
+  }
+  // Reject replace form without HEAD with a clear message before falling
+  // through to the generic error.
+  if (/^\d+-\d+\s*$/.test(headerArgs)) {
+    throw new Error(
+      `Replace block "${headerArgs}" is missing the required HEAD= clause. ` +
+        `Append " HEAD=<prefix of original line {start}>" (use empty value for a blank line).`,
+    );
   }
   const insertMatch = headerArgs.match(/^(\d+)\+\s*$/);
   if (insertMatch) {
     return { op: "insert", after: Number(insertMatch[1]) };
   }
   throw new Error(
-    `Invalid block header arguments: ${JSON.stringify(headerArgs)}. Expected "{start}-{end}" or "{N}+".`,
+    `Invalid block header arguments: ${JSON.stringify(headerArgs)}. Expected "{start}-{end} HEAD=..." or "{N}+".`,
   );
 }
 

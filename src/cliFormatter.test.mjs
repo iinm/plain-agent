@@ -166,9 +166,12 @@ describe("formatToolUse (patch_file)", () => {
       "delta",
       "echo",
     ]);
-    const patch = ["@@@ abc 3-4", "first new", "second new", "@@@ abc"].join(
-      "\n",
-    );
+    const patch = [
+      "@@@ abc 3-4 HEAD=charlie",
+      "first new",
+      "second new",
+      "@@@ abc",
+    ].join("\n");
 
     // when:
     const output = await formatToolUse({
@@ -188,7 +191,7 @@ describe("formatToolUse (patch_file)", () => {
         "tool: patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
-        "@@@ abc 3-4",
+        "@@@ abc 3-4 HEAD=charlie",
         "- charlie",
         "- delta",
         "+ first new",
@@ -202,7 +205,7 @@ describe("formatToolUse (patch_file)", () => {
     // given:
     const tmpFilePath = await writeTmp(["one", "two", "three", "four", "five"]);
     const patch = [
-      "@@@ a1a 1-1",
+      "@@@ a1a 1-1 HEAD=one",
       "first new",
       "@@@ a1a",
       "",
@@ -221,7 +224,9 @@ describe("formatToolUse (patch_file)", () => {
 
     // then:
     const stripped = stripAnsi(output);
-    assert.ok(stripped.includes("@@@ a1a 1-1\n- one\n+ first new\n@@@ a1a"));
+    assert.ok(
+      stripped.includes("@@@ a1a 1-1 HEAD=one\n- one\n+ first new\n@@@ a1a"),
+    );
     assert.ok(stripped.includes("@@@ a1a 5+\n+ second new\n@@@ a1a"));
   });
 
@@ -237,7 +242,7 @@ describe("formatToolUse (patch_file)", () => {
     // Replace 1-5 but only line 3 ("charlie") actually changes; the
     // first/last two lines round-trip unchanged.
     const patch = [
-      "@@@ abc 1-5",
+      "@@@ abc 1-5 HEAD=alpha",
       "alpha",
       "bravo",
       "CHARLIE",
@@ -261,7 +266,7 @@ describe("formatToolUse (patch_file)", () => {
         "tool: patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
-        "@@@ abc 1-5",
+        "@@@ abc 1-5 HEAD=alpha",
         "  alpha",
         "  bravo",
         "- charlie",
@@ -276,7 +281,13 @@ describe("formatToolUse (patch_file)", () => {
   it("renders a no-op replace as all context lines", async () => {
     // given: body matches the original range exactly.
     const tmpFilePath = await writeTmp(["one", "two", "three"]);
-    const patch = ["@@@ abc 1-3", "one", "two", "three", "@@@ abc"].join("\n");
+    const patch = [
+      "@@@ abc 1-3 HEAD=one",
+      "one",
+      "two",
+      "three",
+      "@@@ abc",
+    ].join("\n");
 
     // when:
     const output = await formatToolUse({
@@ -293,7 +304,7 @@ describe("formatToolUse (patch_file)", () => {
         "tool: patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
-        "@@@ abc 1-3",
+        "@@@ abc 1-3 HEAD=one",
         "  one",
         "  two",
         "  three",
@@ -305,7 +316,7 @@ describe("formatToolUse (patch_file)", () => {
   it("renders a deletion (empty body) as a removal-only block", async () => {
     // given:
     const tmpFilePath = await writeTmp(["keep", "drop me", "keep too"]);
-    const patch = ["@@@ a2a 2-2", "@@@ a2a"].join("\n");
+    const patch = ["@@@ a2a 2-2 HEAD=drop me", "@@@ a2a"].join("\n");
 
     // when:
     const output = await formatToolUse({
@@ -322,7 +333,7 @@ describe("formatToolUse (patch_file)", () => {
         "tool: patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
-        "@@@ a2a 2-2",
+        "@@@ a2a 2-2 HEAD=drop me",
         "- drop me",
         "@@@ a2a",
       ].join("\n"),
@@ -381,9 +392,12 @@ describe("formatToolUse (patch_file)", () => {
 
   it("falls back to verbatim highlight when the file cannot be read", async () => {
     // given:
-    const patch = ["@@@ abc 3-4", "first new", "second new", "@@@ abc"].join(
-      "\n",
-    );
+    const patch = [
+      "@@@ abc 3-4 HEAD=anything",
+      "first new",
+      "second new",
+      "@@@ abc",
+    ].join("\n");
 
     // when: filePath does not exist on disk
     const output = await formatToolUse({
@@ -400,7 +414,7 @@ describe("formatToolUse (patch_file)", () => {
         "tool: patch_file\npath: does/not/exist.mjs\npatch:\n",
       ),
     );
-    assert.ok(stripped.includes("@@@ abc 3-4"));
+    assert.ok(stripped.includes("@@@ abc 3-4 HEAD=anything"));
     assert.ok(stripped.includes("+ first new"));
     assert.ok(stripped.includes("+ second new"));
     assert.ok(!stripped.includes("- "));

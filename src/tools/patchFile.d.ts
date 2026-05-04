@@ -8,7 +8,7 @@ export type PatchBlock =
       op: "replace";
       start: number;
       end: number;
-      head?: string;
+      head: string;
       body: string[];
     }
   | {
