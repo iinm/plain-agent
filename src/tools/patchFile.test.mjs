@@ -330,40 +330,25 @@ new
     assert.match(result.message, /HEAD verification failed at line 2/);
   });
 
-  it("accepts empty HEAD= for a blank target line", async () => {
-    // given:
-    const tmpFilePath = await writeTmp(["alpha", "", "charlie"]);
+  it("accepts empty HEAD= when the target line is blank or whitespace-only", async () => {
+    // given: two files differing only in whether line 2 is "" or "   ".
+    // Both trim to "" so empty HEAD= must accept either.
+    for (const middle of ["", "   "]) {
+      const tmpFilePath = await writeTmp(["alpha", middle, "charlie"]);
 
-    // when: replace the blank line 2 with content; empty HEAD= asserts blankness.
-    const patch = `
+      // when:
+      const patch = `
 @@@ 012 2-2 HEAD=
 bravo
 @@@ 012
 `.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+      const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
-    // then:
-    assert.equal(result, `Patched file: ${tmpFilePath}`);
-    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
-    assert.equal(patchedContent, ["alpha", "bravo", "charlie"].join("\n"));
-  });
-
-  it("accepts empty HEAD= for a whitespace-only target line", async () => {
-    // given:
-    const tmpFilePath = await writeTmp(["alpha", "   ", "charlie"]);
-
-    // when: trimmed actual is empty, so empty HEAD= matches.
-    const patch = `
-@@@ 012 2-2 HEAD=
-bravo
-@@@ 012
-`.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
-
-    // then:
-    assert.equal(result, `Patched file: ${tmpFilePath}`);
-    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
-    assert.equal(patchedContent, ["alpha", "bravo", "charlie"].join("\n"));
+      // then:
+      assert.equal(result, `Patched file: ${tmpFilePath}`);
+      const patchedContent = await fs.readFile(tmpFilePath, "utf8");
+      assert.equal(patchedContent, ["alpha", "bravo", "charlie"].join("\n"));
+    }
   });
 
   it("rejects empty HEAD= when target line is not blank", async () => {
@@ -539,6 +524,57 @@ X
     // then:
     assert.ok(result instanceof Error);
     assert.match(result.message, /extends past end of file/);
+  });
+
+  it("rejects insert position past end of file", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a", "b", "c"]);
+
+    // when: 99+ on a 3-line file is outside [0, 3]
+    const patch = `
+@@@ 012 99+
+nope
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /Insert position 99\+ is outside \[0, 3\]/);
+  });
+
+  it("rejects replace range with start < 1", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a", "b"]);
+
+    // when: 0-1 has start=0
+    const patch = `
+@@@ 012 0-1 HEAD=a
+X
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /start must be >= 1/);
+  });
+
+  it("rejects replace range with end < start", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a", "b", "c", "d", "e"]);
+
+    // when: 5-3 has end < start
+    const patch = `
+@@@ 012 5-3 HEAD=e
+X
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /end \(3\) must be >= start \(5\)/);
   });
 
   it("rejects insert with empty body", async () => {

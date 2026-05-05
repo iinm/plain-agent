@@ -19,6 +19,14 @@ describe("diffLines", () => {
     ]);
   });
 
+  it("returns no ops when both inputs are empty", () => {
+    // given/when:
+    const ops = diffLines([], []);
+
+    // then:
+    assert.deepEqual(ops, []);
+  });
+
   it("emits all removals when new is empty", () => {
     // given/when:
     const ops = diffLines(["a", "b"], []);
@@ -123,14 +131,6 @@ describe("diffLines", () => {
       { type: "-", line: "original" },
       { type: "+", line: "replacement" },
     ]);
-  });
-
-  it("handles single-line no-op as one context line", () => {
-    // given/when:
-    const ops = diffLines(["same"], ["same"]);
-
-    // then:
-    assert.deepEqual(ops, [{ type: " ", line: "same" }]);
   });
 
   it("handles repeated lines correctly", () => {
