@@ -16,6 +16,8 @@ A lightweight CLI-based coding agent.
 - **Sandboxed execution** — Run the agent's shell commands inside a Docker
   container with network access restricted to allowlisted destinations
   (e.g., `registry.npmjs.org` only for `npm install`).
+- **Plain-text memory** — Task state is persisted as Markdown files under
+  `.plain-agent/memory/`, easy to review.
 - **Extensible** — Define prompts and subagents in Markdown. Connect MCP servers.
   Supports Claude Code plugins and `.claude/` commands, subagents, and skills.
 
@@ -24,6 +26,7 @@ A lightweight CLI-based coding agent.
 - **Sequential subagent execution** — Subagents run one at a time rather than
   in parallel. The trade-off is full visibility: every step is streamed to
   your terminal so you can follow exactly what each subagent is doing.
+- **No session persistence** — Sessions are not persisted. Start a fresh session and use memory files (`.plain-agent/memory/`) instead.
 
 ## Requirements
 
