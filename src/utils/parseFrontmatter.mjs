@@ -43,15 +43,12 @@ export function parseFrontmatter(frontmatter) {
         i++;
       }
 
-      while (
-        blockLines.length > 0 &&
-        blockLines[blockLines.length - 1] === ""
-      ) {
+      while (blockLines.at(-1) === "") {
         blockLines.pop();
       }
 
       result[key] =
-        style === "|" ? foldLiteral(blockLines) : foldFolded(blockLines);
+        style === "|" ? blockLines.join("\n") : foldFolded(blockLines);
       continue;
     }
 
@@ -69,29 +66,17 @@ export function parseFrontmatter(frontmatter) {
  * @param {string[]} blockLines
  * @returns {string}
  */
-function foldLiteral(blockLines) {
-  return blockLines.join("\n");
-}
-
-/**
- * @param {string[]} blockLines
- * @returns {string}
- */
 function foldFolded(blockLines) {
-  let value = "";
-  let started = false;
-  let pendingNewlines = 0;
-  for (const bl of blockLines) {
-    if (bl === "") {
-      if (started) pendingNewlines++;
-      continue;
+  const paragraphs = [];
+  let current = [];
+  for (const line of blockLines) {
+    if (line === "") {
+      paragraphs.push(current.join(" "));
+      current = [];
+    } else {
+      current.push(line);
     }
-    if (started) {
-      value += pendingNewlines === 0 ? " " : "\n".repeat(pendingNewlines);
-    }
-    value += bl;
-    pendingNewlines = 0;
-    started = true;
   }
-  return value;
+  paragraphs.push(current.join(" "));
+  return paragraphs.join("\n");
 }
