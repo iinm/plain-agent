@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import { afterEach, describe, it } from "node:test";
 import { styleText } from "node:util";
 import { formatArgs, formatToolUse } from "./cliFormatter.mjs";
+import { lineHash } from "./utils/lineHash.mjs";
 
 const ESC = String.fromCharCode(27);
 const ANSI_PATTERN = new RegExp(`${ESC}\\[[0-9;]*m`, "g");
@@ -167,7 +168,7 @@ describe("formatToolUse (patch_file)", () => {
       "echo",
     ]);
     const patch = [
-      "@@@ abc 3-4 HEAD=charlie",
+      `@@@ abc 3:${lineHash("charlie")}-4:${lineHash("delta")}`,
       "first new",
       "second new",
       "@@@ abc",
@@ -191,7 +192,7 @@ describe("formatToolUse (patch_file)", () => {
         "tool: patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
-        "@@@ abc 3-4 HEAD=charlie",
+        `@@@ abc 3:${lineHash("charlie")}-4:${lineHash("delta")}`,
         "- charlie",
         "- delta",
         "+ first new",
@@ -205,11 +206,11 @@ describe("formatToolUse (patch_file)", () => {
     // given:
     const tmpFilePath = await writeTmp(["one", "two", "three", "four", "five"]);
     const patch = [
-      "@@@ a1a 1-1 HEAD=one",
+      `@@@ a1a 1:${lineHash("one")}-1:${lineHash("one")}`,
       "first new",
       "@@@ a1a",
       "",
-      "@@@ a1a 5+",
+      `@@@ a1a 5:${lineHash("five")}+`,
       "appended A",
       "appended B",
       "@@@ a1a",
@@ -226,10 +227,14 @@ describe("formatToolUse (patch_file)", () => {
     // then: every body line of the insert is prefixed with "+ ".
     const stripped = stripAnsi(output);
     assert.ok(
-      stripped.includes("@@@ a1a 1-1 HEAD=one\n- one\n+ first new\n@@@ a1a"),
+      stripped.includes(
+        `@@@ a1a 1:${lineHash("one")}-1:${lineHash("one")}\n- one\n+ first new\n@@@ a1a`,
+      ),
     );
     assert.ok(
-      stripped.includes("@@@ a1a 5+\n+ appended A\n+ appended B\n@@@ a1a"),
+      stripped.includes(
+        `@@@ a1a 5:${lineHash("five")}+\n+ appended A\n+ appended B\n@@@ a1a`,
+      ),
     );
   });
 
@@ -245,7 +250,7 @@ describe("formatToolUse (patch_file)", () => {
     // Replace 1-5 but only line 3 ("charlie") actually changes; the
     // first/last two lines round-trip unchanged.
     const patch = [
-      "@@@ abc 1-5 HEAD=alpha",
+      `@@@ abc 1:${lineHash("alpha")}-5:${lineHash("echo")}`,
       "alpha",
       "bravo",
       "CHARLIE",
@@ -269,7 +274,7 @@ describe("formatToolUse (patch_file)", () => {
         "tool: patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
-        "@@@ abc 1-5 HEAD=alpha",
+        `@@@ abc 1:${lineHash("alpha")}-5:${lineHash("echo")}`,
         "  alpha",
         "  bravo",
         "- charlie",
@@ -285,7 +290,7 @@ describe("formatToolUse (patch_file)", () => {
     // given: body matches the original range exactly.
     const tmpFilePath = await writeTmp(["one", "two", "three"]);
     const patch = [
-      "@@@ abc 1-3 HEAD=one",
+      `@@@ abc 1:${lineHash("one")}-3:${lineHash("three")}`,
       "one",
       "two",
       "three",
@@ -307,7 +312,7 @@ describe("formatToolUse (patch_file)", () => {
         "tool: patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
-        "@@@ abc 1-3 HEAD=one",
+        `@@@ abc 1:${lineHash("one")}-3:${lineHash("three")}`,
         "  one",
         "  two",
         "  three",
@@ -319,7 +324,10 @@ describe("formatToolUse (patch_file)", () => {
   it("renders a deletion (empty body) as a removal-only block", async () => {
     // given:
     const tmpFilePath = await writeTmp(["keep", "drop me", "keep too"]);
-    const patch = ["@@@ a2a 2-2 HEAD=drop me", "@@@ a2a"].join("\n");
+    const patch = [
+      `@@@ a2a 2:${lineHash("drop me")}-2:${lineHash("drop me")}`,
+      "@@@ a2a",
+    ].join("\n");
 
     // when:
     const output = await formatToolUse({
@@ -336,7 +344,7 @@ describe("formatToolUse (patch_file)", () => {
         "tool: patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
-        "@@@ a2a 2-2 HEAD=drop me",
+        `@@@ a2a 2:${lineHash("drop me")}-2:${lineHash("drop me")}`,
         "- drop me",
         "@@@ a2a",
       ].join("\n"),
@@ -356,10 +364,14 @@ describe("formatToolUse (patch_file)", () => {
     }
   });
 
-  it("renders an empty HEAD value in the open marker", async () => {
-    // given: line 2 is blank; the open marker should round-trip ` HEAD=`.
+  it("renders a replace block targeting a blank line", async () => {
+    // given: line 2 is blank; hash of "" is "000".
     const tmpFilePath = await writeTmp(["alpha", "", "charlie"]);
-    const patch = ["@@@ abc 2-2 HEAD=", "bravo", "@@@ abc"].join("\n");
+    const patch = [
+      `@@@ abc 2:${lineHash("")}-2:${lineHash("")}`,
+      "bravo",
+      "@@@ abc",
+    ].join("\n");
 
     // when:
     const output = await formatToolUse({
@@ -376,7 +388,7 @@ describe("formatToolUse (patch_file)", () => {
         "tool: patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
-        "@@@ abc 2-2 HEAD=",
+        `@@@ abc 2:${lineHash("")}-2:${lineHash("")}`,
         "- ",
         "+ bravo",
         "@@@ abc",
@@ -384,10 +396,14 @@ describe("formatToolUse (patch_file)", () => {
     );
   });
 
-  it("renders a HEAD annotation in the open marker", async () => {
+  it("renders hash values in the open marker", async () => {
     // given:
     const tmpFilePath = await writeTmp(["alpha", "old line", "charlie"]);
-    const patch = ["@@@ abc 2-2 HEAD=old line", "new", "@@@ abc"].join("\n");
+    const patch = [
+      `@@@ abc 2:${lineHash("old line")}-2:${lineHash("old line")}`,
+      "new",
+      "@@@ abc",
+    ].join("\n");
 
     // when:
     const output = await formatToolUse({
@@ -399,19 +415,20 @@ describe("formatToolUse (patch_file)", () => {
 
     // then:
     const stripped = stripAnsi(output);
-    assert.ok(stripped.includes("@@@ abc 2-2 HEAD=old line"));
+    const header = `@@@ abc 2:${lineHash("old line")}-2:${lineHash("old line")}`;
+    assert.ok(stripped.includes(header));
     assert.ok(stripped.includes("- old line"));
     assert.ok(stripped.includes("+ new"));
     // Header lines pass through styleText("cyan", ...) which is TTY-aware,
     // so we just verify the formatter wraps it the same way.
-    const headerStyled = styleText("cyan", "@@@ abc 2-2 HEAD=old line");
+    const headerStyled = styleText("cyan", header);
     assert.ok(output.includes(headerStyled));
   });
 
   it("falls back to verbatim highlight when the file cannot be read", async () => {
     // given:
     const patch = [
-      "@@@ abc 3-4 HEAD=anything",
+      `@@@ abc 3:${lineHash("anything")}-4:${lineHash("anything2")}`,
       "first new",
       "second new",
       "@@@ abc",
@@ -432,7 +449,11 @@ describe("formatToolUse (patch_file)", () => {
         "tool: patch_file\npath: does/not/exist.mjs\npatch:\n",
       ),
     );
-    assert.ok(stripped.includes("@@@ abc 3-4 HEAD=anything"));
+    assert.ok(
+      stripped.includes(
+        `@@@ abc 3:${lineHash("anything")}-4:${lineHash("anything2")}`,
+      ),
+    );
     assert.ok(stripped.includes("+ first new"));
     assert.ok(stripped.includes("+ second new"));
     assert.ok(!stripped.includes("- "));

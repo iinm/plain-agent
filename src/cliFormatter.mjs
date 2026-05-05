@@ -468,9 +468,11 @@ function renderPatchBlock(block, originalLines, nonce) {
   /** @type {string[]} */
   const out = [];
   if (block.op === "replace") {
-    const head = block.head !== undefined ? ` HEAD=${block.head}` : "";
     out.push(
-      styleText("cyan", `@@@ ${nonce} ${block.start}-${block.end}${head}`),
+      styleText(
+        "cyan",
+        `@@@ ${nonce} ${block.start}:${block.startHash}-${block.end}:${block.endHash}`,
+      ),
     );
     if (originalLines) {
       const safeStart = Math.max(1, block.start);
@@ -496,7 +498,8 @@ function renderPatchBlock(block, originalLines, nonce) {
       }
     }
   } else {
-    out.push(styleText("cyan", `@@@ ${nonce} ${block.after}+`));
+    const afterSuffix = block.afterHash ? `:${block.afterHash}` : "";
+    out.push(styleText("cyan", `@@@ ${nonce} ${block.after}${afterSuffix}+`));
     for (const line of block.body) {
       out.push(styleText("green", `+ ${line}`));
     }

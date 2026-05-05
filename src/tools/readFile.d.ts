@@ -3,3 +3,7 @@ export type ReadFileInput = {
   offset?: number;
   limit?: number;
 };
+
+export type ReadFileConfig = {
+  outputMaxLength?: number;
+};

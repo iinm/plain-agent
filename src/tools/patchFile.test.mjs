@@ -1,7 +1,8 @@
 import assert from "node:assert";
 import fs from "node:fs/promises";
 import { afterEach, describe, it } from "node:test";
-import { createPatchFileTool } from "./patchFile.mjs";
+import { lineHash } from "../utils/lineHash.mjs";
+import { createPatchFileTool, parseBlocks } from "./patchFile.mjs";
 
 describe("patchFileTool", () => {
   const patchFileTool = createPatchFileTool("012");
@@ -41,11 +42,11 @@ describe("patchFileTool", () => {
 
     // when:
     const patch = `
-@@@ 012 1-1 HEAD=Hello World
+@@@ 012 1:${lineHash("Hello World")}-1:${lineHash("Hello World")}
 Hello Universe
 @@@ 012
 
-@@@ 012 3-4 HEAD=This is a test file content 2.
+@@@ 012 3:${lineHash("This is a test file content 2.")}-4:${lineHash("This is a test file content 3.")}
 This is a test file content updated 2.
 This is a test file content updated 3.
 @@@ 012
@@ -77,7 +78,7 @@ This is a test file content updated 3.
 
     // when:
     const patch = `
-@@@ 012 2-3 HEAD=drop me
+@@@ 012 2:${lineHash("drop me")}-3:${lineHash("drop me too")}
 @@@ 012
 `.trim();
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
@@ -88,13 +89,13 @@ This is a test file content updated 3.
     assert.equal(patchedContent, ["Hello World", "keep me"].join("\n"));
   });
 
-  it("inserts content with N+ syntax (after a line)", async () => {
+  it("inserts content with N:hash+ syntax (after a line)", async () => {
     // given:
     const tmpFilePath = await writeTmp(["alpha", "bravo", "delta"]);
 
     // when: insert "charlie" after line 2
     const patch = `
-@@@ 012 2+
+@@@ 012 2:${lineHash("bravo")}+
 charlie
 @@@ 012
 `.trim();
@@ -109,7 +110,7 @@ charlie
     );
   });
 
-  it("prepends with 0+ and appends with {lastLine}+", async () => {
+  it("prepends with 0+ and appends with {lastLine}:{hash}+", async () => {
     // given:
     const tmpFilePath = await writeTmp(["middle"]);
 
@@ -119,7 +120,7 @@ charlie
 top
 @@@ 012
 
-@@@ 012 1+
+@@@ 012 1:${lineHash("middle")}+
 bottom
 @@@ 012
 `.trim();
@@ -161,7 +162,7 @@ new content
 
     // when:
     const patch = `
-@@@ 012 1-1 HEAD=anything
+@@@ 012 1:abc-1:abc
 new
 @@@ 012
 `.trim();
@@ -181,7 +182,7 @@ new
 
     // when:
     const patch = `
-@@@ 012 1-1 HEAD=alpha
+@@@ 012 1:${lineHash("alpha")}-1:${lineHash("alpha")}
 ALPHA
 @@@ 012
 `.trim();
@@ -201,7 +202,7 @@ ALPHA
 
     // when:
     const patch = `
-@@@ 012 2-2 HEAD=bravo
+@@@ 012 2:${lineHash("bravo")}-2:${lineHash("bravo")}
 BRAVO
 @@@ 012
 `.trim();
@@ -218,12 +219,12 @@ BRAVO
 
     // when: line numbers refer to ORIGINAL file even though block 1 changes line count
     const patch = `
-@@@ 012 1-1 HEAD=one
+@@@ 012 1:${lineHash("one")}-1:${lineHash("one")}
 ONE
 TWO
 @@@ 012
 
-@@@ 012 5-5 HEAD=five
+@@@ 012 5:${lineHash("five")}-5:${lineHash("five")}
 FIVE
 @@@ 012
 `.trim();
@@ -237,7 +238,7 @@ FIVE
     );
   });
 
-  it("HEAD verification passes when first line matches (after trim)", async () => {
+  it("hash verification passes when first line matches exactly", async () => {
     // given:
     const tmpFilePath = await writeTmp([
       "  export function foo() {",
@@ -247,7 +248,7 @@ FIVE
 
     // when:
     const patch = `
-@@@ 012 2-2 HEAD=return 1;
+@@@ 012 2:${lineHash("    return 1;")}-2:${lineHash("    return 1;")}
     return 42;
 @@@ 012
 `.trim();
@@ -262,32 +263,7 @@ FIVE
     );
   });
 
-  it("HEAD verification accepts a prefix of the actual line (startsWith)", async () => {
-    // given:
-    const tmpFilePath = await writeTmp([
-      "export function foo(arg) {",
-      "  return arg;",
-      "}",
-    ]);
-
-    // when: HEAD specifies a prefix of the actual line, not the full text
-    const patch = `
-@@@ 012 1-1 HEAD=export function foo(
-export function foo(arg, opts) {
-@@@ 012
-`.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
-
-    // then:
-    assert.equal(result, `Patched file: ${tmpFilePath}`);
-    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
-    assert.equal(
-      patchedContent,
-      ["export function foo(arg, opts) {", "  return arg;", "}"].join("\n"),
-    );
-  });
-
-  it("HEAD verification accepts unquoted values containing spaces and quotes", async () => {
+  it("hash verification passes for lines with quotes and special characters", async () => {
     // given:
     const tmpFilePath = await writeTmp([
       'const greeting = "hello world";',
@@ -296,7 +272,7 @@ export function foo(arg, opts) {
 
     // when:
     const patch = `
-@@@ 012 1-1 HEAD=const greeting = "hello world";
+@@@ 012 1:${lineHash('const greeting = "hello world";')}-1:${lineHash('const greeting = "hello world";')}
 const greeting = "Hello, World!";
 @@@ 012
 `.trim();
@@ -313,13 +289,13 @@ const greeting = "Hello, World!";
     );
   });
 
-  it("HEAD verification fails when first line does not match", async () => {
+  it("hash verification fails when start hash does not match", async () => {
     // given:
     const tmpFilePath = await writeTmp(["alpha", "bravo", "charlie"]);
 
-    // when: HEAD claims "alpha" but actual line 2 is "bravo"
+    // when: hash claims "alpha" but actual line 2 is "bravo"
     const patch = `
-@@@ 012 2-2 HEAD=alpha
+@@@ 012 2:${lineHash("alpha")}-2:${lineHash("alpha")}
 new
 @@@ 012
 `.trim();
@@ -327,18 +303,52 @@ new
 
     // then:
     assert.ok(result instanceof Error);
-    assert.match(result.message, /HEAD verification failed at line 2/);
+    assert.match(result.message, /Hash verification failed at line 2/);
+    assert.match(result.message, /re-read the file with read_file/);
   });
 
-  it("accepts empty HEAD= when the target line is blank or whitespace-only", async () => {
+  it("hash verification fails when end hash does not match", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["alpha", "bravo", "charlie"]);
+
+    // when: start hash is correct but end hash is wrong
+    const patch = `
+@@@ 012 2:${lineHash("bravo")}-3:${lineHash("alpha")}
+new
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /Hash verification failed at line 3/);
+  });
+
+  it("hash verification fails for insert when afterHash does not match", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["alpha", "bravo"]);
+
+    // when: insert after line 1 but hash is wrong
+    const patch = `
+@@@ 012 1:${lineHash("bravo")}+
+inserted
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /Hash verification failed at line 1/);
+  });
+
+  it("accepts empty line hash for blank/whitespace-only lines", async () => {
     // given: two files differing only in whether line 2 is "" or "   ".
-    // Both trim to "" so empty HEAD= must accept either.
     for (const middle of ["", "   "]) {
       const tmpFilePath = await writeTmp(["alpha", middle, "charlie"]);
 
       // when:
       const patch = `
-@@@ 012 2-2 HEAD=
+@@@ 012 2:${lineHash(middle)}-2:${lineHash(middle)}
 bravo
 @@@ 012
 `.trim();
@@ -351,13 +361,13 @@ bravo
     }
   });
 
-  it("rejects empty HEAD= when target line is not blank", async () => {
+  it("rejects hash mismatch when target line is not blank", async () => {
     // given:
     const tmpFilePath = await writeTmp(["alpha", "bravo", "charlie"]);
 
-    // when: line 2 is "bravo", not blank, so empty HEAD= should fail.
+    // when: line 2 is "bravo", not blank, so empty hash should fail.
     const patch = `
-@@@ 012 2-2 HEAD=
+@@@ 012 2:000-2:000
 new
 @@@ 012
 `.trim();
@@ -365,40 +375,20 @@ new
 
     // then:
     assert.ok(result instanceof Error);
-    assert.match(
-      result.message,
-      /HEAD verification failed at line 2: expected a blank line/,
-    );
-  });
-
-  it("rejects replace block without HEAD= clause", async () => {
-    // given:
-    const tmpFilePath = await writeTmp(["alpha", "bravo"]);
-
-    // when: replace header without HEAD=.
-    const patch = `
-@@@ 012 1-1
-new
-@@@ 012
-`.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
-
-    // then:
-    assert.ok(result instanceof Error);
-    assert.match(result.message, /missing the required HEAD= clause/);
+    assert.match(result.message, /Hash verification failed/);
   });
 
   it("rejects overlapping replace ranges", async () => {
     // given:
     const tmpFilePath = await writeTmp(["a", "b", "c", "d", "e"]);
 
-    // when: ranges 2-3 and 3-4 overlap on line 3
+    // when:
     const patch = `
-@@@ 012 2-3 HEAD=b
+@@@ 012 1:${lineHash("a")}-3:${lineHash("c")}
 X
 @@@ 012
 
-@@@ 012 3-4 HEAD=c
+@@@ 012 3:${lineHash("c")}-5:${lineHash("e")}
 Y
 @@@ 012
 `.trim();
@@ -406,20 +396,20 @@ Y
 
     // then:
     assert.ok(result instanceof Error);
-    assert.match(result.message, /Replace ranges overlap/);
+    assert.match(result.message, /overlap/);
   });
 
-  it("rejects insert that falls inside a replace range", async () => {
+  it("rejects insert inside replace range", async () => {
     // given:
     const tmpFilePath = await writeTmp(["a", "b", "c", "d", "e"]);
 
-    // when: insert at 3+ lies strictly inside replace [2-4]
+    // when: insert at 2+ falls inside replace 1-3
     const patch = `
-@@@ 012 2-4 HEAD=b
+@@@ 012 1:${lineHash("a")}-3:${lineHash("c")}
 X
 @@@ 012
 
-@@@ 012 3+
+@@@ 012 2:${lineHash("b")}+
 Y
 @@@ 012
 `.trim();
@@ -427,25 +417,21 @@ Y
 
     // then:
     assert.ok(result instanceof Error);
-    assert.match(result.message, /Insert at 3\+ falls inside replace range/);
+    assert.match(result.message, /falls inside replace/);
   });
 
-  it("allows insert at edges of a replace range", async () => {
+  it("allows insert at replace boundary (after end)", async () => {
     // given:
-    const tmpFilePath = await writeTmp(["a", "b", "c", "d", "e"]);
+    const tmpFilePath = await writeTmp(["a", "b", "c"]);
 
-    // when: insert at 1+ (just before replace 2-4) and insert at 4+ (just after)
+    // when: insert at 3+ (after the end of replace 1-3)
     const patch = `
-@@@ 012 2-4 HEAD=b
+@@@ 012 1:${lineHash("a")}-3:${lineHash("c")}
 X
 @@@ 012
 
-@@@ 012 1+
-before
-@@@ 012
-
-@@@ 012 4+
-after
+@@@ 012 3:${lineHash("c")}+
+Y
 @@@ 012
 `.trim();
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
@@ -453,103 +439,72 @@ after
     // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
-    assert.equal(patchedContent, ["a", "before", "X", "after", "e"].join("\n"));
+    assert.equal(patchedContent, ["X", "Y"].join("\n"));
   });
 
-  it("stacks multiple inserts at the same position in source order", async () => {
+  it("allows insert at replace boundary (before start)", async () => {
     // given:
-    const tmpFilePath = await writeTmp(["a", "b"]);
+    const tmpFilePath = await writeTmp(["a", "b", "c"]);
 
-    // when: two inserts at 1+ - first appears earlier in the patch
+    // when: insert at 0+ (before start of replace 1-3)
     const patch = `
-@@@ 012 1+
-first
+@@@ 012 1:${lineHash("a")}-3:${lineHash("c")}
+X
 @@@ 012
 
-@@@ 012 1+
-second
+@@@ 012 0+
+Y
 @@@ 012
 `.trim();
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
-    // then: source-order is preserved
+    // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
-    assert.equal(patchedContent, ["a", "first", "second", "b"].join("\n"));
+    assert.equal(patchedContent, ["Y", "X"].join("\n"));
   });
 
-  it("rejects patch with missing close marker", async () => {
+  it("rejects replace range extending past end of file", async () => {
     // given:
     const tmpFilePath = await writeTmp(["a", "b"]);
 
     // when:
     const patch = `
-@@@ 012 1-1 HEAD=a
-new
+@@@ 012 1:${lineHash("a")}-3:abc
+X
+@@@ 012
 `.trim();
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.ok(result instanceof Error);
-    assert.match(result.message, /Missing close marker/);
+    assert.match(result.message, /extends past end of file \(2 lines\)/);
   });
 
-  it("rejects patch with no blocks", async () => {
+  it("rejects insert position outside [0, totalLines]", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a", "b"]);
+
+    // when: insert at 3+ but file only has 2 lines
+    const patch = `
+@@@ 012 3:abc+
+X
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /outside \[0, 2\]/);
+  });
+
+  it("rejects start < 1 in replace range", async () => {
     // given:
     const tmpFilePath = await writeTmp(["a"]);
 
     // when:
-    const result = await patchFileTool.impl({
-      filePath: tmpFilePath,
-      patch: "",
-    });
-
-    // then:
-    assert.ok(result instanceof Error);
-    assert.match(result.message, /No patch blocks found/);
-  });
-
-  it("rejects replace range past end of file", async () => {
-    // given:
-    const tmpFilePath = await writeTmp(["a", "b"]);
-
-    // when:
     const patch = `
-@@@ 012 1-5 HEAD=a
-X
-@@@ 012
-`.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
-
-    // then:
-    assert.ok(result instanceof Error);
-    assert.match(result.message, /extends past end of file/);
-  });
-
-  it("rejects insert position past end of file", async () => {
-    // given:
-    const tmpFilePath = await writeTmp(["a", "b", "c"]);
-
-    // when: 99+ on a 3-line file is outside [0, 3]
-    const patch = `
-@@@ 012 99+
-nope
-@@@ 012
-`.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
-
-    // then:
-    assert.ok(result instanceof Error);
-    assert.match(result.message, /Insert position 99\+ is outside \[0, 3\]/);
-  });
-
-  it("rejects replace range with start < 1", async () => {
-    // given:
-    const tmpFilePath = await writeTmp(["a", "b"]);
-
-    // when: 0-1 has start=0
-    const patch = `
-@@@ 012 0-1 HEAD=a
+@@@ 012 0:abc-1:${lineHash("a")}
 X
 @@@ 012
 `.trim();
@@ -560,13 +515,13 @@ X
     assert.match(result.message, /start must be >= 1/);
   });
 
-  it("rejects replace range with end < start", async () => {
+  it("rejects end < start in replace range", async () => {
     // given:
     const tmpFilePath = await writeTmp(["a", "b", "c", "d", "e"]);
 
-    // when: 5-3 has end < start
+    // when:
     const patch = `
-@@@ 012 5-3 HEAD=e
+@@@ 012 5:${lineHash("e")}-3:${lineHash("c")}
 X
 @@@ 012
 `.trim();
@@ -583,7 +538,7 @@ X
 
     // when:
     const patch = `
-@@@ 012 1+
+@@@ 012 1:${lineHash("a")}+
 @@@ 012
 `.trim();
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
@@ -599,7 +554,7 @@ X
 
     // when:
     const patch = `
-@@@ 012 1-1 HEAD=Original
+@@@ 012 1:${lineHash("Original text here")}-1:${lineHash("Original text here")}
 $& means match, $1 means first group, $$ means literal dollar
 @@@ 012
 `.trim();
@@ -644,5 +599,80 @@ nope
     // then:
     assert.ok(result instanceof Error);
     assert.match(result.message, /Unexpected close marker/);
+  });
+
+  it("rejects HEAD= format (backward incompatible)", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a", "b"]);
+
+    // when: old HEAD= format should be rejected
+    const patch = `
+@@@ 012 1-1 HEAD=a
+X
+@@@ 012
+`.trim();
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /Invalid block header arguments/);
+  });
+});
+
+describe("parseBlocks", () => {
+  it("parses replace block with hash", () => {
+    const patch = `
+@@@ xyz 1:589-3:2c0
+new content
+@@@ xyz
+`.trim();
+    const blocks = parseBlocks(patch, "xyz");
+    assert.equal(blocks.length, 1);
+    const block =
+      /** @type {import("./patchFile").PatchBlock & {op: "replace"}} */ (
+        blocks[0]
+      );
+    assert.equal(block.op, "replace");
+    assert.equal(block.start, 1);
+    assert.equal(block.end, 3);
+    assert.equal(block.startHash, "589");
+    assert.equal(block.endHash, "2c0");
+    assert.deepEqual(block.body, ["new content"]);
+  });
+
+  it("parses insert block with hash", () => {
+    const patch = `
+@@@ xyz 2:59a+
+inserted
+@@@ xyz
+`.trim();
+    const blocks = parseBlocks(patch, "xyz");
+    assert.equal(blocks.length, 1);
+    const block =
+      /** @type {import("./patchFile").PatchBlock & {op: "insert"}} */ (
+        blocks[0]
+      );
+    assert.equal(block.op, "insert");
+    assert.equal(block.after, 2);
+    assert.equal(block.afterHash, "59a");
+    assert.deepEqual(block.body, ["inserted"]);
+  });
+
+  it("parses insert block with 0+ (no hash)", () => {
+    const patch = `
+@@@ xyz 0+
+prepended
+@@@ xyz
+`.trim();
+    const blocks = parseBlocks(patch, "xyz");
+    assert.equal(blocks.length, 1);
+    const block =
+      /** @type {import("./patchFile").PatchBlock & {op: "insert"}} */ (
+        blocks[0]
+      );
+    assert.equal(block.op, "insert");
+    assert.equal(block.after, 0);
+    assert.equal(block.afterHash, "");
+    assert.deepEqual(block.body, ["prepended"]);
   });
 });
