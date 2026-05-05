@@ -219,6 +219,13 @@ export function formatToolResult(toolResult) {
       .replace(/(^<error>|<\/error>$)/gm, styleText("red", "$1"));
   }
 
+  if (toolResult.toolName === "read_file") {
+    return contentString.replace(
+      /^(\s*\d+:[0-9a-f]{2}\|)/gm,
+      styleText("gray", "$1"),
+    );
+  }
+
   if (toolResult.toolName === "tmux_command") {
     return contentString
       .replace(/(^<stdout>|<\/stdout>$)/gm, styleText("blue", "$1"))
@@ -468,9 +475,11 @@ function renderPatchBlock(block, originalLines, nonce) {
   /** @type {string[]} */
   const out = [];
   if (block.op === "replace") {
-    const head = block.head !== undefined ? ` HEAD=${block.head}` : "";
     out.push(
-      styleText("cyan", `@@@ ${nonce} ${block.start}-${block.end}${head}`),
+      styleText(
+        "cyan",
+        `@@@ ${nonce} ${block.start}:${block.startHash}-${block.end}:${block.endHash}`,
+      ),
     );
     if (originalLines) {
       const safeStart = Math.max(1, block.start);
@@ -496,7 +505,8 @@ function renderPatchBlock(block, originalLines, nonce) {
       }
     }
   } else {
-    out.push(styleText("cyan", `@@@ ${nonce} ${block.after}+`));
+    const afterSuffix = block.afterHash ? `:${block.afterHash}` : "";
+    out.push(styleText("cyan", `@@@ ${nonce} ${block.after}${afterSuffix}+`));
     for (const line of block.body) {
       out.push(styleText("green", `+ ${line}`));
     }

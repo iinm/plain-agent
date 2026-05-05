@@ -5,6 +5,7 @@
 
 import fs from "node:fs";
 import readline from "node:readline";
+import { lineHash } from "../utils/lineHash.mjs";
 import { noThrow } from "../utils/noThrow.mjs";
 
 const OUTPUT_MAX_LENGTH = 1024 * 8;
@@ -14,7 +15,7 @@ export const readFileTool = {
   def: {
     name: "read_file",
     description:
-      "Read a file with line numbers (1-indexed). Output format mirrors `cat -n` (right-aligned line number, tab, line content).",
+      "Read a file with line numbers (1-indexed). Each line is prefixed with its number and a short content hash: `{no}:{hash}|{content}` (e.g. `1:a3|function hello() {`).",
     inputSchema: {
       type: "object",
       properties: {
@@ -131,7 +132,8 @@ function formatNumberedLines(lines, startLine) {
   const out = [];
   for (let i = 0; i < lines.length; i++) {
     const lineNo = String(startLine + i).padStart(width, " ");
-    out.push(`${lineNo}\t${lines[i]}`);
+    const hash = lineHash(lines[i]);
+    out.push(`${lineNo}:${hash}|${lines[i]}`);
   }
   return out.join("\n");
 }

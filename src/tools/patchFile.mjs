@@ -4,6 +4,7 @@
  */
 
 import fs from "node:fs/promises";
+import { lineHash } from "../utils/lineHash.mjs";
 import { noThrow } from "../utils/noThrow.mjs";
 
 /**
@@ -27,21 +28,26 @@ export function createPatchFileTool(
           patch: {
             description: `
 Format:
-@@@ ${nonce} {start}-{end} HEAD=prefix of original line
+@@@ ${nonce} {start}:{startHash}-{end}:{endHash}
 new content
 @@@ ${nonce}
 
-@@@ ${nonce} {N}+
+@@@ ${nonce} {N}:{afterHash}+
 inserted content
+@@@ ${nonce}
+
+@@@ ${nonce} 0+
+prepended content
 @@@ ${nonce}
 
 - Line numbers are 1-indexed and refer to the original file;
   "{start}-{end}" is inclusive.
-- "{N}+" inserts after line N; "0+" prepends, "{lastLine}+" appends.
+- Hashes are 2-hex-char digests of each line's full content as shown
+  by read_file (e.g. "a3"). They verify the LLM is targeting the
+  correct lines; on mismatch, re-read the file with read_file.
+- "{N}:{afterHash}+" inserts after line N; "0+" prepends (no hash
+  needed for line 0). "{lastLine}:{hash}+" appends.
 - Empty body deletes the range.
-- HEAD is required on replace blocks and verifies the trimmed start
-  line begins with the trimmed text. Use empty "HEAD=" for a blank
-  line.
             `.trim(),
             type: "string",
           },
@@ -174,23 +180,35 @@ export function applyBlocks(original, blocks) {
 
   for (const { block } of indexed) {
     if (block.op === "replace") {
-      const actual = lines[block.start - 1];
-      const actualTrimmed = (actual ?? "").trim();
-      // HEAD is already trimmed in parseHeaderArgs.
-      if (block.head === "") {
-        if (actualTrimmed !== "") {
-          throw new Error(
-            `HEAD verification failed at line ${block.start}: expected a blank line (empty HEAD=) but got ${JSON.stringify(actualTrimmed)}. The line numbers may be stale; re-read the file with read_file.`,
-          );
-        }
-      } else if (!actualTrimmed.startsWith(block.head)) {
+      const actualStart = lines[block.start - 1];
+      const expectedStartHash = block.startHash;
+      const actualStartHash = lineHash(actualStart ?? "");
+      if (actualStartHash !== expectedStartHash) {
         throw new Error(
-          `HEAD verification failed at line ${block.start}: expected line to start with ${JSON.stringify(block.head)} (trimmed) but got ${JSON.stringify(actualTrimmed)}. The line numbers may be stale; re-read the file with read_file.`,
+          `Hash verification failed at line ${block.start}: expected hash ${expectedStartHash} but got ${actualStartHash} for line ${JSON.stringify(actualStart)}. The line numbers may be stale; re-read the file with read_file.`,
+        );
+      }
+      const actualEnd = lines[block.end - 1];
+      const expectedEndHash = block.endHash;
+      const actualEndHash = lineHash(actualEnd ?? "");
+      if (actualEndHash !== expectedEndHash) {
+        throw new Error(
+          `Hash verification failed at line ${block.end}: expected hash ${expectedEndHash} but got ${actualEndHash} for line ${JSON.stringify(actualEnd)}. The line numbers may be stale; re-read the file with read_file.`,
         );
       }
       const removeCount = block.end - block.start + 1;
       lines.splice(block.start - 1, removeCount, ...block.body);
     } else {
+      if (block.after > 0) {
+        const actualAfter = lines[block.after - 1];
+        const expectedAfterHash = block.afterHash;
+        const actualAfterHash = lineHash(actualAfter ?? "");
+        if (actualAfterHash !== expectedAfterHash) {
+          throw new Error(
+            `Hash verification failed at line ${block.after}: expected hash ${expectedAfterHash} but got ${actualAfterHash} for line ${JSON.stringify(actualAfter)}. The line numbers may be stale; re-read the file with read_file.`,
+          );
+        }
+      }
       lines.splice(block.after, 0, ...block.body);
     }
   }
@@ -204,18 +222,16 @@ export function applyBlocks(original, blocks) {
 
 /**
  * @param {string} headerArgs
- * @returns {{ op: "replace"; start: number; end: number; head: string } | { op: "insert"; after: number }}
+ * @returns {{ op: "replace"; start: number; end: number; startHash: string; endHash: string } | { op: "insert"; after: number; afterHash: string }}
  */
 function parseHeaderArgs(headerArgs) {
-  // Replace form: "{start}-{end} HEAD=...". HEAD is required so the
-  // applied edit always re-confirms the targeted line. The HEAD value
-  // is unquoted and runs to end of line; we trim it later. An empty
-  // HEAD value is allowed and means "expect a blank/whitespace-only
-  // line at {start}".
-  const replaceMatch = headerArgs.match(/^(\d+)-(\d+)\s+HEAD=(.*)$/);
+  // Replace form: "{start}:{startHash}-{end}:{endHash}"
+  const replaceMatch = headerArgs.match(
+    /^(\d+):([a-f0-9]{2})-(\d+):([a-f0-9]{2})\s*$/,
+  );
   if (replaceMatch) {
     const start = Number(replaceMatch[1]);
-    const end = Number(replaceMatch[2]);
+    const end = Number(replaceMatch[3]);
     if (start < 1) {
       throw new Error(
         `Invalid replace range "${headerArgs}": start must be >= 1.`,
@@ -226,23 +242,29 @@ function parseHeaderArgs(headerArgs) {
         `Invalid replace range "${headerArgs}": end (${end}) must be >= start (${start}).`,
       );
     }
-    const head = replaceMatch[3].trim();
-    return { op: "replace", start, end, head };
+    return {
+      op: "replace",
+      start,
+      end,
+      startHash: replaceMatch[2],
+      endHash: replaceMatch[4],
+    };
   }
-  // Reject replace form without HEAD with a clear message before falling
-  // through to the generic error.
-  if (/^\d+-\d+\s*$/.test(headerArgs)) {
-    throw new Error(
-      `Replace block "${headerArgs}" is missing the required HEAD= clause. ` +
-        `Append " HEAD=<prefix of original line {start}>" (use empty value for a blank line).`,
-    );
+  // Insert form: "0+" (no hash — there is no line 0 to verify)
+  if (/^0\+\s*$/.test(headerArgs)) {
+    return { op: "insert", after: 0, afterHash: "" };
   }
-  const insertMatch = headerArgs.match(/^(\d+)\+\s*$/);
+  // Insert form: "{N}:{afterHash}+"
+  const insertMatch = headerArgs.match(/^(\d+):([a-f0-9]{2})\+\s*$/);
   if (insertMatch) {
-    return { op: "insert", after: Number(insertMatch[1]) };
+    return {
+      op: "insert",
+      after: Number(insertMatch[1]),
+      afterHash: insertMatch[2],
+    };
   }
   throw new Error(
-    `Invalid block header arguments: ${JSON.stringify(headerArgs)}. Expected "{start}-{end} HEAD=..." or "{N}+".`,
+    `Invalid block header arguments: ${JSON.stringify(headerArgs)}. Expected "{start}:{startHash}-{end}:{endHash}" or "{N}:{afterHash}+" or "0+".`,
   );
 }
 

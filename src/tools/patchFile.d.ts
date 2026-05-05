@@ -8,11 +8,13 @@ export type PatchBlock =
       op: "replace";
       start: number;
       end: number;
-      head: string;
+      startHash: string;
+      endHash: string;
       body: string[];
     }
   | {
       op: "insert";
       after: number;
+      afterHash: string;
       body: string[];
     };
