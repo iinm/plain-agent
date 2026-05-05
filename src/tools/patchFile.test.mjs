@@ -621,12 +621,17 @@ X
 
 describe("parseBlocks", () => {
   it("parses replace block with hash", () => {
+    // given:
     const patch = `
 @@@ xyz 1:589-3:2c0
 new content
 @@@ xyz
 `.trim();
+
+    // when:
     const blocks = parseBlocks(patch, "xyz");
+
+    // then:
     assert.equal(blocks.length, 1);
     const block =
       /** @type {import("./patchFile").PatchBlock & {op: "replace"}} */ (
@@ -641,12 +646,17 @@ new content
   });
 
   it("parses insert block with hash", () => {
+    // given:
     const patch = `
 @@@ xyz 2:59a+
 inserted
 @@@ xyz
 `.trim();
+
+    // when:
     const blocks = parseBlocks(patch, "xyz");
+
+    // then:
     assert.equal(blocks.length, 1);
     const block =
       /** @type {import("./patchFile").PatchBlock & {op: "insert"}} */ (
@@ -659,12 +669,17 @@ inserted
   });
 
   it("parses insert block with 0+ (no hash)", () => {
+    // given:
     const patch = `
 @@@ xyz 0+
 prepended
 @@@ xyz
 `.trim();
+
+    // when:
     const blocks = parseBlocks(patch, "xyz");
+
+    // then:
     assert.equal(blocks.length, 1);
     const block =
       /** @type {import("./patchFile").PatchBlock & {op: "insert"}} */ (
