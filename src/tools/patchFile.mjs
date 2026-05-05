@@ -3,9 +3,10 @@
  * @import { PatchBlock, PatchFileInput } from './patchFile'
  */
 
+import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import { lineHash } from "../utils/lineHash.mjs";
-import { noThrow } from "../utils/noThrow.mjs";
+import { noThrow, noThrowSync } from "../utils/noThrow.mjs";
 
 /**
  * @param {string} [nonce]
@@ -57,6 +58,27 @@ prepended content
     },
 
     /**
+     * @param {Record<string, unknown>} input
+     * @returns {Error | undefined}
+     */
+    validateInput: (input) => {
+      if (typeof input.filePath !== "string") {
+        return new Error("filePath must be a string");
+      }
+      if (typeof input.patch !== "string") {
+        return new Error("patch must be a string");
+      }
+      const result = noThrowSync(() => {
+        validatePatch(
+          /** @type {string} */ (input.filePath),
+          /** @type {string} */ (input.patch),
+          nonce,
+        );
+      });
+      return result instanceof Error ? result : undefined;
+    },
+
+    /**
      * @param {PatchFileInput} input
      * @returns {Promise<string | Error>}
      */
@@ -87,6 +109,28 @@ prepended content
       };
     },
   };
+}
+
+/**
+ * Validate a patch against a file: parse blocks, check ranges, detect
+ * overlapping/nested ranges, and verify every line hash. Throws on the
+ * first failure. Reads the target file synchronously.
+ * @param {string} filePath
+ * @param {string} patch
+ * @param {string} nonce
+ */
+export function validatePatch(filePath, patch, nonce) {
+  const blocks = parseBlocks(patch, nonce);
+  if (blocks.length === 0) {
+    throw new Error(
+      `No patch blocks found. Each block must start with "@@@ ${nonce} ..." and end with "@@@ ${nonce}".`,
+    );
+  }
+  const original = readFileSync(filePath, "utf8");
+  const lines = splitOriginalLines(original);
+  validateBlocks(blocks, lines.length);
+  detectConflicts(blocks);
+  verifyHashes(blocks, lines);
 }
 
 /**
@@ -145,17 +189,11 @@ export function parseBlocks(patch, nonce) {
  */
 export function applyBlocks(original, blocks) {
   const hasTrailingNewline = original.endsWith("\n");
-  const lines = original.split("\n");
-  // Drop the trailing empty element produced by split() for both
-  // newline-terminated content and an empty input. This keeps line counts
-  // consistent with read_file (an empty file reports 0 lines).
-  if (lines.length > 0 && lines[lines.length - 1] === "") {
-    lines.pop();
-  }
-  const totalLines = lines.length;
+  const lines = splitOriginalLines(original);
 
-  validateBlocks(blocks, totalLines);
+  validateBlocks(blocks, lines.length);
   detectConflicts(blocks);
+  verifyHashes(blocks, lines);
 
   // Sort for bottom-up application.
   // - Higher splice index first.
@@ -180,35 +218,9 @@ export function applyBlocks(original, blocks) {
 
   for (const { block } of indexed) {
     if (block.op === "replace") {
-      const actualStart = lines[block.start - 1];
-      const expectedStartHash = block.startHash;
-      const actualStartHash = lineHash(actualStart ?? "");
-      if (actualStartHash !== expectedStartHash) {
-        throw new Error(
-          `Hash verification failed at line ${block.start}: expected hash ${expectedStartHash} but got ${actualStartHash} for line ${JSON.stringify(actualStart)}. The line numbers may be stale; re-read the file with read_file.`,
-        );
-      }
-      const actualEnd = lines[block.end - 1];
-      const expectedEndHash = block.endHash;
-      const actualEndHash = lineHash(actualEnd ?? "");
-      if (actualEndHash !== expectedEndHash) {
-        throw new Error(
-          `Hash verification failed at line ${block.end}: expected hash ${expectedEndHash} but got ${actualEndHash} for line ${JSON.stringify(actualEnd)}. The line numbers may be stale; re-read the file with read_file.`,
-        );
-      }
       const removeCount = block.end - block.start + 1;
       lines.splice(block.start - 1, removeCount, ...block.body);
     } else {
-      if (block.after > 0) {
-        const actualAfter = lines[block.after - 1];
-        const expectedAfterHash = block.afterHash;
-        const actualAfterHash = lineHash(actualAfter ?? "");
-        if (actualAfterHash !== expectedAfterHash) {
-          throw new Error(
-            `Hash verification failed at line ${block.after}: expected hash ${expectedAfterHash} but got ${actualAfterHash} for line ${JSON.stringify(actualAfter)}. The line numbers may be stale; re-read the file with read_file.`,
-          );
-        }
-      }
       lines.splice(block.after, 0, ...block.body);
     }
   }
@@ -218,6 +230,51 @@ export function applyBlocks(original, blocks) {
     result += "\n";
   }
   return result;
+}
+
+/**
+ * Split file content into logical lines, dropping the trailing empty element
+ * produced by split() for both newline-terminated and empty input. This keeps
+ * line counts consistent with read_file (an empty file reports 0 lines).
+ * @param {string} original
+ * @returns {string[]}
+ */
+function splitOriginalLines(original) {
+  const lines = original.split("\n");
+  if (lines.length > 0 && lines[lines.length - 1] === "") {
+    lines.pop();
+  }
+  return lines;
+}
+
+/**
+ * @param {PatchBlock[]} blocks
+ * @param {string[]} lines
+ */
+function verifyHashes(blocks, lines) {
+  for (const block of blocks) {
+    if (block.op === "replace") {
+      verifyHashAt(block.start, block.startHash, lines);
+      verifyHashAt(block.end, block.endHash, lines);
+    } else if (block.after > 0) {
+      verifyHashAt(block.after, block.afterHash, lines);
+    }
+  }
+}
+
+/**
+ * @param {number} lineNumber
+ * @param {string} expectedHash
+ * @param {string[]} lines
+ */
+function verifyHashAt(lineNumber, expectedHash, lines) {
+  const actual = lines[lineNumber - 1];
+  const actualHash = lineHash(actual ?? "");
+  if (actualHash !== expectedHash) {
+    throw new Error(
+      `Hash verification failed at line ${lineNumber}: expected hash ${expectedHash} but got ${actualHash} for line ${JSON.stringify(actual)}. The line numbers may be stale; re-read the file with read_file.`,
+    );
+  }
 }
 
 /**

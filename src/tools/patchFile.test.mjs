@@ -2,7 +2,11 @@ import assert from "node:assert";
 import fs from "node:fs/promises";
 import { afterEach, describe, it } from "node:test";
 import { lineHash } from "../utils/lineHash.mjs";
-import { createPatchFileTool, parseBlocks } from "./patchFile.mjs";
+import {
+  createPatchFileTool,
+  parseBlocks,
+  validatePatch,
+} from "./patchFile.mjs";
 
 describe("patchFileTool", () => {
   const patchFileTool = createPatchFileTool("012");
@@ -689,5 +693,367 @@ prepended
     assert.equal(block.after, 0);
     assert.equal(block.afterHash, "");
     assert.deepEqual(block.body, ["prepended"]);
+  });
+});
+
+describe("patchFileTool validateInput", () => {
+  const patchFileTool = createPatchFileTool("012");
+
+  /** @type {(() => Promise<void>)[]} */
+  const cleanups = [];
+
+  const generateRandomString = () => Math.random().toString(36).substring(2);
+
+  /**
+   * @param {string[]} lines
+   * @returns {Promise<string>}
+   */
+  const writeTmp = async (lines) => {
+    const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;
+    await fs.mkdir("tmp", { recursive: true });
+    await fs.writeFile(tmpFilePath, lines.join("\n"));
+    cleanups.push(() => fs.unlink(tmpFilePath));
+    return tmpFilePath;
+  };
+
+  afterEach(async () => {
+    for (const cleanup of [...cleanups].reverse()) {
+      await cleanup();
+    }
+    cleanups.length = 0;
+  });
+
+  it("is defined", () => {
+    assert.ok(patchFileTool.validateInput);
+  });
+
+  it("rejects non-string filePath", () => {
+    // given:
+    assert.ok(patchFileTool.validateInput);
+
+    // when:
+    const result = patchFileTool.validateInput({ filePath: 1, patch: "" });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.equal(result.message, "filePath must be a string");
+  });
+
+  it("rejects non-string patch", () => {
+    // given:
+    assert.ok(patchFileTool.validateInput);
+
+    // when:
+    const result = patchFileTool.validateInput({
+      filePath: "x.txt",
+      patch: 1,
+    });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.equal(result.message, "patch must be a string");
+  });
+
+  it("returns undefined for a valid patch with matching hashes", async () => {
+    // given:
+    assert.ok(patchFileTool.validateInput);
+    const tmpFilePath = await writeTmp(["alpha", "bravo", "charlie"]);
+    const patch = `
+@@@ 012 2:${lineHash("bravo")}-2:${lineHash("bravo")}
+BRAVO
+@@@ 012
+`.trim();
+
+    // when:
+    const result = patchFileTool.validateInput({
+      filePath: tmpFilePath,
+      patch,
+    });
+
+    // then:
+    assert.strictEqual(result, undefined);
+  });
+
+  it("rejects when the file does not exist", () => {
+    // given:
+    assert.ok(patchFileTool.validateInput);
+    const patch = `
+@@@ 012 1:00-1:00
+X
+@@@ 012
+`.trim();
+
+    // when:
+    const result = patchFileTool.validateInput({
+      filePath: `tmp/patchFileTest-missing-${Math.random()}.txt`,
+      patch,
+    });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /ENOENT/);
+  });
+
+  it("rejects an empty patch with no blocks before reading the file", () => {
+    // given:
+    assert.ok(patchFileTool.validateInput);
+
+    // when: filePath does not exist, but parsing fails first
+    const result = patchFileTool.validateInput({
+      filePath: `tmp/patchFileTest-missing-${Math.random()}.txt`,
+      patch: "",
+    });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /No patch blocks found/);
+  });
+
+  it("rejects bad header arguments", async () => {
+    // given:
+    assert.ok(patchFileTool.validateInput);
+    const tmpFilePath = await writeTmp(["a"]);
+
+    // when:
+    const patch = `
+@@@ 012 abc
+nope
+@@@ 012
+`.trim();
+    const result = patchFileTool.validateInput({
+      filePath: tmpFilePath,
+      patch,
+    });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /Invalid block header arguments/);
+  });
+
+  it("rejects a hash mismatch on replace start", async () => {
+    // given:
+    assert.ok(patchFileTool.validateInput);
+    const tmpFilePath = await writeTmp(["alpha", "bravo", "charlie"]);
+
+    // when: claim line 2 is "alpha" but it is actually "bravo"
+    const patch = `
+@@@ 012 2:${lineHash("alpha")}-2:${lineHash("alpha")}
+new
+@@@ 012
+`.trim();
+    const result = patchFileTool.validateInput({
+      filePath: tmpFilePath,
+      patch,
+    });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /Hash verification failed at line 2/);
+    assert.match(result.message, /re-read the file with read_file/);
+  });
+
+  it("rejects a hash mismatch on replace end", async () => {
+    // given:
+    assert.ok(patchFileTool.validateInput);
+    const tmpFilePath = await writeTmp(["alpha", "bravo", "charlie"]);
+
+    // when: start hash correct, end hash wrong
+    const patch = `
+@@@ 012 2:${lineHash("bravo")}-3:${lineHash("alpha")}
+new
+@@@ 012
+`.trim();
+    const result = patchFileTool.validateInput({
+      filePath: tmpFilePath,
+      patch,
+    });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /Hash verification failed at line 3/);
+  });
+
+  it("rejects a hash mismatch on insert afterHash", async () => {
+    // given:
+    assert.ok(patchFileTool.validateInput);
+    const tmpFilePath = await writeTmp(["alpha", "bravo"]);
+
+    // when: insert after line 1 but hash is wrong
+    const patch = `
+@@@ 012 1:${lineHash("bravo")}+
+inserted
+@@@ 012
+`.trim();
+    const result = patchFileTool.validateInput({
+      filePath: tmpFilePath,
+      patch,
+    });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /Hash verification failed at line 1/);
+  });
+
+  it("does not require a hash for the 0+ prepend insert", async () => {
+    // given:
+    assert.ok(patchFileTool.validateInput);
+    const tmpFilePath = await writeTmp(["alpha"]);
+
+    // when:
+    const patch = `
+@@@ 012 0+
+top
+@@@ 012
+`.trim();
+    const result = patchFileTool.validateInput({
+      filePath: tmpFilePath,
+      patch,
+    });
+
+    // then:
+    assert.strictEqual(result, undefined);
+  });
+
+  it("rejects overlapping replace ranges", async () => {
+    // given:
+    assert.ok(patchFileTool.validateInput);
+    const tmpFilePath = await writeTmp(["a", "b", "c", "d", "e"]);
+
+    // when:
+    const patch = `
+@@@ 012 1:${lineHash("a")}-3:${lineHash("c")}
+X
+@@@ 012
+
+@@@ 012 3:${lineHash("c")}-5:${lineHash("e")}
+Y
+@@@ 012
+`.trim();
+    const result = patchFileTool.validateInput({
+      filePath: tmpFilePath,
+      patch,
+    });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /overlap/);
+  });
+
+  it("rejects an insert that falls inside a replace range", async () => {
+    // given:
+    assert.ok(patchFileTool.validateInput);
+    const tmpFilePath = await writeTmp(["a", "b", "c", "d"]);
+
+    // when: insert at 2+ falls inside replace 1-3
+    const patch = `
+@@@ 012 1:${lineHash("a")}-3:${lineHash("c")}
+X
+@@@ 012
+
+@@@ 012 2:${lineHash("b")}+
+Y
+@@@ 012
+`.trim();
+    const result = patchFileTool.validateInput({
+      filePath: tmpFilePath,
+      patch,
+    });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /falls inside replace/);
+  });
+
+  it("rejects a replace range past end of file", async () => {
+    // given:
+    assert.ok(patchFileTool.validateInput);
+    const tmpFilePath = await writeTmp(["a", "b"]);
+
+    // when:
+    const patch = `
+@@@ 012 1:${lineHash("a")}-3:ab
+X
+@@@ 012
+`.trim();
+    const result = patchFileTool.validateInput({
+      filePath: tmpFilePath,
+      patch,
+    });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /extends past end of file \(2 lines\)/);
+  });
+});
+
+describe("validatePatch", () => {
+  /** @type {(() => Promise<void>)[]} */
+  const cleanups = [];
+
+  const generateRandomString = () => Math.random().toString(36).substring(2);
+
+  /**
+   * @param {string[]} lines
+   * @returns {Promise<string>}
+   */
+  const writeTmp = async (lines) => {
+    const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;
+    await fs.mkdir("tmp", { recursive: true });
+    await fs.writeFile(tmpFilePath, lines.join("\n"));
+    cleanups.push(() => fs.unlink(tmpFilePath));
+    return tmpFilePath;
+  };
+
+  afterEach(async () => {
+    for (const cleanup of [...cleanups].reverse()) {
+      await cleanup();
+    }
+    cleanups.length = 0;
+  });
+
+  it("returns silently for a valid patch", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["alpha", "bravo"]);
+    const patch = `
+@@@ 012 1:${lineHash("alpha")}-1:${lineHash("alpha")}
+ALPHA
+@@@ 012
+`.trim();
+
+    // when / then: does not throw
+    validatePatch(tmpFilePath, patch, "012");
+  });
+
+  it("throws on overlap", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a", "b", "c"]);
+    const patch = `
+@@@ 012 1:${lineHash("a")}-2:${lineHash("b")}
+X
+@@@ 012
+
+@@@ 012 2:${lineHash("b")}-3:${lineHash("c")}
+Y
+@@@ 012
+`.trim();
+
+    // when / then:
+    assert.throws(() => validatePatch(tmpFilePath, patch, "012"), /overlap/);
+  });
+
+  it("throws on hash mismatch", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["alpha", "bravo"]);
+    const patch = `
+@@@ 012 2:${lineHash("alpha")}-2:${lineHash("alpha")}
+X
+@@@ 012
+`.trim();
+
+    // when / then:
+    assert.throws(
+      () => validatePatch(tmpFilePath, patch, "012"),
+      /Hash verification failed at line 2/,
+    );
   });
 });
