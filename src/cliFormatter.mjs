@@ -2,17 +2,17 @@
  * @import { Message, MessageContentToolUse, MessageContentToolResult, ProviderTokenUsage } from "./model"
  * @import { CompactContextInput } from "./tools/compactContext"
  * @import { ExecCommandInput } from "./tools/execCommand"
- * @import { PatchFileInput } from "./tools/patchFile"
+ * @import { PatchBlock, PatchFileInput } from "./tools/patchFile"
+ * @import { ReadFileInput } from "./tools/readFile"
  * @import { WriteFileInput } from "./tools/writeFile"
  * @import { TmuxCommandInput } from "./tools/tmuxCommand"
  * @import { SwitchToSubagentInput } from "./tools/switchToSubagent"
  */
 
-import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
+import fs from "node:fs/promises";
 import { styleText } from "node:util";
+import { parseBlocks } from "./tools/patchFile.mjs";
+import { diffLines } from "./utils/diffLines.mjs";
 import { noThrow } from "./utils/noThrow.mjs";
 
 /** Length above which a single-line arg forces block-form rendering. */
@@ -61,11 +61,9 @@ export function formatArgs(args) {
 /**
  * Format tool use for display.
  * @param {MessageContentToolUse} toolUse
- * @param {{ createDiff?: (oldContent: string, newContent: string) => Promise<string | null> }} [options]
  * @returns {Promise<string>}
  */
-export async function formatToolUse(toolUse, options = {}) {
-  const { createDiff = tryGitDiff } = options;
+export async function formatToolUse(toolUse) {
   const { toolName, input } = toolUse;
 
   if (toolName === "exec_command") {
@@ -91,41 +89,28 @@ export async function formatToolUse(toolUse, options = {}) {
   if (toolName === "patch_file") {
     /** @type {Partial<PatchFileInput>} */
     const patchFileInput = input;
-    const diff = patchFileInput.diff || "";
-
-    /** @type {{search:string; replace:string}[]} */
-    const diffs = [];
-    const matches = Array.from(
-      diff.matchAll(
-        /<<< [0-9a-z]{3} <<< SEARCH\n(.*?)\n=== [0-9a-z]{3} ===\n(.*?)\n?>>> [0-9a-z]{3} >>> REPLACE/gs,
-      ),
-    );
-    for (const match of matches) {
-      const [_, search, replace] = match;
-      diffs.push({ search, replace });
-    }
-
-    const highlightedDiff = await Promise.all(
-      diffs.map(async ({ search, replace }) => {
-        const gitDiffOutput = await createDiff(search, replace);
-        if (gitDiffOutput) {
-          return `${gitDiffOutput}\n-------\n${replace}`;
-        }
-        return [
-          `${styleText("yellow", "(git diff unavailable, showing plain diff)")}`,
-          "--- old",
-          `${search}`,
-          "+++ new",
-          `${replace}`,
-        ].join("\n");
-      }),
-    );
-
+    const filePath = patchFileInput.filePath ?? "";
+    const patch = patchFileInput.patch || "";
+    const rendered = await renderPatch(filePath, patch);
     return [
       `tool: ${toolName}`,
-      `path: ${patchFileInput.filePath}`,
-      `diff:\n${highlightedDiff.join("\n\n")}`,
+      `path: ${filePath}`,
+      `patch:\n${rendered}`,
     ].join("\n");
+  }
+
+  if (toolName === "read_file") {
+    /** @type {Partial<ReadFileInput>} */
+    const readFileInput = input;
+    /** @type {string[]} */
+    const lines = [`tool: ${toolName}`, `filePath: ${readFileInput.filePath}`];
+    if (readFileInput.offset !== undefined) {
+      lines.push(`offset: ${readFileInput.offset}`);
+    }
+    if (readFileInput.limit !== undefined) {
+      lines.push(`limit: ${readFileInput.limit}`);
+    }
+    return lines.join("\n");
   }
 
   if (toolName === "tmux_command") {
@@ -431,88 +416,141 @@ export async function printMessage(message) {
 }
 
 /**
- * Generate a colored unified diff using `git diff --color`.
- * Falls back to `null` if git is unavailable or if any step fails
- * (temp directory creation, file writing, git execution, or cleanup).
- * @param {string} oldContent
- * @param {string} newContent
- * @returns {Promise<string | null>}
+ * Render a patch_file `patch` string for terminal display.
+ *
+ * Attempts to show a side-by-side diff (- removed, + added,   unchanged)
+ * by parsing the patch and reading the target file. Falls back to plain
+ * syntax highlighting on any failure.
+ *
+ * @param {string} filePath
+ * @param {string} patch
+ * @returns {Promise<string>}
  */
-async function tryGitDiff(oldContent, newContent) {
-  const tmpDir = await noThrow(() =>
-    mkdtemp(path.join(os.tmpdir(), "git-diff-")),
-  );
-  if (tmpDir instanceof Error) {
-    console.error(
-      styleText("yellow", `git diff: mkdtemp failed: ${tmpDir.message}`),
-    );
-    return null;
+async function renderPatch(filePath, patch) {
+  if (!patch) {
+    return "";
+  }
+  const fallback = highlightPatchPlain(patch);
+
+  const nonce = extractPatchNonce(patch);
+  if (!nonce) {
+    return fallback;
   }
 
-  const oldPath = path.join(tmpDir, "old");
-  const newPath = path.join(tmpDir, "new");
-
+  /** @type {PatchBlock[]} */
+  let blocks;
   try {
-    const w1 = await noThrow(() => writeFile(oldPath, oldContent, "utf8"));
-    if (w1 instanceof Error) {
-      console.error(
-        styleText("yellow", `git diff: writeFile(old) failed: ${w1.message}`),
-      );
-      return null;
-    }
+    blocks = parseBlocks(patch, nonce);
+  } catch {
+    return fallback;
+  }
 
-    const w2 = await noThrow(() => writeFile(newPath, newContent, "utf8"));
-    if (w2 instanceof Error) {
-      console.error(
-        styleText("yellow", `git diff: writeFile(new) failed: ${w2.message}`),
-      );
-      return null;
-    }
-
-    const diffResult = await noThrow(() => execGitDiff(oldPath, newPath));
-    if (diffResult instanceof Error) {
-      console.error(
-        styleText("yellow", `git diff: exec failed: ${diffResult.message}`),
-      );
-      return null;
-    }
-
-    return diffResult;
-  } finally {
-    const cleanup = await noThrow(() =>
-      rm(tmpDir, { recursive: true, force: true }),
-    );
-    if (cleanup instanceof Error) {
-      console.error(
-        styleText("yellow", `git diff: cleanup failed: ${cleanup.message}`),
-      );
+  let originalLines = null;
+  if (filePath) {
+    const original = await noThrow(() => fs.readFile(filePath, "utf8"));
+    if (!(original instanceof Error)) {
+      originalLines = splitContentLines(original);
     }
   }
+
+  return blocks
+    .map((block) => renderPatchBlock(block, originalLines, nonce))
+    .join("\n\n");
 }
 
 /**
- * Execute git diff accepting exit code 1 as success (differences found).
- * @param {string} oldPath
- * @param {string} newPath
- * @returns {Promise<string>}
+ * @param {PatchBlock} block
+ * @param {string[] | null} originalLines
+ * @param {string} nonce
+ * @returns {string}
  */
-function execGitDiff(oldPath, newPath) {
-  return new Promise((resolve, reject) => {
-    execFile(
-      "git",
-      ["--no-pager", "diff", "--color", "--no-index", "--", oldPath, newPath],
-      { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 },
-      (error, stdout, stderr) => {
-        if (stderr) {
-          console.error(styleText("yellow", `git diff stderr: ${stderr}`));
-        }
-        // git diff returns exit code 1 when there are differences, which is expected
-        if (error && error.code !== 1) {
-          reject(error);
-        } else {
-          resolve(stdout);
-        }
-      },
+function renderPatchBlock(block, originalLines, nonce) {
+  /** @type {string[]} */
+  const out = [];
+  if (block.op === "replace") {
+    const head = block.head !== undefined ? ` HEAD=${block.head}` : "";
+    out.push(
+      styleText("cyan", `@@@ ${nonce} ${block.start}-${block.end}${head}`),
     );
-  });
+    if (originalLines) {
+      const safeStart = Math.max(1, block.start);
+      const safeEnd = Math.min(originalLines.length, block.end);
+      const oldSlice = originalLines.slice(safeStart - 1, safeEnd);
+      // Use a real line diff so unchanged lines render as context
+      // (no color, "  " prefix) instead of being shown as both "- " and
+      // "+ ".
+      for (const op of diffLines(oldSlice, block.body)) {
+        if (op.type === "-") {
+          out.push(styleText("red", `- ${op.line}`));
+        } else if (op.type === "+") {
+          out.push(styleText("green", `+ ${op.line}`));
+        } else {
+          out.push(`  ${op.line}`);
+        }
+      }
+    } else {
+      // No file context available — fall back to listing the body as
+      // additions so the user can still see the new content.
+      for (const line of block.body) {
+        out.push(styleText("green", `+ ${line}`));
+      }
+    }
+  } else {
+    out.push(styleText("cyan", `@@@ ${nonce} ${block.after}+`));
+    for (const line of block.body) {
+      out.push(styleText("green", `+ ${line}`));
+    }
+  }
+  out.push(styleText("cyan", `@@@ ${nonce}`));
+  return out.join("\n");
+}
+
+/**
+ * Verbatim highlighter used as fallback when block-aware rendering is not
+ * possible (parse error, missing nonce, etc.).
+ * @param {string} patch
+ * @returns {string}
+ */
+function highlightPatchPlain(patch) {
+  if (!patch) {
+    return "";
+  }
+  // Patch headers/closes look like "@@@ <nonce> ..." or "@@@ <nonce>".
+  const headerRegex = /^@@@\s+\S+(\s.*)?$/;
+  return patch
+    .split("\n")
+    .map((line) => {
+      if (headerRegex.test(line)) {
+        return styleText("cyan", line);
+      }
+      if (line === "") {
+        return line;
+      }
+      return styleText("green", line);
+    })
+    .join("\n");
+}
+
+/**
+ * Extract the nonce from the first open marker in a patch_file patch.
+ * @param {string} patch
+ * @returns {string | null}
+ */
+function extractPatchNonce(patch) {
+  const match = patch.match(/^@@@\s+(\S+)/m);
+  return match ? match[1] : null;
+}
+
+/**
+ * Split file content into lines, dropping the trailing empty element when
+ * the file ends with a newline (matches patch_file's own line indexing).
+ * @param {string} content
+ * @returns {string[]}
+ */
+function splitContentLines(content) {
+  const lines = content.split("\n");
+  if (lines.length > 0 && lines[lines.length - 1] === "") {
+    lines.pop();
+  }
+  return lines;
 }

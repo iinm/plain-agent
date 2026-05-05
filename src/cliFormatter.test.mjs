@@ -1,7 +1,14 @@
 import assert from "node:assert";
-import { describe, it } from "node:test";
+import fs from "node:fs/promises";
+import { afterEach, describe, it } from "node:test";
 import { styleText } from "node:util";
 import { formatArgs, formatToolUse } from "./cliFormatter.mjs";
+
+const ESC = String.fromCharCode(27);
+const ANSI_PATTERN = new RegExp(`${ESC}\\[[0-9;]*m`, "g");
+
+/** @param {string} s */
+const stripAnsi = (s) => s.replace(ANSI_PATTERN, "");
 
 describe("formatArgs", () => {
   it("renders an empty array inline", () => {
@@ -126,118 +133,397 @@ describe("formatToolUse", () => {
 });
 
 describe("formatToolUse (patch_file)", () => {
-  it("formats a single search/replace diff pair", async () => {
-    const diff =
-      "<<< abc <<< SEARCH\nold line\n=== abc ===\nnew line\n>>> abc >>> REPLACE";
+  /** @type {(() => Promise<void>)[]} */
+  const cleanups = [];
 
+  const generateRandomString = () => Math.random().toString(36).substring(2);
+
+  /**
+   * @param {string[]} lines
+   * @returns {Promise<string>}
+   */
+  const writeTmp = async (lines) => {
+    const tmpFilePath = `tmp/cliFormatterTest-${generateRandomString()}.txt`;
+    await fs.mkdir("tmp", { recursive: true });
+    await fs.writeFile(tmpFilePath, lines.join("\n"));
+    cleanups.push(() => fs.unlink(tmpFilePath));
+    return tmpFilePath;
+  };
+
+  afterEach(async () => {
+    for (const cleanup of [...cleanups].reverse()) {
+      await cleanup();
+    }
+    cleanups.length = 0;
+  });
+
+  it("renders a replace block with original lines as removals and body as additions", async () => {
+    // given:
+    const tmpFilePath = await writeTmp([
+      "alpha",
+      "bravo",
+      "charlie",
+      "delta",
+      "echo",
+    ]);
+    const patch = [
+      "@@@ abc 3-4 HEAD=charlie",
+      "first new",
+      "second new",
+      "@@@ abc",
+    ].join("\n");
+
+    // when:
     const output = await formatToolUse({
       type: "tool_use",
       toolUseId: "t4",
       toolName: "patch_file",
-      input: { filePath: "src/app.mjs", diff },
+      input: { filePath: tmpFilePath, patch },
     });
 
-    assert.ok(output.startsWith("tool: patch_file\npath: src/app.mjs\n"));
-    assert.ok(output.includes("diff --git"));
+    // then:
     assert.ok(
-      output.includes("\x1b["),
-      "Git diff should contain ANSI color codes",
+      output.startsWith(`tool: patch_file\npath: ${tmpFilePath}\npatch:\n`),
     );
-    assert.ok(output.includes("-------"));
-    assert.ok(output.includes("new line"));
-  });
-
-  it("formats multiple search/replace diff", async () => {
-    const diff = [
-      "<<< a1a <<< SEARCH",
-      "first old",
-      "=== a1a ===",
-      "first new",
-      ">>> a1a >>> REPLACE",
-      "<<< b2b <<< SEARCH",
-      "second old",
-      "=== b2b ===",
-      "second new",
-      ">>> b2b >>> REPLACE",
-    ].join("\n");
-
-    const output = await formatToolUse({
-      type: "tool_use",
-      toolUseId: "t5",
-      toolName: "patch_file",
-      input: { filePath: "lib/mod.mjs", diff },
-    });
-
-    assert.ok(output.includes("first new"));
-    assert.ok(output.includes("second new"));
-    assert.ok(output.includes("diff --git"));
-    const separatorCount = output.split("-------").length - 1;
-    assert.equal(separatorCount, 2);
-  });
-
-  it("shows plain fallback when git diff returns null", async () => {
-    const diff =
-      "<<< abc <<< SEARCH\nold line\n=== abc ===\nnew line\n>>> abc >>> REPLACE";
-
-    const output = await formatToolUse(
-      {
-        type: "tool_use",
-        toolUseId: "t6",
-        toolName: "patch_file",
-        input: { filePath: "src/app.mjs", diff },
-      },
-      { createDiff: async () => null },
-    );
-
     assert.equal(
-      output,
+      stripAnsi(output),
       [
         "tool: patch_file",
-        "path: src/app.mjs",
-        `diff:\n${styleText("yellow", "(git diff unavailable, showing plain diff)")}\n--- old\nold line\n+++ new\nnew line`,
+        `path: ${tmpFilePath}`,
+        "patch:",
+        "@@@ abc 3-4 HEAD=charlie",
+        "- charlie",
+        "- delta",
+        "+ first new",
+        "+ second new",
+        "@@@ abc",
       ].join("\n"),
     );
   });
 
-  it("handles an empty diff string", async () => {
+  it("renders multiple blocks including a multi-line insert", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["one", "two", "three", "four", "five"]);
+    const patch = [
+      "@@@ a1a 1-1 HEAD=one",
+      "first new",
+      "@@@ a1a",
+      "",
+      "@@@ a1a 5+",
+      "appended A",
+      "appended B",
+      "@@@ a1a",
+    ].join("\n");
+
+    // when:
     const output = await formatToolUse({
       type: "tool_use",
-      toolUseId: "t7",
+      toolUseId: "t5",
       toolName: "patch_file",
-      input: { filePath: "empty.txt", diff: "" },
+      input: { filePath: tmpFilePath, patch },
     });
-    assert.equal(output, "tool: patch_file\npath: empty.txt\ndiff:\n");
-  });
 
-  it("handles undefined diff as empty", async () => {
-    const output = await formatToolUse({
-      type: "tool_use",
-      toolUseId: "t8",
-      toolName: "patch_file",
-      input: { filePath: "empty.txt", diff: undefined },
-    });
-    assert.equal(output, "tool: patch_file\npath: empty.txt\ndiff:\n");
-  });
-
-  it("falls back when git diff returns empty string (identical content)", async () => {
-    const diff =
-      "<<< abc <<< SEARCH\nsame\n=== abc ===\nsame\n>>> abc >>> REPLACE";
-
-    const output = await formatToolUse(
-      {
-        type: "tool_use",
-        toolUseId: "t9",
-        toolName: "patch_file",
-        input: { filePath: "same.txt", diff },
-      },
-      { createDiff: async () => "" },
-    );
-
+    // then: every body line of the insert is prefixed with "+ ".
+    const stripped = stripAnsi(output);
     assert.ok(
-      output.includes(
-        styleText("yellow", "(git diff unavailable, showing plain diff)"),
+      stripped.includes("@@@ a1a 1-1 HEAD=one\n- one\n+ first new\n@@@ a1a"),
+    );
+    assert.ok(
+      stripped.includes("@@@ a1a 5+\n+ appended A\n+ appended B\n@@@ a1a"),
+    );
+  });
+
+  it("renders unchanged lines inside a replace range as context (no -/+)", async () => {
+    // given:
+    const tmpFilePath = await writeTmp([
+      "alpha",
+      "bravo",
+      "charlie",
+      "delta",
+      "echo",
+    ]);
+    // Replace 1-5 but only line 3 ("charlie") actually changes; the
+    // first/last two lines round-trip unchanged.
+    const patch = [
+      "@@@ abc 1-5 HEAD=alpha",
+      "alpha",
+      "bravo",
+      "CHARLIE",
+      "delta",
+      "echo",
+      "@@@ abc",
+    ].join("\n");
+
+    // when:
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "t12",
+      toolName: "patch_file",
+      input: { filePath: tmpFilePath, patch },
+    });
+
+    // then: only the changed line shows -/+; the rest are context "  ".
+    assert.equal(
+      stripAnsi(output),
+      [
+        "tool: patch_file",
+        `path: ${tmpFilePath}`,
+        "patch:",
+        "@@@ abc 1-5 HEAD=alpha",
+        "  alpha",
+        "  bravo",
+        "- charlie",
+        "+ CHARLIE",
+        "  delta",
+        "  echo",
+        "@@@ abc",
+      ].join("\n"),
+    );
+  });
+
+  it("renders a no-op replace as all context lines", async () => {
+    // given: body matches the original range exactly.
+    const tmpFilePath = await writeTmp(["one", "two", "three"]);
+    const patch = [
+      "@@@ abc 1-3 HEAD=one",
+      "one",
+      "two",
+      "three",
+      "@@@ abc",
+    ].join("\n");
+
+    // when:
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "t13",
+      toolName: "patch_file",
+      input: { filePath: tmpFilePath, patch },
+    });
+
+    // then:
+    assert.equal(
+      stripAnsi(output),
+      [
+        "tool: patch_file",
+        `path: ${tmpFilePath}`,
+        "patch:",
+        "@@@ abc 1-3 HEAD=one",
+        "  one",
+        "  two",
+        "  three",
+        "@@@ abc",
+      ].join("\n"),
+    );
+  });
+
+  it("renders a deletion (empty body) as a removal-only block", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["keep", "drop me", "keep too"]);
+    const patch = ["@@@ a2a 2-2 HEAD=drop me", "@@@ a2a"].join("\n");
+
+    // when:
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "t6",
+      toolName: "patch_file",
+      input: { filePath: tmpFilePath, patch },
+    });
+
+    // then:
+    assert.equal(
+      stripAnsi(output),
+      [
+        "tool: patch_file",
+        `path: ${tmpFilePath}`,
+        "patch:",
+        "@@@ a2a 2-2 HEAD=drop me",
+        "- drop me",
+        "@@@ a2a",
+      ].join("\n"),
+    );
+  });
+
+  it("renders empty or undefined patch as a blank patch section", async () => {
+    // when/then: both inputs collapse to "" before reaching the renderer.
+    for (const patch of ["", undefined]) {
+      const output = await formatToolUse({
+        type: "tool_use",
+        toolUseId: "t7",
+        toolName: "patch_file",
+        input: { filePath: "empty.txt", patch },
+      });
+      assert.equal(output, "tool: patch_file\npath: empty.txt\npatch:\n");
+    }
+  });
+
+  it("renders an empty HEAD value in the open marker", async () => {
+    // given: line 2 is blank; the open marker should round-trip ` HEAD=`.
+    const tmpFilePath = await writeTmp(["alpha", "", "charlie"]);
+    const patch = ["@@@ abc 2-2 HEAD=", "bravo", "@@@ abc"].join("\n");
+
+    // when:
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "t14",
+      toolName: "patch_file",
+      input: { filePath: tmpFilePath, patch },
+    });
+
+    // then: the original blank line shows as a "- " removal, body as "+".
+    assert.equal(
+      stripAnsi(output),
+      [
+        "tool: patch_file",
+        `path: ${tmpFilePath}`,
+        "patch:",
+        "@@@ abc 2-2 HEAD=",
+        "- ",
+        "+ bravo",
+        "@@@ abc",
+      ].join("\n"),
+    );
+  });
+
+  it("renders a HEAD annotation in the open marker", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["alpha", "old line", "charlie"]);
+    const patch = ["@@@ abc 2-2 HEAD=old line", "new", "@@@ abc"].join("\n");
+
+    // when:
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "t9",
+      toolName: "patch_file",
+      input: { filePath: tmpFilePath, patch },
+    });
+
+    // then:
+    const stripped = stripAnsi(output);
+    assert.ok(stripped.includes("@@@ abc 2-2 HEAD=old line"));
+    assert.ok(stripped.includes("- old line"));
+    assert.ok(stripped.includes("+ new"));
+    // Header lines pass through styleText("cyan", ...) which is TTY-aware,
+    // so we just verify the formatter wraps it the same way.
+    const headerStyled = styleText("cyan", "@@@ abc 2-2 HEAD=old line");
+    assert.ok(output.includes(headerStyled));
+  });
+
+  it("falls back to verbatim highlight when the file cannot be read", async () => {
+    // given:
+    const patch = [
+      "@@@ abc 3-4 HEAD=anything",
+      "first new",
+      "second new",
+      "@@@ abc",
+    ].join("\n");
+
+    // when: filePath does not exist on disk
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "t10",
+      toolName: "patch_file",
+      input: { filePath: "does/not/exist.mjs", patch },
+    });
+
+    // then: still shows the new content with `+` markers, but no `- ...` lines
+    const stripped = stripAnsi(output);
+    assert.ok(
+      stripped.startsWith(
+        "tool: patch_file\npath: does/not/exist.mjs\npatch:\n",
       ),
-      "Identical content should trigger fallback because empty git diff is falsy",
+    );
+    assert.ok(stripped.includes("@@@ abc 3-4 HEAD=anything"));
+    assert.ok(stripped.includes("+ first new"));
+    assert.ok(stripped.includes("+ second new"));
+    assert.ok(!stripped.includes("- "));
+  });
+
+  it("falls back to verbatim highlight when the patch fails to parse", async () => {
+    // given: patch with mismatched markers (no close)
+    const patch = ["@@@ abc 1-1", "new"].join("\n");
+
+    // when:
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "t11",
+      toolName: "patch_file",
+      input: { filePath: "anything.mjs", patch },
+    });
+
+    // then: verbatim styling still applies, headers cyan, body green
+    assert.equal(
+      stripAnsi(output),
+      [
+        "tool: patch_file",
+        "path: anything.mjs",
+        "patch:",
+        "@@@ abc 1-1",
+        "new",
+      ].join("\n"),
+    );
+  });
+
+  it("falls back to verbatim highlight when no nonce can be extracted", async () => {
+    // given: patch contains no "@@@ ..." header at all.
+    const patch = ["plain text", "with no markers"].join("\n");
+
+    // when:
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "t15",
+      toolName: "patch_file",
+      input: { filePath: "anything.mjs", patch },
+    });
+
+    // then: body lines are still passed through verbatim styling.
+    assert.equal(
+      stripAnsi(output),
+      [
+        "tool: patch_file",
+        "path: anything.mjs",
+        "patch:",
+        "plain text",
+        "with no markers",
+      ].join("\n"),
+    );
+  });
+});
+
+describe("formatToolUse (read_file)", () => {
+  it("renders filePath alone when no offset/limit set", async () => {
+    // when:
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "r1",
+      toolName: "read_file",
+      input: { filePath: "src/app.mjs" },
+    });
+
+    // then:
+    assert.equal(output, "tool: read_file\nfilePath: src/app.mjs");
+  });
+
+  it("includes offset and limit when provided", async () => {
+    // given:
+    const input = { filePath: "src/app.mjs", offset: 10, limit: 50 };
+
+    // when:
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "r2",
+      toolName: "read_file",
+      input,
+    });
+
+    // then:
+    assert.equal(
+      output,
+      [
+        "tool: read_file",
+        "filePath: src/app.mjs",
+        "offset: 10",
+        "limit: 50",
+      ].join("\n"),
     );
   });
 });

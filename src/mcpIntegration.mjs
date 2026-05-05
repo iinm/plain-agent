@@ -149,8 +149,7 @@ async function createMCPTools(serverName, client) {
             const lineCount = formmatted.split("\n").length;
 
             return [
-              `Content is large (${resultString.length} characters, ${lineCount} lines) and saved to ${filePath}`,
-              "Use exec_command tool to find relevant parts.",
+              `Content is large (${resultString.length} characters, ${lineCount} lines) and saved to ${filePath}.`,
             ].join("\n");
           }),
       };
