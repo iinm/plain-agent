@@ -141,17 +141,12 @@ describe("diffLines", () => {
     // when:
     const ops = diffLines(oldLines, newLines);
 
-    // then: total ops length = 2 + (3 + 2) - 2*LCS = 2 + 5 - 4 = 3? Let's
-    // verify by reconstructing: context "a", remove "a", context "b" or
-    // remove "a", context "a", context "b" — both are valid LCS=2 paths.
-    // We just assert that applying the ops reproduces newLines from
-    // oldLines and that exactly one "a" was removed.
-    assert.equal(ops.filter((op) => op.type === "-").length, 1);
-    assert.equal(ops.filter((op) => op.type === "+").length, 0);
-    assert.equal(ops.filter((op) => op.type === " ").length, 2);
-    assert.deepEqual(
-      ops.filter((op) => op.type !== "-").map((op) => op.line),
-      newLines,
-    );
+    // then: backtrack prefers add-side at ties, so the first "a" is the
+    // one that gets removed.
+    assert.deepEqual(ops, [
+      { type: "-", line: "a" },
+      { type: " ", line: "a" },
+      { type: " ", line: "b" },
+    ]);
   });
 });
