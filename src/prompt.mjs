@@ -45,18 +45,12 @@ export function createPrompt({
     .join("\n");
 
   return `
-# Communication Style
-
-- Respond in the user's language.
-- Address the user by their name, rather than "user".
-- Use emojis sparingly to highlight key points.
-
 # Memory Files
 
 - Create/Update memory files after creating/updating a plan, completing milestones, encountering issues, or making decisions.
 - Update existing task memory when continuing the same task.
-- Write the memory content in the user's language.
 - Ensure self-containment: The file must be standalone. A reader should fully understand the task context, logic and progress without any other references.
+- Write the memory content in the user's language.
 
 Memory files should include:
 - Task overview: What the task is, why it's being done, requirements and constraints
@@ -86,7 +80,6 @@ Examples:
 
 - Only use when the user explicitly requests it.
 - Create a new session with the given tmux session id.
-- Use relative paths.
 
 Examples:
 - Start session: new-session ["-d", "-s", "<tmux-session-id>"]
