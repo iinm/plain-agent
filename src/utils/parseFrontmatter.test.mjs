@@ -132,4 +132,126 @@ describe("parseFrontmatter", () => {
       description: " Hello world",
     });
   });
+
+  it("should parse literal block scalar (|) preserving newlines", () => {
+    // given:
+    const input = ["description: |", "  first line", "  second line"].join(
+      "\n",
+    );
+
+    // when:
+    const result = parseFrontmatter(input);
+
+    // then:
+    assert.deepStrictEqual(result, {
+      description: "first line\nsecond line",
+    });
+  });
+
+  it("should parse folded block scalar (>) joining lines with spaces", () => {
+    // given:
+    const input = ["description: >", "  first line", "  second line"].join(
+      "\n",
+    );
+
+    // when:
+    const result = parseFrontmatter(input);
+
+    // then:
+    assert.deepStrictEqual(result, {
+      description: "first line second line",
+    });
+  });
+
+  it("should preserve blank lines as newlines in literal block (|)", () => {
+    // given:
+    const input = ["description: |", "  first", "", "  third"].join("\n");
+
+    // when:
+    const result = parseFrontmatter(input);
+
+    // then:
+    assert.deepStrictEqual(result, {
+      description: "first\n\nthird",
+    });
+  });
+
+  it("should turn blank lines into newlines in folded block (>)", () => {
+    // given:
+    const input = [
+      "description: >",
+      "  first paragraph",
+      "  continued",
+      "",
+      "  second paragraph",
+    ].join("\n");
+
+    // when:
+    const result = parseFrontmatter(input);
+
+    // then:
+    assert.deepStrictEqual(result, {
+      description: "first paragraph continued\nsecond paragraph",
+    });
+  });
+
+  it("should accept chomping indicators after block style", () => {
+    // given:
+    const input = ["description: |-", "  first", "  second"].join("\n");
+
+    // when:
+    const result = parseFrontmatter(input);
+
+    // then:
+    assert.deepStrictEqual(result, {
+      description: "first\nsecond",
+    });
+  });
+
+  it("should end block when next non-indented key appears", () => {
+    // given:
+    const input = ["description: |", "  hello", "  world", "foo: bar"].join(
+      "\n",
+    );
+
+    // when:
+    const result = parseFrontmatter(input);
+
+    // then:
+    assert.deepStrictEqual(result, {
+      description: "hello\nworld",
+      foo: "bar",
+    });
+  });
+
+  it("should handle deeper indentation by stripping the first line's indent", () => {
+    // given:
+    const input = [
+      "description: |",
+      "    first",
+      "      nested",
+      "    last",
+    ].join("\n");
+
+    // when:
+    const result = parseFrontmatter(input);
+
+    // then:
+    assert.deepStrictEqual(result, {
+      description: "first\n  nested\nlast",
+    });
+  });
+
+  it("should treat `key: > value` as a plain value, not a block", () => {
+    // given:
+    const input = "description: > inline";
+
+    // when:
+    const result = parseFrontmatter(input);
+
+    // then:
+    assert.deepStrictEqual(result, {
+      description: "> inline",
+    });
+  });
 });

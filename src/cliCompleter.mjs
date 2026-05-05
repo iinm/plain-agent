@@ -5,6 +5,7 @@
 import { styleText } from "node:util";
 import { loadAgentRoles } from "./context/loadAgentRoles.mjs";
 import { loadPrompts } from "./context/loadPrompts.mjs";
+import { toOneLine } from "./utils/toOneLine.mjs";
 
 // Define available slash commands for tab completion
 export const SLASH_COMMANDS = [
@@ -129,7 +130,7 @@ function showCompletions(rl, candidates, line, callback) {
         if (typeof c === "string") return c;
         const nameText = c.name.padEnd(25);
         const separator = " - ";
-        const descText = c.description;
+        const descText = toOneLine(c.description);
 
         // 画面幅に合わせて説明文をカット（色を付ける前に計算）
         const availableWidth =

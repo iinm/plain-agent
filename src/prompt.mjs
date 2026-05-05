@@ -1,3 +1,5 @@
+import { toOneLine } from "./utils/toOneLine.mjs";
+
 /**
  * @typedef {object} PromptConfig
  * @property {string} username
@@ -28,20 +30,16 @@ export function createPrompt({
 }) {
   const agentRoleDescriptions = Array.from(agentRoles.entries())
     .map(([id, role]) => {
-      const desc =
-        role.description.length > 100
-          ? `${role.description.substring(0, 100)}...`
-          : role.description;
+      const flat = toOneLine(role.description);
+      const desc = flat.length > 100 ? `${flat.substring(0, 100)}...` : flat;
       return `- ${id}: ${desc}`;
     })
     .join("\n");
 
   const skillDescriptions = skills
     .map((skill) => {
-      const desc =
-        skill.description.length > 100
-          ? `${skill.description.substring(0, 100)}...`
-          : skill.description;
+      const flat = toOneLine(skill.description);
+      const desc = flat.length > 100 ? `${flat.substring(0, 100)}...` : flat;
       return `- ${skill.filePath}\n  ${desc}`;
     })
     .join("\n");

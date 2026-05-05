@@ -12,6 +12,7 @@ import { loadUserMessageContext } from "./context/loadUserMessageContext.mjs";
 import { CLAUDE_CODE_COMPATIBILITY_NOTES } from "./prompt.mjs";
 import { parseFileRange } from "./utils/parseFileRange.mjs";
 import { readFileRange } from "./utils/readFileRange.mjs";
+import { toOneLine } from "./utils/toOneLine.mjs";
 
 /**
  * @typedef {"prompt" | "continue"} CommandResult
@@ -172,7 +173,8 @@ export function createCommandHandler({
       } else {
         for (const role of agentRoles.values()) {
           const maxLength = process.stdout.columns ?? 100;
-          const line = `  ${styleText("cyan", role.id.padEnd(20))} - ${role.description}`;
+          const desc = toOneLine(role.description);
+          const line = `  ${styleText("cyan", role.id.padEnd(20))} - ${desc}`;
           console.log(
             line.length > maxLength ? `${line.slice(0, maxLength)}...` : line,
           );
@@ -201,7 +203,8 @@ export function createCommandHandler({
         } else {
           for (const prompt of prompts.values()) {
             const maxLength = process.stdout.columns ?? 100;
-            const line = `  ${styleText("cyan", prompt.id.padEnd(20))} - ${prompt.description}`;
+            const desc = toOneLine(prompt.description);
+            const line = `  ${styleText("cyan", prompt.id.padEnd(20))} - ${desc}`;
             console.log(
               line.length > maxLength ? `${line.slice(0, maxLength)}...` : line,
             );
