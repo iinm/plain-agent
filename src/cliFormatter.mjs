@@ -219,6 +219,13 @@ export function formatToolResult(toolResult) {
       .replace(/(^<error>|<\/error>$)/gm, styleText("red", "$1"));
   }
 
+  if (toolResult.toolName === "read_file") {
+    return contentString.replace(
+      /^(\s*\d+:[0-9a-f]{2}\|)/gm,
+      styleText("gray", "$1"),
+    );
+  }
+
   if (toolResult.toolName === "tmux_command") {
     return contentString
       .replace(/(^<stdout>|<\/stdout>$)/gm, styleText("blue", "$1"))

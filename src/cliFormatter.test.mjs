@@ -1,8 +1,13 @@
+/** @import { MessageContentToolResult } from "./model" */
 import assert from "node:assert";
 import fs from "node:fs/promises";
 import { afterEach, describe, it } from "node:test";
 import { styleText } from "node:util";
-import { formatArgs, formatToolUse } from "./cliFormatter.mjs";
+import {
+  formatArgs,
+  formatToolResult,
+  formatToolUse,
+} from "./cliFormatter.mjs";
 import { lineHash } from "./utils/lineHash.mjs";
 
 const ESC = String.fromCharCode(27);
@@ -546,5 +551,32 @@ describe("formatToolUse (read_file)", () => {
         "limit: 50",
       ].join("\n"),
     );
+  });
+});
+
+describe("formatToolResult (read_file)", () => {
+  it("colors line number and hash prefix in gray", async () => {
+    // given:
+    const toolResult = /** @type {MessageContentToolResult} */ ({
+      type: "tool_result",
+      toolUseId: "r1",
+      toolName: "read_file",
+      content: [
+        {
+          type: "text",
+          text: "1:a3|function hello() {\n2:b7|  return 42;\n3:c1|}",
+        },
+      ],
+      isError: false,
+    });
+
+    // when:
+    const output = formatToolResult(toolResult);
+
+    // then:
+    const grayPrefix = styleText("gray", "1:a3|");
+    assert.ok(output.startsWith(grayPrefix));
+    assert.ok(output.includes(styleText("gray", "2:b7|")));
+    assert.ok(output.includes(styleText("gray", "3:c1|")));
   });
 });
