@@ -34,6 +34,10 @@
         "action": "ask"
       },
       {
+        "toolName": "read_file",
+        "action": "allow"
+      },
+      {
         "toolName": { "$regex": "^(switch_to_subagent|switch_to_main_agent)$" },
         "action": "allow"
       },

@@ -418,12 +418,9 @@ export async function printMessage(message) {
 /**
  * Render a patch_file `patch` string for terminal display.
  *
- * Best-effort: parses the patch and reads the target file so the original
- * lines targeted by each block can be shown alongside the new content
- * (`-` red for removed, `+` green for added, `  ` for unchanged). Falls
- * back to a verbatim highlight (open/close markers cyan, body lines green)
- * on any failure (empty patch, missing nonce, parse error, file
- * unreadable, etc.).
+ * Attempts to show a side-by-side diff (- removed, + added,   unchanged)
+ * by parsing the patch and reading the target file. Falls back to plain
+ * syntax highlighting on any failure.
  *
  * @param {string} filePath
  * @param {string} patch
