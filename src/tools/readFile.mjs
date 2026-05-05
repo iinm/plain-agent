@@ -15,7 +15,7 @@ export const readFileTool = {
   def: {
     name: "read_file",
     description:
-      "Read a file with line numbers (1-indexed). Each line is prefixed with its number and a short content hash: `{no}:{hash}|{content}` (e.g. `1:a3f|function hello() {`).",
+      "Read a file with line numbers (1-indexed). Each line is prefixed with its number and a short content hash: `{no}:{hash}|{content}` (e.g. `1:a3|function hello() {`).",
     inputSchema: {
       type: "object",
       properties: {

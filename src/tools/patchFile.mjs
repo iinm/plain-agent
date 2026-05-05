@@ -42,8 +42,8 @@ prepended content
 
 - Line numbers are 1-indexed and refer to the original file;
   "{start}-{end}" is inclusive.
-- Hashes are 3-hex-char digests of each line's full content as shown
-  by read_file (e.g. "a3f"). They verify the LLM is targeting the
+- Hashes are 2-hex-char digests of each line's full content as shown
+  by read_file (e.g. "a3"). They verify the LLM is targeting the
   correct lines; on mismatch, re-read the file with read_file.
 - "{N}:{afterHash}+" inserts after line N; "0+" prepends (no hash
   needed for line 0). "{lastLine}:{hash}+" appends.
@@ -227,7 +227,7 @@ export function applyBlocks(original, blocks) {
 function parseHeaderArgs(headerArgs) {
   // Replace form: "{start}:{startHash}-{end}:{endHash}"
   const replaceMatch = headerArgs.match(
-    /^(\d+):([a-f0-9]{3})-(\d+):([a-f0-9]{3})\s*$/,
+    /^(\d+):([a-f0-9]{2})-(\d+):([a-f0-9]{2})\s*$/,
   );
   if (replaceMatch) {
     const start = Number(replaceMatch[1]);
@@ -255,7 +255,7 @@ function parseHeaderArgs(headerArgs) {
     return { op: "insert", after: 0, afterHash: "" };
   }
   // Insert form: "{N}:{afterHash}+"
-  const insertMatch = headerArgs.match(/^(\d+):([a-f0-9]{3})\+\s*$/);
+  const insertMatch = headerArgs.match(/^(\d+):([a-f0-9]{2})\+\s*$/);
   if (insertMatch) {
     return {
       op: "insert",

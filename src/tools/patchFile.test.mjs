@@ -162,7 +162,7 @@ new content
 
     // when:
     const patch = `
-@@@ 012 1:abc-1:abc
+@@@ 012 1:61-1:61
 new
 @@@ 012
 `.trim();
@@ -367,7 +367,7 @@ bravo
 
     // when: line 2 is "bravo", not blank, so empty hash should fail.
     const patch = `
-@@@ 012 2:000-2:000
+@@@ 012 2:00-2:00
 new
 @@@ 012
 `.trim();
@@ -470,7 +470,7 @@ Y
 
     // when:
     const patch = `
-@@@ 012 1:${lineHash("a")}-3:abc
+@@@ 012 1:${lineHash("a")}-3:ab
 X
 @@@ 012
 `.trim();
@@ -487,7 +487,7 @@ X
 
     // when: insert at 3+ but file only has 2 lines
     const patch = `
-@@@ 012 3:abc+
+@@@ 012 3:ab+
 X
 @@@ 012
 `.trim();
@@ -504,7 +504,7 @@ X
 
     // when:
     const patch = `
-@@@ 012 0:abc-1:${lineHash("a")}
+@@@ 012 0:ab-1:${lineHash("a")}
 X
 @@@ 012
 `.trim();
@@ -623,7 +623,7 @@ describe("parseBlocks", () => {
   it("parses replace block with hash", () => {
     // given:
     const patch = `
-@@@ xyz 1:589-3:2c0
+@@@ xyz 1:7b-3:20
 new content
 @@@ xyz
 `.trim();
@@ -640,15 +640,15 @@ new content
     assert.equal(block.op, "replace");
     assert.equal(block.start, 1);
     assert.equal(block.end, 3);
-    assert.equal(block.startHash, "589");
-    assert.equal(block.endHash, "2c0");
+    assert.equal(block.startHash, "7b");
+    assert.equal(block.endHash, "20");
     assert.deepEqual(block.body, ["new content"]);
   });
 
   it("parses insert block with hash", () => {
     // given:
     const patch = `
-@@@ xyz 2:59a+
+@@@ xyz 2:20+
 inserted
 @@@ xyz
 `.trim();
@@ -664,7 +664,7 @@ inserted
       );
     assert.equal(block.op, "insert");
     assert.equal(block.after, 2);
-    assert.equal(block.afterHash, "59a");
+    assert.equal(block.afterHash, "20");
     assert.deepEqual(block.body, ["inserted"]);
   });
 
