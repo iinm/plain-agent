@@ -53,7 +53,7 @@ A lightweight, capable coding agent for the terminal.
   </details>
 
 
-- **Approval rules & path validation** — Auto-approve tool uses by name and arguments using regex patterns ([config.predefined.json#autoApproval](https://github.com/iinm/plain-agent/blob/main/config/config.predefined.json)); restrict file access to the working directory — git-ignored and untracked files require explicit approval ([src/toolInputValidator.mjs](https://github.com/iinm/plain-agent/blob/main/src/toolInputValidator.mjs)).
+- **Approval rules & path validation** — Auto-approve tool uses by name and arguments using regex patterns ([config.predefined.json#autoApproval](https://github.com/iinm/plain-agent/blob/main/config/config.predefined.json)); restrict file access to the working directory — git-ignored files require explicit approval ([src/toolInputValidator.mjs](https://github.com/iinm/plain-agent/blob/main/src/toolInputValidator.mjs)).
 - **Sandboxed execution** — Run agent commands in a Docker container with a read-only project root and no network; writable mode and allowlisted network destinations can be enabled as needed.
 - **Plain-text memory** — Task state is saved as Markdown files under `.plain-agent/memory/` for easy review.
 - **Extensible** — Define prompts and subagents in Markdown. Connect MCP servers.
