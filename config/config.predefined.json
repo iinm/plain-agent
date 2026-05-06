@@ -915,6 +915,30 @@
     },
 
     {
+      "name": "gpt-oss-120b",
+      "variant": "fireworks",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "fireworks"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "accounts/fireworks/models/gpt-oss-120b"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "prompt_tokens": 0.15,
+          "prompt_tokens_details.cached_tokens": -0.14,
+          "completion_tokens": 0.6 
+        }
+      }
+    },
+
+    {
       "name": "glm-5",
       "variant": "vertex-ai",
       "platform": {
