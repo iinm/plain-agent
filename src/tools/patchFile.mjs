@@ -40,14 +40,11 @@ inserted content
 prepended content
 @@@ ${nonce}
 
-- Line numbers are 1-indexed and refer to the original file;
-  "{start}-{end}" is inclusive.
-- Hashes are 2-hex-char digests of each line's full content as shown
-  by read_file (e.g. "a3"). They verify the LLM is targeting the
-  correct lines; on mismatch, re-read the file with read_file.
-- "{N}:{afterHash}+" inserts after line N; "0+" prepends (no hash
-  needed for line 0). "{lastLine}:{hash}+" appends.
-- Empty body deletes the range.
+- The nonce "${nonce}" is constant; always use the exact value shown above.
+- Line numbers are 1-indexed and refer to the original file; "{start}-{end}" is inclusive.
+- Hashes are 2-character hex hashes of each line's full content as shown by read_file (e.g. "a3").
+- "{N}:{afterHash}+" inserts after line N; "0+" prepends (no hash needed). "{lastLine}:{hash}+" appends.
+- An empty body deletes the range.
             `.trim(),
             type: "string",
           },
