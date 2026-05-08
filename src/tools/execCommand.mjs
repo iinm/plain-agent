@@ -84,6 +84,7 @@ export function createExecCommandTool(config) {
                 PWD: process.env.PWD,
                 PATH: process.env.PATH,
                 HOME: process.env.HOME,
+                LANG: process.env.LANG,
               },
               timeout: 5 * 60 * 1000,
             },
