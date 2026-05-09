@@ -591,10 +591,14 @@ The agent searches for subagent definitions in the following directories:
 
 ```md
 ---
-description: Simplifies and refines code for clarity and maintainability
+description: Fetches a web page and answers questions about its content
 ---
 
-You are a code simplifier. Your role is to refactor code while preserving its functionality.
+You are a web content reader and analyzer. Given a URL and a question, you:
+
+1. Fetch the page content using `w3m -dump <URL>`.
+2. Read and understand the fetched content.
+3. Answer the user's question based on the content.
 ```
 
 ## Claude Code Plugin Support
