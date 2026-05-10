@@ -62,7 +62,6 @@ A lightweight, capable coding agent for the terminal.
 ## Limitations
 
 - **Path validation only covers tool arguments** — Path validation restricts only paths explicitly passed as tool-use arguments; it cannot control file access inside arbitrary scripts. Always use sandboxed execution when allowing arbitrary script execution.
-- **Crash-recoverable session persistence** — Each interactive or batch session is auto-saved to `.plain-agent/sessions/<sessionId>.json` after every message. Resume an interrupted session with `plain resume`. Files are not auto-deleted; remove them with `rm` when no longer needed.
 - **Sequential subagent execution** — Subagents run one at a time rather than
   in parallel. The trade-off is full visibility: every step is streamed to
   your terminal so you can follow exactly what each subagent is doing.
@@ -337,6 +336,12 @@ plain cost
 ```
 plain cost --from 2026-04-01 --to 2026-04-30
 ```
+
+Each session's state (messages, subagent stack, allowed tool-use patterns,
+and token usage) is auto-saved to `.plain-agent/sessions/<sessionId>.json`
+after every message via an atomic temp + rename write, so a process crash
+leaves a complete and readable file. Sessions are not auto-deleted on clean
+exit — remove old files with `rm` when no longer needed.
 
 Resume a previously interrupted interactive session. Without an argument it
 resumes the most recently updated session. Use `--list` to see resumable

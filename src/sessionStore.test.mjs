@@ -29,7 +29,7 @@ afterEach(async () => {
 function buildState(overrides = {}) {
   return {
     version: SESSION_FILE_VERSION,
-    sessionId: "2026-05-10-0803",
+    sessionId: "2026-05-10-0803-a7k",
     modelName: "claude-sonnet-4-6+thinking-high",
     workingDir: "/w",
     startTime: "2026-05-10T08:03:00.000Z",
