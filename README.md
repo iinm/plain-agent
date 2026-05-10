@@ -337,16 +337,11 @@ plain cost
 plain cost --from 2026-04-01 --to 2026-04-30
 ```
 
-Each session's state (messages, subagent stack, allowed tool-use patterns,
-and token usage) is auto-saved to `.plain-agent/sessions/<sessionId>.json`
-after every message via an atomic temp + rename write, so a process crash
-leaves a complete and readable file. Sessions are not auto-deleted on clean
-exit — remove old files with `rm` when no longer needed.
-
-Resume a previously interrupted interactive session. Without an argument it
-resumes the most recently updated session. Use `--list` to see resumable
-sessions. Switching models is not supported (`-m` is rejected) — resume
-always uses the model the session was started with.
+Resume a previously interrupted interactive session. Sessions are
+auto-saved to `.plain-agent/sessions/` and can be removed with `rm` when
+no longer needed. Without an argument, the most recently updated session
+is resumed. Use `--list` to see resumable sessions. Switching models is
+not supported (`-m` is rejected).
 
 ```sh
 plain resume
