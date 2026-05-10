@@ -325,8 +325,8 @@ if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
               ...askURLPlatform,
             },
           }),
-          maxBytesPerURL: askURLConfig.maxBytesPerURL,
-          maxTotalBytes: askURLConfig.maxTotalBytes,
+          maxLengthPerURL: askURLConfig.maxLengthPerURL,
+          maxTotalLength: askURLConfig.maxTotalLength,
         }),
       );
     } else {

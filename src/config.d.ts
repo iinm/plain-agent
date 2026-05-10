@@ -26,8 +26,8 @@ export type AskURLToolBuiltinW3MJsonConfig = {
   provider: "builtin+w3m";
   /** "name+variant" referencing an entry in `models`. Defaults to the agent's main model. */
   model?: string;
-  maxBytesPerURL?: number;
-  maxTotalBytes?: number;
+  maxLengthPerURL?: number;
+  maxTotalLength?: number;
 };
 
 export type AppConfig = {

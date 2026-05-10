@@ -40,8 +40,8 @@ import { noThrow } from "../utils/noThrow.mjs";
  * @typedef {Object} AskURLToolBuiltinW3MOptions
  * @property {"builtin+w3m"} provider
  * @property {CallModel} modelCaller
- * @property {number=} maxBytesPerURL Truncate each URL's dumped content to this many UTF-8 bytes (default 200000).
- * @property {number=} maxTotalBytes Truncate the combined content across all URLs to this many UTF-8 bytes (default 400000).
+ * @property {number=} maxLengthPerURL Truncate each URL's dumped content to this many characters (default 200000).
+ * @property {number=} maxTotalLength Truncate the combined content across all URLs to this many characters (default 400000).
  */
 
 /**
@@ -50,10 +50,10 @@ import { noThrow } from "../utils/noThrow.mjs";
  */
 
 /** @type {number} */
-const DEFAULT_MAX_BYTES_PER_URL = 200_000;
+const DEFAULT_MAX_LENGTH_PER_URL = 200_000;
 
 /** @type {number} */
-const DEFAULT_MAX_TOTAL_BYTES = 400_000;
+const DEFAULT_MAX_TOTAL_LENGTH = 400_000;
 
 /** @type {number} */
 const W3M_TIMEOUT_MS = 30_000;
@@ -109,53 +109,46 @@ export function createAskURLTool(config) {
 /**
  * Extract http(s) URLs from `text`.
  *
- * Trailing punctuation (e.g., `.` `,` `)` `]` `}` `>` `;` `:` `'` `"`) is
- * stripped because URLs in prose are commonly followed by such characters.
+ * Each URL is delimited by whitespace; the caller (typically an LLM) is
+ * expected to separate URLs from surrounding prose with spaces.
  * Duplicates are removed while preserving the first-seen order.
  *
  * @param {string} text
  * @returns {string[]}
  */
 export function extractURLs(text) {
-  const matches = text.match(/https?:\/\/[^\s<>]+/g) ?? [];
+  const matches = text.match(/https?:\/\/\S+/g) ?? [];
   /** @type {string[]} */
   const urls = [];
   const seen = new Set();
-  for (const raw of matches) {
-    const cleaned = raw.replace(/[)\]}>.,;:!?'"`]+$/, "");
-    if (!cleaned || seen.has(cleaned)) {
+  for (const url of matches) {
+    if (seen.has(url)) {
       continue;
     }
-    seen.add(cleaned);
-    urls.push(cleaned);
+    seen.add(url);
+    urls.push(url);
   }
   return urls;
 }
 
 /**
- * Truncate `content` to at most `maxBytes` UTF-8 bytes, keeping the head.
+ * Truncate `content` to at most `maxLength` characters, keeping the head.
  * When truncation occurs, a `[truncated: ...]` marker is appended.
  *
  * @param {string} content
- * @param {number} maxBytes
- * @returns {{ text: string, truncated: boolean, originalBytes: number }}
+ * @param {number} maxLength
+ * @returns {{ text: string, truncated: boolean, originalLength: number }}
  */
-export function truncateUtf8(content, maxBytes) {
-  const buffer = Buffer.from(content, "utf8");
-  if (buffer.length <= maxBytes) {
-    return { text: content, truncated: false, originalBytes: buffer.length };
+export function truncateText(content, maxLength) {
+  if (content.length <= maxLength) {
+    return { text: content, truncated: false, originalLength: content.length };
   }
-  // Decode within the byte budget; lossy decoding handles a partial trailing
-  // multi-byte sequence by replacing it with U+FFFD, which we then strip.
-  const head = buffer
-    .subarray(0, maxBytes)
-    .toString("utf8")
-    .replace(/\uFFFD+$/, "");
-  const truncatedBytes = buffer.length - maxBytes;
+  const head = content.slice(0, maxLength);
+  const truncatedLength = content.length - maxLength;
   return {
-    text: `${head}\n\n[truncated: ${truncatedBytes} of ${buffer.length} bytes omitted]`,
+    text: `${head}\n\n[truncated: ${truncatedLength} of ${content.length} chars omitted]`,
     truncated: true,
-    originalBytes: buffer.length,
+    originalLength: content.length,
   };
 }
 
@@ -208,19 +201,19 @@ async function askURLViaBuiltinW3M(config, input) {
     );
   }
 
-  const maxBytesPerURL = config.maxBytesPerURL ?? DEFAULT_MAX_BYTES_PER_URL;
-  const maxTotalBytes = config.maxTotalBytes ?? DEFAULT_MAX_TOTAL_BYTES;
+  const maxLengthPerURL = config.maxLengthPerURL ?? DEFAULT_MAX_LENGTH_PER_URL;
+  const maxTotalLength = config.maxTotalLength ?? DEFAULT_MAX_TOTAL_LENGTH;
 
-  /** @type {{ url: string, text: string, truncated: boolean, originalBytes: number, error?: string }[]} */
+  /** @type {{ url: string, text: string, truncated: boolean, originalLength: number, error?: string }[]} */
   const dumped = [];
   for (const url of urls) {
     try {
       const raw = await w3mDump(url);
-      const { text, truncated, originalBytes } = truncateUtf8(
+      const { text, truncated, originalLength } = truncateText(
         raw,
-        maxBytesPerURL,
+        maxLengthPerURL,
       );
-      dumped.push({ url, text, truncated, originalBytes });
+      dumped.push({ url, text, truncated, originalLength });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(styleText("yellow", message));
@@ -228,7 +221,7 @@ async function askURLViaBuiltinW3M(config, input) {
         url,
         text: "",
         truncated: false,
-        originalBytes: 0,
+        originalLength: 0,
         error: message,
       });
     }
@@ -248,7 +241,7 @@ async function askURLViaBuiltinW3M(config, input) {
       return `<url href="${d.url}" error="${d.error.replace(/"/g, "'")}"></url>`;
     }
     const attrs = d.truncated
-      ? ` truncated="true" original_bytes="${d.originalBytes}"`
+      ? ` truncated="true" original_length="${d.originalLength}"`
       : "";
     return `<url href="${d.url}"${attrs}>\n${d.text}\n</url>`;
   });
@@ -257,7 +250,7 @@ async function askURLViaBuiltinW3M(config, input) {
   // backstop in case many URLs are passed; per-URL truncation already handles
   // the common case.
   const joined = contentSections.join("\n\n");
-  const totalCap = truncateUtf8(joined, maxTotalBytes);
+  const totalCap = truncateText(joined, maxTotalLength);
 
   const systemPrompt = [
     "You answer the user's question based solely on the provided URL contents.",

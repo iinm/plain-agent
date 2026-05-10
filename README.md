@@ -136,11 +136,11 @@ Create the configuration.
 
       // Or fetch URLs locally with `w3m -dump` and answer using a model from `models`:
       // "provider": "builtin+w3m",
-      // // "model+variant" referencing an entry in "models". Defaults to the agent's main model.
+      // // "name+variant" referencing an entry in "models". Defaults to the agent's main model.
       // "model": "claude-haiku-4-5+thinking-16k",
-      // // (Optional) Cap the dumped content size to keep prompts small. Defaults shown.
-      // "maxBytesPerURL": 200000,
-      // "maxTotalBytes": 400000
+      // // (Optional) Cap the dumped content size (in characters) to keep prompts small. Defaults shown.
+      // "maxLengthPerURL": 200000,
+      // "maxTotalLength": 400000
     }
   }
 }
