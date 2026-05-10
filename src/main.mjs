@@ -289,42 +289,49 @@ if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
     builtinTools.push(createAskWebTool(appConfig.tools.askWeb));
   }
 
+  const [modelName, modelVariant] = modelNameWithVariant.split("+");
+  const modelDef = (appConfig.models ?? []).find(
+    (entry) => entry.name === modelName && entry.variant === modelVariant,
+  );
+  if (!modelDef) {
+    throw new Error(
+      `Model "${modelNameWithVariant}" not found in configuration.`,
+    );
+  }
+
+  const platform = (appConfig.platforms ?? []).find(
+    (entry) =>
+      entry.name === modelDef.platform.name &&
+      entry.variant === modelDef.platform.variant,
+  );
+  if (!platform) {
+    throw new Error(
+      `Platform ${modelDef.platform.name} variant=${modelDef.platform.variant} not found in configuration.`,
+    );
+  }
+
+  const agentCallModel = createModelCaller({
+    ...modelDef,
+    platform: {
+      ...modelDef.platform,
+      ...platform,
+    },
+  });
+
   if (appConfig.tools?.askURL) {
     const askURLConfig = appConfig.tools.askURL;
     if (askURLConfig.provider === "builtin+w3m") {
-      const askURLModelName = askURLConfig.model ?? modelNameWithVariant;
-      const [askURLModelBaseName, askURLModelVariant] =
-        askURLModelName.split("+");
-      const askURLModelDef = (appConfig.models ?? []).find(
-        (entry) =>
-          entry.name === askURLModelBaseName &&
-          entry.variant === askURLModelVariant,
-      );
-      if (!askURLModelDef) {
-        throw new Error(
-          `askURL model "${askURLModelName}" not found in configuration.`,
-        );
-      }
-      const askURLPlatform = (appConfig.platforms ?? []).find(
-        (entry) =>
-          entry.name === askURLModelDef.platform.name &&
-          entry.variant === askURLModelDef.platform.variant,
-      );
-      if (!askURLPlatform) {
-        throw new Error(
-          `askURL platform ${askURLModelDef.platform.name} variant=${askURLModelDef.platform.variant} not found in configuration.`,
-        );
-      }
+      const askURLCallModel = createModelCaller({
+        ...modelDef,
+        platform: {
+          ...modelDef.platform,
+          ...platform,
+        },
+      });
       builtinTools.push(
         createAskURLTool({
           provider: "builtin+w3m",
-          modelCaller: createModelCaller({
-            ...askURLModelDef,
-            platform: {
-              ...askURLModelDef.platform,
-              ...askURLPlatform,
-            },
-          }),
+          modelCaller: askURLCallModel,
           maxLengthPerURL: askURLConfig.maxLengthPerURL,
           maxTotalLength: askURLConfig.maxTotalLength,
         }),
@@ -347,36 +354,8 @@ if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
       return input;
     },
   });
-
-  const [modelName, modelVariant] = modelNameWithVariant.split("+");
-  const modelDef = (appConfig.models ?? []).find(
-    (entry) => entry.name === modelName && entry.variant === modelVariant,
-  );
-  if (!modelDef) {
-    throw new Error(
-      `Model "${modelNameWithVariant}" not found in configuration.`,
-    );
-  }
-
-  const platform = (appConfig.platforms ?? []).find(
-    (entry) =>
-      entry.name === modelDef.platform.name &&
-      entry.variant === modelDef.platform.variant,
-  );
-  if (!platform) {
-    throw new Error(
-      `Platform ${modelDef.platform.name} variant=${modelDef.platform.variant} not found in configuration.`,
-    );
-  }
-
   const { userEventEmitter, agentEventEmitter, agentCommands } = createAgent({
-    callModel: createModelCaller({
-      ...modelDef,
-      platform: {
-        ...modelDef.platform,
-        ...platform,
-      },
-    }),
+    callModel: agentCallModel,
     prompt,
     tools: [...builtinTools, ...mcpTools],
     toolUseApprover,

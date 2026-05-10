@@ -33,9 +33,8 @@ import { noThrow } from "../utils/noThrow.mjs";
 /**
  * Runtime configuration for the `builtin+w3m` provider.
  *
- * `modelCaller` is injected by the caller (e.g., `main.mjs`) after resolving
- * the configured model from `appConfig.models`. The user-facing JSON
- * configuration uses a `model` string (`"name+variant"`) instead.
+ * `modelCaller` is injected by the caller (e.g., `main.mjs`) using the agent's
+ * main model.
  *
  * @typedef {Object} AskURLToolBuiltinW3MOptions
  * @property {"builtin+w3m"} provider

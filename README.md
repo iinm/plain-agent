@@ -114,13 +114,14 @@ Create the configuration.
     }
   ],
 
-  // (Optional) Enable web search tools
+  // (Optional) Enable web tools
   "tools": {
     // askWeb: Searches the web to answer questions requiring up-to-date information or external sources.
     "askWeb": {
       "provider": "gemini",
       "apiKey": "<GEMINI_API_KEY>",
       "model": "gemini-3-flash-preview"
+
       // Or use Vertex AI (Requires gcloud CLI to get authentication token)
       // "provider": "gemini-vertex-ai",
       // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
@@ -132,12 +133,11 @@ Create the configuration.
       "provider": "gemini",
       "apiKey": "<GEMINI_API_KEY>",
       "model": "gemini-3-flash-preview"
+
       // Or use Vertex AI (Requires gcloud CLI to get authentication token)
 
-      // Or fetch URLs locally with `w3m -dump` and answer using a model from `models`:
+      // Or fetch URLs locally with `w3m -dump` and answer using the agent's main model:
       // "provider": "builtin+w3m",
-      // // "name+variant" referencing an entry in "models". Defaults to the agent's main model.
-      // "model": "claude-haiku-4-5+thinking-16k",
       // // (Optional) Cap the dumped content size (in characters) to keep prompts small. Defaults shown.
       // "maxLengthPerURL": 200000,
       // "maxTotalLength": 400000
@@ -145,9 +145,6 @@ Create the configuration.
   }
 }
 ```
-
-> [!NOTE]
-> The `builtin+w3m` provider requires the `w3m` command to be installed (e.g., `apt-get install w3m` / `brew install w3m`).
 
 <details>
 <summary><b>Azure / Bedrock / Vertex AI provider examples</b></summary>
