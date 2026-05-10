@@ -77,7 +77,7 @@ describe("saveSession + loadSession", () => {
     assert.ok(stat.isFile());
   });
 
-  it("overwrites an existing file atomically", async () => {
+  it("overwrites an existing file and leaves no temp file behind", async () => {
     // given:
     const state1 = buildState({ lastUpdatedAt: "2026-05-10T08:03:00.000Z" });
     const state2 = buildState({ lastUpdatedAt: "2026-05-10T09:00:00.000Z" });
