@@ -32,8 +32,6 @@ export const SLASH_COMMANDS = [
     name: "/resume",
     description: "Resume conversation after an LLM provider error",
   },
-  { name: "/dump", description: "Save current messages to a JSON file" },
-  { name: "/load", description: "Load messages from a JSON file" },
   { name: "/cost", description: "Display session cost and token usage" },
   {
     name: "/compact",

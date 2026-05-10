@@ -9,6 +9,7 @@ import type {
   PartialMessageContent,
   ProviderTokenUsage,
 } from "./model";
+import type { SessionState } from "./sessionStore.mjs";
 import type { Tool, ToolUseApprover } from "./tool";
 
 export type Agent = {
@@ -18,10 +19,12 @@ export type Agent = {
 };
 
 export type AgentCommands = {
-  dumpMessages: () => Promise<void>;
-  loadMessages: () => Promise<void>;
   getCostSummary: () => CostSummary;
   pauseAutoApprove: () => void;
+  /** Subagent currently active for this session, or null. */
+  getActiveSubagent: () => { name: string } | null;
+  /** Wait for any pending session-state writes to flush to disk. */
+  flushSessionPersistence: () => Promise<void>;
 };
 
 type UserEventMap = {
@@ -49,4 +52,13 @@ export type AgentConfig = {
   toolUseApprover: ToolUseApprover;
   agentRoles: Map<string, AgentRole>;
   modelCostConfig?: CostConfig;
+  /** Metadata used when persisting session state. */
+  sessionMetadata: {
+    sessionId: string;
+    modelName: string;
+    workingDir: string;
+    startTime: Date;
+  };
+  /** When provided, the agent restores its state from this snapshot. */
+  initialState?: SessionState | null;
 };

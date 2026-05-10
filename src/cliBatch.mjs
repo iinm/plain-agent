@@ -71,6 +71,7 @@ export async function startBatchSession({
         });
       }
 
+      await agentCommands.flushSessionPersistence();
       await onStop();
       resolve();
     });

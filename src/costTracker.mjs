@@ -29,6 +29,8 @@
  * @property {() => Record<string, number>} getAggregatedUsage - Get aggregated usage
  * @property {() => CostSummary} calculateCost - Calculate cost summary
  * @property {() => boolean} hasUsage - Check if any usage recorded
+ * @property {() => ProviderTokenUsage[]} getUsageHistory - Get a snapshot of the raw usage history
+ * @property {(history: ProviderTokenUsage[]) => void} restoreUsageHistory - Replace the usage history (used when resuming a saved session)
  */
 
 /**
@@ -110,11 +112,38 @@ export function createCostTracker(costConfig) {
     return usageHistory.length > 0;
   }
 
+  /**
+   * Get a snapshot copy of the raw usage history.
+   * @returns {ProviderTokenUsage[]}
+   */
+  function getUsageHistory() {
+    return usageHistory.map((u) => u);
+  }
+
+  /**
+   * Replace the usage history. Used when resuming a saved session.
+   * @param {ProviderTokenUsage[]} history
+   */
+  function restoreUsageHistory(history) {
+    if (!Array.isArray(history)) {
+      throw new TypeError("history must be an array");
+    }
+    usageHistory.length = 0;
+    for (const usage of history) {
+      if (typeof usage !== "object" || usage === null) {
+        throw new TypeError("each usage entry must be a non-null object");
+      }
+      usageHistory.push(usage);
+    }
+  }
+
   return Object.freeze({
     recordUsage,
     getAggregatedUsage,
     calculateCost,
     hasUsage,
+    getUsageHistory,
+    restoreUsageHistory,
   });
 }
 
