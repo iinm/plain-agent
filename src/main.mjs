@@ -3,7 +3,7 @@
  * @import { SessionState } from "./sessionStore.mjs";
  */
 
-import { randomBytes } from "node:crypto";
+import { randomInt } from "node:crypto";
 import { styleText } from "node:util";
 import { createAgent } from "./agent.mjs";
 import {
@@ -390,7 +390,8 @@ if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
 /**
  * Generate a session id of the form `YYYY-MM-DD-HHMM-<3 random base36 chars>`.
  * The random suffix avoids collisions when multiple `plain` processes start
- * within the same minute.
+ * within the same minute. `randomInt` is uniform over `[0, 36 ** 3)`, so
+ * each suffix character is unbiased.
  *
  * @param {Date} [now]
  * @returns {string}
@@ -400,11 +401,8 @@ function generateSessionId(now = new Date()) {
     `${now.getFullYear()}-${`0${now.getMonth() + 1}`.slice(-2)}-${`0${now.getDate()}`.slice(-2)}`,
     `0${now.getHours()}`.slice(-2) + `0${now.getMinutes()}`.slice(-2),
   ].join("-");
-  const chars = "0123456789abcdefghijklmnopqrstuvwxyz";
-  const bytes = randomBytes(3);
-  let suffix = "";
-  for (let i = 0; i < 3; i++) {
-    suffix += chars[bytes[i] % chars.length];
-  }
+  const suffix = randomInt(36 ** 3)
+    .toString(36)
+    .padStart(3, "0");
   return `${date}-${suffix}`;
 }
