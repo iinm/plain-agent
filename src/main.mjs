@@ -82,7 +82,7 @@ if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
   console.log("Resumable sessions (most recently updated first):\n");
   for (const s of sessions) {
     console.log(
-      `  ${s.sessionId}  ${s.modelName}  (updated ${s.lastUpdatedAt}, ${s.messageCount} messages)`,
+      `  ${s.sessionId}  ${s.modelName}  (updated ${formatLocalDateTime(s.lastUpdatedAt)}, ${s.messageCount} messages)`,
     );
     if (s.workingDir !== process.cwd()) {
       console.log(`    workingDir: ${s.workingDir}`);
@@ -173,7 +173,7 @@ if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
         styleText("green", `\n⏯  Resuming session: ${resumedState.sessionId}`),
       );
       console.log(
-        `  ⤷ ${resumedState.messages.length} messages, last updated ${resumedState.lastUpdatedAt}`,
+        `  ⤷ ${resumedState.messages.length} messages, last updated ${formatLocalDateTime(resumedState.lastUpdatedAt)}`,
       );
       if (resumedState.workingDir !== process.cwd()) {
         console.log(
@@ -405,4 +405,22 @@ function generateSessionId(now = new Date()) {
     .toString(36)
     .padStart(3, "0");
   return `${date}-${suffix}`;
+}
+
+/**
+ * Format an ISO 8601 timestamp as `YYYY-MM-DD HH:MM:SS` in the local timezone.
+ *
+ * @param {string} iso
+ * @returns {string}
+ */
+function formatLocalDateTime(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const y = d.getFullYear();
+  const mo = `${d.getMonth() + 1}`.padStart(2, "0");
+  const da = `${d.getDate()}`.padStart(2, "0");
+  const h = `${d.getHours()}`.padStart(2, "0");
+  const mi = `${d.getMinutes()}`.padStart(2, "0");
+  const s = `${d.getSeconds()}`.padStart(2, "0");
+  return `${y}-${mo}-${da} ${h}:${mi}:${s}`;
 }
