@@ -133,10 +133,21 @@ Create the configuration.
       "apiKey": "<GEMINI_API_KEY>",
       "model": "gemini-3-flash-preview"
       // Or use Vertex AI (Requires gcloud CLI to get authentication token)
+
+      // Or fetch URLs locally with `w3m -dump` and answer using a model from `models`:
+      // "provider": "builtin+w3m",
+      // // "model+variant" referencing an entry in "models". Defaults to the agent's main model.
+      // "model": "claude-haiku-4-5+thinking-16k",
+      // // (Optional) Cap the dumped content size to keep prompts small. Defaults shown.
+      // "maxBytesPerURL": 200000,
+      // "maxTotalBytes": 400000
     }
   }
 }
 ```
+
+> [!NOTE]
+> The `builtin+w3m` provider requires the `w3m` command to be installed (e.g., `apt-get install w3m` / `brew install w3m`).
 
 <details>
 <summary><b>Azure / Bedrock / Vertex AI provider examples</b></summary>
@@ -554,7 +565,7 @@ The agent can use the following tools to assist with tasks:
 - **exec_command**: Run a command without shell interpretation.
 - **tmux_command**: Run a tmux command.
 - **ask_web**: Use the web search to answer questions that need up-to-date information or supporting sources. (requires Google API key or Vertex AI configuration).
-- **ask_url**: Use one or more provided URLs to answer a question. Include the URLs in your question. (requires Google API key or Vertex AI configuration).
+- **ask_url**: Use one or more provided URLs to answer a question. Include the URLs in your question. (requires Google API key, Vertex AI configuration, or `builtin+w3m` with the `w3m` command installed locally).
 - **switch_to_subagent**: Switch to a subagent role within the same conversation, focusing on the specified goal.
 - **switch_to_main_agent**: Switch back to the main agent role and report the result. After reporting, the subagent's conversation history is removed from the context.
 - **compact_context**: Compact the conversation context by discarding prior messages and reloading task state from a memory file. Use when the context has grown large but the task is not yet complete. Can also be invoked via the `/compact` slash command.

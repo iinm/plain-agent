@@ -290,7 +290,48 @@ if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
   }
 
   if (appConfig.tools?.askURL) {
-    builtinTools.push(createAskURLTool(appConfig.tools.askURL));
+    const askURLConfig = appConfig.tools.askURL;
+    if (askURLConfig.provider === "builtin+w3m") {
+      const askURLModelName = askURLConfig.model ?? modelNameWithVariant;
+      const [askURLModelBaseName, askURLModelVariant] =
+        askURLModelName.split("+");
+      const askURLModelDef = (appConfig.models ?? []).find(
+        (entry) =>
+          entry.name === askURLModelBaseName &&
+          entry.variant === askURLModelVariant,
+      );
+      if (!askURLModelDef) {
+        throw new Error(
+          `askURL model "${askURLModelName}" not found in configuration.`,
+        );
+      }
+      const askURLPlatform = (appConfig.platforms ?? []).find(
+        (entry) =>
+          entry.name === askURLModelDef.platform.name &&
+          entry.variant === askURLModelDef.platform.variant,
+      );
+      if (!askURLPlatform) {
+        throw new Error(
+          `askURL platform ${askURLModelDef.platform.name} variant=${askURLModelDef.platform.variant} not found in configuration.`,
+        );
+      }
+      builtinTools.push(
+        createAskURLTool({
+          provider: "builtin+w3m",
+          modelCaller: createModelCaller({
+            ...askURLModelDef,
+            platform: {
+              ...askURLModelDef.platform,
+              ...askURLPlatform,
+            },
+          }),
+          maxBytesPerURL: askURLConfig.maxBytesPerURL,
+          maxTotalBytes: askURLConfig.maxTotalBytes,
+        }),
+      );
+    } else {
+      builtinTools.push(createAskURLTool(askURLConfig));
+    }
   }
 
   const toolUseApprover = createToolUseApprover({
