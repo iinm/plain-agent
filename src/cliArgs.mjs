@@ -1,5 +1,5 @@
 /**
- * @typedef {HelpSubcommand | InteractiveSubcommand | BatchSubcommand | ListModelsSubcommand | InstallClaudeCodePluginsSubcommand | CostSubcommand} Subcommand
+ * @typedef {HelpSubcommand | InteractiveSubcommand | BatchSubcommand | ListModelsSubcommand | InstallClaudeCodePluginsSubcommand | CostSubcommand | ResumeSubcommand} Subcommand
  */
 
 /**
@@ -24,6 +24,13 @@
 
 /**
  * @typedef {{ type: 'cost', from: string | null, to: string | null }} CostSubcommand
+ */
+
+/**
+ * Resume a previously interrupted interactive session.
+ * - `sessionId === null` and `list === false`: resume the most recently updated session.
+ * - `list === true`: print the resumable sessions and exit.
+ * @typedef {{ type: 'resume', sessionId: string | null, list: boolean, config: string[] }} ResumeSubcommand
  */
 
 /**
@@ -110,6 +117,38 @@ export function parseCliArgs(argv) {
     };
   }
 
+  if (subcommandName === "resume") {
+    const resumeArgs = args.slice(1);
+    /** @type {string | null} */
+    let sessionId = null;
+    let list = false;
+    /** @type {string[]} */
+    const config = [];
+
+    for (let i = 0; i < resumeArgs.length; i++) {
+      const arg = resumeArgs[i];
+      if (arg === "--list") {
+        list = true;
+      } else if (arg === "-c" || arg === "--config") {
+        if (resumeArgs[i + 1]) {
+          config.push(resumeArgs[i + 1]);
+          i++;
+        }
+      } else if (arg === "-m" || arg === "--model") {
+        // Switching models on resume is not supported by design.
+        return {
+          subcommand: { type: "help" },
+        };
+      } else if (!arg.startsWith("-") && sessionId === null) {
+        sessionId = arg;
+      }
+    }
+
+    return {
+      subcommand: { type: "resume", sessionId, list, config },
+    };
+  }
+
   if (subcommandName === "cost") {
     const costArgs = args.slice(1);
     let from = null;
@@ -145,6 +184,7 @@ export function printHelp(exitCode = 0) {
   console.log(`
 Usage: plain [options]
        plain batch [options] <task>
+       plain resume [<sessionId>] [--list] [-c <file>]
        plain cost [--from YYYY-MM-DD] [--to YYYY-MM-DD]
        plain list-models
        plain install-claude-code-plugins
@@ -158,6 +198,11 @@ Subcommands:
   batch <task>                 Run in batch mode with the given task instruction.
                                Config files are NOT auto-loaded in batch mode;
                                use -c to specify config files explicitly.
+  resume                       Resume an interactive session that was
+                               interrupted. With no sessionId, resumes the
+                               most recently updated session. Use --list to
+                               see resumable sessions. Switching models is
+                               not supported (-m is rejected).
   cost                         Show aggregated token cost per day for a period.
                                Defaults to the first day of the current month
                                through today.

@@ -1,7 +1,9 @@
 /**
  * @import { Tool } from "./tool";
+ * @import { SessionState } from "./sessionStore.mjs";
  */
 
+import { randomInt } from "node:crypto";
 import { styleText } from "node:util";
 import { createAgent } from "./agent.mjs";
 import {
@@ -19,6 +21,7 @@ import { AGENT_PROJECT_METADATA_DIR, USER_NAME } from "./env.mjs";
 import { setupMCPServer } from "./mcpIntegration.mjs";
 import { createModelCaller } from "./modelCaller.mjs";
 import { createPrompt } from "./prompt.mjs";
+import { listSessions, loadSession } from "./sessionStore.mjs";
 import { createAskURLTool } from "./tools/askURL.mjs";
 import { createAskWebTool } from "./tools/askWeb.mjs";
 import { createCompactContextTool } from "./tools/compactContext.mjs";
@@ -70,19 +73,74 @@ if (cliArgs.subcommand.type === "cost") {
   }
 }
 
+if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
+  const sessions = await listSessions();
+  if (sessions.length === 0) {
+    console.log("No resumable sessions in .plain-agent/sessions/.");
+    process.exit(0);
+  }
+  console.log("Resumable sessions (most recently updated first):\n");
+  for (const s of sessions) {
+    console.log(
+      `  ${s.sessionId}  ${s.modelName}  (updated ${formatLocalDateTime(s.lastUpdatedAt)}, ${s.messageCount} messages)`,
+    );
+    if (s.workingDir !== process.cwd()) {
+      console.log(`    workingDir: ${s.workingDir}`);
+    }
+  }
+  process.exit(0);
+}
+
 (async () => {
-  const startTime = new Date();
-  const sessionId = [
-    `${startTime.getFullYear()}-${`0${startTime.getMonth() + 1}`.slice(-2)}-${`0${startTime.getDate()}`.slice(-2)}`,
-    `0${startTime.getHours()}`.slice(-2) +
-      `0${startTime.getMinutes()}`.slice(-2),
-  ].join("-");
+  /** @type {SessionState | null} */
+  let resumedState = null;
+
+  if (cliArgs.subcommand.type === "resume") {
+    const requestedId = cliArgs.subcommand.sessionId;
+    if (requestedId) {
+      resumedState = await loadSession(requestedId);
+      if (!resumedState) {
+        console.error(
+          styleText("red", `No saved session found for id: ${requestedId}`),
+        );
+        process.exit(1);
+      }
+    } else {
+      const sessions = await listSessions();
+      if (sessions.length === 0) {
+        console.error(
+          styleText(
+            "red",
+            "No resumable sessions found in .plain-agent/sessions/.",
+          ),
+        );
+        process.exit(1);
+      }
+      resumedState = await loadSession(sessions[0].sessionId);
+      if (!resumedState) {
+        console.error(
+          styleText(
+            "red",
+            `Failed to load latest session: ${sessions[0].sessionId}`,
+          ),
+        );
+        process.exit(1);
+      }
+    }
+  }
+
+  const startTime = resumedState
+    ? new Date(resumedState.startTime)
+    : new Date();
+  const sessionId = resumedState ? resumedState.sessionId : generateSessionId();
   const tmuxSessionId = `agent-${sessionId}`;
 
   const isBatchMode = cliArgs.subcommand.type === "batch";
+  /** @type {string[]} */
   const configFiles =
     cliArgs.subcommand.type === "batch" ||
-    cliArgs.subcommand.type === "interactive"
+    cliArgs.subcommand.type === "interactive" ||
+    cliArgs.subcommand.type === "resume"
       ? cliArgs.subcommand.config
       : [];
 
@@ -108,6 +166,23 @@ if (cliArgs.subcommand.type === "cost") {
       console.log(`  ⤷ ${sandboxStr}`);
     } else {
       console.log(styleText("yellow", "\n📦 Sandbox: off"));
+    }
+
+    if (resumedState) {
+      console.log(
+        styleText("green", `\n⏯  Resuming session: ${resumedState.sessionId}`),
+      );
+      console.log(
+        `  ⤷ ${resumedState.messages.length} messages, last updated ${formatLocalDateTime(resumedState.lastUpdatedAt)}`,
+      );
+      if (resumedState.workingDir !== process.cwd()) {
+        console.log(
+          styleText(
+            "yellow",
+            `  ⚠ workingDir differs (saved: ${resumedState.workingDir}, current: ${process.cwd()})`,
+          ),
+        );
+      }
     }
   }
 
@@ -156,7 +231,30 @@ if (cliArgs.subcommand.type === "cost") {
     cliArgs.subcommand.type === "interactive"
       ? cliArgs.subcommand.model
       : null;
-  const modelNameWithVariant = modelFromArgs || modelFromConfig;
+  let modelNameWithVariant = modelFromArgs || modelFromConfig;
+
+  if (resumedState) {
+    // Switching models on resume is not supported. The model from the saved
+    // session always wins. If config disagrees, fail loudly.
+    if (
+      modelNameWithVariant &&
+      modelNameWithVariant !== resumedState.modelName
+    ) {
+      console.error(
+        styleText(
+          "red",
+          [
+            `Cannot resume session ${resumedState.sessionId}: model mismatch.`,
+            `  saved model:   ${resumedState.modelName}`,
+            `  current model: ${modelNameWithVariant}`,
+            "Resume must use the same model the session was started with.",
+          ].join("\n"),
+        ),
+      );
+      process.exit(1);
+    }
+    modelNameWithVariant = resumedState.modelName;
+  }
 
   const pluginPaths = resolvePluginPaths(appConfig.claudeCodePlugins ?? []);
   const [prompts, agentRoles] = await Promise.all([
@@ -243,6 +341,13 @@ if (cliArgs.subcommand.type === "cost") {
     toolUseApprover,
     agentRoles,
     modelCostConfig: modelDef.cost,
+    sessionMetadata: {
+      sessionId,
+      modelName: modelNameWithVariant,
+      workingDir: process.cwd(),
+      startTime,
+    },
+    initialState: resumedState,
   });
 
   const sessionOptions = {
@@ -281,3 +386,41 @@ if (cliArgs.subcommand.type === "cost") {
   console.error(err);
   process.exit(1);
 });
+
+/**
+ * Generate a session id of the form `YYYY-MM-DD-HHMM-<3 random base36 chars>`.
+ * The random suffix avoids collisions when multiple `plain` processes start
+ * within the same minute. `randomInt` is uniform over `[0, 36 ** 3)`, so
+ * each suffix character is unbiased.
+ *
+ * @param {Date} [now]
+ * @returns {string}
+ */
+function generateSessionId(now = new Date()) {
+  const date = [
+    `${now.getFullYear()}-${`0${now.getMonth() + 1}`.slice(-2)}-${`0${now.getDate()}`.slice(-2)}`,
+    `0${now.getHours()}`.slice(-2) + `0${now.getMinutes()}`.slice(-2),
+  ].join("-");
+  const suffix = randomInt(36 ** 3)
+    .toString(36)
+    .padStart(3, "0");
+  return `${date}-${suffix}`;
+}
+
+/**
+ * Format an ISO 8601 timestamp as `YYYY-MM-DD HH:MM:SS` in the local timezone.
+ *
+ * @param {string} iso
+ * @returns {string}
+ */
+function formatLocalDateTime(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const y = d.getFullYear();
+  const mo = `${d.getMonth() + 1}`.padStart(2, "0");
+  const da = `${d.getDate()}`.padStart(2, "0");
+  const h = `${d.getHours()}`.padStart(2, "0");
+  const mi = `${d.getMinutes()}`.padStart(2, "0");
+  const s = `${d.getSeconds()}`.padStart(2, "0");
+  return `${y}-${mo}-${da} ${h}:${mi}:${s}`;
+}

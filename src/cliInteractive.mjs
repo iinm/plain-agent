@@ -112,7 +112,7 @@ export function startInteractiveSession({
   const state = {
     turn: true,
     multiLineBuffer: null,
-    subagentName: "",
+    subagentName: agentCommands.getActiveSubagent()?.name ?? "",
   };
 
   /**
@@ -157,6 +157,7 @@ export function startInteractiveSession({
     console.log();
     console.log(formatCostSummary(summary));
     await persistUsage(summary, { sessionId, modelName, startTime });
+    await agentCommands.flushSessionPersistence();
     await onStop();
     process.exit(0);
   };
@@ -351,7 +352,7 @@ export function startInteractiveSession({
     process.stdout.write("\x1b[?2004h");
   }
 
-  let currentCliPrompt = getCliPrompt();
+  let currentCliPrompt = getCliPrompt(state.subagentName);
   cli = readline.createInterface({
     input: paste.transform,
     output: process.stdout,

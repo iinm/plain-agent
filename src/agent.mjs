@@ -7,11 +7,11 @@
  */
 
 import { EventEmitter } from "node:events";
-import fs from "node:fs/promises";
+import { styleText } from "node:util";
 import { createAgentLoop } from "./agentLoop.mjs";
 import { createStateManager } from "./agentState.mjs";
 import { createCostTracker } from "./costTracker.mjs";
-import { MESSAGES_DUMP_FILE_PATH } from "./env.mjs";
+import { SESSION_FILE_VERSION, saveSession } from "./sessionStore.mjs";
 import { createSubagentManager } from "./subagent.mjs";
 import { createToolExecutor } from "./toolExecutor.mjs";
 import {
@@ -32,6 +32,8 @@ export function createAgent({
   toolUseApprover,
   agentRoles,
   modelCostConfig,
+  sessionMetadata,
+  initialState,
 }) {
   /** @type {UserEventEmitter} */
   const userEventEmitter = new EventEmitter();
@@ -44,29 +46,73 @@ export function createAgent({
     costTracker.recordUsage(usage);
   });
 
-  const stateManager = createStateManager(
-    [
-      {
-        role: "system",
-        content: [{ type: "text", text: prompt }],
-      },
-    ],
-    {
-      onMessagesAppended: (newMessages) => {
-        const lastMessage = newMessages.at(-1);
-        if (!lastMessage) {
-          return;
-        }
+  // Build the initial message list. When resuming, replace messages[0] with
+  // the freshly built system prompt (today/agent roles/skills may have
+  // changed) but keep the rest of the saved conversation verbatim.
+  /** @type {import("./model").SystemMessage} */
+  const systemMessage = {
+    role: "system",
+    content: [{ type: "text", text: prompt }],
+  };
+  const baseMessages = initialState?.messages?.length
+    ? [systemMessage, ...initialState.messages.slice(1)]
+    : [systemMessage];
+
+  const stateManager = createStateManager(baseMessages, {
+    onMessagesAppended: (newMessages) => {
+      const lastMessage = newMessages.at(-1);
+      if (lastMessage) {
         agentEventEmitter.emit("message", lastMessage);
-      },
+      }
+      schedulePersist();
     },
-  );
+  });
 
   const subagentManager = createSubagentManager(agentRoles, {
     onSubagentSwitched: (subagent) => {
       agentEventEmitter.emit("subagentSwitched", subagent);
     },
   });
+
+  // Restore the rest of the session state. Subagent restoration is silent
+  // (no event), since CLI listeners aren't attached yet — the CLI consults
+  // getActiveSubagent() at startup instead.
+  if (initialState) {
+    subagentManager.restoreState(initialState.subagentState);
+    toolUseApprover.restoreAllowedToolUseInSession(
+      initialState.allowedToolUseInSession,
+    );
+    costTracker.restoreUsageHistory(initialState.tokenUsageHistory);
+  }
+
+  /** @type {Promise<void>} */
+  let persistChain = Promise.resolve();
+  function schedulePersist() {
+    persistChain = persistChain.then(async () => {
+      try {
+        await saveSession({
+          version: SESSION_FILE_VERSION,
+          sessionId: sessionMetadata.sessionId,
+          modelName: sessionMetadata.modelName,
+          workingDir: sessionMetadata.workingDir,
+          startTime: sessionMetadata.startTime.toISOString(),
+          lastUpdatedAt: new Date().toISOString(),
+          messages: stateManager.getMessages(),
+          subagentState: subagentManager.getState(),
+          allowedToolUseInSession: toolUseApprover.getAllowedToolUseInSession(),
+          tokenUsageHistory: costTracker.getUsageHistory(),
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(
+          styleText(
+            "yellow",
+            `Warning: failed to persist session state: ${message}`,
+          ),
+        );
+      }
+    });
+  }
 
   /**
    * @param {SwitchToSubagentInput} input
@@ -130,42 +176,6 @@ export function createAgent({
     exclusiveToolNames: [switchToSubagentToolName, switchToMainAgentToolName],
   });
 
-  async function dumpMessages() {
-    const filePath = MESSAGES_DUMP_FILE_PATH;
-    try {
-      await fs.writeFile(
-        filePath,
-        JSON.stringify(stateManager.getMessages(), null, 2),
-      );
-      console.log(`Messages dumped to ${filePath}`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`Error dumping messages: ${message}`);
-    }
-  }
-
-  async function loadMessages() {
-    const filePath = MESSAGES_DUMP_FILE_PATH;
-    try {
-      const data = await fs.readFile(filePath, "utf-8");
-      const loadedMessages = JSON.parse(data);
-      if (Array.isArray(loadedMessages)) {
-        // Keep the system message (index 0) and replace the rest
-        stateManager.setMessages([
-          stateManager.getMessageAt(0),
-          ...loadedMessages.slice(1),
-        ]);
-        console.log(`Messages loaded from ${filePath}`);
-      } else {
-        console.error("Error loading messages: Invalid format in file.");
-      }
-    } catch (error) {
-      if (error instanceof Error) {
-        console.error(`Error loading messages: ${error.message}`);
-      }
-    }
-  }
-
   // Pause signal: set by Ctrl-C during agent execution, checked after each tool batch completes
   let paused = false;
   /** @type {import("./agentLoop.mjs").PauseSignal} */
@@ -193,11 +203,13 @@ export function createAgent({
     userEventEmitter,
     agentEventEmitter,
     agentCommands: {
-      dumpMessages,
-      loadMessages,
       getCostSummary: () => costTracker.calculateCost(),
       pauseAutoApprove: () => {
         paused = true;
+      },
+      getActiveSubagent: () => subagentManager.getActiveSubagent(),
+      flushSessionPersistence: async () => {
+        await persistChain;
       },
     },
   };

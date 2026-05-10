@@ -62,7 +62,6 @@ A lightweight, capable coding agent for the terminal.
 ## Limitations
 
 - **Path validation only covers tool arguments** — Path validation restricts only paths explicitly passed as tool-use arguments; it cannot control file access inside arbitrary scripts. Always use sandboxed execution when allowing arbitrary script execution.
-- **No session persistence** — Sessions are not persisted. Start a fresh session and use memory files (`.plain-agent/memory/`) instead.
 - **Sequential subagent execution** — Subagents run one at a time rather than
   in parallel. The trade-off is full visibility: every step is streamed to
   your terminal so you can follow exactly what each subagent is doing.
@@ -336,6 +335,21 @@ plain cost
 
 ```
 plain cost --from 2026-04-01 --to 2026-04-30
+```
+
+Resume a previously interrupted interactive session. Sessions are
+auto-saved to `.plain-agent/sessions/` and can be removed with `rm` when
+no longer needed. Without an argument, the most recently updated session
+is resumed. Use `--list` to see resumable sessions. Switching models is
+not supported (`-m` is rejected).
+
+```sh
+plain resume
+```
+
+```
+plain resume --list
+plain resume 2026-05-10-0803-a7k
 ```
 
 Configure plain-agent for your project.

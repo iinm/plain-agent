@@ -256,10 +256,66 @@ export function createSubagentManager(agentRoles, handlers) {
     return subagents.length > 0;
   }
 
+  /**
+   * Get the most recently activated subagent, or null if none is active.
+   * @returns {{name: string} | null}
+   */
+  function getActiveSubagent() {
+    const top = subagents.at(-1);
+    return top ? { name: top.name } : null;
+  }
+
+  /**
+   * @typedef {Object} SubagentSerializedState
+   * @property {{name: string, goal: string, switchMessageIndex: number}[]} subagents
+   * @property {number} subagentCount
+   */
+
+  /**
+   * Snapshot the subagent stack for persistence.
+   * @returns {SubagentSerializedState}
+   */
+  function getState() {
+    return {
+      subagents: subagents.map((s) => ({ ...s })),
+      subagentCount,
+    };
+  }
+
+  /**
+   * Restore the subagent stack from a previously saved snapshot.
+   * Does NOT fire onSubagentSwitched; the caller is responsible for
+   * syncing any UI state (since listeners may not be attached yet).
+   * @param {SubagentSerializedState} state
+   */
+  function restoreState(state) {
+    if (typeof state !== "object" || state === null) {
+      throw new TypeError("state must be a non-null object");
+    }
+    if (!Array.isArray(state.subagents)) {
+      throw new TypeError("state.subagents must be an array");
+    }
+    if (typeof state.subagentCount !== "number") {
+      throw new TypeError("state.subagentCount must be a number");
+    }
+    subagents.length = 0;
+    for (const s of state.subagents) {
+      subagents.push({
+        name: s.name,
+        goal: s.goal,
+        switchMessageIndex: s.switchMessageIndex,
+      });
+    }
+    subagentCount = state.subagentCount;
+  }
+
   return {
     switchToSubagent,
     switchToMainAgent,
     processToolResults,
     isSubagentActive,
+    getActiveSubagent,
+    getState,
+    restoreState,
   };
 }

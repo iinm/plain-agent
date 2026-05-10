@@ -131,18 +131,6 @@ export function createCommandHandler({
       return "continue";
     }
 
-    // /dump
-    if (inputTrimmed.toLowerCase() === "/dump") {
-      await agentCommands.dumpMessages();
-      return "prompt";
-    }
-
-    // /load
-    if (inputTrimmed.toLowerCase() === "/load") {
-      await agentCommands.loadMessages();
-      return "prompt";
-    }
-
     // /cost
     if (inputTrimmed.toLowerCase() === "/cost") {
       const summary = agentCommands.getCostSummary();

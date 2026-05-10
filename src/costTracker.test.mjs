@@ -126,6 +126,58 @@ describe("createCostTracker", () => {
   });
 });
 
+describe("getUsageHistory + restoreUsageHistory", () => {
+  it("snapshots and restores raw usage history", () => {
+    // given:
+    const a = createCostTracker();
+    a.recordUsage({ input: 10, output: 5 });
+    a.recordUsage({ input: 3, output: 1 });
+
+    // when:
+    const snapshot = a.getUsageHistory();
+    const b = createCostTracker();
+    b.restoreUsageHistory(snapshot);
+
+    // then:
+    assert.deepStrictEqual(b.getAggregatedUsage(), { input: 13, output: 6 });
+    assert.equal(b.hasUsage(), true);
+  });
+
+  it("returns a defensive copy from getUsageHistory", () => {
+    // given:
+    const tracker = createCostTracker();
+    tracker.recordUsage({ input: 1 });
+
+    // when:
+    const snapshot = tracker.getUsageHistory();
+    snapshot.length = 0;
+
+    // then:
+    assert.equal(tracker.hasUsage(), true);
+  });
+
+  it("replaces existing history when restoring", () => {
+    // given:
+    const tracker = createCostTracker();
+    tracker.recordUsage({ a: 1 });
+
+    // when:
+    tracker.restoreUsageHistory([{ b: 2 }]);
+
+    // then:
+    assert.deepStrictEqual(tracker.getAggregatedUsage(), { b: 2 });
+  });
+
+  it("throws when restoring a non-array", () => {
+    // given:
+    const tracker = createCostTracker();
+
+    // when/then:
+    // @ts-expect-error testing invalid input
+    assert.throws(() => tracker.restoreUsageHistory(null), TypeError);
+  });
+});
+
 describe("aggregateTokens via createCostTracker", () => {
   it("recursively aggregates nested objects", () => {
     const tracker = createCostTracker();
