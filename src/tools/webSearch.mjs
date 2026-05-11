@@ -9,13 +9,13 @@ import { getGoogleCloudAccessToken } from "../providers/platform/googleCloud.mjs
 import { noThrow } from "../utils/noThrow.mjs";
 
 /**
- * @typedef {AskURLToolGeminiOptions
- *   | AskURLToolGeminiVertexAIOptions
- *   | AskURLToolCommandOptions} AskURLToolOptions
+ * @typedef {WebSearchToolGeminiOptions
+ *   | WebSearchToolGeminiVertexAIOptions
+ *   | WebSearchToolCommandOptions} WebSearchToolOptions
  */
 
 /**
- * @typedef {Object} AskURLToolGeminiOptions
+ * @typedef {Object} WebSearchToolGeminiOptions
  * @property {"gemini"} provider
  * @property {string=} baseURL
  * @property {string} apiKey
@@ -23,7 +23,7 @@ import { noThrow } from "../utils/noThrow.mjs";
  */
 
 /**
- * @typedef {Object} AskURLToolGeminiVertexAIOptions
+ * @typedef {Object} WebSearchToolGeminiVertexAIOptions
  * @property {"gemini-vertex-ai"} provider
  * @property {string} baseURL
  * @property {string=} account
@@ -33,73 +33,88 @@ import { noThrow } from "../utils/noThrow.mjs";
 /**
  * Runtime configuration for the `command` provider.
  *
- * Runs `command` with `args` followed by the URL (one process per URL, no
- * shell). `modelCaller` is injected by the caller (e.g., `main.mjs`) using
- * the agent's main model.
+ * Runs `command` once per keyword set with `args` followed by the keywords
+ * (no shell). `modelCaller` is injected by the caller (e.g., `main.mjs`)
+ * using the agent's main model and is used to distil the combined results
+ * down to entries relevant to `question`.
  *
- * @typedef {Object} AskURLToolCommandOptions
+ * @typedef {Object} WebSearchToolCommandOptions
  * @property {"command"} provider
- * @property {string} command Executable used to fetch each URL (e.g., `"w3m"`, `"curl"`).
- * @property {string[]} args Arguments passed before the URL (e.g., `["-dump"]`).
- * @property {number=} timeoutMs Per-URL timeout in milliseconds (default 30000).
+ * @property {string} command Executable used to perform each search (e.g., a wrapper around a search API).
+ * @property {string[]} args Arguments passed before the keywords (e.g., `["-n", "5"]`).
+ * @property {number=} timeoutMs Per-search timeout in milliseconds (default 30000).
  * @property {Record<string, string>=} env Extra environment variables, merged on top of PATH / HOME / LANG.
  * @property {CallModel} modelCaller
- * @property {number=} maxLengthPerURL Truncate each URL's fetched content to this many characters (default 200000).
- * @property {number=} maxTotalLength Truncate the combined content across all URLs to this many characters (default 400000).
+ * @property {number=} maxLengthPerSearch Truncate each search's output to this many characters (default 50000).
+ * @property {number=} maxTotalLength Truncate the combined output across searches to this many characters (default 200000).
  */
 
 /**
- * @typedef {Object} AskURLInput
+ * @typedef {Object} WebSearchInput
+ * @property {string[][]} keywords
  * @property {string} question
  */
 
 /** @type {number} */
-const DEFAULT_MAX_LENGTH_PER_URL = 200_000;
+const DEFAULT_MAX_LENGTH_PER_SEARCH = 50_000;
 
 /** @type {number} */
-const DEFAULT_MAX_TOTAL_LENGTH = 400_000;
+const DEFAULT_MAX_TOTAL_LENGTH = 200_000;
 
 /** @type {number} */
-const DEFAULT_FETCH_TIMEOUT_MS = 30_000;
+const DEFAULT_SEARCH_TIMEOUT_MS = 30_000;
 
 /** @type {number} */
-const FETCH_MAX_BUFFER_BYTES = 16 * 1024 * 1024;
+const SEARCH_MAX_BUFFER_BYTES = 16 * 1024 * 1024;
 
 /**
- * @param {AskURLToolOptions} config
+ * @param {WebSearchToolOptions} config
  * @returns {Tool}
  */
-export function createAskURLTool(config) {
+export function createWebSearchTool(config) {
   return {
     def: {
-      name: "ask_url",
+      name: "web_search",
       description:
-        "Use one or more provided URLs to answer a question. Include the URLs in your question.",
+        "Search the web with one or more keyword sets and answer a question based on the combined results.",
       inputSchema: {
         type: "object",
         properties: {
+          keywords: {
+            type: "array",
+            description:
+              "One or more keyword sets. Each inner array of strings becomes one search query.",
+            items: {
+              type: "array",
+              items: { type: "string" },
+            },
+          },
           question: {
             type: "string",
             description:
-              "The question to ask, including one or more URLs to use as context.",
+              "The question that the combined search results should answer.",
           },
         },
-        required: ["question"],
+        required: ["keywords", "question"],
       },
     },
 
     /**
-     * @param {AskURLInput} input
+     * @param {WebSearchInput} input
      * @returns {Promise<string | Error>}
      */
     impl: async (input) =>
       await noThrow(async () => {
+        const validationError = validateInput(input);
+        if (validationError) {
+          return validationError;
+        }
         switch (config.provider) {
           case "gemini":
           case "gemini-vertex-ai":
-            return askURLViaGemini(config, input, 0);
+            return webSearchViaGemini(config, input, 0);
           case "command":
-            return askURLViaCommand(config, input);
+            return webSearchViaCommand(config, input);
         }
       }),
 
@@ -111,31 +126,6 @@ export function createAskURLTool(config) {
       return {};
     },
   };
-}
-
-/**
- * Extract http(s) URLs from `text`.
- *
- * Each URL is delimited by whitespace; the caller (typically an LLM) is
- * expected to separate URLs from surrounding prose with spaces.
- * Duplicates are removed while preserving the first-seen order.
- *
- * @param {string} text
- * @returns {string[]}
- */
-export function extractURLs(text) {
-  const matches = text.match(/https?:\/\/\S+/g) ?? [];
-  /** @type {string[]} */
-  const urls = [];
-  const seen = new Set();
-  for (const url of matches) {
-    if (seen.has(url)) {
-      continue;
-    }
-    seen.add(url);
-    urls.push(url);
-  }
-  return urls;
 }
 
 /**
@@ -160,36 +150,62 @@ export function truncateText(content, maxLength) {
 }
 
 /**
- * @param {AskURLToolCommandOptions} config
- * @param {AskURLInput} input
- * @returns {Promise<string | Error>}
+ * @param {WebSearchInput} input
+ * @returns {Error | null}
  */
-async function askURLViaCommand(config, input) {
-  const urls = extractURLs(input.question);
-  if (urls.length === 0) {
+function validateInput(input) {
+  if (!Array.isArray(input.keywords) || input.keywords.length === 0) {
     return new Error(
-      "No http(s) URLs were found in the question. Include at least one URL in your question.",
+      "`keywords` is required and must be a non-empty array of keyword sets.",
     );
   }
+  for (const set of input.keywords) {
+    if (
+      !Array.isArray(set) ||
+      set.length === 0 ||
+      set.some((k) => typeof k !== "string" || k.length === 0)
+    ) {
+      return new Error(
+        "Each entry in `keywords` must be a non-empty array of non-empty strings.",
+      );
+    }
+  }
+  if (!input.question || typeof input.question !== "string") {
+    return new Error("`question` is required and must be a string.");
+  }
+  return null;
+}
 
-  const maxLengthPerURL = config.maxLengthPerURL ?? DEFAULT_MAX_LENGTH_PER_URL;
+/**
+ * @param {WebSearchToolCommandOptions} config
+ * @param {WebSearchInput} input
+ * @returns {Promise<string | Error>}
+ */
+async function webSearchViaCommand(config, input) {
+  const maxLengthPerSearch =
+    config.maxLengthPerSearch ?? DEFAULT_MAX_LENGTH_PER_SEARCH;
   const maxTotalLength = config.maxTotalLength ?? DEFAULT_MAX_TOTAL_LENGTH;
 
-  /** @type {{ url: string, text: string, truncated: boolean, originalLength: number, error?: string }[]} */
-  const fetched = [];
-  for (const url of urls) {
+  /** @type {{ keywords: string[], text: string, truncated: boolean, originalLength: number, error?: string }[]} */
+  const searches = [];
+  for (const keywordSet of input.keywords) {
     try {
-      const raw = await runFetchCommand(config, url);
+      const raw = await runSearchCommand(config, keywordSet);
       const { text, truncated, originalLength } = truncateText(
         raw,
-        maxLengthPerURL,
+        maxLengthPerSearch,
       );
-      fetched.push({ url, text, truncated, originalLength });
+      searches.push({
+        keywords: keywordSet,
+        text,
+        truncated,
+        originalLength,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(styleText("yellow", message));
-      fetched.push({
-        url,
+      searches.push({
+        keywords: keywordSet,
         text: "",
         truncated: false,
         originalLength: 0,
@@ -198,50 +214,54 @@ async function askURLViaCommand(config, input) {
     }
   }
 
-  const successCount = fetched.filter((d) => !d.error).length;
+  const successCount = searches.filter((s) => !s.error).length;
   if (successCount === 0) {
     return new Error(
-      `Failed to fetch any URL via ${config.command}:\n${fetched
-        .map((d) => `- ${d.url}: ${d.error ?? "unknown"}`)
+      `Failed to run any search via ${config.command}:\n${searches
+        .map((s) => `- [${s.keywords.join(" ")}]: ${s.error ?? "unknown"}`)
         .join("\n")}`,
     );
   }
 
-  const contentSections = fetched.map((d) => {
-    if (d.error) {
-      return `<url href="${d.url}" error="${d.error.replace(/"/g, "'")}"></url>`;
+  const sections = searches.map((s) => {
+    const keywordsAttr = s.keywords.join(" ").replace(/"/g, "'");
+    if (s.error) {
+      return `<search keywords="${keywordsAttr}" error="${s.error.replace(/"/g, "'")}"></search>`;
     }
-    const attrs = d.truncated
-      ? ` truncated="true" original_length="${d.originalLength}"`
+    const attrs = s.truncated
+      ? ` truncated="true" original_length="${s.originalLength}"`
       : "";
-    return `<url href="${d.url}"${attrs}>\n${d.text}\n</url>`;
+    return `<search keywords="${keywordsAttr}"${attrs}>\n${s.text}\n</search>`;
   });
 
-  // Apply a total cap by truncating the joined content as a whole. This is a
-  // backstop in case many URLs are passed; per-URL truncation already handles
-  // the common case.
-  const joined = contentSections.join("\n\n");
+  const joined = sections.join("\n\n");
   const totalCap = truncateText(joined, maxTotalLength);
 
-  const fetchCommandDisplay = [config.command, ...config.args, "<URL>"].join(
-    " ",
-  );
+  const searchCommandDisplay = [
+    config.command,
+    ...config.args,
+    "<KEYWORDS...>",
+  ].join(" ");
   const systemPrompt = [
-    "You answer the user's question based solely on the provided URL contents.",
-    `Each URL's content is wrapped in an <url href="..."> tag and was fetched with \`${fetchCommandDisplay}\`.`,
-    'Some pages may be marked truncated="true"; treat those as partial.',
-    "Cite the source URL inline (e.g., [1], [2]) and list the URLs at the end.",
-    "If the contents do not answer the question, say so explicitly rather than guessing.",
+    "You distil multiple web-search results into entries relevant to the user's question.",
+    `Each search's raw output is wrapped in a <search keywords="..."> tag and was produced by \`${searchCommandDisplay}\`.`,
+    'Some searches may be marked truncated="true"; treat those as partial.',
+    "Discard unrelated entries; keep only what helps answer the question.",
+    "Preserve any source URLs from the raw output and cite them inline (e.g., [1], [2]).",
+    "If none of the results are relevant, say so explicitly rather than guessing.",
   ].join(" ");
 
   const userPrompt = [
     `Question: ${input.question}`,
     "",
-    "URL contents:",
+    "Keyword sets used:",
+    ...input.keywords.map((set, i) => `- [${i + 1}] ${set.join(" ")}`),
+    "",
+    "Search results:",
     totalCap.text,
   ].join("\n");
 
-  const userPromptResult = await config.modelCaller({
+  const modelResult = await config.modelCaller({
     messages: [
       {
         role: "system",
@@ -254,36 +274,36 @@ async function askURLViaCommand(config, input) {
     ],
   });
 
-  if (userPromptResult instanceof Error) {
-    return userPromptResult;
+  if (modelResult instanceof Error) {
+    return modelResult;
   }
 
-  const answerText = userPromptResult.message.content
+  const answerText = modelResult.message.content
     .map((part) => (part.type === "text" ? part.text : ""))
     .join("")
     .trim();
 
-  const sourcesList = fetched
-    .map((d, i) => {
-      const suffix = d.error
-        ? ` (error: ${d.error})`
-        : d.truncated
+  const summaryList = searches
+    .map((s, i) => {
+      const suffix = s.error
+        ? ` (error: ${s.error})`
+        : s.truncated
           ? " (truncated)"
           : "";
-      return `- [${i + 1}] ${d.url}${suffix}`;
+      return `- [${i + 1}] ${s.keywords.join(" ")}${suffix}`;
     })
     .join("\n");
 
-  return [answerText, sourcesList].join("\n\n");
+  return [answerText, summaryList].join("\n\n");
 }
 
 /**
- * @param {AskURLToolGeminiOptions | AskURLToolGeminiVertexAIOptions} config
- * @param {AskURLInput} input
+ * @param {WebSearchToolGeminiOptions | WebSearchToolGeminiVertexAIOptions} config
+ * @param {WebSearchInput} input
  * @param {number} retryCount
  * @returns {Promise<string | Error>}
  */
-async function askURLViaGemini(config, input, retryCount) {
+async function webSearchViaGemini(config, input, retryCount) {
   const model = config.model ?? "gemini-3-flash-preview";
   const url =
     config.provider === "gemini-vertex-ai"
@@ -302,6 +322,10 @@ async function askURLViaGemini(config, input, retryCount) {
           "x-goog-api-key": config.apiKey ?? "",
         };
 
+  const keywordsHint = input.keywords
+    .map((set, i) => `- [${i + 1}] ${set.join(" ")}`)
+    .join("\n");
+
   const data = {
     contents: [
       {
@@ -310,6 +334,9 @@ async function askURLViaGemini(config, input, retryCount) {
           {
             text: `I need a comprehensive answer to this question. Please note that I don't have access to external URLs, so include all relevant facts, data, or explanations directly in your response. Avoid referencing links I can't open.
 
+Suggested search keyword sets (one per line):
+${keywordsHint}
+
 Question: ${input.question}`,
           },
         ],
@@ -317,7 +344,7 @@ Question: ${input.question}`,
     ],
     tools: [
       {
-        url_context: {},
+        google_search: {},
       },
     ],
   };
@@ -341,12 +368,12 @@ Question: ${input.question}`,
       ),
     );
     await new Promise((resolve) => setTimeout(resolve, interval * 1000));
-    return askURLViaGemini(config, input, retryCount + 1);
+    return webSearchViaGemini(config, input, retryCount + 1);
   }
 
   if (!response.ok) {
     return new Error(
-      `Failed to ask Web: status=${response.status}, body=${await response.text()}`,
+      `Failed to search the web: status=${response.status}, body=${await response.text()}`,
     );
   }
 
@@ -400,21 +427,21 @@ Question: ${input.question}`,
 }
 
 /**
- * Run `command` with `args` followed by `url` and return stdout.
+ * Run `command` with `args` followed by the keywords and return stdout.
  *
  * The process is spawned directly (no shell). When `command` exits with a
- * non-zero status, the resulting error message includes the URL and any
+ * non-zero status, the resulting error message includes the keywords and any
  * captured stderr to aid diagnosis.
  *
- * @param {AskURLToolCommandOptions} config
- * @param {string} url
+ * @param {WebSearchToolCommandOptions} config
+ * @param {string[]} keywords
  * @returns {Promise<string>}
  */
-function runFetchCommand(config, url) {
+function runSearchCommand(config, keywords) {
   return new Promise((resolve, reject) => {
     execFile(
       config.command,
-      [...config.args, url],
+      [...config.args, ...keywords],
       {
         shell: false,
         env: {
@@ -423,14 +450,14 @@ function runFetchCommand(config, url) {
           LANG: process.env.LANG,
           ...(config.env ?? {}),
         },
-        timeout: config.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS,
-        maxBuffer: FETCH_MAX_BUFFER_BYTES,
+        timeout: config.timeoutMs ?? DEFAULT_SEARCH_TIMEOUT_MS,
+        maxBuffer: SEARCH_MAX_BUFFER_BYTES,
       },
       (err, stdout, stderr) => {
         if (err) {
           reject(
             new Error(
-              `${config.command} failed for ${url}: ${err.message}${stderr ? `\n${stderr}` : ""}`,
+              `${config.command} failed for [${keywords.join(" ")}]: ${err.message}${stderr ? `\n${stderr}` : ""}`,
             ),
           );
           return;

@@ -1,20 +1,27 @@
 import { callAnthropicModel } from "../providers/anthropic.mjs";
-import { createAskURLTool } from "./askURL.mjs";
+import { createWebSearchTool } from "./webSearch.mjs";
 
-const QUESTION =
-  "https://iinm.github.io/posts/2026-02-28--coding-agent-permission-control.html 要点を教えて";
+const QUESTION = "明日の東京の天気を調べて";
+/** @type {string[][]} */
+const KEYWORDS = [
+  ["東京", "天気", "明日"],
+  ["Tokyo", "weather", "tomorrow"],
+];
 
 const provider = process.argv[2] ?? "gemini";
 
 (async () => {
   if (provider === "gemini") {
-    const askURLTool = createAskURLTool({
+    const webSearchTool = createWebSearchTool({
       provider: "gemini",
       apiKey: process.env.GEMINI_API_KEY ?? "",
       model: "gemini-3-flash-preview",
     });
 
-    const answer = await askURLTool.impl({ question: QUESTION });
+    const answer = await webSearchTool.impl({
+      keywords: KEYWORDS,
+      question: QUESTION,
+    });
     console.log(answer);
     return;
   }
@@ -32,15 +39,18 @@ const provider = process.argv[2] ?? "gemini";
       baseURL: "https://api.anthropic.com",
       apiKey: process.env.ANTHROPIC_API_KEY ?? "",
     };
-    const askURLTool = createAskURLTool({
+    const webSearchTool = createWebSearchTool({
       provider: "command",
-      command: process.env.ASK_URL_COMMAND ?? "w3m",
-      args: (process.env.ASK_URL_ARGS ?? "-dump").split(" ").filter(Boolean),
+      command: process.env.WEB_SEARCH_COMMAND ?? "echo",
+      args: (process.env.WEB_SEARCH_ARGS ?? "").split(" ").filter(Boolean),
       modelCaller: (input) =>
         callAnthropicModel(platformConfig, modelConfig, input),
     });
 
-    const answer = await askURLTool.impl({ question: QUESTION });
+    const answer = await webSearchTool.impl({
+      keywords: KEYWORDS,
+      question: QUESTION,
+    });
     console.log(answer);
     return;
   }

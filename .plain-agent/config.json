@@ -22,7 +22,7 @@
         "action": "allow"
       },
       {
-        "toolName": { "$regex": "^(ask_web|ask_url)$" },
+        "toolName": { "$regex": "^(web_search|web_fetch)$" },
         "action": "allow"
       }
     ]

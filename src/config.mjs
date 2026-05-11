@@ -76,18 +76,18 @@ export async function loadAppConfig(options = {}) {
       },
       sandbox: config.sandbox ?? merged.sandbox,
       tools: {
-        askWeb: config.tools?.askWeb
+        webSearch: config.tools?.webSearch
           ? {
-              ...(merged.tools?.askWeb ?? {}),
-              ...config.tools.askWeb,
+              ...(merged.tools?.webSearch ?? {}),
+              ...config.tools.webSearch,
             }
-          : merged.tools?.askWeb,
-        askURL: config.tools?.askURL
+          : merged.tools?.webSearch,
+        webFetch: config.tools?.webFetch
           ? {
-              ...(merged.tools?.askURL ?? {}),
-              ...config.tools.askURL,
+              ...(merged.tools?.webFetch ?? {}),
+              ...config.tools.webFetch,
             }
-          : merged.tools?.askURL,
+          : merged.tools?.webFetch,
       },
       mcpServers: {
         ...(merged.mcpServers ?? {}),
