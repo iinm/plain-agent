@@ -155,12 +155,12 @@ export async function formatToolUse(toolUse) {
   if (toolName === "web_search") {
     /** @type {Partial<import("./tools/webSearch.mjs").WebSearchInput>} */
     const webSearchInput = input;
-    const keywordsLine = webSearchInput.keywords
-      ? webSearchInput.keywords.map((set) => set.join(" ")).join(" | ")
+    const searchesLine = webSearchInput.searches
+      ? webSearchInput.searches.map((s) => s.keywords.join(" ")).join(" | ")
       : "";
     return [
       `tool: ${toolName}`,
-      `keywords: ${keywordsLine}`,
+      `searches: ${searchesLine}`,
       `question: ${webSearchInput.question}`,
     ].join("\n");
   }

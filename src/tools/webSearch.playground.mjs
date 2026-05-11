@@ -2,10 +2,10 @@ import { callAnthropicModel } from "../providers/anthropic.mjs";
 import { createWebSearchTool } from "./webSearch.mjs";
 
 const QUESTION = "明日の東京の天気を調べて";
-/** @type {string[][]} */
-const KEYWORDS = [
-  ["東京", "天気", "明日"],
-  ["Tokyo", "weather", "tomorrow"],
+/** @type {{ keywords: string[] }[]} */
+const SEARCHES = [
+  { keywords: ["東京", "天気", "明日"] },
+  { keywords: ["Tokyo", "weather", "tomorrow"] },
 ];
 
 const provider = process.argv[2] ?? "gemini";
@@ -19,7 +19,7 @@ const provider = process.argv[2] ?? "gemini";
     });
 
     const answer = await webSearchTool.impl({
-      keywords: KEYWORDS,
+      searches: SEARCHES,
       question: QUESTION,
     });
     console.log(answer);
@@ -48,7 +48,7 @@ const provider = process.argv[2] ?? "gemini";
     });
 
     const answer = await webSearchTool.impl({
-      keywords: KEYWORDS,
+      searches: SEARCHES,
       question: QUESTION,
     });
     console.log(answer);

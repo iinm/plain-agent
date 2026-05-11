@@ -17,7 +17,7 @@ function newCommandConfig() {
 }
 
 describe("createWebSearchTool input validation", () => {
-  it("rejects input that is missing keywords", async () => {
+  it("rejects input that is missing searches", async () => {
     // given:
     const tool = createWebSearchTool(newCommandConfig());
 
@@ -26,40 +26,58 @@ describe("createWebSearchTool input validation", () => {
 
     // then:
     assert.ok(result instanceof Error);
-    assert.match(result.message, /`keywords` is required/);
+    assert.match(result.message, /`searches` is required/);
   });
 
-  it("rejects an empty keywords array", async () => {
+  it("rejects an empty searches array", async () => {
     // given:
     const tool = createWebSearchTool(newCommandConfig());
 
     // when:
-    const result = await tool.impl({ keywords: [], question: "q" });
+    const result = await tool.impl({ searches: [], question: "q" });
 
     // then:
     assert.ok(result instanceof Error);
-    assert.match(result.message, /`keywords` is required/);
+    assert.match(result.message, /`searches` is required/);
   });
 
-  it("rejects a keyword set that is empty", async () => {
+  it("rejects a search entry that is not an object", async () => {
     // given:
     const tool = createWebSearchTool(newCommandConfig());
 
     // when:
-    const result = await tool.impl({ keywords: [[]], question: "q" });
+    const result = await tool.impl({
+      searches: [["foo"]],
+      question: "q",
+    });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /must be an object/);
+  });
+
+  it("rejects a search whose keywords array is empty", async () => {
+    // given:
+    const tool = createWebSearchTool(newCommandConfig());
+
+    // when:
+    const result = await tool.impl({
+      searches: [{ keywords: [] }],
+      question: "q",
+    });
 
     // then:
     assert.ok(result instanceof Error);
     assert.match(result.message, /non-empty array of non-empty strings/);
   });
 
-  it("rejects a keyword that is not a string", async () => {
+  it("rejects a search keyword that is not a non-empty string", async () => {
     // given:
     const tool = createWebSearchTool(newCommandConfig());
 
     // when:
     const result = await tool.impl({
-      keywords: [["ok", ""]],
+      searches: [{ keywords: ["ok", ""] }],
       question: "q",
     });
 
@@ -73,7 +91,7 @@ describe("createWebSearchTool input validation", () => {
     const tool = createWebSearchTool(newCommandConfig());
 
     // when:
-    const result = await tool.impl({ keywords: [["foo"]] });
+    const result = await tool.impl({ searches: [{ keywords: ["foo"] }] });
 
     // then:
     assert.ok(result instanceof Error);

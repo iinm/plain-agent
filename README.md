@@ -127,8 +127,8 @@ Create the configuration.
       // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
       // "model": "gemini-3-flash-preview"
 
-      // Or run a local search command per keyword set (the keywords are appended
-      // to `args`) and let the agent's main model filter the combined results:
+      // Or run a local search command per search (each search's `keywords` are
+      // appended to `args`) and let the agent's main model filter the combined results:
       // "provider": "command",
       // "command": "my-search-cli",
       // "args": ["-n", "5"],

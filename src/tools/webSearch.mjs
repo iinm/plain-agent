@@ -50,8 +50,13 @@ import { noThrow } from "../utils/noThrow.mjs";
  */
 
 /**
+ * @typedef {Object} WebSearch
+ * @property {string[]} keywords
+ */
+
+/**
  * @typedef {Object} WebSearchInput
- * @property {string[][]} keywords
+ * @property {WebSearch[]} searches
  * @property {string} question
  */
 
@@ -76,17 +81,24 @@ export function createWebSearchTool(config) {
     def: {
       name: "web_search",
       description:
-        "Search the web with one or more keyword sets and answer a question based on the combined results.",
+        "Run one or more web searches and answer a question based on the combined results.",
       inputSchema: {
         type: "object",
         properties: {
-          keywords: {
+          searches: {
             type: "array",
             description:
-              "One or more keyword sets. Each inner array of strings becomes one search query.",
+              "One or more searches to run. Each entry describes a single query.",
             items: {
-              type: "array",
-              items: { type: "string" },
+              type: "object",
+              properties: {
+                keywords: {
+                  type: "array",
+                  description: "Keywords for this search query.",
+                  items: { type: "string" },
+                },
+              },
+              required: ["keywords"],
             },
           },
           question: {
@@ -95,7 +107,7 @@ export function createWebSearchTool(config) {
               "The question that the combined search results should answer.",
           },
         },
-        required: ["keywords", "question"],
+        required: ["searches", "question"],
       },
     },
 
@@ -154,19 +166,22 @@ export function truncateText(content, maxLength) {
  * @returns {Error | null}
  */
 function validateInput(input) {
-  if (!Array.isArray(input.keywords) || input.keywords.length === 0) {
-    return new Error(
-      "`keywords` is required and must be a non-empty array of keyword sets.",
-    );
+  if (!Array.isArray(input.searches) || input.searches.length === 0) {
+    return new Error("`searches` is required and must be a non-empty array.");
   }
-  for (const set of input.keywords) {
+  for (const search of input.searches) {
+    if (!search || typeof search !== "object" || Array.isArray(search)) {
+      return new Error(
+        "Each entry in `searches` must be an object with a `keywords` field.",
+      );
+    }
     if (
-      !Array.isArray(set) ||
-      set.length === 0 ||
-      set.some((k) => typeof k !== "string" || k.length === 0)
+      !Array.isArray(search.keywords) ||
+      search.keywords.length === 0 ||
+      search.keywords.some((k) => typeof k !== "string" || k.length === 0)
     ) {
       return new Error(
-        "Each entry in `keywords` must be a non-empty array of non-empty strings.",
+        "Each search's `keywords` must be a non-empty array of non-empty strings.",
       );
     }
   }
@@ -187,16 +202,16 @@ async function webSearchViaCommand(config, input) {
   const maxTotalLength = config.maxTotalLength ?? DEFAULT_MAX_TOTAL_LENGTH;
 
   /** @type {{ keywords: string[], text: string, truncated: boolean, originalLength: number, error?: string }[]} */
-  const searches = [];
-  for (const keywordSet of input.keywords) {
+  const results = [];
+  for (const search of input.searches) {
     try {
-      const raw = await runSearchCommand(config, keywordSet);
+      const raw = await runSearchCommand(config, search.keywords);
       const { text, truncated, originalLength } = truncateText(
         raw,
         maxLengthPerSearch,
       );
-      searches.push({
-        keywords: keywordSet,
+      results.push({
+        keywords: search.keywords,
         text,
         truncated,
         originalLength,
@@ -204,8 +219,8 @@ async function webSearchViaCommand(config, input) {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(styleText("yellow", message));
-      searches.push({
-        keywords: keywordSet,
+      results.push({
+        keywords: search.keywords,
         text: "",
         truncated: false,
         originalLength: 0,
@@ -214,24 +229,24 @@ async function webSearchViaCommand(config, input) {
     }
   }
 
-  const successCount = searches.filter((s) => !s.error).length;
+  const successCount = results.filter((r) => !r.error).length;
   if (successCount === 0) {
     return new Error(
-      `Failed to run any search via ${config.command}:\n${searches
-        .map((s) => `- [${s.keywords.join(" ")}]: ${s.error ?? "unknown"}`)
+      `Failed to run any search via ${config.command}:\n${results
+        .map((r) => `- [${r.keywords.join(" ")}]: ${r.error ?? "unknown"}`)
         .join("\n")}`,
     );
   }
 
-  const sections = searches.map((s) => {
-    const keywordsAttr = s.keywords.join(" ").replace(/"/g, "'");
-    if (s.error) {
-      return `<search keywords="${keywordsAttr}" error="${s.error.replace(/"/g, "'")}"></search>`;
+  const sections = results.map((r) => {
+    const keywordsAttr = r.keywords.join(" ").replace(/"/g, "'");
+    if (r.error) {
+      return `<search keywords="${keywordsAttr}" error="${r.error.replace(/"/g, "'")}"></search>`;
     }
-    const attrs = s.truncated
-      ? ` truncated="true" original_length="${s.originalLength}"`
+    const attrs = r.truncated
+      ? ` truncated="true" original_length="${r.originalLength}"`
       : "";
-    return `<search keywords="${keywordsAttr}"${attrs}>\n${s.text}\n</search>`;
+    return `<search keywords="${keywordsAttr}"${attrs}>\n${r.text}\n</search>`;
   });
 
   const joined = sections.join("\n\n");
@@ -254,8 +269,8 @@ async function webSearchViaCommand(config, input) {
   const userPrompt = [
     `Question: ${input.question}`,
     "",
-    "Keyword sets used:",
-    ...input.keywords.map((set, i) => `- [${i + 1}] ${set.join(" ")}`),
+    "Searches run:",
+    ...input.searches.map((s, i) => `- [${i + 1}] ${s.keywords.join(" ")}`),
     "",
     "Search results:",
     totalCap.text,
@@ -283,14 +298,14 @@ async function webSearchViaCommand(config, input) {
     .join("")
     .trim();
 
-  const summaryList = searches
-    .map((s, i) => {
-      const suffix = s.error
-        ? ` (error: ${s.error})`
-        : s.truncated
+  const summaryList = results
+    .map((r, i) => {
+      const suffix = r.error
+        ? ` (error: ${r.error})`
+        : r.truncated
           ? " (truncated)"
           : "";
-      return `- [${i + 1}] ${s.keywords.join(" ")}${suffix}`;
+      return `- [${i + 1}] ${r.keywords.join(" ")}${suffix}`;
     })
     .join("\n");
 
@@ -322,8 +337,8 @@ async function webSearchViaGemini(config, input, retryCount) {
           "x-goog-api-key": config.apiKey ?? "",
         };
 
-  const keywordsHint = input.keywords
-    .map((set, i) => `- [${i + 1}] ${set.join(" ")}`)
+  const keywordsHint = input.searches
+    .map((s, i) => `- [${i + 1}] ${s.keywords.join(" ")}`)
     .join("\n");
 
   const data = {
@@ -334,7 +349,7 @@ async function webSearchViaGemini(config, input, retryCount) {
           {
             text: `I need a comprehensive answer to this question. Please note that I don't have access to external URLs, so include all relevant facts, data, or explanations directly in your response. Avoid referencing links I can't open.
 
-Suggested search keyword sets (one per line):
+Suggested search queries (one per line):
 ${keywordsHint}
 
 Question: ${input.question}`,
