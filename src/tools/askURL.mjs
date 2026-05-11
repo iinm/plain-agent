@@ -11,7 +11,7 @@ import { noThrow } from "../utils/noThrow.mjs";
 /**
  * @typedef {AskURLToolGeminiOptions
  *   | AskURLToolGeminiVertexAIOptions
- *   | AskURLToolBuiltinCommandOptions} AskURLToolOptions
+ *   | AskURLToolCommandOptions} AskURLToolOptions
  */
 
 /**
@@ -31,14 +31,14 @@ import { noThrow } from "../utils/noThrow.mjs";
  */
 
 /**
- * Runtime configuration for the `builtin+command` provider.
+ * Runtime configuration for the `command` provider.
  *
  * Runs `command` with `args` followed by the URL (one process per URL, no
  * shell). `modelCaller` is injected by the caller (e.g., `main.mjs`) using
  * the agent's main model.
  *
- * @typedef {Object} AskURLToolBuiltinCommandOptions
- * @property {"builtin+command"} provider
+ * @typedef {Object} AskURLToolCommandOptions
+ * @property {"command"} provider
  * @property {string} command Executable used to fetch each URL (e.g., `"w3m"`, `"curl"`).
  * @property {string[]} args Arguments passed before the URL (e.g., `["-dump"]`).
  * @property {number=} timeoutMs Per-URL timeout in milliseconds (default 30000).
@@ -98,8 +98,8 @@ export function createAskURLTool(config) {
           case "gemini":
           case "gemini-vertex-ai":
             return askURLViaGemini(config, input, 0);
-          case "builtin+command":
-            return askURLViaBuiltinCommand(config, input);
+          case "command":
+            return askURLViaCommand(config, input);
         }
       }),
 
@@ -160,11 +160,11 @@ export function truncateText(content, maxLength) {
 }
 
 /**
- * @param {AskURLToolBuiltinCommandOptions} config
+ * @param {AskURLToolCommandOptions} config
  * @param {AskURLInput} input
  * @returns {Promise<string | Error>}
  */
-async function askURLViaBuiltinCommand(config, input) {
+async function askURLViaCommand(config, input) {
   const urls = extractURLs(input.question);
   if (urls.length === 0) {
     return new Error(
@@ -406,7 +406,7 @@ Question: ${input.question}`,
  * non-zero status, the resulting error message includes the URL and any
  * captured stderr to aid diagnosis.
  *
- * @param {AskURLToolBuiltinCommandOptions} config
+ * @param {AskURLToolCommandOptions} config
  * @param {string} url
  * @returns {Promise<string>}
  */

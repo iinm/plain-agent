@@ -320,7 +320,7 @@ if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
 
   if (appConfig.tools?.askURL) {
     const askURLConfig = appConfig.tools.askURL;
-    if (askURLConfig.provider === "builtin+command") {
+    if (askURLConfig.provider === "command") {
       const askURLCallModel = createModelCaller({
         ...modelDef,
         platform: {
@@ -330,7 +330,7 @@ if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
       });
       builtinTools.push(
         createAskURLTool({
-          provider: "builtin+command",
+          provider: "command",
           command: askURLConfig.command,
           args: askURLConfig.args,
           timeoutMs: askURLConfig.timeoutMs,

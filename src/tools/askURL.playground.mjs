@@ -19,7 +19,7 @@ const provider = process.argv[2] ?? "gemini";
     return;
   }
 
-  if (provider === "builtin+command") {
+  if (provider === "command") {
     /** @type {import("../providers/anthropic").AnthropicModelConfig} */
     const modelConfig = {
       model: "claude-haiku-4-5",
@@ -33,7 +33,7 @@ const provider = process.argv[2] ?? "gemini";
       apiKey: process.env.ANTHROPIC_API_KEY ?? "",
     };
     const askURLTool = createAskURLTool({
-      provider: "builtin+command",
+      provider: "command",
       command: process.env.ASK_URL_COMMAND ?? "w3m",
       args: (process.env.ASK_URL_ARGS ?? "-dump").split(" ").filter(Boolean),
       modelCaller: (input) =>

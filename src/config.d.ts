@@ -12,18 +12,18 @@ import { VoiceInputConfig } from "./voiceInput.mjs";
 /**
  * JSON-serializable askURL configuration.
  *
- * The `builtin+command` provider runs an arbitrary local command per URL to
- * fetch its content; the agent's main model is then used to answer based on
- * the dumped output. The runtime tool factory receives a resolved
- * `modelCaller` instead — see `AskURLToolOptions` in `tools/askURL.mjs`.
+ * The `command` provider runs an arbitrary local command per URL to fetch
+ * its content; the agent's main model is then used to answer based on the
+ * dumped output. The runtime tool factory receives a resolved `modelCaller`
+ * instead — see `AskURLToolOptions` in `tools/askURL.mjs`.
  */
 export type AskURLToolConfig =
   | AskURLToolGeminiOptions
   | AskURLToolGeminiVertexAIOptions
-  | AskURLToolBuiltinCommandJsonConfig;
+  | AskURLToolCommandJsonConfig;
 
-export type AskURLToolBuiltinCommandJsonConfig = {
-  provider: "builtin+command";
+export type AskURLToolCommandJsonConfig = {
+  provider: "command";
   /** Executable used to fetch each URL (e.g., `"w3m"`, `"curl"`). */
   command: string;
   /** Arguments passed before the URL (e.g., `["-dump"]`). The URL is appended automatically. */
