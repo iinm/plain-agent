@@ -12,20 +12,26 @@ import { VoiceInputConfig } from "./voiceInput.mjs";
 /**
  * JSON-serializable askURL configuration.
  *
- * For `builtin+w3m`, the user specifies a `model` string (`"name+variant"`)
- * that is resolved against `models` at startup. The runtime tool factory
- * receives a resolved `modelCaller` instead — see `AskURLToolOptions` in
- * `tools/askURL.mjs`.
+ * The `builtin+command` provider runs an arbitrary local command per URL to
+ * fetch its content; the agent's main model is then used to answer based on
+ * the dumped output. The runtime tool factory receives a resolved
+ * `modelCaller` instead — see `AskURLToolOptions` in `tools/askURL.mjs`.
  */
 export type AskURLToolConfig =
   | AskURLToolGeminiOptions
   | AskURLToolGeminiVertexAIOptions
-  | AskURLToolBuiltinW3MJsonConfig;
+  | AskURLToolBuiltinCommandJsonConfig;
 
-export type AskURLToolBuiltinW3MJsonConfig = {
-  provider: "builtin+w3m";
-  /** "name+variant" referencing an entry in `models`. Defaults to the agent's main model. */
-  model?: string;
+export type AskURLToolBuiltinCommandJsonConfig = {
+  provider: "builtin+command";
+  /** Executable used to fetch each URL (e.g., `"w3m"`, `"curl"`). */
+  command: string;
+  /** Arguments passed before the URL (e.g., `["-dump"]`). The URL is appended automatically. */
+  args: string[];
+  /** Per-URL timeout in milliseconds (default 30000). */
+  timeoutMs?: number;
+  /** Extra environment variables, merged on top of PATH / HOME / LANG. */
+  env?: Record<string, string>;
   maxLengthPerURL?: number;
   maxTotalLength?: number;
 };

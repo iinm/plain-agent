@@ -320,7 +320,7 @@ if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
 
   if (appConfig.tools?.askURL) {
     const askURLConfig = appConfig.tools.askURL;
-    if (askURLConfig.provider === "builtin+w3m") {
+    if (askURLConfig.provider === "builtin+command") {
       const askURLCallModel = createModelCaller({
         ...modelDef,
         platform: {
@@ -330,7 +330,11 @@ if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
       });
       builtinTools.push(
         createAskURLTool({
-          provider: "builtin+w3m",
+          provider: "builtin+command",
+          command: askURLConfig.command,
+          args: askURLConfig.args,
+          timeoutMs: askURLConfig.timeoutMs,
+          env: askURLConfig.env,
           modelCaller: askURLCallModel,
           maxLengthPerURL: askURLConfig.maxLengthPerURL,
           maxTotalLength: askURLConfig.maxTotalLength,

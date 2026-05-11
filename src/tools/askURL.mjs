@@ -11,7 +11,7 @@ import { noThrow } from "../utils/noThrow.mjs";
 /**
  * @typedef {AskURLToolGeminiOptions
  *   | AskURLToolGeminiVertexAIOptions
- *   | AskURLToolBuiltinW3MOptions} AskURLToolOptions
+ *   | AskURLToolBuiltinCommandOptions} AskURLToolOptions
  */
 
 /**
@@ -31,15 +31,20 @@ import { noThrow } from "../utils/noThrow.mjs";
  */
 
 /**
- * Runtime configuration for the `builtin+w3m` provider.
+ * Runtime configuration for the `builtin+command` provider.
  *
- * `modelCaller` is injected by the caller (e.g., `main.mjs`) using the agent's
- * main model.
+ * Runs `command` with `args` followed by the URL (one process per URL, no
+ * shell). `modelCaller` is injected by the caller (e.g., `main.mjs`) using
+ * the agent's main model.
  *
- * @typedef {Object} AskURLToolBuiltinW3MOptions
- * @property {"builtin+w3m"} provider
+ * @typedef {Object} AskURLToolBuiltinCommandOptions
+ * @property {"builtin+command"} provider
+ * @property {string} command Executable used to fetch each URL (e.g., `"w3m"`, `"curl"`).
+ * @property {string[]} args Arguments passed before the URL (e.g., `["-dump"]`).
+ * @property {number=} timeoutMs Per-URL timeout in milliseconds (default 30000).
+ * @property {Record<string, string>=} env Extra environment variables, merged on top of PATH / HOME / LANG.
  * @property {CallModel} modelCaller
- * @property {number=} maxLengthPerURL Truncate each URL's dumped content to this many characters (default 200000).
+ * @property {number=} maxLengthPerURL Truncate each URL's fetched content to this many characters (default 200000).
  * @property {number=} maxTotalLength Truncate the combined content across all URLs to this many characters (default 400000).
  */
 
@@ -55,7 +60,10 @@ const DEFAULT_MAX_LENGTH_PER_URL = 200_000;
 const DEFAULT_MAX_TOTAL_LENGTH = 400_000;
 
 /** @type {number} */
-const W3M_TIMEOUT_MS = 30_000;
+const DEFAULT_FETCH_TIMEOUT_MS = 30_000;
+
+/** @type {number} */
+const FETCH_MAX_BUFFER_BYTES = 16 * 1024 * 1024;
 
 /**
  * @param {AskURLToolOptions} config
@@ -90,8 +98,8 @@ export function createAskURLTool(config) {
           case "gemini":
           case "gemini-vertex-ai":
             return askURLViaGemini(config, input, 0);
-          case "builtin+w3m":
-            return askURLViaBuiltinW3M(config, input);
+          case "builtin+command":
+            return askURLViaBuiltinCommand(config, input);
         }
       }),
 
@@ -152,47 +160,11 @@ export function truncateText(content, maxLength) {
 }
 
 /**
- * Run `w3m -dump <url>` and return stdout.
- *
- * @param {string} url
- * @returns {Promise<string>}
- */
-function w3mDump(url) {
-  return new Promise((resolve, reject) => {
-    execFile(
-      "w3m",
-      ["-dump", url],
-      {
-        shell: false,
-        env: {
-          PATH: process.env.PATH,
-          HOME: process.env.HOME,
-          LANG: process.env.LANG,
-        },
-        timeout: W3M_TIMEOUT_MS,
-        maxBuffer: 16 * 1024 * 1024,
-      },
-      (err, stdout, stderr) => {
-        if (err) {
-          reject(
-            new Error(
-              `w3m failed for ${url}: ${err.message}${stderr ? `\n${stderr}` : ""}`,
-            ),
-          );
-          return;
-        }
-        resolve(stdout);
-      },
-    );
-  });
-}
-
-/**
- * @param {AskURLToolBuiltinW3MOptions} config
+ * @param {AskURLToolBuiltinCommandOptions} config
  * @param {AskURLInput} input
  * @returns {Promise<string | Error>}
  */
-async function askURLViaBuiltinW3M(config, input) {
+async function askURLViaBuiltinCommand(config, input) {
   const urls = extractURLs(input.question);
   if (urls.length === 0) {
     return new Error(
@@ -204,19 +176,19 @@ async function askURLViaBuiltinW3M(config, input) {
   const maxTotalLength = config.maxTotalLength ?? DEFAULT_MAX_TOTAL_LENGTH;
 
   /** @type {{ url: string, text: string, truncated: boolean, originalLength: number, error?: string }[]} */
-  const dumped = [];
+  const fetched = [];
   for (const url of urls) {
     try {
-      const raw = await w3mDump(url);
+      const raw = await runFetchCommand(config, url);
       const { text, truncated, originalLength } = truncateText(
         raw,
         maxLengthPerURL,
       );
-      dumped.push({ url, text, truncated, originalLength });
+      fetched.push({ url, text, truncated, originalLength });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(styleText("yellow", message));
-      dumped.push({
+      fetched.push({
         url,
         text: "",
         truncated: false,
@@ -226,16 +198,16 @@ async function askURLViaBuiltinW3M(config, input) {
     }
   }
 
-  const successCount = dumped.filter((d) => !d.error).length;
+  const successCount = fetched.filter((d) => !d.error).length;
   if (successCount === 0) {
     return new Error(
-      `Failed to fetch any URL via w3m:\n${dumped
+      `Failed to fetch any URL via ${config.command}:\n${fetched
         .map((d) => `- ${d.url}: ${d.error ?? "unknown"}`)
         .join("\n")}`,
     );
   }
 
-  const contentSections = dumped.map((d) => {
+  const contentSections = fetched.map((d) => {
     if (d.error) {
       return `<url href="${d.url}" error="${d.error.replace(/"/g, "'")}"></url>`;
     }
@@ -251,9 +223,12 @@ async function askURLViaBuiltinW3M(config, input) {
   const joined = contentSections.join("\n\n");
   const totalCap = truncateText(joined, maxTotalLength);
 
+  const fetchCommandDisplay = [config.command, ...config.args, "<URL>"].join(
+    " ",
+  );
   const systemPrompt = [
     "You answer the user's question based solely on the provided URL contents.",
-    'Each URL\'s content is wrapped in an <url href="..."> tag and was extracted with `w3m -dump`.',
+    `Each URL's content is wrapped in an <url href="..."> tag and was fetched with \`${fetchCommandDisplay}\`.`,
     'Some pages may be marked truncated="true"; treat those as partial.',
     "Cite the source URL inline (e.g., [1], [2]) and list the URLs at the end.",
     "If the contents do not answer the question, say so explicitly rather than guessing.",
@@ -266,7 +241,7 @@ async function askURLViaBuiltinW3M(config, input) {
     totalCap.text,
   ].join("\n");
 
-  const result = await config.modelCaller({
+  const userPromptResult = await config.modelCaller({
     messages: [
       {
         role: "system",
@@ -279,16 +254,16 @@ async function askURLViaBuiltinW3M(config, input) {
     ],
   });
 
-  if (result instanceof Error) {
-    return result;
+  if (userPromptResult instanceof Error) {
+    return userPromptResult;
   }
 
-  const answerText = result.message.content
+  const answerText = userPromptResult.message.content
     .map((part) => (part.type === "text" ? part.text : ""))
     .join("")
     .trim();
 
-  const sourcesList = dumped
+  const sourcesList = fetched
     .map((d, i) => {
       const suffix = d.error
         ? ` (error: ${d.error})`
@@ -422,6 +397,48 @@ Question: ${input.question}`,
     .join("\n");
 
   return [textWithCitations, chunkString].join("\n\n");
+}
+
+/**
+ * Run `command` with `args` followed by `url` and return stdout.
+ *
+ * The process is spawned directly (no shell). When `command` exits with a
+ * non-zero status, the resulting error message includes the URL and any
+ * captured stderr to aid diagnosis.
+ *
+ * @param {AskURLToolBuiltinCommandOptions} config
+ * @param {string} url
+ * @returns {Promise<string>}
+ */
+function runFetchCommand(config, url) {
+  return new Promise((resolve, reject) => {
+    execFile(
+      config.command,
+      [...config.args, url],
+      {
+        shell: false,
+        env: {
+          PATH: process.env.PATH,
+          HOME: process.env.HOME,
+          LANG: process.env.LANG,
+          ...(config.env ?? {}),
+        },
+        timeout: config.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS,
+        maxBuffer: FETCH_MAX_BUFFER_BYTES,
+      },
+      (err, stdout, stderr) => {
+        if (err) {
+          reject(
+            new Error(
+              `${config.command} failed for ${url}: ${err.message}${stderr ? `\n${stderr}` : ""}`,
+            ),
+          );
+          return;
+        }
+        resolve(stdout);
+      },
+    );
+  });
 }
 
 /**

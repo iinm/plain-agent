@@ -136,9 +136,20 @@ Create the configuration.
 
       // Or use Vertex AI (Requires gcloud CLI to get authentication token)
 
-      // Or fetch URLs locally with `w3m -dump` and answer using the agent's main model:
-      // "provider": "builtin+w3m",
-      // // (Optional) Cap the dumped content size (in characters) to keep prompts small. Defaults shown.
+      // Or fetch each URL locally with an arbitrary command (the URL is appended
+      // to `args`) and answer using the agent's main model:
+      // "provider": "builtin+command",
+      // "command": "w3m",
+      // "args": ["-dump"],
+      // // Examples:
+      // // "command": "curl",  "args": ["-fsSL", "--max-time", "30"]
+      // // "command": "lynx",  "args": ["-dump", "-nolist"]
+      // // "command": "pandoc","args": ["-f", "html", "-t", "markdown"]
+      // // (Optional) Per-URL timeout in milliseconds. Default 30000.
+      // "timeoutMs": 30000,
+      // // (Optional) Extra env vars merged on top of PATH / HOME / LANG.
+      // "env": { "NO_COLOR": "1" },
+      // // (Optional) Cap the fetched content size (in characters) to keep prompts small. Defaults shown.
       // "maxLengthPerURL": 200000,
       // "maxTotalLength": 400000
     }
@@ -562,7 +573,7 @@ The agent can use the following tools to assist with tasks:
 - **exec_command**: Run a command without shell interpretation.
 - **tmux_command**: Run a tmux command.
 - **ask_web**: Use the web search to answer questions that need up-to-date information or supporting sources. (requires Google API key or Vertex AI configuration).
-- **ask_url**: Use one or more provided URLs to answer a question. Include the URLs in your question. (requires Google API key, Vertex AI configuration, or `builtin+w3m` with the `w3m` command installed locally).
+- **ask_url**: Use one or more provided URLs to answer a question. Include the URLs in your question. (requires Google API key, Vertex AI configuration, or `builtin+command` with a local fetch command such as `w3m`, `curl`, or `lynx`).
 - **switch_to_subagent**: Switch to a subagent role within the same conversation, focusing on the specified goal.
 - **switch_to_main_agent**: Switch back to the main agent role and report the result. After reporting, the subagent's conversation history is removed from the context.
 - **compact_context**: Compact the conversation context by discarding prior messages and reloading task state from a memory file. Use when the context has grown large but the task is not yet complete. Can also be invoked via the `/compact` slash command.
