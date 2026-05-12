@@ -179,7 +179,7 @@ if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
         console.log(
           styleText(
             "yellow",
-            `  ! workingDir differs (saved: ${resumedState.workingDir}, current: ${process.cwd()})`,
+            `  ⚠️ workingDir differs (saved: ${resumedState.workingDir}, current: ${process.cwd()})`,
           ),
         );
       }

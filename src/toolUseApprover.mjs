@@ -32,42 +32,38 @@ export function createToolUseApprover({
    * @returns {ToolUseDecision}
    */
   function isAllowedToolUse(toolUse) {
-    const maskedInput = maskApprovalInput(toolUse.toolName, toolUse.input);
-    const rawToolUseToMatch = {
+    const toolUseToMatch = {
       toolName: toolUse.toolName,
       input: toolUse.input,
     };
-    const maskedToolUseToMatch = {
-      toolName: toolUse.toolName,
-      input: maskedInput,
-    };
 
-    /**
-     * @param {ToolUsePattern} pattern
-     * @param {{ toolName: string, input: unknown }} toMatch
-     * @returns {ToolUseDecision | null}
-     */
-    function tryPattern(pattern, toMatch) {
+    for (const pattern of [...patterns, ...state.allowedToolUseInSession]) {
       const patternToMatch = {
         toolName: pattern.toolName,
         ...(pattern.input !== undefined && { input: pattern.input }),
       };
 
-      if (!matchValue(toMatch, patternToMatch)) {
-        return null;
+      if (!matchValue(toolUseToMatch, patternToMatch)) {
+        continue;
       }
 
       const action = pattern.action ?? defaultAction;
 
       if (!["allow", "deny", "ask"].includes(action)) {
-        return { action: "ask" };
+        return {
+          action: "ask",
+        };
       }
 
       if (action === "deny") {
-        return { action: "deny", reason: pattern.reason };
+        return {
+          action: "deny",
+          reason: pattern.reason,
+        };
       }
 
       if (action === "allow") {
+        const maskedInput = maskApprovalInput(toolUse.toolName, toolUse.input);
         if (isSafeToolInput(maskedInput)) {
           state.approvalCount += 1;
           return state.approvalCount <= max
@@ -78,24 +74,6 @@ export function createToolUseApprover({
       }
 
       return { action };
-    }
-
-    // User-defined config patterns are matched against the raw input so callers
-    // can constrain on any field they want.
-    for (const pattern of patterns) {
-      const decision = tryPattern(pattern, rawToolUseToMatch);
-      if (decision) {
-        return decision;
-      }
-    }
-
-    // In-session approvals are matched against the masked input, treating the
-    // mask as an equivalence class (e.g. same origin, same filePath).
-    for (const pattern of state.allowedToolUseInSession) {
-      const decision = tryPattern(pattern, maskedToolUseToMatch);
-      if (decision) {
-        return decision;
-      }
     }
 
     return { action: defaultAction };

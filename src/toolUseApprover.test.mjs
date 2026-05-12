@@ -290,59 +290,6 @@ describe("createToolUseApprover", () => {
     });
   });
 
-  it("treats in-session approvals by their masked input (e.g. origin) so equivalent calls match", () => {
-    // given:
-    const toolApprover = createToolUseApprover({
-      patterns: [],
-      maxApprovals: 5,
-      defaultAction: "ask",
-      maskApprovalInput: (_name, input) => {
-        // Pretend this is the web_fetch origin mask.
-        const url = /** @type {{url: string}} */ (input).url ?? "";
-        const m = url.match(/^(https?:\/\/[^/]+)/);
-        return { url: m ? m[1] : "" };
-      },
-    });
-
-    /** @type {MessageContentToolUse} */
-    const firstUse = {
-      type: "tool_use",
-      toolUseId: "1",
-      toolName: "web_fetch",
-      input: { url: "https://example.com/foo", question: "?" },
-    };
-    /** @type {MessageContentToolUse} */
-    const sameOriginDifferentPath = {
-      type: "tool_use",
-      toolUseId: "2",
-      toolName: "web_fetch",
-      input: { url: "https://example.com/bar?x=1", question: "?" },
-    };
-    /** @type {MessageContentToolUse} */
-    const differentOrigin = {
-      type: "tool_use",
-      toolUseId: "3",
-      toolName: "web_fetch",
-      input: { url: "https://evil.example.org/foo", question: "?" },
-    };
-
-    // when:
-    toolApprover.allowToolUse(firstUse);
-
-    // then:
-    assert.deepStrictEqual(toolApprover.isAllowedToolUse(firstUse), {
-      action: "allow",
-    });
-    assert.deepStrictEqual(
-      toolApprover.isAllowedToolUse(sameOriginDifferentPath),
-      { action: "allow" },
-      "different path on same origin should reuse the approval",
-    );
-    assert.deepStrictEqual(toolApprover.isAllowedToolUse(differentOrigin), {
-      action: "ask",
-    });
-  });
-
   it("snapshots and restores allowed tool-use patterns", () => {
     // given:
     const a = createToolUseApprover({
