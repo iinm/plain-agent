@@ -88,6 +88,24 @@ export function parseDateOnly(value) {
 }
 
 /**
+ * Deduplicate usage records by sessionId, keeping only the last record for each session.
+ * This prevents double-counting when a session is resumed and exited multiple times.
+ *
+ * @param {UsageRecord[]} records - Records in chronological order (oldest first)
+ * @returns {UsageRecord[]} Deduplicated records (one per sessionId)
+ */
+function deduplicateBySessionId(records) {
+  /** @type {Map<string, UsageRecord>} */
+  const bySessionId = new Map();
+  for (const record of records) {
+    if (record.sessionId) {
+      bySessionId.set(record.sessionId, record);
+    }
+  }
+  return Array.from(bySessionId.values());
+}
+
+/**
  * Aggregate usage records into a cost report.
  *
  * @param {UsageRecord[]} records
@@ -103,12 +121,14 @@ export function aggregateUsage(records, period) {
     );
   }
 
+  const deduplicated = deduplicateBySessionId(records);
+
   /** @type {Map<string, Map<string, DailyEntry>>} */
   const byCurrency = new Map();
   let noPricingSessionCount = 0;
   let excludedOutOfRange = 0;
 
-  for (const record of records) {
+  for (const record of deduplicated) {
     if (record.timestamp == null) {
       excludedOutOfRange++;
       continue;

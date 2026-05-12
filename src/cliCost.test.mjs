@@ -157,16 +157,19 @@ describe("aggregateUsage", () => {
     const records = [
       makeRecord({
         timestamp: localIso(2026, 4, 10, 10),
+        sessionId: "s1",
         totalCost: 0.1,
         currency: "USD",
       }),
       makeRecord({
         timestamp: localIso(2026, 4, 10, 14),
+        sessionId: "s2",
         totalCost: 0.25,
         currency: "USD",
       }),
       makeRecord({
         timestamp: localIso(2026, 4, 11, 9),
+        sessionId: "s3",
         totalCost: 1.5,
         currency: "USD",
       }),
@@ -189,11 +192,13 @@ describe("aggregateUsage", () => {
     const records = [
       makeRecord({
         timestamp: localIso(2026, 4, 10, 10),
+        sessionId: "s1",
         totalCost: 1,
         currency: "USD",
       }),
       makeRecord({
         timestamp: localIso(2026, 4, 10, 10),
+        sessionId: "s2",
         totalCost: 200,
         currency: "JPY",
       }),
@@ -208,9 +213,9 @@ describe("aggregateUsage", () => {
 
   it("excludes records outside the period", () => {
     const records = [
-      makeRecord({ timestamp: localIso(2026, 3, 31, 23), totalCost: 1 }),
-      makeRecord({ timestamp: localIso(2026, 4, 1, 1), totalCost: 2 }),
-      makeRecord({ timestamp: localIso(2026, 5, 1, 12), totalCost: 3 }),
+      makeRecord({ timestamp: localIso(2026, 3, 31, 23), sessionId: "s1", totalCost: 1 }),
+      makeRecord({ timestamp: localIso(2026, 4, 1, 1), sessionId: "s2", totalCost: 2 }),
+      makeRecord({ timestamp: localIso(2026, 5, 1, 12), sessionId: "s3", totalCost: 3 }),
     ];
     const report = aggregateUsage(records, {
       from: "2026-04-01",
@@ -225,9 +230,10 @@ describe("aggregateUsage", () => {
     const records = [
       makeRecord({
         timestamp: localIso(2026, 4, 10, 10),
+        sessionId: "s1",
         totalCost: null,
       }),
-      makeRecord({ timestamp: localIso(2026, 4, 10, 10), totalCost: 1 }),
+      makeRecord({ timestamp: localIso(2026, 4, 10, 10), sessionId: "s2", totalCost: 1 }),
     ];
     const report = aggregateUsage(records, period);
     assert.equal(report.noPricingSessionCount, 1);
@@ -238,14 +244,15 @@ describe("aggregateUsage", () => {
 
   it("excludes records with null, undefined, or invalid timestamps", () => {
     /** @type {any} */
-    const recordWithUndefinedTs = makeRecord({ totalCost: 2 });
+    const recordWithUndefinedTs = makeRecord({ sessionId: "s2", totalCost: 2 });
     delete recordWithUndefinedTs.timestamp;
     const records = [
-      makeRecord({ timestamp: null, totalCost: 1 }),
+      makeRecord({ timestamp: null, sessionId: "s1", totalCost: 1 }),
       recordWithUndefinedTs,
-      makeRecord({ timestamp: "not-a-date", totalCost: 3 }),
+      makeRecord({ timestamp: "not-a-date", sessionId: "s3", totalCost: 3 }),
       makeRecord({
         timestamp: localIso(2026, 4, 10, 10),
+        sessionId: "s4",
         totalCost: 4,
       }),
     ];
@@ -259,16 +266,19 @@ describe("aggregateUsage", () => {
     const records = [
       makeRecord({
         timestamp: localIso(2026, 4, 10, 10),
+        sessionId: "s1",
         totalCost: 1,
         currency: null,
       }),
       makeRecord({
         timestamp: localIso(2026, 4, 10, 10),
+        sessionId: "s2",
         totalCost: 2,
         currency: "",
       }),
       makeRecord({
         timestamp: localIso(2026, 4, 10, 10),
+        sessionId: "s3",
         totalCost: 3,
         currency: "USD",
       }),
@@ -277,6 +287,42 @@ describe("aggregateUsage", () => {
     assert.equal(report.byCurrency.length, 1);
     assert.equal(report.byCurrency[0].totalCost, 3);
     assert.equal(report.excludedOutOfRange, 2);
+  });
+
+  it("deduplicates records with the same sessionId, keeping the last one", () => {
+    // This test verifies the fix for the double-counting bug when a session is resumed
+    const records = [
+      makeRecord({
+        timestamp: localIso(2026, 4, 10, 10),
+        sessionId: "session-1",
+        totalCost: 0.05,
+        tokens: { input: 1000, output: 500 },
+      }),
+      makeRecord({
+        timestamp: localIso(2026, 4, 10, 12),
+        sessionId: "session-1", // Same sessionId - resume and exit again
+        totalCost: 0.08, // Higher cost (cumulative)
+        tokens: { input: 1500, output: 800 },
+      }),
+      makeRecord({
+        timestamp: localIso(2026, 4, 11, 9),
+        sessionId: "session-2",
+        totalCost: 1.5,
+      }),
+    ];
+    const report = aggregateUsage(records, period);
+    assert.equal(report.byCurrency.length, 1);
+    const usd = report.byCurrency[0];
+    assert.equal(usd.sessionCount, 2); // 2 unique sessions
+    assert.equal(usd.totalCost, 1.58); // 0.08 + 1.5 (not 0.05 + 0.08 + 1.5)
+    assert.equal(usd.daily.length, 2);
+    // First record (session-1) is on 2026-04-10, but we keep the last one
+    assert.equal(usd.daily[0].date, "2026-04-10");
+    assert.equal(usd.daily[0].totalCost, 0.08); // Latest cost for session-1
+    assert.equal(usd.daily[0].sessionCount, 1);
+    assert.equal(usd.daily[1].date, "2026-04-11");
+    assert.equal(usd.daily[1].totalCost, 1.5);
+    assert.equal(usd.daily[1].sessionCount, 1);
   });
 
   it("rejects a reversed period", () => {
@@ -300,16 +346,19 @@ describe("formatCostReport", () => {
     const records = [
       makeRecord({
         timestamp: localIso(2026, 4, 10, 10),
+        sessionId: "s1",
         totalCost: 0.1,
         currency: "USD",
       }),
       makeRecord({
         timestamp: localIso(2026, 4, 11, 10),
+        sessionId: "s2",
         totalCost: 0.2,
         currency: "USD",
       }),
       makeRecord({
         timestamp: localIso(2026, 4, 11, 10),
+        sessionId: "s3",
         totalCost: 150,
         currency: "JPY",
       }),
