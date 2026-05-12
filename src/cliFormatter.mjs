@@ -152,20 +152,27 @@ export async function formatToolUse(toolUse) {
     ].join("\n");
   }
 
-  if (toolName === "ask_web") {
-    /** @type {Partial<import("./tools/askWeb.mjs").AskWebInput>} */
-    const askWebInput = input;
-    return [`tool: ${toolName}`, `question: ${askWebInput.question}`].join(
-      "\n",
-    );
+  if (toolName === "web_search") {
+    /** @type {Partial<import("./tools/webSearch.mjs").WebSearchInput>} */
+    const webSearchInput = input;
+    const searchesLine = webSearchInput.searches
+      ? webSearchInput.searches.map((s) => s.keywords.join(" ")).join(" | ")
+      : "";
+    return [
+      `tool: ${toolName}`,
+      `searches: ${searchesLine}`,
+      `question: ${webSearchInput.question}`,
+    ].join("\n");
   }
 
-  if (toolName === "ask_url") {
-    /** @type {Partial<import("./tools/askURL.mjs").AskURLInput>} */
-    const askURLInput = input;
-    return [`tool: ${toolName}`, `question: ${askURLInput.question}`].join(
-      "\n",
-    );
+  if (toolName === "web_fetch") {
+    /** @type {Partial<import("./tools/webFetch.mjs").WebFetchInput>} */
+    const webFetchInput = input;
+    return [
+      `tool: ${toolName}`,
+      `url: ${webFetchInput.url}`,
+      `question: ${webFetchInput.question}`,
+    ].join("\n");
   }
 
   const { provider: _, ...filteredToolUse } = toolUse;

@@ -22,8 +22,6 @@ import { setupMCPServer } from "./mcpIntegration.mjs";
 import { createModelCaller } from "./modelCaller.mjs";
 import { createPrompt } from "./prompt.mjs";
 import { listSessions, loadSession } from "./sessionStore.mjs";
-import { createAskURLTool } from "./tools/askURL.mjs";
-import { createAskWebTool } from "./tools/askWeb.mjs";
 import { createCompactContextTool } from "./tools/compactContext.mjs";
 import { createExecCommandTool } from "./tools/execCommand.mjs";
 import { createPatchFileTool } from "./tools/patchFile.mjs";
@@ -31,6 +29,8 @@ import { readFileTool } from "./tools/readFile.mjs";
 import { createSwitchToMainAgentTool } from "./tools/switchToMainAgent.mjs";
 import { createSwitchToSubagentTool } from "./tools/switchToSubagent.mjs";
 import { createTmuxCommandTool } from "./tools/tmuxCommand.mjs";
+import { createWebFetchTool } from "./tools/webFetch.mjs";
+import { createWebSearchTool } from "./tools/webSearch.mjs";
 import { writeFileTool } from "./tools/writeFile.mjs";
 import { createToolUseApprover } from "./toolUseApprover.mjs";
 
@@ -179,7 +179,7 @@ if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
         console.log(
           styleText(
             "yellow",
-            `  ⚠ workingDir differs (saved: ${resumedState.workingDir}, current: ${process.cwd()})`,
+            `  ⚠️ workingDir differs (saved: ${resumedState.workingDir}, current: ${process.cwd()})`,
           ),
         );
       }
@@ -285,28 +285,6 @@ if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
     createSwitchToMainAgentTool(),
   ];
 
-  if (appConfig.tools?.askWeb) {
-    builtinTools.push(createAskWebTool(appConfig.tools.askWeb));
-  }
-
-  if (appConfig.tools?.askURL) {
-    builtinTools.push(createAskURLTool(appConfig.tools.askURL));
-  }
-
-  const toolUseApprover = createToolUseApprover({
-    maxApprovals: appConfig.autoApproval?.maxApprovals || 50,
-    defaultAction: appConfig.autoApproval?.defaultAction || "ask",
-    patterns: appConfig.autoApproval?.patterns || [],
-    maskApprovalInput: (toolName, input) => {
-      for (const tool of builtinTools) {
-        if (tool.def.name === toolName && tool.maskApprovalInput) {
-          return tool.maskApprovalInput(input);
-        }
-      }
-      return input;
-    },
-  });
-
   const [modelName, modelVariant] = modelNameWithVariant.split("+");
   const modelDef = (appConfig.models ?? []).find(
     (entry) => entry.name === modelName && entry.variant === modelVariant,
@@ -328,14 +306,83 @@ if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
     );
   }
 
+  if (appConfig.tools?.webSearch) {
+    const webSearchConfig = appConfig.tools.webSearch;
+    if (webSearchConfig.provider === "command") {
+      const webSearchCallModel = createModelCaller({
+        ...modelDef,
+        platform: {
+          ...modelDef.platform,
+          ...platform,
+        },
+      });
+      builtinTools.push(
+        createWebSearchTool({
+          provider: "command",
+          command: webSearchConfig.command,
+          args: webSearchConfig.args,
+          timeoutMs: webSearchConfig.timeoutMs,
+          env: webSearchConfig.env,
+          modelCaller: webSearchCallModel,
+          maxLengthPerSearch: webSearchConfig.maxLengthPerSearch,
+          maxTotalLength: webSearchConfig.maxTotalLength,
+        }),
+      );
+    } else {
+      builtinTools.push(createWebSearchTool(webSearchConfig));
+    }
+  }
+
+  if (appConfig.tools?.webFetch) {
+    const webFetchConfig = appConfig.tools.webFetch;
+    if (webFetchConfig.provider === "command") {
+      const webFetchCallModel = createModelCaller({
+        ...modelDef,
+        platform: {
+          ...modelDef.platform,
+          ...platform,
+        },
+      });
+      builtinTools.push(
+        createWebFetchTool({
+          provider: "command",
+          command: webFetchConfig.command,
+          args: webFetchConfig.args,
+          timeoutMs: webFetchConfig.timeoutMs,
+          env: webFetchConfig.env,
+          modelCaller: webFetchCallModel,
+          maxLength: webFetchConfig.maxLength,
+        }),
+      );
+    } else {
+      builtinTools.push(createWebFetchTool(webFetchConfig));
+    }
+  }
+
+  const toolUseApprover = createToolUseApprover({
+    maxApprovals: appConfig.autoApproval?.maxApprovals || 50,
+    defaultAction: appConfig.autoApproval?.defaultAction || "ask",
+    patterns: appConfig.autoApproval?.patterns || [],
+    maskApprovalInput: (toolName, input) => {
+      for (const tool of builtinTools) {
+        if (tool.def.name === toolName && tool.maskApprovalInput) {
+          return tool.maskApprovalInput(input);
+        }
+      }
+      return input;
+    },
+  });
+
+  const agentCallModel = createModelCaller({
+    ...modelDef,
+    platform: {
+      ...modelDef.platform,
+      ...platform,
+    },
+  });
+
   const { userEventEmitter, agentEventEmitter, agentCommands } = createAgent({
-    callModel: createModelCaller({
-      ...modelDef,
-      platform: {
-        ...modelDef.platform,
-        ...platform,
-      },
-    }),
+    callModel: agentCallModel,
     prompt,
     tools: [...builtinTools, ...mcpTools],
     toolUseApprover,

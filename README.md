@@ -114,25 +114,35 @@ Create the configuration.
     }
   ],
 
-  // (Optional) Enable web search tools
+  // (Optional) Enable web tools
   "tools": {
-    // askWeb: Searches the web to answer questions requiring up-to-date information or external sources.
-    "askWeb": {
+    "webSearch": {
       "provider": "gemini",
       "apiKey": "<GEMINI_API_KEY>",
       "model": "gemini-3-flash-preview"
+
       // Or use Vertex AI (Requires gcloud CLI to get authentication token)
       // "provider": "gemini-vertex-ai",
       // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
       // "model": "gemini-3-flash-preview"
+
+      // Or use a custom command
+      // "provider": "command",
+      // "command": "bash",
+      // "args": ["-c", "w3m -dump -o display_link_number=1 \"https://lite.duckduckgo.com/lite?q=$*\"", "-"]
     },
 
-    // askURL: Answers questions based on provided URL content.
-    "askURL": {
+    "webFetch": {
       "provider": "gemini",
       "apiKey": "<GEMINI_API_KEY>",
       "model": "gemini-3-flash-preview"
+
       // Or use Vertex AI (Requires gcloud CLI to get authentication token)
+
+      // Or use a custom command
+      // "provider": "command",
+      // "command": "w3m",
+      // "args": ["-dump", "-o", "display_link_number=1"]
     }
   }
 }
@@ -402,7 +412,7 @@ Files are loaded in the following order. Settings in later files override earlie
         "action": "allow"
       },
       {
-        "toolName": { "$regex": "^(ask_web|ask_url)$" },
+        "toolName": { "$regex": "^(web_search|web_fetch)$" },
         "action": "allow"
       }
       // ⚠️ Never do this. mcp run outside the sandbox, so they can send anything externally.
@@ -461,7 +471,7 @@ Files are loaded in the following order. Settings in later files override earlie
       },
 
       {
-        "toolName": { "$regex": "^(ask_web|ask_url)$" },
+        "toolName": { "$regex": "^(web_search|web_fetch)$" },
         "action": "allow"
       },
 
@@ -553,8 +563,8 @@ The agent can use the following tools to assist with tasks:
 - **patch_file**: Patch a file.
 - **exec_command**: Run a command without shell interpretation.
 - **tmux_command**: Run a tmux command.
-- **ask_web**: Use the web search to answer questions that need up-to-date information or supporting sources. (requires Google API key or Vertex AI configuration).
-- **ask_url**: Use one or more provided URLs to answer a question. Include the URLs in your question. (requires Google API key or Vertex AI configuration).
+- **web_search**: Search the web with one or more keyword sets and answer a question based on the combined results (requires Google API key, Vertex AI configuration, or the `command` provider with a local search command).
+- **web_fetch**: Fetch the contents of a single URL and answer a question based on it (requires Google API key, Vertex AI configuration, or the `command` provider with a local fetch command such as `w3m`, `curl`, or `lynx`).
 - **switch_to_subagent**: Switch to a subagent role within the same conversation, focusing on the specified goal.
 - **switch_to_main_agent**: Switch back to the main agent role and report the result. After reporting, the subagent's conversation history is removed from the context.
 - **compact_context**: Compact the conversation context by discarding prior messages and reloading task state from a memory file. Use when the context has grown large but the task is not yet complete. Can also be invoked via the `/compact` slash command.
