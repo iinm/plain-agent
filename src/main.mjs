@@ -179,7 +179,7 @@ if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
         console.log(
           styleText(
             "yellow",
-            `  ⚠ workingDir differs (saved: ${resumedState.workingDir}, current: ${process.cwd()})`,
+            `  ! workingDir differs (saved: ${resumedState.workingDir}, current: ${process.cwd()})`,
           ),
         );
       }
@@ -306,14 +306,6 @@ if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
     );
   }
 
-  const agentCallModel = createModelCaller({
-    ...modelDef,
-    platform: {
-      ...modelDef.platform,
-      ...platform,
-    },
-  });
-
   if (appConfig.tools?.webSearch) {
     const webSearchConfig = appConfig.tools.webSearch;
     if (webSearchConfig.provider === "command") {
@@ -380,6 +372,15 @@ if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
       return input;
     },
   });
+
+  const agentCallModel = createModelCaller({
+    ...modelDef,
+    platform: {
+      ...modelDef.platform,
+      ...platform,
+    },
+  });
+
   const { userEventEmitter, agentEventEmitter, agentCommands } = createAgent({
     callModel: agentCallModel,
     prompt,

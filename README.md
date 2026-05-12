@@ -126,19 +126,10 @@ Create the configuration.
       // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
       // "model": "gemini-3-flash-preview"
 
-      // Or run a local search command per search (each search's `keywords` are
-      // appended to `args`) and let the agent's main model filter the combined results.
-      // The example below uses w3m + DuckDuckGo (`$*` joins all keywords; `-o display_link_number=1` shows link URLs):
+      // Or use a custom command
       // "provider": "command",
       // "command": "bash",
-      // "args": ["-c", "w3m -dump -o display_link_number=1 \"https://duckduckgo.com/lite/?q=$*\"", "ddg"],
-      // (Optional) Per-search timeout in milliseconds. Default 30000.
-      // "timeoutMs": 30000,
-      // (Optional) Extra env vars merged on top of PATH / HOME / LANG.
-      // "env": { "NO_COLOR": "1" },
-      // (Optional) Cap the result size (in characters) to keep prompts small. Defaults shown.
-      // "maxLengthPerSearch": 50000,
-      // "maxTotalLength": 200000
+      // "args": ["-c", "w3m -dump -o display_link_number=1 \"https://lite.duckduckgo.com/lite?q=$*\"", "-"]
     },
 
     "webFetch": {
@@ -148,18 +139,10 @@ Create the configuration.
 
       // Or use Vertex AI (Requires gcloud CLI to get authentication token)
 
-      // Or fetch the URL locally with an arbitrary command (the URL is appended
-      // to `args`) and answer using the agent's main model. `-o display_link_number=1`
-      // makes w3m print link URLs alongside text:
+      // Or use a custom command
       // "provider": "command",
       // "command": "w3m",
-      // "args": ["-dump", "-o", "display_link_number=1"],
-      // (Optional) Per-call timeout in milliseconds. Default 30000.
-      // "timeoutMs": 30000,
-      // (Optional) Extra env vars merged on top of PATH / HOME / LANG.
-      // "env": { "NO_COLOR": "1" },
-      // (Optional) Cap the fetched content size (in characters) to keep prompts small. Default 200000.
-      // "maxLength": 200000
+      // "args": ["-dump", "-o", "display_link_number=1"]
     }
   }
 }
