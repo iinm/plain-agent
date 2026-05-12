@@ -109,11 +109,17 @@ export function createWebFetchTool(config) {
       }),
 
     /**
-     * @param {Record<string, unknown>} _input
+     * Reduce the URL to its origin so that approving one URL on a host
+     * effectively approves any path on the same host. Pairs with the
+     * in-session matcher applying the mask to both sides.
+     *
+     * @param {Record<string, unknown>} input
      * @returns {Record<string, unknown>}
      */
-    maskApprovalInput: (_input) => {
-      return {};
+    maskApprovalInput: (input) => {
+      const webFetchInput = /** @type {Partial<WebFetchInput>} */ (input);
+      const origin = extractOrigin(webFetchInput.url);
+      return { url: origin };
     },
   };
 }
@@ -137,6 +143,28 @@ export function truncateText(content, maxLength) {
     truncated: true,
     originalLength: content.length,
   };
+}
+
+/**
+ * Return the URL's origin (`<scheme>//<host>`) when parseable, otherwise an
+ * empty string. Used so per-domain auto-approval works regardless of path.
+ *
+ * @param {unknown} url
+ * @returns {string}
+ */
+export function extractOrigin(url) {
+  if (typeof url !== "string") {
+    return "";
+  }
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "http:" && u.protocol !== "https:") {
+      return "";
+    }
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    return "";
+  }
 }
 
 /**

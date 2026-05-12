@@ -1,6 +1,10 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
-import { createWebFetchTool, truncateText } from "./webFetch.mjs";
+import {
+  createWebFetchTool,
+  extractOrigin,
+  truncateText,
+} from "./webFetch.mjs";
 
 describe("createWebFetchTool", () => {
   it("rejects input that is missing a URL", async () => {
@@ -61,6 +65,72 @@ describe("createWebFetchTool", () => {
     // then:
     assert.ok(result instanceof Error);
     assert.match(result.message, /`question` is required/);
+  });
+});
+
+describe("createWebFetchTool#maskApprovalInput", () => {
+  it("reduces the URL to its origin so any path under the same host re-uses the approval", () => {
+    // given:
+    const tool = createWebFetchTool({
+      provider: "command",
+      command: "true",
+      args: [],
+      modelCaller: async () => ({
+        message: { role: "assistant", content: [{ type: "text", text: "" }] },
+      }),
+    });
+
+    // when:
+    const masked = tool.maskApprovalInput?.({
+      url: "https://example.com/some/path?query=1#frag",
+      question: "What is this?",
+    });
+
+    // then:
+    assert.deepStrictEqual(masked, { url: "https://example.com" });
+  });
+
+  it("returns an empty origin for non-http(s) URLs", () => {
+    // given:
+    const tool = createWebFetchTool({
+      provider: "command",
+      command: "true",
+      args: [],
+      modelCaller: async () => ({
+        message: { role: "assistant", content: [{ type: "text", text: "" }] },
+      }),
+    });
+
+    // when:
+    const masked = tool.maskApprovalInput?.({
+      url: "file:///etc/passwd",
+      question: "?",
+    });
+
+    // then:
+    assert.deepStrictEqual(masked, { url: "" });
+  });
+});
+
+describe("extractOrigin", () => {
+  it("returns scheme + host for http(s) URLs", () => {
+    // given/when/then:
+    assert.equal(
+      extractOrigin("https://example.com/path"),
+      "https://example.com",
+    );
+    assert.equal(
+      extractOrigin("http://example.com:8080/x"),
+      "http://example.com:8080",
+    );
+  });
+
+  it("returns empty string for non-http(s) or malformed URLs", () => {
+    // given/when/then:
+    assert.equal(extractOrigin("file:///x"), "");
+    assert.equal(extractOrigin("not a url"), "");
+    assert.equal(extractOrigin(undefined), "");
+    assert.equal(extractOrigin(123), "");
   });
 });
 

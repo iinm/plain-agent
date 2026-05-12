@@ -116,7 +116,6 @@ Create the configuration.
 
   // (Optional) Enable web tools
   "tools": {
-    // webSearch: Searches the web with one or more keyword sets and answers a question based on the combined results.
     "webSearch": {
       "provider": "gemini",
       "apiKey": "<GEMINI_API_KEY>",
@@ -128,20 +127,20 @@ Create the configuration.
       // "model": "gemini-3-flash-preview"
 
       // Or run a local search command per search (each search's `keywords` are
-      // appended to `args`) and let the agent's main model filter the combined results:
+      // appended to `args`) and let the agent's main model filter the combined results.
+      // The example below uses w3m + DuckDuckGo (`$*` joins all keywords; `-o display_link_number=1` shows link URLs):
       // "provider": "command",
-      // "command": "my-search-cli",
-      // "args": ["-n", "5"],
-      // // (Optional) Per-search timeout in milliseconds. Default 30000.
+      // "command": "bash",
+      // "args": ["-c", "w3m -dump -o display_link_number=1 \"https://duckduckgo.com/lite/?q=$*\"", "ddg"],
+      // (Optional) Per-search timeout in milliseconds. Default 30000.
       // "timeoutMs": 30000,
-      // // (Optional) Extra env vars merged on top of PATH / HOME / LANG.
+      // (Optional) Extra env vars merged on top of PATH / HOME / LANG.
       // "env": { "NO_COLOR": "1" },
-      // // (Optional) Cap the result size (in characters) to keep prompts small. Defaults shown.
+      // (Optional) Cap the result size (in characters) to keep prompts small. Defaults shown.
       // "maxLengthPerSearch": 50000,
       // "maxTotalLength": 200000
     },
 
-    // webFetch: Fetches the contents of a single URL and answers a question based on it.
     "webFetch": {
       "provider": "gemini",
       "apiKey": "<GEMINI_API_KEY>",
@@ -150,19 +149,16 @@ Create the configuration.
       // Or use Vertex AI (Requires gcloud CLI to get authentication token)
 
       // Or fetch the URL locally with an arbitrary command (the URL is appended
-      // to `args`) and answer using the agent's main model:
+      // to `args`) and answer using the agent's main model. `-o display_link_number=1`
+      // makes w3m print link URLs alongside text:
       // "provider": "command",
       // "command": "w3m",
-      // "args": ["-dump"],
-      // // Examples:
-      // // "command": "curl",  "args": ["-fsSL", "--max-time", "30"]
-      // // "command": "lynx",  "args": ["-dump", "-nolist"]
-      // // "command": "pandoc","args": ["-f", "html", "-t", "markdown"]
-      // // (Optional) Per-call timeout in milliseconds. Default 30000.
+      // "args": ["-dump", "-o", "display_link_number=1"],
+      // (Optional) Per-call timeout in milliseconds. Default 30000.
       // "timeoutMs": 30000,
-      // // (Optional) Extra env vars merged on top of PATH / HOME / LANG.
+      // (Optional) Extra env vars merged on top of PATH / HOME / LANG.
       // "env": { "NO_COLOR": "1" },
-      // // (Optional) Cap the fetched content size (in characters) to keep prompts small. Default 200000.
+      // (Optional) Cap the fetched content size (in characters) to keep prompts small. Default 200000.
       // "maxLength": 200000
     }
   }
