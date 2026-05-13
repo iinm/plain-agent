@@ -213,9 +213,21 @@ describe("aggregateUsage", () => {
 
   it("excludes records outside the period", () => {
     const records = [
-      makeRecord({ timestamp: localIso(2026, 3, 31, 23), sessionId: "s1", totalCost: 1 }),
-      makeRecord({ timestamp: localIso(2026, 4, 1, 1), sessionId: "s2", totalCost: 2 }),
-      makeRecord({ timestamp: localIso(2026, 5, 1, 12), sessionId: "s3", totalCost: 3 }),
+      makeRecord({
+        timestamp: localIso(2026, 3, 31, 23),
+        sessionId: "s1",
+        totalCost: 1,
+      }),
+      makeRecord({
+        timestamp: localIso(2026, 4, 1, 1),
+        sessionId: "s2",
+        totalCost: 2,
+      }),
+      makeRecord({
+        timestamp: localIso(2026, 5, 1, 12),
+        sessionId: "s3",
+        totalCost: 3,
+      }),
     ];
     const report = aggregateUsage(records, {
       from: "2026-04-01",
@@ -233,7 +245,11 @@ describe("aggregateUsage", () => {
         sessionId: "s1",
         totalCost: null,
       }),
-      makeRecord({ timestamp: localIso(2026, 4, 10, 10), sessionId: "s2", totalCost: 1 }),
+      makeRecord({
+        timestamp: localIso(2026, 4, 10, 10),
+        sessionId: "s2",
+        totalCost: 1,
+      }),
     ];
     const report = aggregateUsage(records, period);
     assert.equal(report.noPricingSessionCount, 1);
