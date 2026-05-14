@@ -143,5 +143,5 @@ function inferMimeType(filePath) {
  * @returns {void}
  */
 function warn(message) {
-  console.warn(styleText("yellow", message));
+  console.error(styleText("yellow", message));
 }

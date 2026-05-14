@@ -75,7 +75,7 @@ export function createCommandHandler({
     const prompt = prompts.get(id);
 
     if (!prompt) {
-      console.log(styleText("red", `\nPrompt not found: ${id}`));
+      console.error(styleText("red", `\nPrompt not found: ${id}`));
       return "prompt";
     }
 
@@ -116,13 +116,13 @@ export function createCommandHandler({
     if (inputTrimmed.startsWith("!")) {
       const fileRange = parseFileRange(inputTrimmed.slice(1));
       if (fileRange instanceof Error) {
-        console.log(styleText("red", `\n${fileRange.message}`));
+        console.error(styleText("red", `\n${fileRange.message}`));
         return "prompt";
       }
 
       const fileContent = await readFileRange(fileRange);
       if (fileContent instanceof Error) {
-        console.log(styleText("red", `\n${fileContent.message}`));
+        console.error(styleText("red", `\n${fileContent.message}`));
         return "prompt";
       }
 
@@ -174,7 +174,7 @@ export function createCommandHandler({
     if (inputTrimmed.startsWith("/agents:")) {
       const match = inputTrimmed.match(/^\/agents:([^ ]+)(?:\s+(.*))?$/s);
       if (!match) {
-        console.log(styleText("red", "\nInvalid agent invocation format."));
+        console.error(styleText("red", "\nInvalid agent invocation format."));
         return "prompt";
       }
       return await invokeAgent(match[1], match[2] || "");
@@ -204,7 +204,7 @@ export function createCommandHandler({
       if (inputTrimmed.startsWith("/prompts:")) {
         const match = inputTrimmed.match(/^\/prompts:([^ ]+)(?:\s+(.*))?$/s);
         if (!match) {
-          console.log(styleText("red", "\nInvalid prompt invocation format."));
+          console.error(styleText("red", "\nInvalid prompt invocation format."));
           return "prompt";
         }
         return await invokePrompt(

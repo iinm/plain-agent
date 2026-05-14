@@ -69,7 +69,7 @@ export async function loadPrompts(claudeCodePlugins) {
       promptDirs.map(async ({ dir, idPrefix, only }) => {
         const files = await getMarkdownFiles(dir).catch((err) => {
           if (err.code !== "ENOENT") {
-            console.warn(`Failed to list prompts in ${dir}:`, err);
+            console.error(`Failed to list prompts in ${dir}:`, err);
           }
           return /** @type {string[]} */ ([]);
         });
@@ -95,7 +95,7 @@ export async function loadPrompts(claudeCodePlugins) {
         files.map(async ({ dir, file, idPrefix }) => {
           const fullPath = path.join(dir, file);
           const content = await fs.readFile(fullPath, "utf-8").catch((err) => {
-            console.warn(`Failed to read prompt file ${fullPath}:`, err);
+            console.error(`Failed to read prompt file ${fullPath}:`, err);
             return null;
           });
 

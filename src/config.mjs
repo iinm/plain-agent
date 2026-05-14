@@ -128,7 +128,7 @@ export async function loadConfigFile(filePath, skipTrustCheck = false) {
 
   if (!isTrusted) {
     if (!process.stdout.isTTY) {
-      console.warn(
+      console.error(
         styleText(
           "yellow",
           `WARNING: Config file found at '${filePath}' but cannot ask for approval without a TTY. Skipping.`,

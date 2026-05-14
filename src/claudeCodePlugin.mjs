@@ -32,7 +32,7 @@ export function resolvePluginPaths(repos) {
   for (const repo of repos) {
     const ownerRepo = extractOwnerRepo(repo.source);
     if (!ownerRepo) {
-      console.warn(`Invalid source URL: ${repo.source}`);
+      console.error(`Invalid source URL: ${repo.source}`);
       continue;
     }
 
@@ -43,7 +43,7 @@ export function resolvePluginPaths(repos) {
         try {
           only = new RegExp(plugin.only);
         } catch (err) {
-          console.warn(
+          console.error(
             `Invalid regex pattern "${plugin.only}" for plugin "${plugin.name}":`,
             err instanceof Error ? err.message : String(err),
           );

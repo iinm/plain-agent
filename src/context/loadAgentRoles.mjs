@@ -54,7 +54,7 @@ export async function loadAgentRoles(claudeCodePlugins) {
       agentDirs.map(async ({ dir, idPrefix, only }) => {
         const files = await getMarkdownFiles(dir).catch((err) => {
           if (err.code !== "ENOENT") {
-            console.warn(`Failed to list agent roles in ${dir}:`, err);
+            console.error(`Failed to list agent roles in ${dir}:`, err);
           }
           return /** @type {string[]} */ ([]);
         });
@@ -72,7 +72,7 @@ export async function loadAgentRoles(claudeCodePlugins) {
         files.map(async ({ dir, file, idPrefix }) => {
           const fullPath = path.join(dir, file);
           const content = await fs.readFile(fullPath, "utf-8").catch((err) => {
-            console.warn(`Failed to read agent role file ${fullPath}:`, err);
+            console.error(`Failed to read agent role file ${fullPath}:`, err);
             return null;
           });
 

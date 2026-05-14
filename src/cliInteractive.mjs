@@ -281,7 +281,7 @@ export function startInteractiveSession({
     // Agent turn: pause auto-approve; do not clear input.
     if (!state.turn) {
       agentCommands.pauseAutoApprove();
-      console.log(
+      console.error(
         styleText(
           "yellow",
           "\n\n⚠️ Ctrl-C: Auto-approve paused. Finishing current tool...\nPress Ctrl-D twice to exit.\n",
@@ -328,7 +328,7 @@ export function startInteractiveSession({
       );
       cli.prompt();
     } else {
-      console.log(styleText("yellow", "\n\n⚠️ Press Ctrl-D again to exit.\n"));
+      console.error(styleText("yellow", "\n\n⚠️ Press Ctrl-D again to exit.\n"));
     }
   };
 
@@ -418,7 +418,7 @@ export function startInteractiveSession({
 
   cli.on("line", async (lineInput) => {
     if (!state.turn) {
-      console.warn(
+      console.error(
         styleText(
           "yellow",
           `\nAgent is working. Ignore input: ${lineInput.trim()}`,
@@ -511,7 +511,7 @@ export function startInteractiveSession({
   });
 
   agentEventEmitter.on("error", (error) => {
-    console.log(
+    console.error(
       styleText(
         "red",
         `\nError: message=${error.message}, stack=${error.stack}`,
