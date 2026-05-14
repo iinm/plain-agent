@@ -2,62 +2,11 @@
 
 A lightweight, capable coding agent for the terminal.
 
-- **Multi-provider** — Use Claude, GPT, Gemini, or any OpenAI-compatible model.
-  <details>
-  <summary>Predefined models</summary>
-  
-  ```
-  # Model+Variant (Platform+Variant)
-  claude-haiku-4-5+thinking-16k (platform: anthropic+default)
-  claude-haiku-4-5+thinking-32k (platform: anthropic+default)
-  claude-sonnet-4-6+thinking-high (platform: anthropic+default)
-  claude-sonnet-4-6+thinking-max (platform: anthropic+default)
-  claude-opus-4-7+thinking-high (platform: anthropic+default)
-  claude-opus-4-7+thinking-max (platform: anthropic+default)
-  claude-haiku-4-5+thinking-16k-bedrock (platform: bedrock+default)
-  claude-haiku-4-5+thinking-32k-bedrock (platform: bedrock+default)
-  claude-sonnet-4-6+thinking-high-bedrock (platform: bedrock+default)
-  claude-sonnet-4-6+thinking-max-bedrock (platform: bedrock+default)
-  claude-opus-4-7+thinking-high-bedrock (platform: bedrock+default)
-  claude-opus-4-7+thinking-max-bedrock (platform: bedrock+default)
-  gemini-3-flash-preview+thinking-medium (platform: gemini+default)
-  gemini-3-flash-preview+thinking-high (platform: gemini+default)
-  gemini-3.1-pro-preview+thinking-medium (platform: gemini+default)
-  gemini-3.1-pro-preview+thinking-high (platform: gemini+default)
-  gemini-3-flash-preview+thinking-medium-vertex-ai (platform: vertex-ai+default)
-  gemini-3-flash-preview+thinking-high-vertex-ai (platform: vertex-ai+default)
-  gemini-3.1-pro-preview+thinking-medium-vertex-ai (platform: vertex-ai+default)
-  gemini-3.1-pro-preview+thinking-high-vertex-ai (platform: vertex-ai+default)
-  gpt-5.4-mini+thinking-medium (platform: openai+default)
-  gpt-5.4-mini+thinking-high (platform: openai+default)
-  gpt-5.4-mini+thinking-xhigh (platform: openai+default)
-  gpt-5.5+thinking-medium (platform: openai+default)
-  gpt-5.5+thinking-high (platform: openai+default)
-  gpt-5.5+thinking-xhigh (platform: openai+default)
-  gpt-5.2-chat+thinking-medium-azure (platform: azure+openai)
-  gpt-oss-120b+fireworks (platform: openai-compatible+fireworks)
-  glm-5+vertex-ai (platform: vertex-ai+default)
-  glm-5.1+fireworks (platform: openai-compatible+fireworks)
-  glm-5.1+novita (platform: openai-compatible+novita)
-  kimi-k2.6+fireworks (platform: openai-compatible+fireworks)
-  kimi-k2.6+novita (platform: openai-compatible+novita)
-  deepseek-v4-pro+novita (platform: openai-compatible+novita)
-  deepseek-v4-pro+fireworks (platform: openai-compatible+fireworks)
-  minimax-m2.7+fireworks (platform: openai-compatible+fireworks)
-  minimax-m2.7+novita (platform: openai-compatible+novita)
-  qwen3.6-plus+fireworks (platform: openai-compatible+fireworks)
-  qwen3.6-27b+novita (platform: openai-compatible+novita)
-  nova-2-lite+bedrock (platform: bedrock+default)
-  claude-haiku-4-5+thinking-16k-bedrock-converse (platform: bedrock+default)
-  ```
-  </details>
-
-
-- **Approval rules & path validation** — Auto-approve tool uses by name and arguments using regex patterns ([config.predefined.json#autoApproval](https://github.com/iinm/plain-agent/blob/main/config/config.predefined.json)); restrict file access to the working directory — git-ignored files require explicit approval ([src/toolInputValidator.mjs](https://github.com/iinm/plain-agent/blob/main/src/toolInputValidator.mjs)).
-- **Sandboxed execution** — Run agent commands in a Docker container with a read-only project root and no network; writable mode and allowlisted network destinations can be enabled as needed.
-- **Plain-text memory** — Task state is saved as Markdown files under `.plain-agent/memory/` for easy review.
-- **Extensible** — Define prompts and subagents in Markdown. Connect MCP servers.
-  Supports Claude Code plugins and `.claude/` commands, subagents, and skills.
+- **Multi-provider** — Use Claude, GPT, Gemini, or any OpenAI-compatible model via Bedrock, Vertex AI, or direct APIs.
+- **Fine-grained auto-approval** — Auto-approve tool calls by name and arguments using regex patterns.
+- **Sandboxed execution** — Run commands in a Docker container with filesystem and network isolation.
+- **Claude Code compatible** — Use Claude Code plugins, commands, subagents, and skills from `.claude/`.
+- **Zero external dependencies** — Built with Node.js standard libraries only.
 
 ## Limitations
 
@@ -388,8 +337,7 @@ Files are loaded in the following order. Settings in later files override earlie
         ├── (3) config.json        # Project-specific configuration
         ├── (4) config.local.json  # Project-specific local configuration (including secrets)
         ├── prompts/               # Project-specific prompts
-        ├── agents/                # Project-specific agent roles
-        └── sandbox/               # Sandbox runner scripts
+        └── agents/                # Project-specific agent roles
 ```
 
 ### Example
