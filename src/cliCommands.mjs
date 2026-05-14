@@ -204,7 +204,9 @@ export function createCommandHandler({
       if (inputTrimmed.startsWith("/prompts:")) {
         const match = inputTrimmed.match(/^\/prompts:([^ ]+)(?:\s+(.*))?$/s);
         if (!match) {
-          console.error(styleText("red", "\nInvalid prompt invocation format."));
+          console.error(
+            styleText("red", "\nInvalid prompt invocation format."),
+          );
           return "prompt";
         }
         return await invokePrompt(
