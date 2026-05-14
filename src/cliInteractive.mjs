@@ -17,6 +17,7 @@ import { createInterruptTransform } from "./cliInterruptTransform.mjs";
 import { createMuteTransform } from "./cliMuteTransform.mjs";
 import { createPasteHandler } from "./cliPasteTransform.mjs";
 import { appendUsageRecord, buildUsageRecord } from "./usageStore.mjs";
+import { createSequentialExecutor } from "./utils/createSequentialExecutor.mjs";
 import { notify } from "./utils/notify.mjs";
 import { parseVoiceToggleKey, startVoiceSession } from "./voiceInput.mjs";
 
@@ -473,12 +474,16 @@ export function startInteractiveSession({
     }
   });
 
+  const enqueueOutput = createSequentialExecutor();
+
   agentEventEmitter.on("message", (message) => {
-    printMessage(message).catch((err) => {
-      console.error(
-        styleText("red", `Error rendering message: ${err.message}`),
-      );
-    });
+    enqueueOutput(() =>
+      printMessage(message).catch((err) => {
+        console.error(
+          styleText("red", `Error rendering message: ${err.message}`),
+        );
+      }),
+    );
   });
 
   agentEventEmitter.on("toolUseRequest", () => {
@@ -500,7 +505,9 @@ export function startInteractiveSession({
   });
 
   agentEventEmitter.on("providerTokenUsage", (usage) => {
-    console.log(formatProviderTokenUsage(usage));
+    enqueueOutput(() => {
+      console.log(formatProviderTokenUsage(usage));
+    });
   });
 
   agentEventEmitter.on("error", (error) => {
@@ -519,8 +526,12 @@ export function startInteractiveSession({
         styleText("yellow", `\nNotification error: ${err.message}`),
       );
     }
-    // 暫定対応: token usageのconsole出力を確実にflushするため、次のevent loop tickまで遅延
-    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Wait for all output operations to complete
+    await enqueueOutput(() => {});
+
+    // Defer prompt rendering to ensure terminal output is visible
+    await new Promise((resolve) => setImmediate(resolve));
 
     state.turn = true;
     cli.prompt();
