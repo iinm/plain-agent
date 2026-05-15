@@ -465,8 +465,12 @@ export function formatMarkdownTable(lines) {
         return `| ${padded.join(" | ")} |`;
       })
       .join("\n");
-  } catch {
+  } catch (err) {
     // Fallback: return original lines joined
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(
+      styleText("yellow", `Warning: Table formatting failed: ${message}`),
+    );
     return lines.join("\n");
   }
 }
@@ -596,7 +600,11 @@ async function renderPatch(filePath, patch) {
   let blocks;
   try {
     blocks = parseBlocks(patch, nonce);
-  } catch {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(
+      styleText("yellow", `Warning: Patch parsing failed: ${message}`),
+    );
     return fallback;
   }
 

@@ -137,6 +137,27 @@ export function startInteractiveSession({
     /** @type {number} - Current table line count */
     let lineCount = 0;
     const MAX_TABLE_LINES = 200;
+    /**
+     * Check if a line starts a table.
+     * @param {string} line
+     * @returns {boolean}
+     */
+    function isTableStart(line) {
+      const trimmed = line.trimStart();
+      return trimmed.startsWith("|");
+    }
+
+    /**
+     * Check if a line continues a table.
+     * This is a heuristic: any line containing a pipe character is considered
+     * a potential table row. This may produce false positives for non-table
+     * content with pipes (e.g., "Choose A | B | C").
+     * @param {string} line
+     * @returns {boolean}
+     */
+    function isTableContinuation(line) {
+      return line.includes("|");
+    }
 
     /**
      * Feed a text chunk to the buffer.
@@ -232,8 +253,19 @@ export function startInteractiveSession({
         const rawLines = tableLines.map((l) =>
           l.endsWith("\n") ? l.slice(0, -1) : l,
         );
-        const formatted = formatMarkdownTable(rawLines);
-        process.stdout.write(`${formatted}\n`);
+        try {
+          const formatted = formatMarkdownTable(rawLines);
+          process.stdout.write(`${formatted}\n`);
+        } catch (err) {
+          // Fallback: output raw lines if formatting fails
+          const message = err instanceof Error ? err.message : String(err);
+          console.error(
+            styleText("yellow", `Warning: Table formatting failed: ${message}`),
+          );
+          for (const line of tableLines) {
+            process.stdout.write(line);
+          }
+        }
       }
 
       tableLines.length = 0;
@@ -275,25 +307,6 @@ export function startInteractiveSession({
     }
 
     return { feed, forceFlush };
-  }
-
-  /**
-   * Check if a line starts a table.
-   * @param {string} line
-   * @returns {boolean}
-   */
-  function isTableStart(line) {
-    const trimmed = line.trimStart();
-    return trimmed.startsWith("|");
-  }
-
-  /**
-   * Check if a line continues a table (contains pipe).
-   * @param {string} line
-   * @returns {boolean}
-   */
-  function isTableContinuation(line) {
-    return line.includes("|");
   }
 
   // Create the table buffer instance for this session
