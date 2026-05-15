@@ -152,6 +152,13 @@ export function startInteractiveSession({
         pendingLine = pendingLine.slice(idx + 1);
         processLine(`${line}\n`); // Add newline back for output
       }
+
+      // If not buffering a table and pendingLine has no pipe, output immediately
+      // This ensures non-table text is streamed without delay
+      if (tableLines.length === 0 && !pendingLine.includes("|")) {
+        process.stdout.write(pendingLine);
+        pendingLine = "";
+      }
     }
 
     /**
