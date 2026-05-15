@@ -10,6 +10,7 @@ import { createCommandHandler } from "./cliCommands.mjs";
 import { createCompleter, SLASH_COMMANDS } from "./cliCompleter.mjs";
 import {
   formatCostSummary,
+  formatMarkdownTable,
   formatProviderTokenUsage,
   printMessage,
 } from "./cliFormatter.mjs";
@@ -121,6 +122,175 @@ export function startInteractiveSession({
    * @type {{ session: VoiceSession, startCursor: number, transcriptLength: number } | null}
    */
   let voice = null;
+
+  /**
+   * Creates a table buffer for detecting and formatting markdown tables
+   * in streaming text output.
+   */
+  function createTableBuffer() {
+    /** @type {string} - Accumulated incomplete line */
+    let pendingLine = "";
+    /** @type {string[]} - Lines of the current table being detected */
+    const tableLines = [];
+    /** @type {boolean} - Inside a code block (```) */
+    let inCodeBlock = false;
+    /** @type {number} - Current table line count */
+    let lineCount = 0;
+    const MAX_TABLE_LINES = 200;
+
+    /**
+     * Feed a text chunk to the buffer.
+     * @param {string} chunk
+     */
+    function feed(chunk) {
+      pendingLine += chunk;
+
+      // Process complete lines (those containing newlines)
+      while (pendingLine.includes("\n")) {
+        const idx = pendingLine.indexOf("\n");
+        const line = pendingLine.slice(0, idx); // Exclude the newline
+        pendingLine = pendingLine.slice(idx + 1);
+        processLine(`${line}\n`); // Add newline back for output
+      }
+    }
+
+    /**
+     * Process a complete line.
+     * @param {string} line - Line including trailing newline
+     */
+    function processLine(line) {
+      // Code block detection
+      if (line.trimStart().startsWith("```")) {
+        inCodeBlock = !inCodeBlock;
+        flushTable(); // Code block terminates any ongoing table
+        process.stdout.write(line);
+        return;
+      }
+
+      if (inCodeBlock) {
+        process.stdout.write(line);
+        return;
+      }
+
+      // Table start: line begins with pipe
+      if (isTableStart(line)) {
+        if (tableLines.length === 0) {
+          // Start of a new table
+          tableLines.push(line);
+          lineCount = 1;
+        } else {
+          // Continuing table
+          tableLines.push(line);
+          lineCount++;
+        }
+
+        // Buffer limit check
+        if (lineCount > MAX_TABLE_LINES) {
+          flushTableAsIs();
+        }
+        return;
+      }
+
+      // Table continuation: line contains pipe (for rows without leading pipe)
+      if (tableLines.length > 0 && isTableContinuation(line)) {
+        tableLines.push(line);
+        lineCount++;
+        if (lineCount > MAX_TABLE_LINES) {
+          flushTableAsIs();
+        }
+        return;
+      }
+
+      // Table ended: format and flush buffer, then output current line
+      flushTable();
+      process.stdout.write(line);
+    }
+
+    /**
+     * Flush table buffer with formatting.
+     */
+    function flushTable() {
+      if (tableLines.length === 0) return;
+
+      // Separate trailing empty lines (preserve spacing after table)
+      /** @type {string[]} */
+      const trailingEmpty = [];
+      while (tableLines.length > 0 && tableLines.at(-1)?.trim() === "") {
+        const line = tableLines.pop();
+        if (line !== undefined) trailingEmpty.unshift(line);
+      }
+
+      if (tableLines.length > 0) {
+        // Remove trailing newlines for formatting, then add them back
+        const rawLines = tableLines.map((l) =>
+          l.endsWith("\n") ? l.slice(0, -1) : l,
+        );
+        const formatted = formatMarkdownTable(rawLines);
+        process.stdout.write(`${formatted}\n`);
+      }
+
+      tableLines.length = 0;
+      lineCount = 0;
+
+      // Output trailing empty lines
+      for (const empty of trailingEmpty) {
+        process.stdout.write(empty);
+      }
+    }
+
+    /**
+     * Flush table buffer without formatting (for oversized tables).
+     */
+    function flushTableAsIs() {
+      if (tableLines.length === 0) return;
+      for (const line of tableLines) {
+        process.stdout.write(line);
+      }
+      tableLines.length = 0;
+      lineCount = 0;
+    }
+
+    /**
+     * Force flush any pending content (call on turn end).
+     */
+    function forceFlush() {
+      // Process any remaining pending line
+      if (pendingLine.length > 0) {
+        // If we have a table buffer, add pending line to it or output directly
+        if (tableLines.length > 0) {
+          tableLines.push(`${pendingLine}\n`);
+        } else {
+          process.stdout.write(pendingLine);
+        }
+        pendingLine = "";
+      }
+      flushTable();
+    }
+
+    return { feed, forceFlush };
+  }
+
+  /**
+   * Check if a line starts a table.
+   * @param {string} line
+   * @returns {boolean}
+   */
+  function isTableStart(line) {
+    const trimmed = line.trimStart();
+    return trimmed.startsWith("|");
+  }
+
+  /**
+   * Check if a line continues a table (contains pipe).
+   * @param {string} line
+   * @returns {boolean}
+   */
+  function isTableContinuation(line) {
+    return line.includes("|");
+  }
+
+  // Create the table buffer instance for this session
+  const tableBuffer = createTableBuffer();
 
   // Parse the voice toggle key once at startup so misconfiguration fails
   // loudly instead of silently falling back.
@@ -465,6 +635,8 @@ export function startInteractiveSession({
     if (partialContent.content) {
       if (partialContent.type === "tool_use") {
         process.stdout.write(styleText("gray", partialContent.content));
+      } else if (partialContent.type === "text") {
+        tableBuffer.feed(partialContent.content);
       } else {
         process.stdout.write(partialContent.content);
       }
@@ -520,6 +692,9 @@ export function startInteractiveSession({
   });
 
   agentEventEmitter.on("turnEnd", async () => {
+    // Flush any remaining table buffer content
+    tableBuffer.forceFlush();
+
     const err = notify(notifyCmd);
     if (err) {
       console.error(
