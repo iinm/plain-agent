@@ -509,6 +509,39 @@ function charDisplayWidth(str) {
       (code >= 0xfe30 && code <= 0xfe6f) || // CJK Compatibility Forms
       (code >= 0xff00 && code <= 0xff60) || // Fullwidth Forms
       (code >= 0xffe0 && code <= 0xffe6) || // Fullwidth Signs
+      // Miscellaneous Symbols (Wide only per UAX #11)
+      (code >= 0x2614 && code <= 0x2615) ||
+      (code >= 0x2630 && code <= 0x2637) ||
+      (code >= 0x2648 && code <= 0x2653) ||
+      code === 0x267f ||
+      (code >= 0x268a && code <= 0x268f) ||
+      code === 0x2693 ||
+      code === 0x26a1 ||
+      (code >= 0x26aa && code <= 0x26ab) ||
+      (code >= 0x26bd && code <= 0x26be) ||
+      (code >= 0x26c4 && code <= 0x26c5) ||
+      code === 0x26ce ||
+      code === 0x26d4 ||
+      code === 0x26ea ||
+      (code >= 0x26f2 && code <= 0x26f3) ||
+      code === 0x26f5 ||
+      code === 0x26fa ||
+      code === 0x26fd ||
+      // Dingbats (Wide only per UAX #11)
+      code === 0x2705 ||
+      (code >= 0x270a && code <= 0x270b) ||
+      code === 0x2728 ||
+      code === 0x274c ||
+      code === 0x274e ||
+      (code >= 0x2753 && code <= 0x2755) ||
+      code === 0x2757 ||
+      (code >= 0x2795 && code <= 0x2797) ||
+      code === 0x27b0 ||
+      code === 0x27bf ||
+      // Miscellaneous Symbols and Arrows (Wide only per UAX #11)
+      (code >= 0x2b1b && code <= 0x2b1c) ||
+      code === 0x2b50 ||
+      code === 0x2b55 ||
       (code >= 0x1f300 && code <= 0x1f64f) || // Emoticons
       (code >= 0x1f900 && code <= 0x1f9ff) || // Supplemental Symbols
       (code >= 0x20000 && code <= 0x2fffd) || // CJK Unified Ext B+
