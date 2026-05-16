@@ -3,14 +3,14 @@
 A lightweight, capable coding agent for the terminal.
 
 - **Multi-provider** — Use Claude, GPT, Gemini, or any OpenAI-compatible model via Bedrock, Vertex AI, or direct APIs.
-- **Fine-grained auto-approval** — Auto-approve tool calls by name and arguments using regex patterns.
+- **Fine-grained auto-approval** — Auto-approve tool calls by name and arguments using regex patterns, with path validation on tool arguments.
 - **Sandboxed execution** — Run commands in a Docker container with filesystem and network isolation.
 - **Claude Code compatible** — Use Claude Code plugins, commands, subagents, and skills from `.claude/`.
 - **Zero external dependencies** — Built with Node.js standard libraries only.
 
 ## Limitations
 
-- **Path validation only covers tool arguments** — Path validation restricts only paths explicitly passed as tool-use arguments; it cannot control file access inside arbitrary scripts. Always use sandboxed execution when allowing arbitrary script execution.
+- **Path validation only covers tool arguments** — It blocks paths outside the working directory, directory traversal (`..`), symlinks escaping the project, and git-ignored files — but only for paths explicitly passed as tool-use arguments; it cannot control file access inside arbitrary scripts. Always use sandboxed execution when allowing arbitrary script execution.
 - **Sequential subagent execution** — Subagents run one at a time rather than
   in parallel. The trade-off is full visibility: every step is streamed to
   your terminal so you can follow exactly what each subagent is doing.
