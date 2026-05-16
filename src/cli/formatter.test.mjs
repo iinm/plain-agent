@@ -785,4 +785,145 @@ describe("formatMarkdownTable", () => {
       ].join("\n"),
     );
   });
+
+  it("wraps long cells when table exceeds maxWidth", () => {
+    // given:
+    const lines = [
+      "| Name | Description |",
+      "|------|-------------|",
+      "| foo  | abcdefghijklmnop |",
+    ];
+
+    // when:
+    const result = formatMarkdownTable(lines, 24);
+
+    // then: long cell wraps to next visual line; all lines ≤ 24 chars
+    assert.equal(
+      result,
+      [
+        "| Name  | Description  |",
+        "| ----- | ------------ |",
+        "| foo   | abcdefghijkl |",
+        "|       | mnop         |",
+      ].join("\n"),
+    );
+  });
+
+  it("wraps cells and aligns multi-line rows", () => {
+    // given:
+    const lines = [
+      "| Short | A very long cell content |",
+      "|-------|--------------------------|",
+      "| x     | abcdefghijklmnopqrstuvw |",
+    ];
+
+    // when:
+    const result = formatMarkdownTable(lines, 30);
+
+    // then: header wraps; separator regenerates to fit; data wraps
+    assert.equal(
+      result,
+      [
+        "| Short  | A very long cell  |",
+        "|        | content           |",
+        "| ------ | ----------------- |",
+        "| x      | abcdefghijklmnopq |",
+        "|        | rstuvw            |",
+      ].join("\n"),
+    );
+  });
+
+  it("preserves ANSI codes across wrapped lines", () => {
+    const prev = process.env.FORCE_COLOR;
+    process.env.FORCE_COLOR = "1";
+    try {
+      // given:
+      const styled = styleText("red", "abcdefghijklmnopqrst");
+      const lines = [`| ${styled} |`, "|--------------------|"];
+
+      // when:
+      const result = formatMarkdownTable(lines, 18);
+
+      // then: ANSI codes preserved; stripped output matches expected layout
+      assert.ok(result.includes("\x1b["), "ANSI codes should be preserved");
+      assert.equal(
+        stripAnsi(result),
+        [
+          "| abcdefghijklmn |", // keep format
+          "| opqrst         |",
+          "| -------------- |",
+        ].join("\n"),
+      );
+    } finally {
+      process.env.FORCE_COLOR = prev;
+    }
+  });
+
+  it("wraps CJK wide characters correctly", () => {
+    // given:
+    const lines = [
+      "| 名前 | 説明文は長い文字列です |",
+      "|------|------------------------|",
+      "| あ   | あいうえおかきくけこ |",
+    ];
+
+    // when:
+    const result = formatMarkdownTable(lines, 30);
+
+    // then: CJK chars counted as width 2; wraps within maxWidth
+    assert.equal(
+      result,
+      [
+        "| 名前  | 説明文は長い文字列 |",
+        "|       | です               |",
+        "| ----- | ------------------ |",
+        "| あ    | あいうえおかきくけ |",
+        "|       | こ                 |",
+      ].join("\n"),
+    );
+  });
+
+  it("handles maxWidth too small to fit (falls back to natural widths)", () => {
+    // given:
+    const lines = [
+      "| A | B | C |", // keep format
+      "|---|---|---|",
+      "| 1 | 2 | 3 |",
+    ];
+
+    // when: maxWidth=10 is too small for 3 columns (min 3 each + gutters)
+    const result = formatMarkdownTable(lines, 10);
+
+    // then: falls back to natural widths (overflow allowed, no crash)
+    assert.equal(
+      result,
+      [
+        "| A   | B   | C   |",
+        "| --- | --- | --- |",
+        "| 1   | 2   | 3   |",
+      ].join("\n"),
+    );
+  });
+
+  it("empty cell stays empty when wrapping", () => {
+    // given:
+    const lines = [
+      "| A | B |", // keep format
+      "|---|---|",
+      "| x |   |",
+    ];
+
+    // when:
+    const result = formatMarkdownTable(lines, 20);
+
+    // then: empty cell remains blank, no "undefined" leak
+    assert.equal(
+      result,
+      [
+        "| A   | B   |", // keep format
+        "| --- | --- |",
+        "| x   |     |",
+      ].join("\n"),
+    );
+  });
 });

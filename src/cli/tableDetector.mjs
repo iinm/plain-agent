@@ -8,10 +8,14 @@ import { formatMarkdownTable } from "./formatter.mjs";
  * Creates a table detector for detecting and formatting markdown tables
  * in streaming text output. This is a pure logic module with no I/O side effects.
  *
- * @param {(lines: string[]) => string} [formatTable=formatMarkdownTable] - Table formatting function (injectable for testing)
+ * @param {(lines: string[], maxWidth?: number) => string} [formatTable=formatMarkdownTable] - Table formatting function (injectable for testing)
+ * @param {number} [maxWidth] - Maximum terminal display width (defaults to process.stdout.columns - 4 or 80)
  * @returns {{ feed: (chunk: string) => DetectorResult, forceFlush: () => DetectorResult }}
  */
-export function createTableDetector(formatTable = formatMarkdownTable) {
+export function createTableDetector(
+  formatTable = formatMarkdownTable,
+  maxWidth = process.stdout.columns ? process.stdout.columns - 4 : 80,
+) {
   /** @type {string} - Accumulated incomplete line */
   let pendingLine = "";
   /** @type {string[]} - Lines of the current table being detected */
@@ -165,7 +169,7 @@ export function createTableDetector(formatTable = formatMarkdownTable) {
         l.endsWith("\n") ? l.slice(0, -1) : l,
       );
       try {
-        const formatted = formatTable(rawLines);
+        const formatted = formatTable(rawLines, maxWidth);
         output.push(`${formatted}\n`);
       } catch (err) {
         // Fallback: output raw lines if formatting fails
