@@ -8,14 +8,14 @@ import { isObjectLike, startWebSocketVoiceSession } from "./session.mjs";
  * @typedef {Object} VoiceInputOpenAIConfig
  * @property {"openai"} provider
  * @property {string} apiKey
- * @property {string} [model] - Defaults to "gpt-4o-transcribe".
+ * @property {string} [model] - Transcription model. Defaults to "gpt-realtime-whisper".
  * @property {string} [language] - ISO-639-1 code (e.g. "ja", "en"). Improves accuracy and latency when set.
  * @property {string} [baseURL]
  * @property {VoiceRecorderConfig} [recorder]
  * @property {string} [toggleKey] - "ctrl-<char>". Defaults to "ctrl-o".
  */
 
-const OPENAI_DEFAULT_MODEL = "gpt-4o-transcribe";
+const OPENAI_DEFAULT_TRANSCRIPTION_MODEL = "gpt-realtime-whisper";
 const OPENAI_DEFAULT_WS = "wss://api.openai.com/v1/realtime";
 const OPENAI_SAMPLE_RATE = 24000;
 const OPENAI_LABEL = "OpenAI Realtime";
@@ -43,31 +43,32 @@ export function startOpenAIVoiceSession({ config, callbacks }) {
       return {
         headers: {
           Authorization: `Bearer ${config.apiKey}`,
-          "OpenAI-Beta": "realtime=v1",
         },
       };
     },
     buildSetupMessage(config) {
-      const model = config.model ?? OPENAI_DEFAULT_MODEL;
+      const model = config.model ?? OPENAI_DEFAULT_TRANSCRIPTION_MODEL;
       /** @type {{ model: string, language?: string }} */
       const transcription = { model };
       if (config.language) transcription.language = config.language;
-      // The `?intent=transcription` endpoint uses the flat transcription-session
-      // schema, not the nested `session.audio.input.*` realtime schema.
       return {
-        type: "transcription_session.update",
+        type: "session.update",
         session: {
-          input_audio_format: "pcm16",
-          input_audio_transcription: transcription,
-          turn_detection: { type: "server_vad" },
+          type: "transcription",
+          audio: {
+            input: {
+              format: { type: "audio/pcm", rate: OPENAI_SAMPLE_RATE },
+              transcription,
+            },
+          },
         },
       };
     },
     isReadyMessage(message) {
       return (
         isObjectLike(message) &&
-        (message.type === "transcription_session.created" ||
-          message.type === "transcription_session.updated")
+        (message.type === "session.created" ||
+          message.type === "session.updated")
       );
     },
     extractError(message) {
