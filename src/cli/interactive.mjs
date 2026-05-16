@@ -1,26 +1,28 @@
 /**
- * @import { UserEventEmitter, AgentEventEmitter, AgentCommands } from "./agent"
- * @import { ClaudeCodePlugin } from "./claudeCodePlugin.mjs"
- * @import { VoiceInputConfig, VoiceSession } from "./voiceInput.mjs"
+ * @import { UserEventEmitter, AgentEventEmitter, AgentCommands } from "../agent"
+ * @import { ClaudeCodePlugin } from "../claudeCodePlugin.mjs"
+ * @import { VoiceInputConfig } from "../voice/input.mjs"
+ * @import { VoiceSession } from "../voice/session.mjs"
  */
 
 import readline from "node:readline";
 import { styleText } from "node:util";
-import { createCommandHandler } from "./cliCommands.mjs";
-import { createCompleter, SLASH_COMMANDS } from "./cliCompleter.mjs";
+import { appendUsageRecord, buildUsageRecord } from "../usageStore.mjs";
+import { createSequentialExecutor } from "../utils/createSequentialExecutor.mjs";
+import { notify } from "../utils/notify.mjs";
+import { startVoiceSession } from "../voice/input.mjs";
+import { parseVoiceToggleKey } from "../voice/toggleKey.mjs";
+import { createCommandHandler } from "./commands.mjs";
+import { createCompleter, SLASH_COMMANDS } from "./completer.mjs";
 import {
   formatCostSummary,
   formatProviderTokenUsage,
   printMessage,
-} from "./cliFormatter.mjs";
-import { createInterruptTransform } from "./cliInterruptTransform.mjs";
-import { createMuteTransform } from "./cliMuteTransform.mjs";
-import { createPasteHandler } from "./cliPasteTransform.mjs";
+} from "./formatter.mjs";
+import { createInterruptTransform } from "./interruptTransform.mjs";
+import { createMuteTransform } from "./muteTransform.mjs";
+import { createPasteHandler } from "./pasteTransform.mjs";
 import { createTableDetector } from "./tableDetector.mjs";
-import { appendUsageRecord, buildUsageRecord } from "./usageStore.mjs";
-import { createSequentialExecutor } from "./utils/createSequentialExecutor.mjs";
-import { notify } from "./utils/notify.mjs";
-import { parseVoiceToggleKey, startVoiceSession } from "./voiceInput.mjs";
 
 const HELP_MESSAGE = [
   "Commands:",
@@ -71,7 +73,7 @@ const HELP_MESSAGE = [
  * Persist the session's cost summary to the usage log.
  * Failures are logged but never thrown so exit is not blocked.
  *
- * @param {import("./costTracker.mjs").CostSummary} summary
+ * @param {import("../costTracker.mjs").CostSummary} summary
  * @param {{ sessionId: string, modelName: string, startTime: Date }} meta
  */
 async function persistUsage(summary, { sessionId, modelName, startTime }) {

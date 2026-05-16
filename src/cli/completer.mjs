@@ -1,11 +1,11 @@
 /**
- * @import { ClaudeCodePlugin } from "./claudeCodePlugin.mjs"
+ * @import { ClaudeCodePlugin } from "../claudeCodePlugin.mjs"
  */
 
 import { styleText } from "node:util";
-import { loadAgentRoles } from "./context/loadAgentRoles.mjs";
-import { loadPrompts } from "./context/loadPrompts.mjs";
-import { toOneLine } from "./utils/toOneLine.mjs";
+import { loadAgentRoles } from "../context/loadAgentRoles.mjs";
+import { loadPrompts } from "../context/loadPrompts.mjs";
+import { toOneLine } from "../utils/toOneLine.mjs";
 
 // Define available slash commands for tab completion
 export const SLASH_COMMANDS = [

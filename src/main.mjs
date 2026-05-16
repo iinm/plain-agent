@@ -10,15 +10,15 @@ import {
   installClaudeCodePlugins,
   resolvePluginPaths,
 } from "./claudeCodePlugin.mjs";
-import { parseCliArgs, printHelp } from "./cliArgs.mjs";
-import { startBatchSession } from "./cliBatch.mjs";
-import { runCostCommand } from "./cliCost.mjs";
-import { startInteractiveSession } from "./cliInteractive.mjs";
+import { parseCliArgs, printHelp } from "./cli/args.mjs";
+import { startBatchSession } from "./cli/batch.mjs";
+import { runCostCommand } from "./cli/cost.mjs";
+import { startInteractiveSession } from "./cli/interactive.mjs";
 import { loadAppConfig } from "./config.mjs";
 import { loadAgentRoles } from "./context/loadAgentRoles.mjs";
 import { loadPrompts } from "./context/loadPrompts.mjs";
 import { AGENT_PROJECT_METADATA_DIR, USER_NAME } from "./env.mjs";
-import { setupMCPServer } from "./mcpIntegration.mjs";
+import { setupMCPServer } from "./mcp/integration.mjs";
 import { createModelCaller } from "./modelCaller.mjs";
 import { createPrompt } from "./prompt.mjs";
 import { listSessions, loadSession } from "./sessionStore.mjs";

@@ -1,4 +1,4 @@
-import { createMCPClient } from "./mcpClient.mjs";
+import { createMCPClient } from "./client.mjs";
 
 (async () => {
   const client = await createMCPClient({

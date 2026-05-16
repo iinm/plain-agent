@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
-import { createInterruptTransform } from "./cliInterruptTransform.mjs";
+import { createInterruptTransform } from "./interruptTransform.mjs";
 
 /**
  * @param {import("node:stream").Transform} transform

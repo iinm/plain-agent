@@ -10,7 +10,7 @@ import {
   WebSearchToolGeminiOptions,
   WebSearchToolGeminiVertexAIOptions,
 } from "./tools/webSearch.mjs";
-import { VoiceInputConfig } from "./voiceInput.mjs";
+import { VoiceInputConfig } from "./voice/input.mjs";
 
 /**
  * JSON-serializable webFetch configuration.
