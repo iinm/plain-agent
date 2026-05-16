@@ -761,4 +761,28 @@ describe("formatMarkdownTable", () => {
       ].join("\n"),
     );
   });
+
+  it("aligns columns with emoji (display width 2)", () => {
+    // given: emoji like 🎉 and 🚀 have display width 2
+    const lines = [
+      "| Emoji | Desc |", // keep format
+      "|-------|------|",
+      "| 🎉 | party |",
+      "| 🚀 | rocket |",
+    ];
+
+    // when:
+    const result = formatMarkdownTable(lines);
+
+    // then: emoji cells padded to width 6 (separator "------" = 6)
+    assert.equal(
+      result,
+      [
+        "| Emoji   | Desc   |", // keep format
+        "| ------- | ------ |",
+        "| 🎉      | party  |",
+        "| 🚀      | rocket |",
+      ].join("\n"),
+    );
+  });
 });
