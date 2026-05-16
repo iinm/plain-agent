@@ -9,6 +9,7 @@
     "includes": [
       "src/**",
       "bin/**",
+      "scripts/**",
       "*.json",
       ".config/config.predefined.json"
     ],

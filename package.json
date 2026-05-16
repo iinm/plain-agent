@@ -19,6 +19,7 @@
     "config",
     "src/**/*.mjs",
     "src/**/*.d.ts",
+    "src/**/*.json",
     "!src/**/*.test.mjs",
     "!src/**/*.test.*.mjs",
     "!src/**/*.playground.mjs",
