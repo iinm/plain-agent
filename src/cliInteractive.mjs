@@ -123,192 +123,6 @@ export function startInteractiveSession({
    */
   let voice = null;
 
-  /**
-   * Creates a table buffer for detecting and formatting markdown tables
-   * in streaming text output.
-   */
-  function createTableBuffer() {
-    /** @type {string} - Accumulated incomplete line */
-    let pendingLine = "";
-    /** @type {string[]} - Lines of the current table being detected */
-    const tableLines = [];
-    /** @type {boolean} - Inside a code block (```) */
-    let inCodeBlock = false;
-    /** @type {number} - Current table line count */
-    let lineCount = 0;
-    const MAX_TABLE_LINES = 200;
-    /**
-     * Check if a line starts a table.
-     * @param {string} line
-     * @returns {boolean}
-     */
-    function isTableStart(line) {
-      const trimmed = line.trimStart();
-      return trimmed.startsWith("|");
-    }
-
-    /**
-     * Check if a line continues a table.
-     * This is a heuristic: any line containing a pipe character is considered
-     * a potential table row. This may produce false positives for non-table
-     * content with pipes (e.g., "Choose A | B | C").
-     * @param {string} line
-     * @returns {boolean}
-     */
-    function isTableContinuation(line) {
-      return line.includes("|");
-    }
-
-    /**
-     * Feed a text chunk to the buffer.
-     * @param {string} chunk
-     */
-    function feed(chunk) {
-      pendingLine += chunk;
-
-      // Process complete lines (those containing newlines)
-      while (pendingLine.includes("\n")) {
-        const idx = pendingLine.indexOf("\n");
-        const line = pendingLine.slice(0, idx); // Exclude the newline
-        pendingLine = pendingLine.slice(idx + 1);
-        processLine(`${line}\n`); // Add newline back for output
-      }
-
-      // If not buffering a table and pendingLine has no pipe, output immediately
-      // This ensures non-table text is streamed without delay
-      if (tableLines.length === 0 && !pendingLine.includes("|")) {
-        process.stdout.write(pendingLine);
-        pendingLine = "";
-      }
-    }
-
-    /**
-     * Process a complete line.
-     * @param {string} line - Line including trailing newline
-     */
-    function processLine(line) {
-      // Code block detection
-      if (line.trimStart().startsWith("```")) {
-        inCodeBlock = !inCodeBlock;
-        flushTable(); // Code block terminates any ongoing table
-        process.stdout.write(line);
-        return;
-      }
-
-      if (inCodeBlock) {
-        process.stdout.write(line);
-        return;
-      }
-
-      // Table start: line begins with pipe
-      if (isTableStart(line)) {
-        if (tableLines.length === 0) {
-          // Start of a new table
-          tableLines.push(line);
-          lineCount = 1;
-        } else {
-          // Continuing table
-          tableLines.push(line);
-          lineCount++;
-        }
-
-        // Buffer limit check
-        if (lineCount > MAX_TABLE_LINES) {
-          flushTableAsIs();
-        }
-        return;
-      }
-
-      // Table continuation: line contains pipe (for rows without leading pipe)
-      if (tableLines.length > 0 && isTableContinuation(line)) {
-        tableLines.push(line);
-        lineCount++;
-        if (lineCount > MAX_TABLE_LINES) {
-          flushTableAsIs();
-        }
-        return;
-      }
-
-      // Table ended: format and flush buffer, then output current line
-      flushTable();
-      process.stdout.write(line);
-    }
-
-    /**
-     * Flush table buffer with formatting.
-     */
-    function flushTable() {
-      if (tableLines.length === 0) return;
-
-      // Separate trailing empty lines (preserve spacing after table)
-      /** @type {string[]} */
-      const trailingEmpty = [];
-      while (tableLines.length > 0 && tableLines.at(-1)?.trim() === "") {
-        const line = tableLines.pop();
-        if (line !== undefined) trailingEmpty.unshift(line);
-      }
-
-      if (tableLines.length > 0) {
-        // Remove trailing newlines for formatting, then add them back
-        const rawLines = tableLines.map((l) =>
-          l.endsWith("\n") ? l.slice(0, -1) : l,
-        );
-        try {
-          const formatted = formatMarkdownTable(rawLines);
-          process.stdout.write(`${formatted}\n`);
-        } catch (err) {
-          // Fallback: output raw lines if formatting fails
-          const message = err instanceof Error ? err.message : String(err);
-          console.error(
-            styleText("yellow", `Warning: Table formatting failed: ${message}`),
-          );
-          for (const line of tableLines) {
-            process.stdout.write(line);
-          }
-        }
-      }
-
-      tableLines.length = 0;
-      lineCount = 0;
-
-      // Output trailing empty lines
-      for (const empty of trailingEmpty) {
-        process.stdout.write(empty);
-      }
-    }
-
-    /**
-     * Flush table buffer without formatting (for oversized tables).
-     */
-    function flushTableAsIs() {
-      if (tableLines.length === 0) return;
-      for (const line of tableLines) {
-        process.stdout.write(line);
-      }
-      tableLines.length = 0;
-      lineCount = 0;
-    }
-
-    /**
-     * Force flush any pending content (call on turn end).
-     */
-    function forceFlush() {
-      // Process any remaining pending line
-      if (pendingLine.length > 0) {
-        // If we have a table buffer, add pending line to it or output directly
-        if (tableLines.length > 0) {
-          tableLines.push(`${pendingLine}\n`);
-        } else {
-          process.stdout.write(pendingLine);
-        }
-        pendingLine = "";
-      }
-      flushTable();
-    }
-
-    return { feed, forceFlush };
-  }
-
   // Create the table buffer instance for this session
   const tableBuffer = createTableBuffer();
 
@@ -738,3 +552,190 @@ export function startInteractiveSession({
   process.on("exit", cleanup);
   process.on("SIGTERM", cleanup);
 }
+
+/**
+ * Creates a table buffer for detecting and formatting markdown tables
+ * in streaming text output.
+ */
+function createTableBuffer() {
+  /** @type {string} - Accumulated incomplete line */
+  let pendingLine = "";
+  /** @type {string[]} - Lines of the current table being detected */
+  const tableLines = [];
+  /** @type {boolean} - Inside a code block (```) */
+  let inCodeBlock = false;
+  /** @type {number} - Current table line count */
+  let lineCount = 0;
+  const MAX_TABLE_LINES = 200;
+  /**
+   * Check if a line starts a table.
+   * @param {string} line
+   * @returns {boolean}
+   */
+  function isTableStart(line) {
+    const trimmed = line.trimStart();
+    return trimmed.startsWith("|");
+  }
+
+  /**
+   * Check if a line continues a table.
+   * This is a heuristic: any line containing a pipe character is considered
+   * a potential table row. This may produce false positives for non-table
+   * content with pipes (e.g., "Choose A | B | C").
+   * @param {string} line
+   * @returns {boolean}
+   */
+  function isTableContinuation(line) {
+    return line.includes("|");
+  }
+
+  /**
+   * Feed a text chunk to the buffer.
+   * @param {string} chunk
+   */
+  function feed(chunk) {
+    pendingLine += chunk;
+
+    // Process complete lines (those containing newlines)
+    while (pendingLine.includes("\n")) {
+      const idx = pendingLine.indexOf("\n");
+      const line = pendingLine.slice(0, idx); // Exclude the newline
+      pendingLine = pendingLine.slice(idx + 1);
+      processLine(`${line}\n`); // Add newline back for output
+    }
+
+    // If not buffering a table and pendingLine has no pipe, output immediately
+    // This ensures non-table text is streamed without delay
+    if (tableLines.length === 0 && !pendingLine.includes("|")) {
+      process.stdout.write(pendingLine);
+      pendingLine = "";
+    }
+  }
+
+  /**
+   * Process a complete line.
+   * @param {string} line - Line including trailing newline
+   */
+  function processLine(line) {
+    // Code block detection
+    if (line.trimStart().startsWith("```")) {
+      inCodeBlock = !inCodeBlock;
+      flushTable(); // Code block terminates any ongoing table
+      process.stdout.write(line);
+      return;
+    }
+
+    if (inCodeBlock) {
+      process.stdout.write(line);
+      return;
+    }
+
+    // Table start: line begins with pipe
+    if (isTableStart(line)) {
+      if (tableLines.length === 0) {
+        // Start of a new table
+        tableLines.push(line);
+        lineCount = 1;
+      } else {
+        // Continuing table
+        tableLines.push(line);
+        lineCount++;
+      }
+
+      // Buffer limit check
+      if (lineCount > MAX_TABLE_LINES) {
+        flushTableAsIs();
+      }
+      return;
+    }
+
+    // Table continuation: line contains pipe (for rows without leading pipe)
+    if (tableLines.length > 0 && isTableContinuation(line)) {
+      tableLines.push(line);
+      lineCount++;
+      if (lineCount > MAX_TABLE_LINES) {
+        flushTableAsIs();
+      }
+      return;
+    }
+
+    // Table ended: format and flush buffer, then output current line
+    flushTable();
+    process.stdout.write(line);
+  }
+
+  /**
+   * Flush table buffer with formatting.
+   */
+  function flushTable() {
+    if (tableLines.length === 0) return;
+
+    // Separate trailing empty lines (preserve spacing after table)
+    /** @type {string[]} */
+    const trailingEmpty = [];
+    while (tableLines.length > 0 && tableLines.at(-1)?.trim() === "") {
+      const line = tableLines.pop();
+      if (line !== undefined) trailingEmpty.unshift(line);
+    }
+
+    if (tableLines.length > 0) {
+      // Remove trailing newlines for formatting, then add them back
+      const rawLines = tableLines.map((l) =>
+        l.endsWith("\n") ? l.slice(0, -1) : l,
+      );
+      try {
+        const formatted = formatMarkdownTable(rawLines);
+        process.stdout.write(`${formatted}\n`);
+      } catch (err) {
+        // Fallback: output raw lines if formatting fails
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(
+          styleText("yellow", `Warning: Table formatting failed: ${message}`),
+        );
+        for (const line of tableLines) {
+          process.stdout.write(line);
+        }
+      }
+    }
+
+    tableLines.length = 0;
+    lineCount = 0;
+
+    // Output trailing empty lines
+    for (const empty of trailingEmpty) {
+      process.stdout.write(empty);
+    }
+  }
+
+  /**
+   * Flush table buffer without formatting (for oversized tables).
+   */
+  function flushTableAsIs() {
+    if (tableLines.length === 0) return;
+    for (const line of tableLines) {
+      process.stdout.write(line);
+    }
+    tableLines.length = 0;
+    lineCount = 0;
+  }
+
+  /**
+   * Force flush any pending content (call on turn end).
+   */
+  function forceFlush() {
+    // Process any remaining pending line
+    if (pendingLine.length > 0) {
+      // If we have a table buffer, add pending line to it or output directly
+      if (tableLines.length > 0) {
+        tableLines.push(`${pendingLine}\n`);
+      } else {
+        process.stdout.write(pendingLine);
+      }
+      pendingLine = "";
+    }
+    flushTable();
+  }
+
+  return { feed, forceFlush };
+}
+
