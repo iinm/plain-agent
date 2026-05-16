@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import test, { describe } from "node:test";
+import { afterEach, describe, test } from "node:test";
 import { createMCPClient, MCPClient, StdioTransport } from "./mcpClient.mjs";
 
 const MOCK_SERVER_PATH = new URL(
@@ -8,6 +8,16 @@ const MOCK_SERVER_PATH = new URL(
 ).pathname;
 
 describe("createMCPClient", () => {
+  /** @type {(() => Promise<void>)[]} */
+  const cleanups = [];
+
+  afterEach(async () => {
+    for (const cleanup of [...cleanups].reverse()) {
+      await cleanup();
+    }
+    cleanups.length = 0;
+  });
+
   test("spawns and initializes a client successfully", async () => {
     // given:
     const options = {
@@ -21,7 +31,7 @@ describe("createMCPClient", () => {
     // then:
     assert.ok(client instanceof MCPClient);
 
-    await client.close();
+    cleanups.push(async () => await client.close());
   });
 
   test("rejects when command does not exist", async () => {
@@ -36,6 +46,16 @@ describe("createMCPClient", () => {
 });
 
 describe("MCPClient", () => {
+  /** @type {(() => Promise<void>)[]} */
+  const cleanups = [];
+
+  afterEach(async () => {
+    for (const cleanup of [...cleanups].reverse()) {
+      await cleanup();
+    }
+    cleanups.length = 0;
+  });
+
   test("initializes successfully", async () => {
     // given:
     const transport = new StdioTransport(process.execPath, [MOCK_SERVER_PATH]);
@@ -48,7 +68,7 @@ describe("MCPClient", () => {
     assert.equal(initResult.protocolVersion, "2025-03-26");
     assert.equal(initResult.serverInfo.name, "mock");
 
-    await client.close();
+    cleanups.push(async () => await client.close());
   });
 
   test("lists available tools", async () => {
@@ -61,11 +81,12 @@ describe("MCPClient", () => {
     const { tools } = await client.listTools();
 
     // then:
-    assert.equal(tools.length, 2);
+    assert.equal(tools.length, 3);
     assert.equal(tools[0].name, "echo");
     assert.equal(tools[1].name, "add");
+    assert.equal(tools[2].name, "slow_echo");
 
-    await client.close();
+    cleanups.push(async () => await client.close());
   });
 
   test("calls a tool and returns result", async () => {
@@ -85,7 +106,7 @@ describe("MCPClient", () => {
       { type: "text", text: "hello" },
     ]);
 
-    await client.close();
+    cleanups.push(async () => await client.close());
   });
 
   test("calls add tool and returns sum", async () => {
@@ -103,7 +124,7 @@ describe("MCPClient", () => {
     // then:
     assert.deepStrictEqual(addResult.content, [{ type: "text", text: "5" }]);
 
-    await client.close();
+    cleanups.push(async () => await client.close());
   });
 
   test("closes without error", async () => {
@@ -131,7 +152,7 @@ describe("MCPClient", () => {
     // then:
     await assert.rejects(() => promise, { message: "tool failed" });
 
-    await client.close();
+    cleanups.push(async () => await client.close());
   });
 
   test("rejects pending requests when server exits", async () => {
@@ -140,8 +161,11 @@ describe("MCPClient", () => {
     const client = new MCPClient(transport);
     await client.initialize();
 
-    // when:
-    const toolPromise = client.listTools();
+    // when: call a tool that never responds, then kill the server
+    const toolPromise = client.callTool({
+      name: "slow_echo",
+      arguments: { text: "hi" },
+    });
     transport.process.kill();
 
     // then:
@@ -177,6 +201,16 @@ describe("MCPClient", () => {
 });
 
 describe("StdioTransport", () => {
+  /** @type {(() => Promise<void>)[]} */
+  const cleanups = [];
+
+  afterEach(async () => {
+    for (const cleanup of [...cleanups].reverse()) {
+      await cleanup();
+    }
+    cleanups.length = 0;
+  });
+
   test("request times out when server does not respond", async () => {
     // given: a server that never responds
     const transport = new StdioTransport(process.execPath, [
@@ -187,6 +221,6 @@ describe("StdioTransport", () => {
     // when/then:
     await assert.rejects(() => transport.request("test", {}, 100), /timed out/);
 
-    await transport.close();
+    cleanups.push(async () => await transport.close());
   });
 });

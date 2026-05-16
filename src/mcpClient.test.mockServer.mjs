@@ -51,6 +51,14 @@ rl.on("line", (line) => {
             },
           },
         },
+        {
+          name: "slow_echo",
+          description: "Never responds — used for pending-request tests",
+          inputSchema: {
+            type: "object",
+            properties: { text: { type: "string" } },
+          },
+        },
       ],
     });
     return;
@@ -66,6 +74,8 @@ rl.on("line", (line) => {
       });
     } else if (name === "error_tool") {
       respondError(msg.id, -1, "tool failed");
+    } else if (name === "slow_echo") {
+      // Intentionally never responds — used to test pending-request rejection
     }
   }
 });
