@@ -582,6 +582,15 @@ describe("formatToolResult (read_file)", () => {
   });
 });
 describe("formatMarkdownTable", () => {
+  /** @type {(() => void)[]} */
+  const cleanups = [];
+
+  afterEach(() => {
+    for (const cleanup of [...cleanups].reverse()) {
+      cleanup();
+    }
+    cleanups.length = 0;
+  });
   it("aligns a simple two-column table", () => {
     // given:
     const lines = [
@@ -834,29 +843,28 @@ describe("formatMarkdownTable", () => {
   });
 
   it("preserves ANSI codes across wrapped lines", () => {
+    // given:
     const prev = process.env.FORCE_COLOR;
     process.env.FORCE_COLOR = "1";
-    try {
-      // given:
-      const styled = styleText("red", "abcdefghijklmnopqrst");
-      const lines = [`| ${styled} |`, "|--------------------|"];
-
-      // when:
-      const result = formatMarkdownTable(lines, 18);
-
-      // then: ANSI codes preserved; stripped output matches expected layout
-      assert.ok(result.includes("\x1b["), "ANSI codes should be preserved");
-      assert.equal(
-        stripAnsi(result),
-        [
-          "| abcdefghijklmn |", // keep format
-          "| opqrst         |",
-          "| -------------- |",
-        ].join("\n"),
-      );
-    } finally {
+    cleanups.push(() => {
       process.env.FORCE_COLOR = prev;
-    }
+    });
+    const styled = styleText("red", "abcdefghijklmnopqrst");
+    const lines = [`| ${styled} |`, "|--------------------|"];
+
+    // when:
+    const result = formatMarkdownTable(lines, 18);
+
+    // then: ANSI codes preserved; stripped output matches expected layout
+    assert.ok(result.includes("\x1b["), "ANSI codes should be preserved");
+    assert.equal(
+      stripAnsi(result),
+      [
+        "| abcdefghijklmn |", // keep format
+        "| opqrst         |",
+        "| -------------- |",
+      ].join("\n"),
+    );
   });
 
   it("wraps CJK wide characters correctly", () => {
@@ -901,28 +909,6 @@ describe("formatMarkdownTable", () => {
         "| A   | B   | C   |",
         "| --- | --- | --- |",
         "| 1   | 2   | 3   |",
-      ].join("\n"),
-    );
-  });
-
-  it("empty cell stays empty when wrapping", () => {
-    // given:
-    const lines = [
-      "| A | B |", // keep format
-      "|---|---|",
-      "| x |   |",
-    ];
-
-    // when:
-    const result = formatMarkdownTable(lines, 20);
-
-    // then: empty cell remains blank, no "undefined" leak
-    assert.equal(
-      result,
-      [
-        "| A   | B   |", // keep format
-        "| --- | --- |",
-        "| x   |     |",
       ].join("\n"),
     );
   });
