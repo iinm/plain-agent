@@ -428,6 +428,228 @@ export async function printMessage(message) {
     }
   }
 }
+/**
+ * Format markdown table lines with aligned columns.
+ * Input lines may have leading/trailing pipes.
+ * Output always has leading and trailing pipes with padded cells.
+ * @param {string[]} lines - Raw table lines (including alignment row)
+ * @returns {string} - Formatted table string with aligned columns
+ */
+export function formatMarkdownTable(lines) {
+  if (lines.length === 0) return "";
+
+  const rows = lines.map(splitTableRow);
+
+  // Calculate max display width for each column
+  const colCount = Math.max(...rows.map((r) => r.length));
+  /** @type {number[]} */
+  const colWidths = new Array(colCount).fill(0);
+  for (const row of rows) {
+    for (let i = 0; i < row.length; i++) {
+      const width = charDisplayWidth(row[i]);
+      if (width > colWidths[i]) {
+        colWidths[i] = width;
+      }
+    }
+  }
+
+  // Pad each cell and join
+  return rows
+    .map((row) => {
+      // Pad row to column count with empty cells
+      const fullRow = row.concat(new Array(colCount - row.length).fill(""));
+      const padded = fullRow.map((cell, i) => padCell(cell, colWidths[i] ?? 0));
+      return `| ${padded.join(" | ")} |`;
+    })
+    .join("\n");
+}
+
+/** @type {RegExp} - ANSI escape code pattern */
+// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape code pattern
+const ANSI_RE = /\u001b\[[0-9;]*m/g;
+
+/**
+ * Strip ANSI escape codes for display width calculation.
+ * @param {string} str
+ * @returns {string}
+ */
+function stripAnsiCodes(str) {
+  return str.replace(ANSI_RE, "");
+}
+
+/**
+ * Calculate the terminal display width of a string.
+ * CJK full-width characters and emoji count as 2 columns; ASCII as 1.
+ * ANSI escape codes are stripped before measurement.
+ * @param {string} str
+ * @returns {number}
+ */
+function charDisplayWidth(str) {
+  const plain = stripAnsiCodes(str);
+  let width = 0;
+  for (const ch of plain) {
+    const code = /** @type {number} */ (ch.codePointAt(0));
+    if (
+      (code >= 0x1100 && code <= 0x115f) || // Hangul Jamo
+      (code >= 0x2e80 && code <= 0xa4cf) || // CJK Radicals Supplement ... Yi
+      (code >= 0xac00 && code <= 0xd7a3) || // Hangul Syllables
+      (code >= 0xf900 && code <= 0xfaff) || // CJK Compatibility Ideographs
+      (code >= 0xfe10 && code <= 0xfe19) || // Vertical forms
+      (code >= 0xfe30 && code <= 0xfe6f) || // CJK Compatibility Forms
+      (code >= 0xff00 && code <= 0xff60) || // Fullwidth Forms
+      (code >= 0xffe0 && code <= 0xffe6) || // Fullwidth Signs
+      // Miscellaneous Symbols (Wide only per UAX #11)
+      (code >= 0x2614 && code <= 0x2615) ||
+      (code >= 0x2630 && code <= 0x2637) ||
+      (code >= 0x2648 && code <= 0x2653) ||
+      code === 0x267f ||
+      (code >= 0x268a && code <= 0x268f) ||
+      code === 0x2693 ||
+      code === 0x26a1 ||
+      (code >= 0x26aa && code <= 0x26ab) ||
+      (code >= 0x26bd && code <= 0x26be) ||
+      (code >= 0x26c4 && code <= 0x26c5) ||
+      code === 0x26ce ||
+      code === 0x26d4 ||
+      code === 0x26ea ||
+      (code >= 0x26f2 && code <= 0x26f3) ||
+      code === 0x26f5 ||
+      code === 0x26fa ||
+      code === 0x26fd ||
+      // Dingbats (Wide only per UAX #11)
+      code === 0x2705 ||
+      (code >= 0x270a && code <= 0x270b) ||
+      code === 0x2728 ||
+      code === 0x274c ||
+      code === 0x274e ||
+      (code >= 0x2753 && code <= 0x2755) ||
+      code === 0x2757 ||
+      (code >= 0x2795 && code <= 0x2797) ||
+      code === 0x27b0 ||
+      code === 0x27bf ||
+      // Miscellaneous Symbols and Arrows (Wide only per UAX #11)
+      (code >= 0x2b1b && code <= 0x2b1c) ||
+      code === 0x2b50 ||
+      code === 0x2b55 ||
+      // Miscellaneous Technical (Wide only per UAX #11)
+      (code >= 0x231a && code <= 0x231b) ||
+      code === 0x2329 ||
+      code === 0x232a ||
+      (code >= 0x23e9 && code <= 0x23ec) ||
+      code === 0x23f0 ||
+      code === 0x23f3 ||
+      // Emoji ranges (Wide only per UAX #11)
+      code === 0x1f004 ||
+      code === 0x1f0cf ||
+      code === 0x1f18e ||
+      (code >= 0x1f191 && code <= 0x1f19a) ||
+      (code >= 0x1f200 && code <= 0x1f202) ||
+      (code >= 0x1f210 && code <= 0x1f23b) ||
+      (code >= 0x1f240 && code <= 0x1f248) ||
+      (code >= 0x1f250 && code <= 0x1f251) ||
+      (code >= 0x1f260 && code <= 0x1f265) ||
+      (code >= 0x1f300 && code <= 0x1f320) ||
+      (code >= 0x1f32d && code <= 0x1f335) ||
+      (code >= 0x1f337 && code <= 0x1f37c) ||
+      (code >= 0x1f37e && code <= 0x1f393) ||
+      (code >= 0x1f3a0 && code <= 0x1f3ca) ||
+      (code >= 0x1f3cf && code <= 0x1f3d3) ||
+      (code >= 0x1f3e0 && code <= 0x1f3f0) ||
+      code === 0x1f3f4 ||
+      (code >= 0x1f3f8 && code <= 0x1f3fa) ||
+      (code >= 0x1f3fb && code <= 0x1f3ff) ||
+      (code >= 0x1f400 && code <= 0x1f43e) ||
+      code === 0x1f440 ||
+      (code >= 0x1f442 && code <= 0x1f4fc) ||
+      (code >= 0x1f4ff && code <= 0x1f53d) ||
+      (code >= 0x1f54b && code <= 0x1f54e) ||
+      (code >= 0x1f550 && code <= 0x1f567) ||
+      code === 0x1f57a ||
+      (code >= 0x1f595 && code <= 0x1f596) ||
+      code === 0x1f5a4 ||
+      (code >= 0x1f5fb && code <= 0x1f5ff) ||
+      (code >= 0x1f600 && code <= 0x1f64f) ||
+      (code >= 0x1f680 && code <= 0x1f6c5) ||
+      code === 0x1f6cc ||
+      (code >= 0x1f6d0 && code <= 0x1f6d2) ||
+      (code >= 0x1f6d5 && code <= 0x1f6d8) ||
+      (code >= 0x1f6dc && code <= 0x1f6df) ||
+      (code >= 0x1f6eb && code <= 0x1f6ec) ||
+      (code >= 0x1f6f4 && code <= 0x1f6fc) ||
+      (code >= 0x1f7e0 && code <= 0x1f7eb) ||
+      code === 0x1f7f0 ||
+      (code >= 0x1f90c && code <= 0x1f93a) ||
+      (code >= 0x1f93c && code <= 0x1f945) ||
+      (code >= 0x1f947 && code <= 0x1f9ff) ||
+      (code >= 0x1fa70 && code <= 0x1fa7c) ||
+      (code >= 0x1fa80 && code <= 0x1fa8a) ||
+      (code >= 0x1fa8e && code <= 0x1fac6) ||
+      code === 0x1fac8 ||
+      (code >= 0x1facd && code <= 0x1fadc) ||
+      (code >= 0x1fadf && code <= 0x1faea) ||
+      (code >= 0x1faef && code <= 0x1faf8) ||
+      (code >= 0x20000 && code <= 0x2fffd) || // CJK Unified Ext B+
+      (code >= 0x30000 && code <= 0x3fffd) // CJK Unified Ext G+
+    ) {
+      width += 2;
+    } else {
+      width += 1;
+    }
+  }
+  return width;
+}
+
+/**
+ * Split a markdown table row into cells.
+ * Removes leading/trailing pipes, splits by `|`.
+ * Respects escaped pipes (`\|`).
+ * @param {string} line
+ * @returns {string[]}
+ */
+function splitTableRow(line) {
+  const trimmed = line.trim();
+  // Remove leading and trailing pipes
+  let inner;
+  if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
+    inner = trimmed.slice(1, -1);
+  } else if (trimmed.startsWith("|")) {
+    inner = trimmed.slice(1);
+  } else if (trimmed.endsWith("|")) {
+    inner = trimmed.slice(0, -1);
+  } else {
+    inner = trimmed;
+  }
+
+  // Split by pipe, respecting escaped pipes
+  /** @type {string[]} */
+  const cells = [];
+  let current = "";
+  for (let i = 0; i < inner.length; i++) {
+    if (inner[i] === "\\" && i + 1 < inner.length && inner[i + 1] === "|") {
+      current += "|";
+      i++;
+    } else if (inner[i] === "|") {
+      cells.push(current);
+      current = "";
+    } else {
+      current += inner[i];
+    }
+  }
+  cells.push(current);
+  return cells.map((c) => c.trim());
+}
+
+/**
+ * Pad a cell string with trailing spaces to the given display width.
+ * @param {string} cell - Original cell content (may contain ANSI codes)
+ * @param {number} targetWidth - Target display width
+ * @returns {string}
+ */
+function padCell(cell, targetWidth) {
+  const currentWidth = charDisplayWidth(cell);
+  if (currentWidth >= targetWidth) return cell;
+  return cell + " ".repeat(targetWidth - currentWidth);
+}
 
 /**
  * Render a patch_file `patch` string for terminal display.
@@ -455,7 +677,11 @@ async function renderPatch(filePath, patch) {
   let blocks;
   try {
     blocks = parseBlocks(patch, nonce);
-  } catch {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(
+      styleText("yellow", `Warning: Patch parsing failed: ${message}`),
+    );
     return fallback;
   }
 

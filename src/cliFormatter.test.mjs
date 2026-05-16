@@ -5,6 +5,7 @@ import { afterEach, describe, it } from "node:test";
 import { styleText } from "node:util";
 import {
   formatArgs,
+  formatMarkdownTable,
   formatToolResult,
   formatToolUse,
 } from "./cliFormatter.mjs";
@@ -578,5 +579,210 @@ describe("formatToolResult (read_file)", () => {
     assert.ok(output.startsWith(grayPrefix));
     assert.ok(output.includes(styleText("gray", "2:b7|")));
     assert.ok(output.includes(styleText("gray", "3:c1|")));
+  });
+});
+describe("formatMarkdownTable", () => {
+  it("aligns a simple two-column table", () => {
+    // given:
+    const lines = [
+      "| Name | Value |", //
+      "|------|-------|", //
+      "| foo | bar |", //
+    ];
+
+    // when:
+    const result = formatMarkdownTable(lines);
+
+    // then:
+    assert.equal(
+      result,
+      [
+        "| Name   | Value   |",
+        "| ------ | ------- |",
+        "| foo    | bar     |",
+      ].join("\n"),
+    );
+  });
+
+  it("handles rows without leading/trailing pipes", () => {
+    // given:
+    const lines = [
+      "a | b", //
+      "---|---",
+      "x | y",
+    ];
+
+    // when:
+    const result = formatMarkdownTable(lines);
+
+    // then:
+    assert.equal(
+      result,
+      [
+        "| a   | b   |", // keep format
+        "| --- | --- |",
+        "| x   | y   |",
+      ].join("\n"),
+    );
+  });
+
+  it("aligns columns with CJK full-width characters", () => {
+    // given:
+    const lines = [
+      "| 名前 | 値 |", // keep format
+      "|------|----|",
+      "| あ | 100 |",
+    ];
+
+    // when:
+    const result = formatMarkdownTable(lines);
+
+    // then: "名前" = width 4, "値" = width 2, "------" = width 6
+    assert.equal(
+      result,
+      [
+        "| 名前   | 値   |", // keep format
+        "| ------ | ---- |",
+        "| あ     | 100  |",
+      ].join("\n"),
+    );
+  });
+
+  it("strips ANSI codes when calculating widths but preserves them in output", () => {
+    // given: a cell with ANSI-styled text, target width comes from "-------"(7)
+    const styled = styleText("red", "foo");
+    const lines = [
+      `| ${styled} | bar |`, // keep format
+      "|-------|-----|",
+    ];
+
+    // when:
+    const result = formatMarkdownTable(lines);
+
+    // then: "foo" stripAnsi width = 3, target = 7 -> 4 padding spaces
+    const ansiStripped = stripAnsi(result);
+    assert.equal(
+      ansiStripped,
+      [
+        "| foo     | bar   |", // keep format
+        "| ------- | ----- |",
+      ].join("\n"),
+    );
+  });
+
+  it("handles a single-column table", () => {
+    // given:
+    const lines = [
+      "| Item |", // keep format
+      "|------|",
+      "| a |",
+      "| bb |",
+    ];
+
+    // when:
+    const result = formatMarkdownTable(lines);
+
+    // then:
+    assert.equal(
+      result,
+      [
+        "| Item   |", // keep format
+        "| ------ |",
+        "| a      |",
+        "| bb     |",
+      ].join("\n"),
+    );
+  });
+
+  it("preserves empty cells", () => {
+    // given:
+    const lines = [
+      "| A | B | C |", // keep format
+      "|---|---|---|",
+      "| x | | z |",
+    ];
+
+    // when:
+    const result = formatMarkdownTable(lines);
+
+    // then: empty cell fills to column width with spaces
+    assert.equal(
+      result,
+      [
+        "| A   | B   | C   |",
+        "| --- | --- | --- |",
+        "| x   |     | z   |",
+      ].join("\n"),
+    );
+  });
+
+  it("respects escaped pipes inside cells", () => {
+    // given: escaped pipe \|
+    const lines = [
+      "| Col1 | Col2 |", // keep format
+      "|------|------|",
+      "| a \\| b | c |",
+    ];
+
+    // when:
+    const result = formatMarkdownTable(lines);
+
+    // then: `a | b` is one cell (escaped pipe preserved and unescaped)
+    assert.equal(
+      result,
+      [
+        "| Col1   | Col2   |",
+        "| ------ | ------ |",
+        "| a | b  | c      |",
+      ].join("\n"),
+    );
+  });
+
+  it("returns empty string for empty input", () => {
+    assert.equal(formatMarkdownTable([]), "");
+  });
+
+  it("handles tables with varying column counts (best-effort)", () => {
+    // given: row 2 has fewer columns
+    const lines = [
+      "| A | B | C |", // keep format
+      "| D | E |",
+    ];
+
+    // when:
+    const result = formatMarkdownTable(lines);
+
+    // then: pads to max column count
+    assert.equal(
+      result,
+      [
+        "| A | B | C |", // keep format
+        "| D | E |   |",
+      ].join("\n"),
+    );
+  });
+
+  it("aligns columns with emoji (display width 2)", () => {
+    // given: emoji like 🎉 and 🚀 have display width 2
+    const lines = [
+      "| Emoji | Desc |", // keep format
+      "|-------|------|",
+      "| 🎉 | party |",
+      "| 🚀 | rocket |",
+    ];
+
+    // when:
+    const result = formatMarkdownTable(lines);
+
+    // then: emoji cells padded to width 6 (separator "------" = 6)
+    assert.equal(
+      result,
+      [
+        "| Emoji   | Desc   |", // keep format
+        "| ------- | ------ |",
+        "| 🎉      | party  |",
+        "| 🚀      | rocket |",
+      ].join("\n"),
+    );
   });
 });

@@ -16,6 +16,7 @@ import {
 import { createInterruptTransform } from "./cliInterruptTransform.mjs";
 import { createMuteTransform } from "./cliMuteTransform.mjs";
 import { createPasteHandler } from "./cliPasteTransform.mjs";
+import { createTableDetector } from "./tableDetector.mjs";
 import { appendUsageRecord, buildUsageRecord } from "./usageStore.mjs";
 import { createSequentialExecutor } from "./utils/createSequentialExecutor.mjs";
 import { notify } from "./utils/notify.mjs";
@@ -121,6 +122,9 @@ export function startInteractiveSession({
    * @type {{ session: VoiceSession, startCursor: number, transcriptLength: number } | null}
    */
   let voice = null;
+
+  // Create the table buffer instance for this session
+  const tableBuffer = createTableBuffer();
 
   // Parse the voice toggle key once at startup so misconfiguration fails
   // loudly instead of silently falling back.
@@ -465,6 +469,8 @@ export function startInteractiveSession({
     if (partialContent.content) {
       if (partialContent.type === "tool_use") {
         process.stdout.write(styleText("gray", partialContent.content));
+      } else if (partialContent.type === "text") {
+        tableBuffer.feed(partialContent.content);
       } else {
         process.stdout.write(partialContent.content);
       }
@@ -520,6 +526,9 @@ export function startInteractiveSession({
   });
 
   agentEventEmitter.on("turnEnd", async () => {
+    // Flush any remaining table buffer content
+    tableBuffer.forceFlush();
+
     const err = notify(notifyCmd);
     if (err) {
       console.error(
@@ -542,4 +551,27 @@ export function startInteractiveSession({
   // Register cleanup handlers
   process.on("exit", cleanup);
   process.on("SIGTERM", cleanup);
+}
+
+/**
+ * Creates a table buffer for detecting and formatting markdown tables
+ * in streaming text output.
+ * Thin shell: delegates pure logic to createTableDetector and handles I/O.
+ */
+function createTableBuffer() {
+  const detector = createTableDetector();
+
+  function feed(/** @type {string} */ chunk) {
+    const { output, warnings } = detector.feed(chunk);
+    for (const s of output) process.stdout.write(s);
+    for (const w of warnings) console.error(styleText("yellow", w));
+  }
+
+  function forceFlush() {
+    const { output, warnings } = detector.forceFlush();
+    for (const s of output) process.stdout.write(s);
+    for (const w of warnings) console.error(styleText("yellow", w));
+  }
+
+  return { feed, forceFlush };
 }
