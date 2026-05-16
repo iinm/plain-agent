@@ -52,18 +52,6 @@ function throwingFormatter(_lines) {
 
 describe("createTableDetector", () => {
   describe("non-table text passthrough", () => {
-    it("passes plain text through immediately", () => {
-      // given:
-      const chunks = ["hello world\n"];
-
-      // when:
-      const { output, warnings } = feedAll(chunks);
-
-      // then:
-      assert.strictEqual(output, "hello world\n");
-      assert.strictEqual(warnings.length, 0);
-    });
-
     it("passes multiple lines of plain text through", () => {
       // given:
       const chunks = ["line1\nline2\nline3\n"];
@@ -103,18 +91,20 @@ describe("createTableDetector", () => {
       assert.strictEqual(w2.length, 0);
     });
 
-    it("passes non-table line with pipe through when no table is active", () => {
+    it("passes non-table line with pipe through immediately on feed", () => {
       // given:
-      const chunks = ["Choose A | B\n"];
+      const detector = createTableDetector();
 
       // when:
-      const { output, warnings } = feedAllAndFlush(chunks);
+      const { output: out1, warnings: w1 } = detector.feed("Choose A | B\n");
+      const { output: out2, warnings: w2 } = detector.forceFlush();
 
       // then:
-      // A line containing pipe but not starting with "|" should not trigger
-      // table detection when no table is currently being buffered
-      assert.strictEqual(output, "Choose A | B\n");
-      assert.strictEqual(warnings.length, 0);
+      // A line containing pipe but not starting with "|" should pass through immediately
+      assert.strictEqual(out1.join(""), "Choose A | B\n");
+      assert.strictEqual(w1.length, 0);
+      assert.strictEqual(out2.length, 0);
+      assert.strictEqual(w2.length, 0);
     });
   });
 
@@ -396,33 +386,6 @@ describe("createTableDetector", () => {
       assert.ok(allWarnings[0].includes("Warning: Table formatting failed:"));
       assert.ok(allWarnings[0].includes("format error for testing"));
     });
-
-    it("produces no warnings when formatting succeeds", () => {
-      // given:
-      const chunks = ["| A | B |\n|---|---|\n| 1 | 2 |\n"];
-
-      // when:
-      const { warnings } = feedAllAndFlush(chunks);
-
-      // then:
-      assert.strictEqual(warnings.length, 0);
-    });
-
-    it("preserves Error message in warning on format error", () => {
-      // given:
-      const detector = createTableDetector(() => {
-        throw new Error("custom error message");
-      });
-
-      // when:
-      detector.feed("| A | B |\n|---|---|\n");
-      const { warnings } = detector.forceFlush();
-
-      // then:
-      assert.strictEqual(warnings.length, 1);
-      assert.ok(warnings[0].includes("custom error message"));
-    });
-
     it("handles non-Error thrown value in warning", () => {
       // given:
       const detector = createTableDetector(() => {
@@ -512,51 +475,6 @@ describe("createTableDetector", () => {
       const allOutput = output.join("");
       assert.ok(allOutput.includes("| 1   | 2   |"));
       assert.strictEqual(warnings.length, 0);
-    });
-  });
-
-  describe("return structure", () => {
-    it("returns { output: string[], warnings: string[] } from feed", () => {
-      // given:
-      const detector = createTableDetector();
-
-      // when:
-      const result = detector.feed("hello\n");
-
-      // then:
-      assert.ok(Array.isArray(result.output));
-      assert.ok(Array.isArray(result.warnings));
-      assert.strictEqual(typeof result.output[0], "string");
-    });
-
-    it("returns { output: string[], warnings: string[] } from forceFlush", () => {
-      // given:
-      const detector = createTableDetector();
-
-      // when:
-      const result = detector.forceFlush();
-
-      // then:
-      assert.ok(Array.isArray(result.output));
-      assert.ok(Array.isArray(result.warnings));
-    });
-
-    it("has no side effects (no I/O)", () => {
-      // given:
-      const detector = createTableDetector();
-
-      // when:
-      const feedResult = detector.feed("| A | B |\n|---|---|\n| 1 | 2 |\n");
-      const flushResult = detector.forceFlush();
-
-      // then:
-      // Results are returned without I/O side effects
-      assert.ok(Array.isArray(feedResult.output));
-      assert.ok(Array.isArray(feedResult.warnings));
-      assert.ok(Array.isArray(flushResult.output));
-      assert.ok(Array.isArray(flushResult.warnings));
-      assert.ok(flushResult.output.join("").includes("| A"));
-      assert.strictEqual(flushResult.warnings.length, 0);
     });
   });
 });
