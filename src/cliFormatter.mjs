@@ -436,43 +436,32 @@ export async function printMessage(message) {
  * @returns {string} - Formatted table string with aligned columns
  */
 export function formatMarkdownTable(lines) {
-  if (!lines || lines.length === 0) return "";
+  if (lines.length === 0) return "";
 
-  try {
-    const rows = lines.map(splitTableRow);
+  const rows = lines.map(splitTableRow);
 
-    // Calculate max display width for each column
-    const colCount = Math.max(...rows.map((r) => r.length));
-    /** @type {number[]} */
-    const colWidths = new Array(colCount).fill(0);
-    for (const row of rows) {
-      for (let i = 0; i < row.length; i++) {
-        const width = charDisplayWidth(row[i]);
-        if (width > colWidths[i]) {
-          colWidths[i] = width;
-        }
+  // Calculate max display width for each column
+  const colCount = Math.max(...rows.map((r) => r.length));
+  /** @type {number[]} */
+  const colWidths = new Array(colCount).fill(0);
+  for (const row of rows) {
+    for (let i = 0; i < row.length; i++) {
+      const width = charDisplayWidth(row[i]);
+      if (width > colWidths[i]) {
+        colWidths[i] = width;
       }
     }
-
-    // Pad each cell and join
-    return rows
-      .map((row) => {
-        // Pad row to column count with empty cells
-        const fullRow = row.concat(new Array(colCount - row.length).fill(""));
-        const padded = fullRow.map((cell, i) =>
-          padCell(cell, colWidths[i] ?? 0),
-        );
-        return `| ${padded.join(" | ")} |`;
-      })
-      .join("\n");
-  } catch (err) {
-    // Fallback: return original lines joined
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(
-      styleText("yellow", `Warning: Table formatting failed: ${message}`),
-    );
-    return lines.join("\n");
   }
+
+  // Pad each cell and join
+  return rows
+    .map((row) => {
+      // Pad row to column count with empty cells
+      const fullRow = row.concat(new Array(colCount - row.length).fill(""));
+      const padded = fullRow.map((cell, i) => padCell(cell, colWidths[i] ?? 0));
+      return `| ${padded.join(" | ")} |`;
+    })
+    .join("\n");
 }
 
 /** @type {RegExp} - ANSI escape code pattern */
@@ -599,41 +588,6 @@ function charDisplayWidth(str) {
       (code >= 0x1facd && code <= 0x1fadc) ||
       (code >= 0x1fadf && code <= 0x1faea) ||
       (code >= 0x1faef && code <= 0x1faf8) ||
-      // Miscellaneous Symbols (Wide only per UAX #11)
-      (code >= 0x2614 && code <= 0x2615) ||
-      (code >= 0x2630 && code <= 0x2637) ||
-      (code >= 0x2648 && code <= 0x2653) ||
-      code === 0x267f ||
-      (code >= 0x268a && code <= 0x268f) ||
-      code === 0x2693 ||
-      code === 0x26a1 ||
-      (code >= 0x26aa && code <= 0x26ab) ||
-      (code >= 0x26bd && code <= 0x26be) ||
-      (code >= 0x26c4 && code <= 0x26c5) ||
-      code === 0x26ce ||
-      code === 0x26d4 ||
-      code === 0x26ea ||
-      (code >= 0x26f2 && code <= 0x26f3) ||
-      code === 0x26f5 ||
-      code === 0x26fa ||
-      code === 0x26fd ||
-      // Dingbats (Wide only per UAX #11)
-      code === 0x2705 ||
-      (code >= 0x270a && code <= 0x270b) ||
-      code === 0x2728 ||
-      code === 0x274c ||
-      code === 0x274e ||
-      (code >= 0x2753 && code <= 0x2755) ||
-      code === 0x2757 ||
-      (code >= 0x2795 && code <= 0x2797) ||
-      code === 0x27b0 ||
-      code === 0x27bf ||
-      // Miscellaneous Symbols and Arrows (Wide only per UAX #11)
-      (code >= 0x2b1b && code <= 0x2b1c) ||
-      code === 0x2b50 ||
-      code === 0x2b55 ||
-      (code >= 0x1f300 && code <= 0x1f64f) || // Emoticons
-      (code >= 0x1f900 && code <= 0x1f9ff) || // Supplemental Symbols
       (code >= 0x20000 && code <= 0x2fffd) || // CJK Unified Ext B+
       (code >= 0x30000 && code <= 0x3fffd) // CJK Unified Ext G+
     ) {
