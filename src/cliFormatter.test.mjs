@@ -584,7 +584,11 @@ describe("formatToolResult (read_file)", () => {
 describe("formatMarkdownTable", () => {
   it("aligns a simple two-column table", () => {
     // given:
-    const lines = ["| Name | Value |", "|------|-------|", "| foo | bar |"];
+    const lines = [
+      "| Name | Value |", //
+      "|------|-------|", //
+      "| foo | bar |", //
+    ];
 
     // when:
     const result = formatMarkdownTable(lines);
@@ -602,7 +606,11 @@ describe("formatMarkdownTable", () => {
 
   it("handles rows without leading/trailing pipes", () => {
     // given:
-    const lines = ["a | b", "---|---", "x | y"];
+    const lines = [
+      "a | b", //
+      "---|---",
+      "x | y",
+    ];
 
     // when:
     const result = formatMarkdownTable(lines);
@@ -610,13 +618,21 @@ describe("formatMarkdownTable", () => {
     // then:
     assert.equal(
       result,
-      ["| a   | b   |", "| --- | --- |", "| x   | y   |"].join("\n"),
+      [
+        "| a   | b   |", // keep format
+        "| --- | --- |",
+        "| x   | y   |",
+      ].join("\n"),
     );
   });
 
   it("aligns columns with CJK full-width characters", () => {
     // given:
-    const lines = ["| 名前 | 値 |", "|------|----|", "| あ | 100 |"];
+    const lines = [
+      "| 名前 | 値 |", // keep format
+      "|------|----|",
+      "| あ | 100 |",
+    ];
 
     // when:
     const result = formatMarkdownTable(lines);
@@ -624,16 +640,21 @@ describe("formatMarkdownTable", () => {
     // then: "名前" = width 4, "値" = width 2, "------" = width 6
     assert.equal(
       result,
-      ["| 名前   | 値   |", "| ------ | ---- |", "| あ     | 100  |"].join(
-        "\n",
-      ),
+      [
+        "| 名前   | 値   |", // keep format
+        "| ------ | ---- |",
+        "| あ     | 100  |",
+      ].join("\n"),
     );
   });
 
   it("strips ANSI codes when calculating widths but preserves them in output", () => {
     // given: a cell with ANSI-styled text, target width comes from "-------"(7)
     const styled = styleText("red", "foo");
-    const lines = [`| ${styled} | bar |`, "|-------|-----|"];
+    const lines = [
+      `| ${styled} | bar |`, // keep format
+      "|-------|-----|",
+    ];
 
     // when:
     const result = formatMarkdownTable(lines);
@@ -642,13 +663,21 @@ describe("formatMarkdownTable", () => {
     const ansiStripped = stripAnsi(result);
     assert.equal(
       ansiStripped,
-      ["| foo     | bar   |", "| ------- | ----- |"].join("\n"),
+      [
+        "| foo     | bar   |", // keep format
+        "| ------- | ----- |",
+      ].join("\n"),
     );
   });
 
   it("handles a single-column table", () => {
     // given:
-    const lines = ["| Item |", "|------|", "| a |", "| bb |"];
+    const lines = [
+      "| Item |", // keep format
+      "|------|",
+      "| a |",
+      "| bb |",
+    ];
 
     // when:
     const result = formatMarkdownTable(lines);
@@ -656,13 +685,22 @@ describe("formatMarkdownTable", () => {
     // then:
     assert.equal(
       result,
-      ["| Item   |", "| ------ |", "| a      |", "| bb     |"].join("\n"),
+      [
+        "| Item   |", // keep format
+        "| ------ |",
+        "| a      |",
+        "| bb     |",
+      ].join("\n"),
     );
   });
 
   it("preserves empty cells", () => {
     // given:
-    const lines = ["| A | B | C |", "|---|---|---|", "| x | | z |"];
+    const lines = [
+      "| A | B | C |", // keep format
+      "|---|---|---|",
+      "| x | | z |",
+    ];
 
     // when:
     const result = formatMarkdownTable(lines);
@@ -680,7 +718,11 @@ describe("formatMarkdownTable", () => {
 
   it("respects escaped pipes inside cells", () => {
     // given: escaped pipe \|
-    const lines = ["| Col1 | Col2 |", "|------|------|", "| a \\| b | c |"];
+    const lines = [
+      "| Col1 | Col2 |", // keep format
+      "|------|------|",
+      "| a \\| b | c |",
+    ];
 
     // when:
     const result = formatMarkdownTable(lines);
@@ -702,12 +744,21 @@ describe("formatMarkdownTable", () => {
 
   it("handles tables with varying column counts (best-effort)", () => {
     // given: row 2 has fewer columns
-    const lines = ["| A | B | C |", "| D | E |"];
+    const lines = [
+      "| A | B | C |", // keep format
+      "| D | E |",
+    ];
 
     // when:
     const result = formatMarkdownTable(lines);
 
     // then: pads to max column count
-    assert.equal(result, ["| A | B | C |", "| D | E |   |"].join("\n"));
+    assert.equal(
+      result,
+      [
+        "| A | B | C |", // keep format
+        "| D | E |   |",
+      ].join("\n"),
+    );
   });
 });
