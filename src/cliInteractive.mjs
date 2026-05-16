@@ -564,8 +564,6 @@ function createTableBuffer() {
   const tableLines = [];
   /** @type {boolean} - Inside a code block (```) */
   let inCodeBlock = false;
-  /** @type {number} - Current table line count */
-  let lineCount = 0;
   const MAX_TABLE_LINES = 200;
   /**
    * Check if a line starts a table.
@@ -632,18 +630,10 @@ function createTableBuffer() {
 
     // Table start: line begins with pipe
     if (isTableStart(line)) {
-      if (tableLines.length === 0) {
-        // Start of a new table
-        tableLines.push(line);
-        lineCount = 1;
-      } else {
-        // Continuing table
-        tableLines.push(line);
-        lineCount++;
-      }
+      tableLines.push(line);
 
       // Buffer limit check
-      if (lineCount > MAX_TABLE_LINES) {
+      if (tableLines.length > MAX_TABLE_LINES) {
         flushTableAsIs();
       }
       return;
@@ -652,8 +642,7 @@ function createTableBuffer() {
     // Table continuation: line contains pipe (for rows without leading pipe)
     if (tableLines.length > 0 && isTableContinuation(line)) {
       tableLines.push(line);
-      lineCount++;
-      if (lineCount > MAX_TABLE_LINES) {
+      if (tableLines.length > MAX_TABLE_LINES) {
         flushTableAsIs();
       }
       return;
@@ -699,7 +688,6 @@ function createTableBuffer() {
     }
 
     tableLines.length = 0;
-    lineCount = 0;
 
     // Output trailing empty lines
     for (const empty of trailingEmpty) {
@@ -716,7 +704,6 @@ function createTableBuffer() {
       process.stdout.write(line);
     }
     tableLines.length = 0;
-    lineCount = 0;
   }
 
   /**
@@ -738,4 +725,3 @@ function createTableBuffer() {
 
   return { feed, forceFlush };
 }
-
