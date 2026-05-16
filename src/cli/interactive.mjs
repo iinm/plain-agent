@@ -1,7 +1,8 @@
 /**
  * @import { UserEventEmitter, AgentEventEmitter, AgentCommands } from "../agent"
  * @import { ClaudeCodePlugin } from "../claudeCodePlugin.mjs"
- * @import { VoiceInputConfig, VoiceSession } from "../voice/input.mjs"
+ * @import { VoiceInputConfig } from "../voice/input.mjs"
+ * @import { VoiceSession } from "../voice/session.mjs"
  */
 
 import readline from "node:readline";
@@ -9,7 +10,8 @@ import { styleText } from "node:util";
 import { appendUsageRecord, buildUsageRecord } from "../usageStore.mjs";
 import { createSequentialExecutor } from "../utils/createSequentialExecutor.mjs";
 import { notify } from "../utils/notify.mjs";
-import { parseVoiceToggleKey, startVoiceSession } from "../voice/input.mjs";
+import { startVoiceSession } from "../voice/input.mjs";
+import { parseVoiceToggleKey } from "../voice/toggleKey.mjs";
 import { createCommandHandler } from "./commands.mjs";
 import { createCompleter, SLASH_COMMANDS } from "./completer.mjs";
 import {

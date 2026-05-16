@@ -1,7 +1,7 @@
-import { isObjectLike, startWebSocketVoiceSession } from "./inputSession.mjs";
+import { isObjectLike, startWebSocketVoiceSession } from "./session.mjs";
 
 /**
- * @import { VoiceProviderHooks, VoiceRecorderConfig, VoiceSession, VoiceSessionCallbacks } from "./inputSession.mjs"
+ * @import { VoiceProviderHooks, VoiceRecorderConfig, VoiceSession, VoiceSessionCallbacks } from "./session.mjs"
  */
 
 /**
