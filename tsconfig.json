@@ -1,5 +1,5 @@
 {
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "scripts/**/*"],
   "compilerOptions": {
     "allowJs": true,
     "checkJs": true,
