@@ -711,7 +711,7 @@ function renderPatchBlock(block, originalLines, nonce) {
     out.push(
       styleText(
         "cyan",
-        `@@@ ${nonce} ${block.start}:${block.startHash}-${block.end}:${block.endHash}`,
+        `>>> ${nonce} ${block.start}:${block.startHash}-${block.end}:${block.endHash}`,
       ),
     );
     if (originalLines) {
@@ -739,12 +739,12 @@ function renderPatchBlock(block, originalLines, nonce) {
     }
   } else {
     const afterSuffix = block.afterHash ? `:${block.afterHash}` : "";
-    out.push(styleText("cyan", `@@@ ${nonce} ${block.after}${afterSuffix}+`));
+    out.push(styleText("cyan", `>>> ${nonce} ${block.after}${afterSuffix}+`));
     for (const line of block.body) {
       out.push(styleText("green", `+ ${line}`));
     }
   }
-  out.push(styleText("cyan", `@@@ ${nonce}`));
+  out.push(styleText("cyan", `<<< ${nonce}`));
   return out.join("\n");
 }
 
@@ -758,8 +758,8 @@ function highlightPatchPlain(patch) {
   if (!patch) {
     return "";
   }
-  // Patch headers/closes look like "@@@ <nonce> ..." or "@@@ <nonce>".
-  const headerRegex = /^@@@\s+\S+(\s.*)?$/;
+  // Patch open/close markers look like ">>> <nonce> ..." or "<<< <nonce>".
+  const headerRegex = /^(>>>|<<<)\s+\S+(\s.*)?$/;
   return patch
     .split("\n")
     .map((line) => {
@@ -780,7 +780,7 @@ function highlightPatchPlain(patch) {
  * @returns {string | null}
  */
 function extractPatchNonce(patch) {
-  const match = patch.match(/^@@@\s+(\S+)/m);
+  const match = patch.match(/^>>>\s+(\S+)/m);
   return match ? match[1] : null;
 }
 

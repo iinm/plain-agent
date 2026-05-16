@@ -27,18 +27,16 @@ export function createPatchFileTool(
           },
           patch: {
             description: `
-Format:
-@@@ ${nonce} {start}:{startHash}-{end}:{endHash}
+Format — a single patch string may contain multiple blocks:
+>>> ${nonce} {start}:{startHash}-{end}:{endHash}
 new content
-@@@ ${nonce}
-
-@@@ ${nonce} {N}:{afterHash}+
+<<< ${nonce}
+>>> ${nonce} {N}:{afterHash}+
 inserted content
-@@@ ${nonce}
-
-@@@ ${nonce} 0+
+<<< ${nonce}
+>>> ${nonce} 0+
 prepended content
-@@@ ${nonce}
+<<< ${nonce}
 
 - The nonce "${nonce}" is constant; always use the exact value shown above.
 - Line numbers are 1-indexed and refer to the original file; "{start}-{end}" is inclusive.
@@ -63,7 +61,7 @@ prepended content
         const blocks = parseBlocks(patch, nonce);
         if (blocks.length === 0) {
           throw new Error(
-            `No patch blocks found. Each block must start with "@@@ ${nonce} ..." and end with "@@@ ${nonce}".`,
+            `No patch blocks found. Each block must start with ">>> ${nonce} ..." and end with "<<< ${nonce}".`,
           );
         }
 
@@ -93,8 +91,8 @@ prepended content
  * @returns {PatchBlock[]}
  */
 export function parseBlocks(patch, nonce) {
-  const openPrefix = `@@@ ${nonce} `;
-  const closeMarker = `@@@ ${nonce}`;
+  const openPrefix = `>>> ${nonce} `;
+  const closeMarker = `<<< ${nonce}`;
   const lines = patch.split("\n");
 
   /** @type {PatchBlock[]} */
@@ -124,6 +122,14 @@ export function parseBlocks(patch, nonce) {
       );
     }
     const body = lines.slice(i + 1, closeIdx);
+    const nestedOpen = body.findIndex((l) => l.startsWith(openPrefix));
+    if (nestedOpen !== -1) {
+      throw new Error(
+        `Unclosed block "${openPrefix}${headerArgs}": found another open marker "${body[nestedOpen]}" ` +
+          `at line ${i + 1 + nestedOpen + 1} of patch before the close marker. ` +
+          `Did you forget "${closeMarker}" to close the previous block?`,
+      );
+    }
     if (header.op === "insert" && body.length === 0) {
       throw new Error(
         `Insert block "${openPrefix}${headerArgs}" has empty body. Use a replace block to delete content.`,
