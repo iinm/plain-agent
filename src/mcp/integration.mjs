@@ -1,16 +1,16 @@
 /**
- * @import { StructuredToolResultContent, Tool, ToolImplementation } from "./tool";
- * @import { MCPServerConfig } from "./config";
+ * @import { StructuredToolResultContent, Tool, ToolImplementation } from "../tool";
+ * @import { MCPServerConfig } from "../config";
  */
 
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { AGENT_PROJECT_METADATA_DIR } from "./env.mjs";
-import { createMCPClient } from "./mcpClient.mjs";
-import { writeTmpFile } from "./tmpfile.mjs";
-import { noThrow } from "./utils/noThrow.mjs";
+import { AGENT_PROJECT_METADATA_DIR } from "../env.mjs";
+import { writeTmpFile } from "../tmpfile.mjs";
+import { noThrow } from "../utils/noThrow.mjs";
+import { createMCPClient } from "./client.mjs";
 
-/** @typedef {import("./mcpClient.mjs").MCPClient} MCPClient */
+/** @typedef {import("./client.mjs").MCPClient} MCPClient */
 
 const OUTPUT_MAX_LENGTH = 1024 * 8;
 

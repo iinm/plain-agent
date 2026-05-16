@@ -1,15 +1,15 @@
-/** @import { MessageContentToolResult } from "./model" */
+/** @import { MessageContentToolResult } from "../model" */
 import assert from "node:assert";
 import fs from "node:fs/promises";
 import { afterEach, describe, it } from "node:test";
 import { styleText } from "node:util";
+import { lineHash } from "../utils/lineHash.mjs";
 import {
   formatArgs,
   formatMarkdownTable,
   formatToolResult,
   formatToolUse,
-} from "./cliFormatter.mjs";
-import { lineHash } from "./utils/lineHash.mjs";
+} from "./formatter.mjs";
 
 const ESC = String.fromCharCode(27);
 const ANSI_PATTERN = new RegExp(`${ESC}\\[[0-9;]*m`, "g");

@@ -1,19 +1,19 @@
 /**
- * @import { Message, MessageContentToolUse, MessageContentToolResult, ProviderTokenUsage } from "./model"
- * @import { CompactContextInput } from "./tools/compactContext"
- * @import { ExecCommandInput } from "./tools/execCommand"
- * @import { PatchBlock, PatchFileInput } from "./tools/patchFile"
- * @import { ReadFileInput } from "./tools/readFile"
- * @import { WriteFileInput } from "./tools/writeFile"
- * @import { TmuxCommandInput } from "./tools/tmuxCommand"
- * @import { SwitchToSubagentInput } from "./tools/switchToSubagent"
+ * @import { Message, MessageContentToolUse, MessageContentToolResult, ProviderTokenUsage } from "../model"
+ * @import { CompactContextInput } from "../tools/compactContext"
+ * @import { ExecCommandInput } from "../tools/execCommand"
+ * @import { PatchBlock, PatchFileInput } from "../tools/patchFile"
+ * @import { ReadFileInput } from "../tools/readFile"
+ * @import { WriteFileInput } from "../tools/writeFile"
+ * @import { TmuxCommandInput } from "../tools/tmuxCommand"
+ * @import { SwitchToSubagentInput } from "../tools/switchToSubagent"
  */
 
 import fs from "node:fs/promises";
 import { styleText } from "node:util";
-import { parseBlocks } from "./tools/patchFile.mjs";
-import { diffLines } from "./utils/diffLines.mjs";
-import { noThrow } from "./utils/noThrow.mjs";
+import { parseBlocks } from "../tools/patchFile.mjs";
+import { diffLines } from "../utils/diffLines.mjs";
+import { noThrow } from "../utils/noThrow.mjs";
 
 /** Length above which a single-line arg forces block-form rendering. */
 const ARG_BLOCK_LENGTH_THRESHOLD = 60;
@@ -144,7 +144,7 @@ export async function formatToolUse(toolUse) {
   }
 
   if (toolName === "switch_to_main_agent") {
-    /** @type {Partial<import("./tools/switchToMainAgent").SwitchToMainAgentInput>} */
+    /** @type {Partial<import("../tools/switchToMainAgent").SwitchToMainAgentInput>} */
     const switchToMainAgentInput = input;
     return [
       `tool: ${toolName}`,
@@ -153,7 +153,7 @@ export async function formatToolUse(toolUse) {
   }
 
   if (toolName === "web_search") {
-    /** @type {Partial<import("./tools/webSearch.mjs").WebSearchInput>} */
+    /** @type {Partial<import("../tools/webSearch.mjs").WebSearchInput>} */
     const webSearchInput = input;
     const searchesLine = webSearchInput.searches
       ? webSearchInput.searches.map((s) => s.keywords.join(" ")).join(" | ")
@@ -166,7 +166,7 @@ export async function formatToolUse(toolUse) {
   }
 
   if (toolName === "web_fetch") {
-    /** @type {Partial<import("./tools/webFetch.mjs").WebFetchInput>} */
+    /** @type {Partial<import("../tools/webFetch.mjs").WebFetchInput>} */
     const webFetchInput = input;
     return [
       `tool: ${toolName}`,
@@ -296,7 +296,7 @@ export function formatProviderTokenUsage(usage) {
 
 /**
  * Format cost summary for interactive display
- * @param {import("./costTracker.mjs").CostSummary} summary
+ * @param {import("../costTracker.mjs").CostSummary} summary
  * @returns {string}
  */
 export function formatCostSummary(summary) {
@@ -334,7 +334,7 @@ export function formatCostSummary(summary) {
 
 /**
  * Format cost for batch mode JSON output
- * @param {import("./costTracker.mjs").CostSummary} summary
+ * @param {import("../costTracker.mjs").CostSummary} summary
  */
 export function formatCostForBatch(summary) {
   if (!summary || Object.keys(summary.breakdown).length === 0) {

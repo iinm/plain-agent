@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
-import { createMuteTransform } from "./cliMuteTransform.mjs";
+import { createMuteTransform } from "./muteTransform.mjs";
 
 /**
  * @param {import("node:stream").Transform} transform

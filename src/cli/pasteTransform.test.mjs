@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
-import { createPasteHandler } from "./cliPasteTransform.mjs";
+import { createPasteHandler } from "./pasteTransform.mjs";
 
 const BRACKETED_PASTE_START = "\x1b[200~";
 const BRACKETED_PASTE_END = "\x1b[201~";

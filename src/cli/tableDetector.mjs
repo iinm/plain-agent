@@ -1,4 +1,4 @@
-import { formatMarkdownTable } from "./cliFormatter.mjs";
+import { formatMarkdownTable } from "./formatter.mjs";
 
 /**
  * @typedef {{ output: string[], warnings: string[] }} DetectorResult

@@ -1,9 +1,9 @@
 import assert from "node:assert";
 import { afterEach, describe, test } from "node:test";
-import { createMCPClient, MCPClient, StdioTransport } from "./mcpClient.mjs";
+import { createMCPClient, MCPClient, StdioTransport } from "./client.mjs";
 
 const MOCK_SERVER_PATH = new URL(
-  "./mcpClient.test.mockServer.mjs",
+  "./client.test.mockServer.mjs",
   import.meta.url,
 ).pathname;
 

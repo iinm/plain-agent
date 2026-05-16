@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
-import { parseVoiceToggleKey } from "./voiceToggleKey.mjs";
+import { parseVoiceToggleKey } from "./toggleKey.mjs";
 
 describe("parseVoiceToggleKey", () => {
   it("defaults to Ctrl-O when spec is undefined", () => {

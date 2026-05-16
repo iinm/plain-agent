@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
-import { startVoiceSession } from "./voiceInput.mjs";
+import { startVoiceSession } from "./input.mjs";
 
 describe("startVoiceSession", () => {
   it("emits an error and closes when no recorder is configured or detected", async () => {

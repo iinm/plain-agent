@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
-import { parseCliArgs } from "./cliArgs.mjs";
+import { parseCliArgs } from "./args.mjs";
 
 /**
  * @param {string[]} cliArgs

@@ -4,7 +4,7 @@ import {
   createCJKSpaceNormalizer,
   detectRecorder,
   getRecorderCandidates,
-} from "./voiceInputSession.mjs";
+} from "./inputSession.mjs";
 
 describe("createCJKSpaceNormalizer", () => {
   it("drops whitespace sitting between two CJK characters", () => {

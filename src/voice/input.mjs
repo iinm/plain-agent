@@ -1,36 +1,36 @@
-import { startGeminiVoiceSession } from "./voiceInputGemini.mjs";
-import { startOpenAIVoiceSession } from "./voiceInputOpenAI.mjs";
-import { failVoiceSessionAsync } from "./voiceInputSession.mjs";
+import { startGeminiVoiceSession } from "./inputGemini.mjs";
+import { startOpenAIVoiceSession } from "./inputOpenAI.mjs";
+import { failVoiceSessionAsync } from "./inputSession.mjs";
 
 export {
   createCJKSpaceNormalizer,
   detectRecorder,
   getRecorderCandidates,
-} from "./voiceInputSession.mjs";
-export { parseVoiceToggleKey } from "./voiceToggleKey.mjs";
+} from "./inputSession.mjs";
+export { parseVoiceToggleKey } from "./toggleKey.mjs";
 
 /**
- * @typedef {import("./voiceInputSession.mjs").VoiceRecorderConfig} VoiceRecorderConfig
+ * @typedef {import("./inputSession.mjs").VoiceRecorderConfig} VoiceRecorderConfig
  */
 
 /**
- * @typedef {import("./voiceInputSession.mjs").VoiceSessionCallbacks} VoiceSessionCallbacks
+ * @typedef {import("./inputSession.mjs").VoiceSessionCallbacks} VoiceSessionCallbacks
  */
 
 /**
- * @typedef {import("./voiceInputSession.mjs").VoiceSession} VoiceSession
+ * @typedef {import("./inputSession.mjs").VoiceSession} VoiceSession
  */
 
 /**
- * @typedef {import("./voiceToggleKey.mjs").VoiceToggleKey} VoiceToggleKey
+ * @typedef {import("./toggleKey.mjs").VoiceToggleKey} VoiceToggleKey
  */
 
 /**
- * @typedef {import("./voiceInputOpenAI.mjs").VoiceInputOpenAIConfig} VoiceInputOpenAIConfig
+ * @typedef {import("./inputOpenAI.mjs").VoiceInputOpenAIConfig} VoiceInputOpenAIConfig
  */
 
 /**
- * @typedef {import("./voiceInputGemini.mjs").VoiceInputGeminiConfig} VoiceInputGeminiConfig
+ * @typedef {import("./inputGemini.mjs").VoiceInputGeminiConfig} VoiceInputGeminiConfig
  */
 
 /**
