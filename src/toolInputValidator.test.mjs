@@ -260,31 +260,42 @@ describe("isSafeToolInputItem", () => {
 
 describe("allowedPaths parameter", () => {
   it("should allow access to configured path outside working directory", () => {
+    // given
     const allowedPaths = ["/tmp/allowed-test-dir"];
-    assert.strictEqual(
-      isSafeToolInputItem("/tmp/allowed-test-dir/some-file.txt", allowedPaths),
-      true,
+    // when
+    const result = isSafeToolInputItem(
+      "/tmp/allowed-test-dir/some-file.txt",
+      allowedPaths,
     );
+    // then
+    assert.strictEqual(result, true);
   });
 
   it("should allow access to configured path itself", () => {
+    // given
     const allowedPaths = ["/tmp/allowed-test-dir"];
-    assert.strictEqual(
-      isSafeToolInputItem("/tmp/allowed-test-dir", allowedPaths),
-      true,
-    );
+    // when
+    const result = isSafeToolInputItem("/tmp/allowed-test-dir", allowedPaths);
+    // then
+    assert.strictEqual(result, true);
   });
 
   it("should not allow access to non-configured path outside working directory", () => {
+    // given
     const allowedPaths = ["/tmp/allowed-test-dir"];
-    assert.strictEqual(
-      isSafeToolInputItem("/tmp/other-dir/some-file.txt", allowedPaths),
-      false,
+    // when
+    const result = isSafeToolInputItem(
+      "/tmp/other-dir/some-file.txt",
+      allowedPaths,
     );
+    // then
+    assert.strictEqual(result, false);
   });
 
   it("should merge multiple configured paths", () => {
+    // given
     const allowedPaths = ["/tmp/dir1", "/tmp/dir2"];
+    // when / then
     assert.strictEqual(
       isSafeToolInputItem("/tmp/dir1/file.txt", allowedPaths),
       true,
@@ -300,16 +311,103 @@ describe("allowedPaths parameter", () => {
   });
 
   it("should return false for configured path when allowedPaths is empty", () => {
+    // given
     /** @type {string[]} */
     const allowedPaths = [];
-    assert.strictEqual(
-      isSafeToolInputItem("/tmp/allowed-test-dir", allowedPaths),
-      false,
-    );
+    // when
+    const result = isSafeToolInputItem("/tmp/allowed-test-dir", allowedPaths);
+    // then
+    assert.strictEqual(result, false);
   });
 
   it("should still allow built-in safe paths when allowedPaths is empty", () => {
+    // given
     const agentTmpDir = path.resolve(AGENT_PROJECT_METADATA_DIR, "tmp");
-    assert.strictEqual(isSafeToolInputItem(agentTmpDir, []), true);
+    // when
+    const result = isSafeToolInputItem(agentTmpDir, []);
+    // then
+    assert.strictEqual(result, true);
+  });
+
+  it("should block isUnsafeProjectPath even when in allowedPaths", () => {
+    // given: sandbox path is in UNSAFE_PROJECT_PATHS and also in allowedPaths
+    const sandboxPath = path.resolve(AGENT_PROJECT_METADATA_DIR, "sandbox");
+    const allowedPaths = [sandboxPath];
+    // when
+    const result = isSafeToolInputItem(`${sandboxPath}/run.sh`, allowedPaths);
+    // then: isUnsafeProjectPath takes priority over allowedPaths
+    assert.strictEqual(result, false);
+  });
+
+  it("should block isUnsafeProjectPath config.json even when in allowedPaths", () => {
+    // given
+    const configPath = path.resolve(AGENT_PROJECT_METADATA_DIR, "config.json");
+    const allowedPaths = [path.resolve(AGENT_PROJECT_METADATA_DIR)];
+    // when
+    const result = isSafeToolInputItem(configPath, allowedPaths);
+    // then
+    assert.strictEqual(result, false);
+  });
+
+  it("should block .. traversal even when target is in allowedPaths", () => {
+    // given: a path with .. that resolves to an allowed directory
+    const allowedPaths = ["/tmp/allowed-test-dir"];
+    // when
+    const result = isSafeToolInputItem(
+      "/tmp/some-dir/../allowed-test-dir/file.txt",
+      allowedPaths,
+    );
+    // then: .. traversal is blocked before allowedPaths check
+    assert.strictEqual(result, false);
+  });
+
+  it("should not allow partial prefix match (prefix attack prevention)", () => {
+    // given: allowed path is /tmp/allowed, but input starts with /tmp/allowedevil
+    const allowedPaths = ["/tmp/allowed"];
+    // when
+    const result = isSafeToolInputItem(
+      "/tmp/allowedevil/file.txt",
+      allowedPaths,
+    );
+    // then: path separator ensures exact prefix matching
+    assert.strictEqual(result, false);
+  });
+
+  it("should ignore relative paths in allowedPaths", () => {
+    // given: a relative path in allowedPaths that resolves outside the working directory
+    const allowedPaths = ["../other-project"];
+    const outsidePath = path.resolve("../other-project/file.txt");
+    // when
+    const result = isSafeToolInputItem(outsidePath, allowedPaths);
+    // then: relative paths are skipped by path.isAbsolute() check, so access is denied
+    assert.strictEqual(result, false);
+  });
+
+  it("should ignore empty strings in allowedPaths", () => {
+    // given: an empty string in allowedPaths
+    const allowedPaths = [""];
+    // when
+    const result = isSafeToolInputItem("/tmp/some-file.txt", allowedPaths);
+    // then: empty string should not allow arbitrary access
+    assert.strictEqual(result, false);
+  });
+
+  it("should propagate allowedPaths through isSafeToolInput (top-level)", () => {
+    // given: an object with a value pointing to an allowed external path
+    const allowedPaths = ["/tmp/allowed-test-dir"];
+    const input = { filePath: "/tmp/allowed-test-dir/some-file.txt" };
+    // when
+    const result = isSafeToolInput(input, allowedPaths);
+    // then: allowedPaths is propagated through recursion
+    assert.strictEqual(result, true);
+  });
+
+  it("should deny external path through isSafeToolInput when allowedPaths is empty", () => {
+    // given: an object with a value pointing to an external path, no allowedPaths
+    const input = { filePath: "/tmp/other-dir/file.txt" };
+    // when
+    const result = isSafeToolInput(input, []);
+    // then
+    assert.strictEqual(result, false);
   });
 });

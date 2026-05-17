@@ -20,7 +20,7 @@ const UNSAFE_PROJECT_PATHS = [
   path.join(AGENT_PROJECT_METADATA_DIR, "config.local.json"),
 ];
 
-/** Built-in allowed paths that are always safe */
+/** Built-in paths exempt from the working-directory restriction (agent-managed dirs) */
 const BUILTIN_ALLOWED_PATHS = [
   AGENT_MEMORY_DIR,
   AGENT_TMP_DIR,
@@ -29,7 +29,7 @@ const BUILTIN_ALLOWED_PATHS = [
 
 /**
  * @param {unknown} input
- * @param {string[]} [allowedPaths=[]] - Additional allowed paths (merged from config)
+ * @param {string[]} [allowedPaths=[]] - Additional allowed paths (outside working directory)
  * @returns {boolean}
  */
 export function isSafeToolInput(input, allowedPaths = []) {
@@ -59,7 +59,7 @@ export function isSafeToolInput(input, allowedPaths = []) {
 
 /**
  * @param {string} arg
- * @param {string[]} [allowedPaths=[]] - Additional allowed paths (merged from config)
+ * @param {string[]} [allowedPaths=[]] - Additional allowed paths (outside working directory)
  * @returns {boolean}
  */
 export function isSafeToolInputItem(arg, allowedPaths = []) {
@@ -73,10 +73,6 @@ export function isSafeToolInputItem(arg, allowedPaths = []) {
   if (!realPath) {
     return false;
   }
-
-  // Disallow paths outside the working directory first
-  // (but we'll check allowedPaths after the .. check)
-  const isOutsideWorkingDir = !isInsideWorkingDirectory(realPath, workingDir);
 
   // Disallow any input that contains ".." as a path segment (directory traversal)
   // Example:
@@ -99,7 +95,7 @@ export function isSafeToolInputItem(arg, allowedPaths = []) {
   }
 
   // Disallow paths outside the working directory (not in allowedPaths)
-  if (isOutsideWorkingDir) {
+  if (!isInsideWorkingDirectory(realPath, workingDir)) {
     return false;
   }
 
@@ -171,18 +167,31 @@ function isInsideWorkingDirectory(targetPath, workingDir) {
 
 /**
  * Check if the path is in allowed paths (built-in + configured).
- * @param {string} targetPath
- * @param {string[]} allowedPaths - Additional allowed paths from config
+ * @param {string} targetPath - Must be an absolute path.
+ * @param {string[]} allowedPaths - Additional absolute paths (outside working directory)
  * @returns {boolean}
  */
 function isInAllowedPath(targetPath, allowedPaths) {
-  const allAllowedPaths = [...BUILTIN_ALLOWED_PATHS, ...allowedPaths];
-
-  for (const allowedPath of allAllowedPaths) {
-    const allowedAbsPath = path.resolve(allowedPath);
+  // Built-in paths are developer-controlled and trusted; always check them.
+  for (const builtinPath of BUILTIN_ALLOWED_PATHS) {
+    const absPath = path.resolve(builtinPath);
     if (
-      targetPath === allowedAbsPath ||
-      targetPath.startsWith(`${allowedAbsPath}${path.sep}`)
+      targetPath === absPath ||
+      targetPath.startsWith(`${absPath}${path.sep}`)
+    ) {
+      return true;
+    }
+  }
+
+  // User-provided paths must be absolute; relative paths are silently skipped
+  // to prevent unintended access from CWD-dependent resolution.
+  for (const allowedPath of allowedPaths) {
+    if (!path.isAbsolute(allowedPath)) {
+      continue;
+    }
+    if (
+      targetPath === allowedPath ||
+      targetPath.startsWith(`${allowedPath}${path.sep}`)
     ) {
       return true;
     }

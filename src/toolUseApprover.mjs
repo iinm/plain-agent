@@ -15,7 +15,7 @@ export function createToolUseApprover({
   maxApprovals: max,
   defaultAction,
   maskApprovalInput,
-  allowedPaths,
+  allowedPaths = [],
 }) {
   const state = {
     approvalCount: 0,

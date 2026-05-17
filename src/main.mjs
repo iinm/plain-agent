@@ -363,7 +363,7 @@ if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
     maxApprovals: appConfig.autoApproval?.maxApprovals || 50,
     defaultAction: appConfig.autoApproval?.defaultAction || "ask",
     patterns: appConfig.autoApproval?.patterns || [],
-    allowedPaths: appConfig.autoApproval?.allowedPaths || [],
+    allowedPaths: appConfig.autoApproval?.allowedPaths ?? [],
     maskApprovalInput: (toolName, input) => {
       for (const tool of builtinTools) {
         if (tool.def.name === toolName && tool.maskApprovalInput) {
