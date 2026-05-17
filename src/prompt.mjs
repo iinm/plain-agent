@@ -45,6 +45,12 @@ export function createPrompt({
     .join("\n");
 
   return `
+# Communication Style
+
+- Respond in the user's language.
+- Call the user by name, not "user".
+- Use emojis sparingly to highlight key points.
+
 # Memory Files
 
 - Create/Update memory files when creating/updating a plan, completing milestones, encountering issues, or making decisions.
