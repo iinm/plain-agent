@@ -573,22 +573,6 @@ describe("patchFileTool", () => {
     assert.match(result.message, /Invalid block header arguments/);
   });
 
-  it("strips read_file format leakage (pipe character) from header", async () => {
-    // given:
-    const tmpFilePath = await writeTmp(["alpha", "bravo"]);
-
-    // when: model copies read_file output format with "|"
-    const patch = [`@@@ 012 1:${lineHash("alpha")}|  alpha`, "ALPHA"].join(
-      "\n",
-    );
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
-
-    // then:
-    assert.equal(result, `Patched file: ${tmpFilePath}`);
-    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
-    assert.equal(patchedContent, ["ALPHA", "bravo"].join("\n"));
-  });
-
   it("preserves empty lines within body", async () => {
     // given:
     const tmpFilePath = await writeTmp(["a", "b"]);
@@ -775,29 +759,9 @@ describe("parseBlocks", () => {
     assert.deepEqual(blocks[0].body, []);
     assert.deepEqual(blocks[1].body, ["new"]);
   });
-
-  it("strips read_file pipe format from header", () => {
-    // given:
-    const patch = ["@@@ xyz 5:ab|some content", "new"].join("\n");
-
-    // when:
-    const blocks = parseBlocks(patch, "xyz");
-
-    // then:
-    assert.equal(blocks.length, 1);
-    const block =
-      /** @type {import("./patchFile").PatchBlock & {op: "replace"}} */ (
-        blocks[0]
-      );
-    assert.equal(block.op, "replace");
-    assert.equal(block.start, 5);
-    assert.equal(block.end, 5);
-    assert.equal(block.startHash, "ab");
-    assert.equal(block.endHash, "ab");
-  });
-
   it("throws for patch with wrong nonce", () => {
     // given:
+
     const patch = ["@@@ abc 1:7b-3:20", "content"].join("\n");
 
     // when/then:

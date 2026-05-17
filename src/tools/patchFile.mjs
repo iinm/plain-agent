@@ -93,6 +93,11 @@ replace just that one line
 export function parseBlocks(patch, nonce) {
   const openPrefix = `@@@ ${nonce} `;
   const lines = patch.split("\n");
+  // Drop trailing empty element produced by split() when patch ends with \n.
+  if (lines.length > 0 && lines[lines.length - 1] === "") {
+    lines.pop();
+  }
+  // Find all header line indices
 
   // Find all header line indices
   /** @type {number[]} */
@@ -229,17 +234,11 @@ export function applyBlocks(original, blocks) {
  * @returns {{ op: "replace"; start: number; end: number; startHash: string; endHash: string } | { op: "insert"; after: number; afterHash: string }}
  */
 function parseHeaderArgs(headerArgs) {
-  // Strip read_file format leakage: "11:40|  ]" → "11:40".
-  // Note: this may accept a malformed header like "1:ab|garbage" as "1:ab",
-  // but subsequent hash verification against actual file content serves as
-  // a safety net — the wrong hash will be caught at apply time.
-  const pipeIdx = headerArgs.indexOf("|");
-  const cleaned = pipeIdx !== -1 ? headerArgs.slice(0, pipeIdx) : headerArgs;
-
   // Replace form: "{start}:{startHash}-{end}:{endHash}"
-  const replaceMatch = cleaned.match(
+  const replaceMatch = headerArgs.match(
     /^(\d+):([a-f0-9]{2})-(\d+):([a-f0-9]{2})\s*$/,
   );
+
   if (replaceMatch) {
     const start = Number(replaceMatch[1]);
     const end = Number(replaceMatch[3]);
@@ -263,7 +262,7 @@ function parseHeaderArgs(headerArgs) {
   }
 
   // Replace form: "{N}:{hash}" (single line replace — shorthand for N:hash-N:hash)
-  const singleReplaceMatch = cleaned.match(/^(\d+):([a-f0-9]{2})\s*$/);
+  const singleReplaceMatch = headerArgs.match(/^(\d+):([a-f0-9]{2})\s*$/);
   if (singleReplaceMatch) {
     const start = Number(singleReplaceMatch[1]);
     if (start < 1) {
@@ -281,12 +280,13 @@ function parseHeaderArgs(headerArgs) {
   }
 
   // Insert form: "0+" (no hash — there is no line 0 to verify)
-  if (/^0\+\s*$/.test(cleaned)) {
+  if (/^0\+\s*$/.test(headerArgs)) {
     return { op: "insert", after: 0, afterHash: "" };
   }
 
   // Insert form: "{N}:{afterHash}+"
-  const insertMatch = cleaned.match(/^(\d+):([a-f0-9]{2})\+\s*$/);
+  const insertMatch = headerArgs.match(/^(\d+):([a-f0-9]{2})\+\s*$/);
+
   if (insertMatch) {
     return {
       op: "insert",

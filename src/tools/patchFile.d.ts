@@ -10,7 +10,6 @@ export type PatchBlock =
       end: number;
       startHash: string;
       endHash: string;
-
       body: string[];
     }
   | {
