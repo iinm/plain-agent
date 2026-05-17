@@ -429,6 +429,21 @@ export async function printMessage(message) {
   }
 }
 /**
+ * Convert **bold** Markdown to ANSI bold terminal escape codes.
+ * Only matches when ** is preceded by whitespace or line start
+ * and followed by whitespace, line end, or punctuation — so inline
+ * code like `**bold**` is left untouched.
+ * @param {string} text
+ * @returns {string}
+ */
+export function applyInlineMarkdown(text) {
+  return text.replace(
+    /(?<=\s|^)\*\*(.+?)\*\*(?=[\s.,;:!?)〕）】」』]|$)/g,
+    (_, c) => styleText("bold", c),
+  );
+}
+
+/**
  * Format markdown table lines with aligned columns.
  * Input lines may have leading/trailing pipes.
  * Output always has leading and trailing pipes with padded cells.

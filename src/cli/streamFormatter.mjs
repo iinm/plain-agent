@@ -1,18 +1,24 @@
-import { formatMarkdownTable } from "./formatter.mjs";
+import { applyInlineMarkdown, formatMarkdownTable } from "./formatter.mjs";
 
 /**
- * @typedef {{ output: string[], warnings: string[] }} DetectorResult
+ * @typedef {{ output: string[], warnings: string[] }} StreamFormatterResult
  */
 
 /**
- * Creates a table detector for detecting and formatting markdown tables
- * in streaming text output. This is a pure logic module with no I/O side effects.
+ * Creates a stream formatter for formatting streaming text output
+ * in a terminal. Applies **bold** Markdown styling
+ * on completed lines, and detects + formats markdown tables.
+ * This is a pure logic module with no I/O side effects.
+ *
+ * All output is deferred until line completion (\n or forceFlush),
+ * so inline Markdown patterns spanning chunk boundaries are handled
+ * correctly without special boundary-detection logic.
  *
  * @param {(lines: string[], maxWidth?: number) => string} [formatTable=formatMarkdownTable] - Table formatting function (injectable for testing)
  * @param {number} [maxWidth] - Maximum terminal display width (defaults to process.stdout.columns - 4 or 80)
- * @returns {{ feed: (chunk: string) => DetectorResult, forceFlush: () => DetectorResult }}
+ * @returns {{ feed: (chunk: string) => StreamFormatterResult, forceFlush: () => StreamFormatterResult }}
  */
-export function createTableDetector(
+export function createStreamFormatter(
   formatTable = formatMarkdownTable,
   maxWidth = process.stdout.columns ? process.stdout.columns - 4 : 80,
 ) {
@@ -25,9 +31,9 @@ export function createTableDetector(
   const MAX_TABLE_LINES = 200;
 
   /**
-   * Feed a text chunk to the detector.
+   * Feed a text chunk to the formatter.
    * @param {string} chunk
-   * @returns {DetectorResult}
+   * @returns {StreamFormatterResult}
    */
   function feed(chunk) {
     if (chunk.length === 0) return { output: [], warnings: [] };
@@ -48,19 +54,12 @@ export function createTableDetector(
       warnings.push(...result.warnings);
     }
 
-    // If not buffering a table and pendingLine has no pipe, output immediately
-    // This ensures non-table text is streamed without delay
-    if (tableLines.length === 0 && !pendingLine.includes("|")) {
-      output.push(pendingLine);
-      pendingLine = "";
-    }
-
     return { output, warnings };
   }
 
   /**
    * Force flush any pending content (call on turn end).
-   * @returns {DetectorResult}
+   * @returns {StreamFormatterResult}
    */
   function forceFlush() {
     /** @type {string[]} */
@@ -68,14 +67,11 @@ export function createTableDetector(
     /** @type {string[]} */
     const warnings = [];
 
-    // Process any remaining pending line
+    // Process any remaining pending line as a completed line
     if (pendingLine.length > 0) {
-      // If we have a table buffer, add pending line to it or output directly
-      if (tableLines.length > 0) {
-        tableLines.push(`${pendingLine}\n`);
-      } else {
-        output.push(pendingLine);
-      }
+      const result = processLine(pendingLine);
+      output.push(...result.output);
+      warnings.push(...result.warnings);
       pendingLine = "";
     }
     const flushResult = flushTable();
@@ -87,29 +83,32 @@ export function createTableDetector(
 
   /**
    * Process a complete line.
-   * @param {string} line - Line including trailing newline
-   * @returns {DetectorResult}
+   * @param {string} rawLine - Line (may or may not include trailing newline)
+   * @returns {StreamFormatterResult}
    */
-  function processLine(line) {
+  function processLine(rawLine) {
     /** @type {string[]} */
     const output = [];
     /** @type {string[]} */
     const warnings = [];
 
-    // Code block detection
-    if (line.trimStart().startsWith("```")) {
+    // Code block detection (before Markdown conversion — code blocks stay raw)
+    if (rawLine.trimStart().startsWith("```")) {
       inCodeBlock = !inCodeBlock;
       const flushResult = flushTable(); // Code block terminates any ongoing table
       output.push(...flushResult.output);
       warnings.push(...flushResult.warnings);
-      output.push(line);
+      output.push(rawLine);
       return { output, warnings };
     }
 
     if (inCodeBlock) {
-      output.push(line);
+      output.push(rawLine);
       return { output, warnings };
     }
+
+    // Apply inline Markdown styling on completed lines
+    const line = applyInlineMarkdown(rawLine);
 
     // Table start: line begins with pipe
     if (isTableStart(line)) {
@@ -145,7 +144,7 @@ export function createTableDetector(
 
   /**
    * Flush table buffer with formatting.
-   * @returns {DetectorResult}
+   * @returns {StreamFormatterResult}
    */
   function flushTable() {
     if (tableLines.length === 0) return { output: [], warnings: [] };
@@ -193,7 +192,7 @@ export function createTableDetector(
 
   /**
    * Flush table buffer without formatting (for oversized tables).
-   * @returns {DetectorResult}
+   * @returns {StreamFormatterResult}
    */
   function flushTableAsIs() {
     if (tableLines.length === 0) return { output: [], warnings: [] };

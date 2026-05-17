@@ -1,6 +1,17 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
-import { createTableDetector } from "./tableDetector.mjs";
+import { styleText } from "node:util";
+import { createStreamFormatter } from "./streamFormatter.mjs";
+
+/**
+ * Helper: strip ANSI escape codes for assertion comparison.
+ * @param {string} str
+ * @returns {string}
+ */
+function stripAnsi(str) {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape code pattern
+  return str.replace(/\u001b\[[0-9;]*m/g, "");
+}
 
 /**
  * Helper: feed multiple chunks and collect all output/warnings.
@@ -9,11 +20,11 @@ import { createTableDetector } from "./tableDetector.mjs";
  * @returns {{ output: string, warnings: string[] }}
  */
 function feedAll(chunks, formatTable) {
-  const detector = createTableDetector(formatTable);
+  const formatter = createStreamFormatter(formatTable);
   const allOutput = [];
   const allWarnings = [];
   for (const chunk of chunks) {
-    const { output, warnings } = detector.feed(chunk);
+    const { output, warnings } = formatter.feed(chunk);
     allOutput.push(...output);
     allWarnings.push(...warnings);
   }
@@ -27,15 +38,15 @@ function feedAll(chunks, formatTable) {
  * @returns {{ output: string, warnings: string[] }}
  */
 function feedAllAndFlush(chunks, formatTable) {
-  const detector = createTableDetector(formatTable);
+  const formatter = createStreamFormatter(formatTable);
   const allOutput = [];
   const allWarnings = [];
   for (const chunk of chunks) {
-    const { output, warnings } = detector.feed(chunk);
+    const { output, warnings } = formatter.feed(chunk);
     allOutput.push(...output);
     allWarnings.push(...warnings);
   }
-  const { output, warnings } = detector.forceFlush();
+  const { output, warnings } = formatter.forceFlush();
   allOutput.push(...output);
   allWarnings.push(...warnings);
   return { output: allOutput.join(""), warnings: allWarnings };
@@ -50,7 +61,7 @@ function throwingFormatter(_lines) {
   throw new Error("format error for testing");
 }
 
-describe("createTableDetector", () => {
+describe("createStreamFormatter", () => {
   describe("non-table text passthrough", () => {
     it("passes multiple lines of plain text through", () => {
       // given:
@@ -64,7 +75,7 @@ describe("createTableDetector", () => {
       assert.strictEqual(warnings.length, 0);
     });
 
-    it("passes text without newlines on forceFlush", () => {
+    it("outputs text without newlines on forceFlush", () => {
       // given:
       const chunks = ["hello"];
 
@@ -76,31 +87,32 @@ describe("createTableDetector", () => {
       assert.strictEqual(warnings.length, 0);
     });
 
-    it("holds pending text with pipe until forceFlush", () => {
+    it("holds incomplete line until newline or forceFlush", () => {
       // given:
-      const detector = createTableDetector();
+      const formatter = createStreamFormatter();
 
       // when:
-      const { output: out1, warnings: w1 } = detector.feed("text with | pipe");
-      const { output: out2, warnings: w2 } = detector.forceFlush();
+      const { output: out1, warnings: w1 } = formatter.feed("text with | pipe");
+      const { output: out2, warnings: w2 } = formatter.forceFlush();
 
       // then:
+      // No newline → held in pendingLine
       assert.strictEqual(out1.join(""), "");
       assert.strictEqual(w1.length, 0);
       assert.ok(out2.join("").includes("text with | pipe"));
       assert.strictEqual(w2.length, 0);
     });
 
-    it("passes non-table line with pipe through immediately on feed", () => {
+    it("passes non-table line with pipe through on newline", () => {
       // given:
-      const detector = createTableDetector();
+      const formatter = createStreamFormatter();
 
       // when:
-      const { output: out1, warnings: w1 } = detector.feed("Choose A | B\n");
-      const { output: out2, warnings: w2 } = detector.forceFlush();
+      const { output: out1, warnings: w1 } = formatter.feed("Choose A | B\n");
+      const { output: out2, warnings: w2 } = formatter.forceFlush();
 
       // then:
-      // A line containing pipe but not starting with "|" should pass through immediately
+      // A line containing pipe but not starting with "|" should pass through
       assert.strictEqual(out1.join(""), "Choose A | B\n");
       assert.strictEqual(w1.length, 0);
       assert.strictEqual(out2.length, 0);
@@ -209,7 +221,7 @@ describe("createTableDetector", () => {
       assert.strictEqual(warnings.length, 0);
     });
 
-    it("outputs non-table text immediately even between table chunks", () => {
+    it("outputs completed lines immediately even between table chunks", () => {
       // given:
       const chunks = ["hello\n| A | B |\n"];
 
@@ -222,13 +234,13 @@ describe("createTableDetector", () => {
       assert.strictEqual(warnings.length, 0);
     });
 
-    it("holds pending non-table text with pipe until resolved", () => {
+    it("holds pending non-table text with pipe until newline resolves it", () => {
       // given:
-      const detector = createTableDetector();
+      const formatter = createStreamFormatter();
 
       // when:
-      const { output: out1, warnings: w1 } = detector.feed("maybe | pipe");
-      const { output: out2, warnings: w2 } = detector.feed("\n");
+      const { output: out1, warnings: w1 } = formatter.feed("maybe | pipe");
+      const { output: out2, warnings: w2 } = formatter.feed("\n");
 
       // then:
       // Held because it contains pipe
@@ -242,13 +254,13 @@ describe("createTableDetector", () => {
 
     it("accumulates table across multiple feed calls", () => {
       // given:
-      const detector = createTableDetector();
+      const formatter = createStreamFormatter();
 
       // when:
-      detector.feed("| A | B |\n");
-      detector.feed("|---|---|\n");
-      detector.feed("| 1 | 2 |\n");
-      const { output, warnings } = detector.forceFlush();
+      formatter.feed("| A | B |\n");
+      formatter.feed("|---|---|\n");
+      formatter.feed("| 1 | 2 |\n");
+      const { output, warnings } = formatter.forceFlush();
 
       // then:
       // Table state persists across feed calls; formatted on forceFlush
@@ -318,6 +330,20 @@ describe("createTableDetector", () => {
       assert.ok(!output.includes("| A   | B   |"));
       assert.strictEqual(warnings.length, 0);
     });
+
+    it("does not apply inline Markdown styling inside code blocks", () => {
+      // given:
+      const chunks = ["```\n**bold** text\n```\n"];
+
+      // when:
+      const { output, warnings } = feedAllAndFlush(chunks);
+
+      // then:
+      // **bold** inside code block should stay raw (no ANSI codes)
+      assert.ok(output.includes("**bold**"));
+      assert.ok(!output.includes("\x1b["));
+      assert.strictEqual(warnings.length, 0);
+    });
   });
 
   describe("MAX_TABLE_LINES overflow", () => {
@@ -363,14 +389,14 @@ describe("createTableDetector", () => {
   describe("formatTable error handling", () => {
     it("falls back to raw output and produces warning on format error", () => {
       // given:
-      const detector = createTableDetector(throwingFormatter);
+      const formatter = createStreamFormatter(throwingFormatter);
 
       // when:
-      const { output: feedOutput, warnings: feedWarnings } = detector.feed(
+      const { output: feedOutput, warnings: feedWarnings } = formatter.feed(
         "| A | B |\n|---|---|\n| 1 | 2 |\n",
       );
       const { output: flushOutput, warnings: flushWarnings } =
-        detector.forceFlush();
+        formatter.forceFlush();
 
       // then:
       const allOutput = [...feedOutput, ...flushOutput].join("");
@@ -386,15 +412,16 @@ describe("createTableDetector", () => {
       assert.ok(allWarnings[0].includes("Warning: Table formatting failed:"));
       assert.ok(allWarnings[0].includes("format error for testing"));
     });
+
     it("handles non-Error thrown value in warning", () => {
       // given:
-      const detector = createTableDetector(() => {
+      const formatter = createStreamFormatter(() => {
         throw "string error"; // eslint-disable-line no-throw-literal
       });
 
       // when:
-      detector.feed("| A | B |\n|---|---|\n");
-      const { warnings } = detector.forceFlush();
+      formatter.feed("| A | B |\n|---|---|\n");
+      const { warnings } = formatter.forceFlush();
 
       // then:
       assert.strictEqual(warnings.length, 1);
@@ -403,10 +430,12 @@ describe("createTableDetector", () => {
 
     it("produces warning when code block flushes table and formatter throws", () => {
       // given:
-      const detector = createTableDetector(throwingFormatter);
+      const formatter = createStreamFormatter(throwingFormatter);
 
       // when:
-      const { output, warnings } = detector.feed("| A | B |\n|---|---|\n```\n");
+      const { output, warnings } = formatter.feed(
+        "| A | B |\n|---|---|\n```\n",
+      );
 
       // then:
       // Code block entry flushes the table; formatter throws → raw output + warning
@@ -420,13 +449,135 @@ describe("createTableDetector", () => {
     });
   });
 
+  describe("inline Markdown styling", () => {
+    it("converts **bold** to ANSI bold on completed lines", () => {
+      // given:
+      const chunks = ["This is **bold** text\n"];
+
+      // when:
+      const { output, warnings } = feedAllAndFlush(chunks);
+
+      // then:
+      assert.strictEqual(output, `This is ${styleText("bold", "bold")} text\n`);
+      assert.strictEqual(warnings.length, 0);
+    });
+
+    it("applies inline Markdown in table cells before column-width calculation", () => {
+      // given: **Name** is 8 literal chars but bold "Name" is 4 display chars
+      // Column width is determined by separator "----------" (10 chars)
+      const chunks = [
+        "| **Name** | Value |\n|----------|-------|\n| **foo**  | bar   |\n",
+      ];
+
+      // when:
+      const { output, warnings } = feedAllAndFlush(chunks);
+
+      // then:
+      // ** markers are removed from display text; "Name" padded to width 10
+      assert.strictEqual(
+        stripAnsi(output),
+        [
+          "| Name       | Value   |",
+          "| ---------- | ------- |",
+          "| foo        | bar     |",
+          "",
+        ].join("\n"),
+      );
+      // bold ANSI codes wrap the cell content
+      assert.strictEqual(
+        output,
+        [
+          `| ${styleText("bold", "Name")}       | Value   |`,
+          "| ---------- | ------- |",
+          `| ${styleText("bold", "foo")}        | bar     |`,
+          "",
+        ].join("\n"),
+      );
+      assert.strictEqual(warnings.length, 0);
+    });
+
+    it("converts **bold** on forceFlush for incomplete pending line", () => {
+      // given:
+      const formatter = createStreamFormatter();
+
+      // when:
+      formatter.feed("This is **bold**");
+      const { output, warnings } = formatter.forceFlush();
+
+      // then:
+      // pendingLine is processed via processLine on forceFlush
+      assert.strictEqual(
+        output.join(""),
+        `This is ${styleText("bold", "bold")}`,
+      );
+      assert.strictEqual(warnings.length, 0);
+    });
+
+    it("converts **bold** when split across chunks on the same line", () => {
+      // given: **bold** split across two chunks; both accumulate in pendingLine
+      const formatter = createStreamFormatter();
+
+      // when:
+      const { output: out1 } = formatter.feed("This is **bol");
+      const { output: out2 } = formatter.feed("d** text\n");
+      const { output: out3, warnings } = formatter.forceFlush();
+
+      // then:
+      // \n completes the line → processLine sees "This is **bold** text" and converts it
+      const allOutput = [...out1, ...out2, ...out3].join("");
+      assert.strictEqual(
+        allOutput,
+        `This is ${styleText("bold", "bold")} text\n`,
+      );
+      assert.strictEqual(warnings.length, 0);
+    });
+
+    it("converts **bold** followed by punctuation", () => {
+      // given:
+      const chunks = ["This is **bold**.\n"];
+
+      // when:
+      const { output, warnings } = feedAllAndFlush(chunks);
+
+      // then:
+      assert.strictEqual(output, `This is ${styleText("bold", "bold")}.\n`);
+      assert.strictEqual(warnings.length, 0);
+    });
+
+    it("does not convert **bold** inside inline code", () => {
+      // given: `**bold**` is inline code — ** is adjacent to backtick, not space
+      const chunks = ["Use `**bold**` for emphasis\n"];
+
+      // when:
+      const { output, warnings } = feedAllAndFlush(chunks);
+
+      // then:
+      // ** adjacent to backtick → no match, left as-is
+      assert.strictEqual(output, "Use `**bold**` for emphasis\n");
+      assert.strictEqual(warnings.length, 0);
+    });
+
+    it("does not convert **bold** without surrounding whitespace", () => {
+      // given: word**bold**word has no whitespace around **
+      const chunks = ["word**bold**word\n"];
+
+      // when:
+      const { output, warnings } = feedAllAndFlush(chunks);
+
+      // then:
+      // No whitespace before/after ** → no match
+      assert.strictEqual(output, "word**bold**word\n");
+      assert.strictEqual(warnings.length, 0);
+    });
+  });
+
   describe("edge cases", () => {
     it("returns empty output and warnings for feed with empty string", () => {
       // given:
-      const detector = createTableDetector();
+      const formatter = createStreamFormatter();
 
       // when:
-      const { output, warnings } = detector.feed("");
+      const { output, warnings } = formatter.feed("");
 
       // then:
       // Empty chunk is a no-op
@@ -436,10 +587,10 @@ describe("createTableDetector", () => {
 
     it("returns empty output and warnings for forceFlush with no pending content", () => {
       // given:
-      const detector = createTableDetector();
+      const formatter = createStreamFormatter();
 
       // when:
-      const { output, warnings } = detector.forceFlush();
+      const { output, warnings } = formatter.forceFlush();
 
       // then:
       assert.strictEqual(output.length, 0);
@@ -448,12 +599,12 @@ describe("createTableDetector", () => {
 
     it("returns empty on second consecutive forceFlush", () => {
       // given:
-      const detector = createTableDetector();
-      detector.feed("| A | B |\n|---|---|\n| 1 | 2 |\n");
+      const formatter = createStreamFormatter();
+      formatter.feed("| A | B |\n|---|---|\n| 1 | 2 |\n");
 
       // when:
-      detector.forceFlush(); // first flush
-      const { output, warnings } = detector.forceFlush(); // second flush
+      formatter.forceFlush(); // first flush
+      const { output, warnings } = formatter.forceFlush(); // second flush
 
       // then:
       assert.strictEqual(output.length, 0);
@@ -462,13 +613,13 @@ describe("createTableDetector", () => {
 
     it("adds incomplete table line to buffer on forceFlush and formats it", () => {
       // given:
-      const detector = createTableDetector();
+      const formatter = createStreamFormatter();
 
       // when:
       // Feed table header+separator, then incomplete row without newline
-      detector.feed("| A | B |\n|---|---|\n");
-      detector.feed("| 1 | 2 |"); // no trailing newline
-      const { output, warnings } = detector.forceFlush();
+      formatter.feed("| A | B |\n|---|---|\n");
+      formatter.feed("| 1 | 2 |"); // no trailing newline
+      const { output, warnings } = formatter.forceFlush();
 
       // then:
       // forceFlush should add the incomplete line to tableLines and format it
