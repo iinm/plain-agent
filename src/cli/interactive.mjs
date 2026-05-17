@@ -22,7 +22,7 @@ import {
 import { createInterruptTransform } from "./interruptTransform.mjs";
 import { createMuteTransform } from "./muteTransform.mjs";
 import { createPasteHandler } from "./pasteTransform.mjs";
-import { createTableDetector } from "./tableDetector.mjs";
+import { createStreamFormatter } from "./streamFormatter.mjs";
 
 const HELP_MESSAGE = [
   "Commands:",
@@ -130,8 +130,8 @@ export function startInteractiveSession({
    */
   let voice = null;
 
-  // Create the table buffer instance for this session
-  const tableBuffer = createTableBuffer();
+  // Create the stream buffer instance for this session
+  const streamBuffer = createStreamBuffer();
 
   // Parse the voice toggle key once at startup so misconfiguration fails
   // loudly instead of silently falling back.
@@ -494,7 +494,7 @@ export function startInteractiveSession({
           );
         }
       } else if (partialContent.type === "text") {
-        tableBuffer.feed(partialContent.content);
+        streamBuffer.feed(partialContent.content);
       } else {
         process.stdout.write(partialContent.content);
       }
@@ -505,6 +505,8 @@ export function startInteractiveSession({
           `\r\x1b[K${styleText("gray", `<${partialContent.type}>`)} ${styleText("green", "✓")}\n`,
         );
       } else {
+        // Flush any buffered text before printing the closing tag
+        streamBuffer.forceFlush();
         console.log(styleText("gray", `\n</${partialContent.type}>`));
       }
     }
@@ -556,8 +558,8 @@ export function startInteractiveSession({
   });
 
   agentEventEmitter.on("turnEnd", async () => {
-    // Flush any remaining table buffer content
-    tableBuffer.forceFlush();
+    // Flush any remaining stream buffer content
+    streamBuffer.forceFlush();
 
     const err = notify(notifyCmd);
     if (err) {
@@ -584,21 +586,20 @@ export function startInteractiveSession({
 }
 
 /**
- * Creates a table buffer for detecting and formatting markdown tables
- * in streaming text output.
- * Thin shell: delegates pure logic to createTableDetector and handles I/O.
+ * Creates a stream buffer for formatting streaming text output.
+ * Thin shell: delegates pure logic to createStreamFormatter and handles I/O.
  */
-function createTableBuffer() {
-  const detector = createTableDetector();
+function createStreamBuffer() {
+  const formatter = createStreamFormatter();
 
   function feed(/** @type {string} */ chunk) {
-    const { output, warnings } = detector.feed(chunk);
+    const { output, warnings } = formatter.feed(chunk);
     for (const s of output) process.stdout.write(s);
     for (const w of warnings) console.error(styleText("yellow", w));
   }
 
   function forceFlush() {
-    const { output, warnings } = detector.forceFlush();
+    const { output, warnings } = formatter.forceFlush();
     for (const s of output) process.stdout.write(s);
     for (const w of warnings) console.error(styleText("yellow", w));
   }
