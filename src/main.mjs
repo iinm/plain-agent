@@ -34,64 +34,70 @@ import { createWebSearchTool } from "./tools/webSearch.mjs";
 import { writeFileTool } from "./tools/writeFile.mjs";
 import { createToolUseApprover } from "./toolUseApprover.mjs";
 
-const cliArgs = parseCliArgs(process.argv);
-if (cliArgs.subcommand.type === "help") {
-  printHelp();
-}
-
-if (cliArgs.subcommand.type === "list-models") {
-  const { appConfig } = await loadAppConfig({ skipTrustCheck: true });
-  if (!appConfig.models || appConfig.models.length === 0) {
-    console.error("No models found in configuration.");
-    process.exit(1);
+/**
+ * CLI entry point. Separated from top-level so that importing this module
+ * does not start the application — required for code-coverage smoke tests.
+ *
+ * @param {string[]} argv - Typically `process.argv`.
+ */
+export async function main(argv = process.argv) {
+  const cliArgs = parseCliArgs(argv);
+  if (cliArgs.subcommand.type === "help") {
+    printHelp();
   }
-  for (const model of appConfig.models) {
-    const platform = model.platform;
-    console.log(
-      `${model.name}+${model.variant} (platform: ${platform.name}+${platform.variant})`,
-    );
-  }
-  process.exit(0);
-}
 
-if (cliArgs.subcommand.type === "install-claude-code-plugins") {
-  await installClaudeCodePlugins();
-  process.exit(0);
-}
-
-if (cliArgs.subcommand.type === "cost") {
-  try {
-    const exitCode = await runCostCommand({
-      from: cliArgs.subcommand.from,
-      to: cliArgs.subcommand.to,
-    });
-    process.exit(exitCode);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(message);
-    process.exit(1);
-  }
-}
-
-if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
-  const sessions = await listSessions();
-  if (sessions.length === 0) {
-    console.log("No resumable sessions in .plain-agent/sessions/.");
+  if (cliArgs.subcommand.type === "list-models") {
+    const { appConfig } = await loadAppConfig({ skipTrustCheck: true });
+    if (!appConfig.models || appConfig.models.length === 0) {
+      console.error("No models found in configuration.");
+      process.exit(1);
+    }
+    for (const model of appConfig.models) {
+      const platform = model.platform;
+      console.log(
+        `${model.name}+${model.variant} (platform: ${platform.name}+${platform.variant})`,
+      );
+    }
     process.exit(0);
   }
-  console.log("Resumable sessions (most recently updated first):\n");
-  for (const s of sessions) {
-    console.log(
-      `  ${s.sessionId}  ${s.modelName}  (updated ${formatLocalDateTime(s.lastUpdatedAt)}, ${s.messageCount} messages)`,
-    );
-    if (s.workingDir !== process.cwd()) {
-      console.log(`    workingDir: ${s.workingDir}`);
+
+  if (cliArgs.subcommand.type === "install-claude-code-plugins") {
+    await installClaudeCodePlugins();
+    process.exit(0);
+  }
+
+  if (cliArgs.subcommand.type === "cost") {
+    try {
+      const exitCode = await runCostCommand({
+        from: cliArgs.subcommand.from,
+        to: cliArgs.subcommand.to,
+      });
+      process.exit(exitCode);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(message);
+      process.exit(1);
     }
   }
-  process.exit(0);
-}
 
-(async () => {
+  if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
+    const sessions = await listSessions();
+    if (sessions.length === 0) {
+      console.log("No resumable sessions in .plain-agent/sessions/.");
+      process.exit(0);
+    }
+    console.log("Resumable sessions (most recently updated first):\n");
+    for (const s of sessions) {
+      console.log(
+        `  ${s.sessionId}  ${s.modelName}  (updated ${formatLocalDateTime(s.lastUpdatedAt)}, ${s.messageCount} messages)`,
+      );
+      if (s.workingDir !== process.cwd()) {
+        console.log(`    workingDir: ${s.workingDir}`);
+      }
+    }
+    process.exit(0);
+  }
+
   /** @type {SessionState | null} */
   let resumedState = null;
 
@@ -430,10 +436,7 @@ if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
       voiceInput: appConfig.voiceInput,
     });
   }
-})().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+}
 
 /**
  * Generate a session id of the form `YYYY-MM-DD-HHMM-<3 random base36 chars>`.
