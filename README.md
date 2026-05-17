@@ -395,6 +395,8 @@ Files are loaded in the following order. Settings in later files override earlie
 ```js
 {
   "autoApproval": {
+    // Absolute paths outside the working directory to allow access to. Relative paths are ignored.
+    "allowedPaths": ["/tmp"],
     "defaultAction": "ask",
     // The maximum number of automatic approvals.
     "maxApprovals": 50,

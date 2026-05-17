@@ -193,11 +193,8 @@ describe("isSafeToolInputItem", () => {
       expected: true,
     },
 
-    // .plain-agent/{sandbox/, config.json, config.local.json} always require
-    // explicit approval, even when git-managed: sandbox scripts run on the
-    // host and config files drive the auto-approval policy itself, so silent
-    // in-sandbox modification could lead to host code execution or
-    // self-granted privilege escalation.
+    // Everything under .plain-agent/ is unsafe by default, except for
+    // the built-in allowed subdirectories (memory, tmp, claude-code-plugins).
     {
       desc: "git managed file under .plain-agent/sandbox",
       arg: `${AGENT_PROJECT_METADATA_DIR}/sandbox/run.sh`,
@@ -218,22 +215,14 @@ describe("isSafeToolInputItem", () => {
       arg: `${AGENT_PROJECT_METADATA_DIR}/config.local.json`,
       expected: false,
     },
-
-    // Other entries under .plain-agent/ follow the standard git rule:
-    // git-managed -> safe, git-ignored -> unsafe.
     {
       desc: "git managed .plain-agent/setup.sh",
       arg: `${AGENT_PROJECT_METADATA_DIR}/setup.sh`,
-      expected: true,
+      expected: false,
     },
     {
-      desc: "git managed file under .plain-agent/prompts",
-      arg: `${AGENT_PROJECT_METADATA_DIR}/prompts/foo.md`,
-      expected: true,
-    },
-    {
-      desc: "git ignored file under .plain-agent/agents",
-      arg: `${AGENT_PROJECT_METADATA_DIR}/agents/foo.md`,
+      desc: ".plain-agent directory itself",
+      arg: AGENT_PROJECT_METADATA_DIR,
       expected: false,
     },
 
@@ -256,4 +245,112 @@ describe("isSafeToolInputItem", () => {
       assert.strictEqual(isSafeToolInputItem(arg), expected);
     });
   }
+});
+
+describe("allowedPaths parameter", () => {
+  it("should allow access to configured path outside working directory", () => {
+    // given
+    const allowedPaths = ["/tmp/allowed-test-dir"];
+    // when
+    const result = isSafeToolInputItem(
+      "/tmp/allowed-test-dir/some-file.txt",
+      allowedPaths,
+    );
+    // then
+    assert.strictEqual(result, true);
+  });
+
+  it("should allow access to configured path itself", () => {
+    // given
+    const allowedPaths = ["/tmp/allowed-test-dir"];
+    // when
+    const result = isSafeToolInputItem("/tmp/allowed-test-dir", allowedPaths);
+    // then
+    assert.strictEqual(result, true);
+  });
+
+  it("should not allow access to non-configured path outside working directory", () => {
+    // given
+    const allowedPaths = ["/tmp/allowed-test-dir"];
+    // when
+    const result = isSafeToolInputItem(
+      "/tmp/other-dir/some-file.txt",
+      allowedPaths,
+    );
+    // then
+    assert.strictEqual(result, false);
+  });
+
+  it("should return false when allowedPaths is empty", () => {
+    // given
+    /** @type {string[]} */
+    const allowedPaths = [];
+    // when
+    const result = isSafeToolInputItem("/tmp/allowed-test-dir", allowedPaths);
+    // then
+    assert.strictEqual(result, false);
+  });
+
+  it("should still allow built-in safe paths when allowedPaths is empty", () => {
+    // given
+    const agentTmpDir = path.resolve(AGENT_PROJECT_METADATA_DIR, "tmp");
+    // when
+    const result = isSafeToolInputItem(agentTmpDir, []);
+    // then
+    assert.strictEqual(result, true);
+  });
+
+  it("should block .plain-agent paths even when in allowedPaths", () => {
+    // given: sandbox path is under .plain-agent (not a builtin allowed subdir)
+    // and explicitly added to allowedPaths
+    const sandboxPath = path.resolve(AGENT_PROJECT_METADATA_DIR, "sandbox");
+    const allowedPaths = [sandboxPath];
+    // when
+    const result = isSafeToolInputItem(`${sandboxPath}/run.sh`, allowedPaths);
+    // then: .plain-agent restriction takes priority over allowedPaths
+    assert.strictEqual(result, false);
+  });
+
+  it("should block .. traversal even when target is in allowedPaths", () => {
+    // given: a path with .. that resolves to an allowed directory
+    const allowedPaths = ["/tmp/allowed-test-dir"];
+    // when
+    const result = isSafeToolInputItem(
+      "/tmp/some-dir/../allowed-test-dir/file.txt",
+      allowedPaths,
+    );
+    // then: .. traversal is blocked before allowedPaths check
+    assert.strictEqual(result, false);
+  });
+
+  it("should not allow partial prefix match (prefix attack prevention)", () => {
+    // given: allowed path is /tmp/allowed, but input starts with /tmp/allowedevil
+    const allowedPaths = ["/tmp/allowed"];
+    // when
+    const result = isSafeToolInputItem(
+      "/tmp/allowedevil/file.txt",
+      allowedPaths,
+    );
+    // then: path separator ensures exact prefix matching
+    assert.strictEqual(result, false);
+  });
+
+  it("should ignore relative paths in allowedPaths", () => {
+    // given: a relative path in allowedPaths that resolves outside the working directory
+    const allowedPaths = ["../other-project"];
+    const outsidePath = path.resolve("../other-project/file.txt");
+    // when
+    const result = isSafeToolInputItem(outsidePath, allowedPaths);
+    // then: relative paths are skipped by path.isAbsolute() check, so access is denied
+    assert.strictEqual(result, false);
+  });
+
+  it("should ignore empty strings in allowedPaths", () => {
+    // given: an empty string in allowedPaths
+    const allowedPaths = [""];
+    // when
+    const result = isSafeToolInputItem("tmp/some-file.txt", allowedPaths);
+    // then: empty string should not allow arbitrary access
+    assert.strictEqual(result, false);
+  });
 });

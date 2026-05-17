@@ -74,6 +74,8 @@ export type AppConfig = {
     patterns?: ToolUsePattern[];
     maxApprovals?: number;
     defaultAction?: "deny" | "ask";
+    /** Additional absolute paths to allow for auto-approval (outside working directory) */
+    allowedPaths?: string[];
   };
   sandbox?: ExecCommandSanboxConfig;
   tools?: {

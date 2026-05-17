@@ -9,39 +9,37 @@ import {
 } from "./env.mjs";
 import { noThrowSync } from "./utils/noThrow.mjs";
 
-// Paths that must never be auto-approvable as tool input, even when
-// git-managed. Sandbox scripts run on the host and the project config files
-// drive auto-approval policy itself, so silent in-sandbox modification of
-// either could lead to host code execution or self-granted privilege
-// escalation.
-const UNSAFE_PROJECT_PATHS = [
-  path.join(AGENT_PROJECT_METADATA_DIR, "sandbox"),
-  path.join(AGENT_PROJECT_METADATA_DIR, "config.json"),
-  path.join(AGENT_PROJECT_METADATA_DIR, "config.local.json"),
+const BUILTIN_ALLOWED_PATHS = [
+  AGENT_MEMORY_DIR,
+  AGENT_TMP_DIR,
+  CLAUDE_CODE_PLUGIN_DIR,
 ];
 
 /**
  * @param {unknown} input
+ * @param {string[]} [allowedPaths=[]] - Additional allowed paths (outside working directory)
  * @returns {boolean}
  */
-export function isSafeToolInput(input) {
+export function isSafeToolInput(input, allowedPaths = []) {
   if (["number", "boolean", "undefined"].includes(typeof input)) {
     return true;
   }
 
   if (typeof input === "string") {
-    return isSafeToolInputItem(input);
+    return isSafeToolInputItem(input, allowedPaths);
   }
 
   if (Array.isArray(input)) {
-    return input.every((item) => isSafeToolInput(item));
+    return input.every((item) => isSafeToolInput(item, allowedPaths));
   }
 
   if (typeof input === "object") {
     if (input === null) {
       return true;
     }
-    return Object.values(input).every((value) => isSafeToolInput(value));
+    return Object.values(input).every((value) =>
+      isSafeToolInput(value, allowedPaths),
+    );
   }
 
   return false;
@@ -49,9 +47,10 @@ export function isSafeToolInput(input) {
 
 /**
  * @param {string} arg
+ * @param {string[]} [allowedPaths=[]] - Additional allowed paths (outside working directory)
  * @returns {boolean}
  */
-export function isSafeToolInputItem(arg) {
+export function isSafeToolInputItem(arg, allowedPaths = []) {
   const workingDir = process.cwd();
 
   // Note: An argument can be a command option (e.g., '-l').
@@ -63,27 +62,36 @@ export function isSafeToolInputItem(arg) {
     return false;
   }
 
-  // Disallow paths outside the working directory (WITHOUT EXCEPTION)
-  if (!isInsideWorkingDirectory(realPath, workingDir)) {
-    return false;
-  }
-
   // Disallow any input that contains ".." as a path segment (directory traversal)
   // Example:
   // - When write_file is allowed for ^safe-dir/.+
   // - "safe-dir/../unsafe-path" should be disallowed
+  // This check must happen before allowedPaths check for security
   if (arg.split(path.sep).includes("..")) {
     return false;
   }
 
-  // Always require approval for these, even if git-managed.
-  if (isUnsafeProjectPath(realPath)) {
+  // Built-in allowed paths (memory, tmp, claude-code-plugins) are always safe.
+  // This check must come before the .plain-agent/ block below.
+  if (isInBuiltinAllowedPath(realPath)) {
+    return true;
+  }
+
+  // Any other path under .plain-agent/ is unsafe and cannot be overridden
+  // by allowedPaths. This prevents privilege escalation via sandbox scripts
+  // or config files even when explicitly listed in allowedPaths.
+  if (isInsideProjectMetadataDir(realPath)) {
     return false;
   }
 
-  // Always allow these even if git-ignored.
-  if (isSafePath(realPath)) {
+  // User-configured allowed paths (outside working directory)
+  if (isInUserAllowedPath(realPath, allowedPaths)) {
     return true;
+  }
+
+  // Disallow paths outside the working directory (not in allowedPaths)
+  if (!isInsideWorkingDirectory(realPath, workingDir)) {
+    return false;
   }
 
   // Deny git ignored files (which may contain sensitive information or should not be accessed)
@@ -153,41 +161,58 @@ function isInsideWorkingDirectory(targetPath, workingDir) {
 }
 
 /**
- * @param {string} targetPath
+ * Check if the path is under a built-in allowed directory
+ * (.plain-agent/{memory,tmp,claude-code-plugins}).
+ * @param {string} targetPath - Must be an absolute path.
  * @returns {boolean}
  */
-function isSafePath(targetPath) {
-  const safePaths = [AGENT_MEMORY_DIR, AGENT_TMP_DIR, CLAUDE_CODE_PLUGIN_DIR];
-
-  for (const safePath of safePaths) {
-    const safeAbsPath = path.resolve(safePath);
+function isInBuiltinAllowedPath(targetPath) {
+  for (const builtinPath of BUILTIN_ALLOWED_PATHS) {
+    const absPath = path.resolve(builtinPath);
     if (
-      targetPath === safeAbsPath ||
-      targetPath.startsWith(`${safeAbsPath}${path.sep}`)
+      targetPath === absPath ||
+      targetPath.startsWith(`${absPath}${path.sep}`)
     ) {
       return true;
     }
   }
-
   return false;
 }
 
 /**
- * @param {string} targetPath
+ * Check if the path is under a user-configured allowed path.
+ * @param {string} targetPath - Must be an absolute path.
+ * @param {string[]} allowedPaths - Additional absolute paths (outside working directory)
  * @returns {boolean}
  */
-function isUnsafeProjectPath(targetPath) {
-  for (const unsafePath of UNSAFE_PROJECT_PATHS) {
-    const unsafeAbsPath = path.resolve(unsafePath);
+function isInUserAllowedPath(targetPath, allowedPaths) {
+  // User-provided paths must be absolute; relative paths are silently skipped
+  // to prevent unintended access from CWD-dependent resolution.
+  for (const allowedPath of allowedPaths) {
+    if (!path.isAbsolute(allowedPath)) {
+      continue;
+    }
     if (
-      targetPath === unsafeAbsPath ||
-      targetPath.startsWith(`${unsafeAbsPath}${path.sep}`)
+      targetPath === allowedPath ||
+      targetPath.startsWith(`${allowedPath}${path.sep}`)
     ) {
       return true;
     }
   }
-
   return false;
+}
+
+/**
+ * Check if the path is under .plain-agent/.
+ * @param {string} targetPath
+ * @returns {boolean}
+ */
+function isInsideProjectMetadataDir(targetPath) {
+  const metadataAbsPath = path.resolve(AGENT_PROJECT_METADATA_DIR);
+  return (
+    targetPath === metadataAbsPath ||
+    targetPath.startsWith(`${metadataAbsPath}${path.sep}`)
+  );
 }
 
 /**
