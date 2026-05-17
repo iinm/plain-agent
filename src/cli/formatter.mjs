@@ -846,15 +846,12 @@ function renderPatchBlock(block, originalLines, nonce) {
     out.push(
       styleText(
         "cyan",
-        block.endHash !== null
-          ? `@@@ ${nonce} ${block.start}:${block.startHash}-${block.end}:${block.endHash}`
-          : `@@@ ${nonce} ${block.start}:${block.startHash}-`,
+        `@@@ ${nonce} ${block.start}:${block.startHash}-${block.end}:${block.endHash}`,
       ),
     );
     if (originalLines) {
       const safeStart = Math.max(1, block.start);
-      const resolvedEnd = block.end ?? originalLines.length;
-      const safeEnd = Math.min(originalLines.length, resolvedEnd);
+      const safeEnd = Math.min(originalLines.length, block.end);
       const oldSlice = originalLines.slice(safeStart - 1, safeEnd);
       // Use a real line diff so unchanged lines render as context
       // (no color, "  " prefix) instead of being shown as both "- " and

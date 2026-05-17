@@ -17,8 +17,9 @@ export function createPatchFileTool(
   return {
     def: {
       name: "patch_file",
-      description:
-        "Modify a file by replacing or inserting content addressed by line numbers (1-indexed).",
+      description: `Modify a file by replacing or inserting content.
+When editing multiple locations in the same file, include all blocks in a single patch string rather than making multiple separate calls.
+      `.trim(),
       inputSchema: {
         type: "object",
         properties: {
@@ -30,21 +31,18 @@ export function createPatchFileTool(
 Format — a single patch string may contain multiple blocks:
 @@@ ${nonce} {start}:{startHash}-{end}:{endHash}
 replacement for lines {start}-{end}
-@@@ ${nonce} {start}:{startHash}-{end}:{endHash}
-another replacement for lines {start}-{end}
 @@@ ${nonce} {N}:{afterHash}+
 appended content after line N
 @@@ ${nonce} 0+
-prepended content
+prepended content at beginning of file
 @@@ ${nonce} {N}:{hash}
 replace just that one line
-@@@ ${nonce} {N}:{hash}-
-replace from line N to end of file
 @@@ ${nonce} 10:ab-15:cd
 (empty body deletes the range)
 
+- Each block's content starts right after its @@@ header line and ends at the next @@@ or the end of the string. Any blank lines between the header and the content become part of the replacement.
 - The nonce "${nonce}" is constant; always use the exact value shown above.
-- Hashes are 2-character hex hashes of each line's full content as shown by read_file (e.g. "a3").
+- Hashes are 2-character hex hashes of each line's full content as shown by read_file.
             `.trim(),
             type: "string",
           },
@@ -159,17 +157,8 @@ export function applyBlocks(original, blocks) {
   }
   const totalLines = lines.length;
 
-  // Resolve end=null (shorthand "to end of file") to actual totalLines.
-  // Map to new objects to avoid mutating the input blocks array.
-  const resolved = blocks.map((block) =>
-    block.op === "replace" && block.end === null
-      ? { ...block, end: totalLines }
-      : block,
-  );
-
-  // After resolution, all replace blocks have end: number (not null).
-  validateBlocks(resolved, totalLines);
-  detectConflicts(resolved);
+  validateBlocks(blocks, totalLines);
+  detectConflicts(blocks);
 
   // Sort for bottom-up application.
   // - Higher splice index first.
@@ -177,7 +166,7 @@ export function applyBlocks(original, blocks) {
   //   land at the same splice position post-replace).
   // - Tie among inserts at the same point: later-in-source first, so the
   //   first-in-source block ends up topmost in the inserted stack.
-  const indexed = resolved.map((block, sourceIdx) => ({
+  const indexed = blocks.map((block, sourceIdx) => ({
     block,
     sourceIdx,
     spliceIndex: spliceIndexOf(block),
@@ -194,8 +183,7 @@ export function applyBlocks(original, blocks) {
 
   for (const { block } of indexed) {
     if (block.op === "replace") {
-      // After resolve, end is guaranteed to be a number
-      const end = /** @type {number} */ (block.end);
+      const end = block.end;
       const actualStart = lines[block.start - 1];
       const expectedStartHash = block.startHash;
       const actualStartHash = lineHash(actualStart ?? "");
@@ -204,16 +192,13 @@ export function applyBlocks(original, blocks) {
           `Hash verification failed at line ${block.start}: expected hash ${expectedStartHash} but got ${actualStartHash} for line ${JSON.stringify(actualStart)}. The line numbers may be stale; re-read the file with read_file.`,
         );
       }
-      // Skip end hash verification when endHash is null (from "N:hash-" shorthand)
-      if (block.endHash !== null) {
-        const actualEnd = lines[end - 1];
-        const expectedEndHash = block.endHash;
-        const actualEndHash = lineHash(actualEnd ?? "");
-        if (actualEndHash !== expectedEndHash) {
-          throw new Error(
-            `Hash verification failed at line ${end}: expected hash ${expectedEndHash} but got ${actualEndHash} for line ${JSON.stringify(actualEnd)}. The line numbers may be stale; re-read the file with read_file.`,
-          );
-        }
+      const actualEnd = lines[end - 1];
+      const expectedEndHash = block.endHash;
+      const actualEndHash = lineHash(actualEnd ?? "");
+      if (actualEndHash !== expectedEndHash) {
+        throw new Error(
+          `Hash verification failed at line ${end}: expected hash ${expectedEndHash} but got ${actualEndHash} for line ${JSON.stringify(actualEnd)}. The line numbers may be stale; re-read the file with read_file.`,
+        );
       }
       const removeCount = end - block.start + 1;
       lines.splice(block.start - 1, removeCount, ...block.body);
@@ -241,7 +226,7 @@ export function applyBlocks(original, blocks) {
 
 /**
  * @param {string} headerArgs
- * @returns {{ op: "replace"; start: number; end: number | null; startHash: string; endHash: string | null } | { op: "insert"; after: number; afterHash: string }}
+ * @returns {{ op: "replace"; start: number; end: number; startHash: string; endHash: string } | { op: "insert"; after: number; afterHash: string }}
  */
 function parseHeaderArgs(headerArgs) {
   // Strip read_file format leakage: "11:40|  ]" → "11:40".
@@ -274,24 +259,6 @@ function parseHeaderArgs(headerArgs) {
       end,
       startHash: replaceMatch[2],
       endHash: replaceMatch[4],
-    };
-  }
-
-  // Replace form: "{N}:{hash}-" (from that line to end of file)
-  const tailReplaceMatch = cleaned.match(/^(\d+):([a-f0-9]{2})-\s*$/);
-  if (tailReplaceMatch) {
-    const start = Number(tailReplaceMatch[1]);
-    if (start < 1) {
-      throw new Error(
-        `Invalid replace range "${headerArgs}": start must be >= 1.`,
-      );
-    }
-    return {
-      op: "replace",
-      start,
-      end: null,
-      startHash: tailReplaceMatch[2],
-      endHash: null,
     };
   }
 
@@ -329,7 +296,7 @@ function parseHeaderArgs(headerArgs) {
   }
 
   throw new Error(
-    `Invalid block header arguments: ${JSON.stringify(headerArgs)}. Expected "{start}:{startHash}-{end}:{endHash}" or "{N}:{hash}" or "{N}:{hash}-" or "{N}:{afterHash}+" or "0+".`,
+    `Invalid block header arguments: ${JSON.stringify(headerArgs)}. Expected "{start}:{startHash}-{end}:{endHash}" or "{N}:{hash}" or "{N}:{afterHash}+" or "0+".`,
   );
 }
 
@@ -348,14 +315,12 @@ function spliceIndexOf(block) {
 function validateBlocks(blocks, totalLines) {
   for (const block of blocks) {
     if (block.op === "replace") {
-      const end = /** @type {number} */ (block.end);
       // Both bounds must be within [1, totalLines]. The two checks are NOT
-      // redundant: when end was resolved from the "N:hash-" shorthand,
-      // end === totalLines, so totalLines < end is false even if
-      // start > totalLines (e.g. start=1 on an empty file).
-      if (block.start > totalLines || totalLines < end) {
+      // redundant: totalLines < end is false even if start > totalLines
+      // (e.g. start=1 on an empty file).
+      if (block.start > totalLines || totalLines < block.end) {
         throw new Error(
-          `Replace range ${block.start}-${end} extends past end of file (${totalLines} lines).`,
+          `Replace range ${block.start}-${block.end} extends past end of file (${totalLines} lines).`,
         );
       }
     } else if (block.after < 0 || totalLines < block.after) {
@@ -375,25 +340,21 @@ function detectConflicts(blocks) {
       const a = blocks[i];
       const b = blocks[j];
       if (a.op === "replace" && b.op === "replace") {
-        const aEnd = /** @type {number} */ (a.end);
-        const bEnd = /** @type {number} */ (b.end);
-        if (a.start <= bEnd && b.start <= aEnd) {
+        if (a.start <= b.end && b.start <= a.end) {
           throw new Error(
-            `Replace ranges overlap: ${a.start}-${aEnd} and ${b.start}-${bEnd}.`,
+            `Replace ranges overlap: ${a.start}-${a.end} and ${b.start}-${b.end}.`,
           );
         }
       } else if (a.op === "replace" && b.op === "insert") {
-        const aEnd = /** @type {number} */ (a.end);
-        if (a.start <= b.after && b.after < aEnd) {
+        if (a.start <= b.after && b.after < a.end) {
           throw new Error(
-            `Insert at ${b.after}+ falls inside replace range ${a.start}-${aEnd}.`,
+            `Insert at ${b.after}+ falls inside replace range ${a.start}-${a.end}.`,
           );
         }
       } else if (a.op === "insert" && b.op === "replace") {
-        const bEnd = /** @type {number} */ (b.end);
-        if (b.start <= a.after && a.after < bEnd) {
+        if (b.start <= a.after && a.after < b.end) {
           throw new Error(
-            `Insert at ${a.after}+ falls inside replace range ${b.start}-${bEnd}.`,
+            `Insert at ${a.after}+ falls inside replace range ${b.start}-${b.end}.`,
           );
         }
       }
