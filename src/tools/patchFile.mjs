@@ -98,8 +98,6 @@ export function parseBlocks(patch, nonce) {
     lines.pop();
   }
   // Find all header line indices
-
-  // Find all header line indices
   /** @type {number[]} */
   const headerIndices = [];
   for (let i = 0; i < lines.length; i++) {
