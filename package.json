@@ -31,7 +31,7 @@
   "scripts": {
     "check": "npm run lint && tsc && npm run test",
     "test": "node --test",
-    "coverage": "node --experimental-test-coverage --test",
+    "coverage": "node --experimental-test-coverage --test-coverage-exclude='src/**/*.test.mjs' --test",
     "lint": "npx @biomejs/biome check",
     "fix": "npx @biomejs/biome check --fix"
   },
