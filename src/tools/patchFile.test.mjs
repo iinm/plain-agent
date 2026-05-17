@@ -625,44 +625,39 @@ describe("patchFileTool", () => {
     assert.equal(patchedContent, ["X", "", "Z", "Y"].join("\n"));
   });
 
-  it("replaces from line 1 to end of file using 1:hash- format", async () => {
+  it("rejects N:hash- with wrong startHash", async () => {
     // given:
-    const tmpFilePath = await writeTmp(["old1", "old2", "old3"]);
+    const tmpFilePath = await writeTmp(["alpha", "bravo", "charlie"]);
 
-    // when: replace entire file from line 1
-    const patch = [`@@@ 012 1:${lineHash("old1")}-`, "new1", "new2"].join("\n");
+    // when: N:hash- with incorrect startHash
+    const patch = [`@@@ 012 2:${lineHash("alpha")}-`, "X"].join("\n");
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /Hash verification failed at line 2/);
+  });
+
+  it("orders multiple inserts at the same position by source order", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["alpha", "delta"]);
+
+    // when: two inserts at the same position — first-in-source ends up topmost
+    const patch = [
+      `@@@ 012 1:${lineHash("alpha")}+`,
+      "bravo",
+      `@@@ 012 1:${lineHash("alpha")}+`,
+      "charlie",
+    ].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.equal(result, `Patched file: ${tmpFilePath}`);
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
-    assert.equal(patchedContent, ["new1", "new2"].join("\n"));
-  });
-
-  it("rejects N:hash- with start < 1", async () => {
-    // given:
-    const tmpFilePath = await writeTmp(["a"]);
-
-    // when:
-    const patch = ["@@@ 012 0:ab-", "X"].join("\n");
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
-
-    // then:
-    assert.ok(result instanceof Error);
-    assert.match(result.message, /start must be >= 1/);
-  });
-
-  it("rejects single line shorthand with start < 1", async () => {
-    // given:
-    const tmpFilePath = await writeTmp(["a"]);
-
-    // when:
-    const patch = ["@@@ 012 0:ab", "X"].join("\n");
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
-
-    // then:
-    assert.ok(result instanceof Error);
-    assert.match(result.message, /start must be >= 1/);
+    assert.equal(
+      patchedContent,
+      ["alpha", "bravo", "charlie", "delta"].join("\n"),
+    );
   });
 
   it("rejects N:hash- on empty file", async () => {

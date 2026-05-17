@@ -160,16 +160,16 @@ export function applyBlocks(original, blocks) {
   const totalLines = lines.length;
 
   // Resolve end=null (shorthand "to end of file") to actual totalLines.
-  // After this, all replace blocks have end: number.
-  for (const block of blocks) {
-    if (block.op === "replace" && block.end === null) {
-      block.end = totalLines;
-    }
-  }
+  // Map to new objects to avoid mutating the input blocks array.
+  const resolved = blocks.map((block) =>
+    block.op === "replace" && block.end === null
+      ? { ...block, end: totalLines }
+      : block,
+  );
 
   // After resolution, all replace blocks have end: number (not null).
-  validateBlocks(blocks, totalLines);
-  detectConflicts(blocks);
+  validateBlocks(resolved, totalLines);
+  detectConflicts(resolved);
 
   // Sort for bottom-up application.
   // - Higher splice index first.
@@ -177,7 +177,7 @@ export function applyBlocks(original, blocks) {
   //   land at the same splice position post-replace).
   // - Tie among inserts at the same point: later-in-source first, so the
   //   first-in-source block ends up topmost in the inserted stack.
-  const indexed = blocks.map((block, sourceIdx) => ({
+  const indexed = resolved.map((block, sourceIdx) => ({
     block,
     sourceIdx,
     spliceIndex: spliceIndexOf(block),
@@ -244,7 +244,10 @@ export function applyBlocks(original, blocks) {
  * @returns {{ op: "replace"; start: number; end: number | null; startHash: string; endHash: string | null } | { op: "insert"; after: number; afterHash: string }}
  */
 function parseHeaderArgs(headerArgs) {
-  // Strip read_file format leakage: "11:40|  ]" → "11:40"
+  // Strip read_file format leakage: "11:40|  ]" → "11:40".
+  // Note: this may accept a malformed header like "1:ab|garbage" as "1:ab",
+  // but subsequent hash verification against actual file content serves as
+  // a safety net — the wrong hash will be caught at apply time.
   const pipeIdx = headerArgs.indexOf("|");
   const cleaned = pipeIdx !== -1 ? headerArgs.slice(0, pipeIdx) : headerArgs;
 
@@ -346,12 +349,11 @@ function validateBlocks(blocks, totalLines) {
   for (const block of blocks) {
     if (block.op === "replace") {
       const end = /** @type {number} */ (block.end);
-      if (block.start > totalLines) {
-        throw new Error(
-          `Replace range ${block.start}-${end} extends past end of file (${totalLines} lines).`,
-        );
-      }
-      if (totalLines < end) {
+      // Both bounds must be within [1, totalLines]. The two checks are NOT
+      // redundant: when end was resolved from the "N:hash-" shorthand,
+      // end === totalLines, so totalLines < end is false even if
+      // start > totalLines (e.g. start=1 on an empty file).
+      if (block.start > totalLines || totalLines < end) {
         throw new Error(
           `Replace range ${block.start}-${end} extends past end of file (${totalLines} lines).`,
         );
