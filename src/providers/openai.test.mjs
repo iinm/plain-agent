@@ -1,3 +1,4 @@
+// @ts-nocheck
 import assert from "node:assert";
 import test, { describe } from "node:test";
 import { callOpenAIModel } from "./openai.mjs";
