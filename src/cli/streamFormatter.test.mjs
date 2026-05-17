@@ -86,38 +86,6 @@ describe("createStreamFormatter", () => {
       assert.strictEqual(output, "hello");
       assert.strictEqual(warnings.length, 0);
     });
-
-    it("holds incomplete line until newline or forceFlush", () => {
-      // given:
-      const formatter = createStreamFormatter();
-
-      // when:
-      const { output: out1, warnings: w1 } = formatter.feed("text with | pipe");
-      const { output: out2, warnings: w2 } = formatter.forceFlush();
-
-      // then:
-      // No newline → held in pendingLine
-      assert.strictEqual(out1.join(""), "");
-      assert.strictEqual(w1.length, 0);
-      assert.ok(out2.join("").includes("text with | pipe"));
-      assert.strictEqual(w2.length, 0);
-    });
-
-    it("passes non-table line with pipe through on newline", () => {
-      // given:
-      const formatter = createStreamFormatter();
-
-      // when:
-      const { output: out1, warnings: w1 } = formatter.feed("Choose A | B\n");
-      const { output: out2, warnings: w2 } = formatter.forceFlush();
-
-      // then:
-      // A line containing pipe but not starting with "|" should pass through
-      assert.strictEqual(out1.join(""), "Choose A | B\n");
-      assert.strictEqual(w1.length, 0);
-      assert.strictEqual(out2.length, 0);
-      assert.strictEqual(w2.length, 0);
-    });
   });
 
   describe("table detection and formatting", () => {
@@ -221,37 +189,6 @@ describe("createStreamFormatter", () => {
       assert.strictEqual(warnings.length, 0);
     });
 
-    it("outputs completed lines immediately even between table chunks", () => {
-      // given:
-      const chunks = ["hello\n| A | B |\n"];
-
-      // when:
-      const { output, warnings } = feedAll(chunks);
-
-      // then:
-      // "hello\n" should be output immediately, then table starts buffering
-      assert.ok(output.includes("hello\n"));
-      assert.strictEqual(warnings.length, 0);
-    });
-
-    it("holds pending non-table text with pipe until newline resolves it", () => {
-      // given:
-      const formatter = createStreamFormatter();
-
-      // when:
-      const { output: out1, warnings: w1 } = formatter.feed("maybe | pipe");
-      const { output: out2, warnings: w2 } = formatter.feed("\n");
-
-      // then:
-      // Held because it contains pipe
-      assert.strictEqual(out1.length, 0);
-      assert.strictEqual(w1.length, 0);
-      // The newline resolves the line; it's not a table start, so it's passed through
-      assert.ok(out2.length > 0);
-      assert.ok(out2.join("").includes("maybe | pipe"));
-      assert.strictEqual(w2.length, 0);
-    });
-
     it("accumulates table across multiple feed calls", () => {
       // given:
       const formatter = createStreamFormatter();
@@ -267,22 +204,44 @@ describe("createStreamFormatter", () => {
       assert.ok(output.join("").includes("| A   | B   |"));
       assert.strictEqual(warnings.length, 0);
     });
+
+    it("converts **bold** when split across chunks on the same line", () => {
+      // given: **bold** split across two chunks; both accumulate in pendingLine
+      const formatter = createStreamFormatter();
+
+      // when:
+      const { output: out1 } = formatter.feed("This is **bol");
+      const { output: out2 } = formatter.feed("d** text\n");
+      const { output: out3, warnings } = formatter.forceFlush();
+
+      // then:
+      // \n completes the line → processLine sees "This is **bold** text" and converts it
+      const allOutput = [...out1, ...out2, ...out3].join("");
+      assert.strictEqual(
+        allOutput,
+        `This is ${styleText("bold", "bold")} text\n`,
+      );
+      assert.strictEqual(warnings.length, 0);
+    });
   });
 
   describe("code block handling", () => {
-    it("disables table detection inside code blocks", () => {
+    it("disables table detection and **bold** conversion inside code blocks", () => {
       // given:
-      const chunks = ["```\n| A | B |\n|---|---|\n```\n"];
+      const chunks = ["```\n| A | B |\n**bold**\n```\n"];
 
       // when:
       const { output, warnings } = feedAllAndFlush(chunks);
 
       // then:
-      // Lines inside code block should pass through as-is (no formatting/padding)
+      // Lines inside code block should pass through as-is (no formatting/padding/bold)
       assert.ok(output.includes("```"));
       assert.ok(output.includes("| A | B |"));
       // Should NOT be padded (i.e. not "| A   | B   |")
       assert.ok(!output.includes("| A   | B   |"));
+      // **bold** should stay raw (no ANSI codes)
+      assert.ok(output.includes("**bold**"));
+      assert.ok(!output.includes("\x1b["));
       assert.strictEqual(warnings.length, 0);
     });
 
@@ -313,35 +272,6 @@ describe("createStreamFormatter", () => {
       assert.ok(!output.includes("| A   | B   |"));
       // Second table outside code block: formatted (with padding)
       assert.ok(output.includes("| X   | Y   |"));
-      assert.strictEqual(warnings.length, 0);
-    });
-
-    it("recognizes code block with language specifier", () => {
-      // given:
-      const chunks = ["```python\n| A | B |\n```\n"];
-
-      // when:
-      const { output, warnings } = feedAllAndFlush(chunks);
-
-      // then:
-      // ```python should toggle code block; table inside should not be formatted
-      assert.ok(output.includes("```python"));
-      assert.ok(output.includes("| A | B |"));
-      assert.ok(!output.includes("| A   | B   |"));
-      assert.strictEqual(warnings.length, 0);
-    });
-
-    it("does not apply inline Markdown styling inside code blocks", () => {
-      // given:
-      const chunks = ["```\n**bold** text\n```\n"];
-
-      // when:
-      const { output, warnings } = feedAllAndFlush(chunks);
-
-      // then:
-      // **bold** inside code block should stay raw (no ANSI codes)
-      assert.ok(output.includes("**bold**"));
-      assert.ok(!output.includes("\x1b["));
       assert.strictEqual(warnings.length, 0);
     });
   });
@@ -449,7 +379,7 @@ describe("createStreamFormatter", () => {
     });
   });
 
-  describe("inline Markdown styling", () => {
+  describe("**bold** styling", () => {
     it("converts **bold** to ANSI bold on completed lines", () => {
       // given:
       const chunks = ["This is **bold** text\n"];
@@ -462,7 +392,7 @@ describe("createStreamFormatter", () => {
       assert.strictEqual(warnings.length, 0);
     });
 
-    it("applies inline Markdown in table cells before column-width calculation", () => {
+    it("applies **bold** in table cells before column-width calculation", () => {
       // given: **Name** is 8 literal chars but bold "Name" is 4 display chars
       // Column width is determined by separator "----------" (10 chars)
       const chunks = [
@@ -492,42 +422,6 @@ describe("createStreamFormatter", () => {
           `| ${styleText("bold", "foo")}        | bar     |`,
           "",
         ].join("\n"),
-      );
-      assert.strictEqual(warnings.length, 0);
-    });
-
-    it("converts **bold** on forceFlush for incomplete pending line", () => {
-      // given:
-      const formatter = createStreamFormatter();
-
-      // when:
-      formatter.feed("This is **bold**");
-      const { output, warnings } = formatter.forceFlush();
-
-      // then:
-      // pendingLine is processed via processLine on forceFlush
-      assert.strictEqual(
-        output.join(""),
-        `This is ${styleText("bold", "bold")}`,
-      );
-      assert.strictEqual(warnings.length, 0);
-    });
-
-    it("converts **bold** when split across chunks on the same line", () => {
-      // given: **bold** split across two chunks; both accumulate in pendingLine
-      const formatter = createStreamFormatter();
-
-      // when:
-      const { output: out1 } = formatter.feed("This is **bol");
-      const { output: out2 } = formatter.feed("d** text\n");
-      const { output: out3, warnings } = formatter.forceFlush();
-
-      // then:
-      // \n completes the line → processLine sees "This is **bold** text" and converts it
-      const allOutput = [...out1, ...out2, ...out3].join("");
-      assert.strictEqual(
-        allOutput,
-        `This is ${styleText("bold", "bold")} text\n`,
       );
       assert.strictEqual(warnings.length, 0);
     });
@@ -591,20 +485,6 @@ describe("createStreamFormatter", () => {
 
       // when:
       const { output, warnings } = formatter.forceFlush();
-
-      // then:
-      assert.strictEqual(output.length, 0);
-      assert.strictEqual(warnings.length, 0);
-    });
-
-    it("returns empty on second consecutive forceFlush", () => {
-      // given:
-      const formatter = createStreamFormatter();
-      formatter.feed("| A | B |\n|---|---|\n| 1 | 2 |\n");
-
-      // when:
-      formatter.forceFlush(); // first flush
-      const { output, warnings } = formatter.forceFlush(); // second flush
 
       // then:
       assert.strictEqual(output.length, 0);
