@@ -761,14 +761,10 @@ describe("parseBlocks", () => {
   });
   it("throws for patch with wrong nonce", () => {
     // given:
-
     const patch = ["@@@ abc 1:7b-3:20", "content"].join("\n");
 
     // when/then:
-    assert.throws(
-      () => parseBlocks(patch, "xyz"),
-      /No patch blocks found with nonce "xyz"/,
-    );
+    assert.throws(() => parseBlocks(patch, "xyz"), /No patch blocks found/);
   });
 
   it("throws for patch with no headers at all", () => {

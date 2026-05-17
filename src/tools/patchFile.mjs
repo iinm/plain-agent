@@ -109,14 +109,6 @@ export function parseBlocks(patch, nonce) {
   }
 
   if (headerIndices.length === 0) {
-    // Check if any line looks like a header with wrong nonce or old format
-    for (const line of lines) {
-      if (line.startsWith("@@@ ") || line.startsWith(">>> ")) {
-        throw new Error(
-          `No patch blocks found with nonce "${nonce}". Check that the nonce in each block header matches "${nonce}" exactly.`,
-        );
-      }
-    }
     throw new Error(
       `No patch blocks found. Each block must start with "@@@ ${nonce} ...".`,
     );
