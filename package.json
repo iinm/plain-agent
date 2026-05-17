@@ -1,6 +1,6 @@
 {
   "name": "@iinm/plain-agent",
-  "version": "1.10.5",
+  "version": "1.10.7",
   "description": "A lightweight CLI-based coding agent",
   "license": "MIT",
   "type": "module",
@@ -31,6 +31,7 @@
   "scripts": {
     "check": "npm run lint && tsc && npm run test",
     "test": "node --test",
+    "coverage": "node --experimental-test-coverage --test",
     "lint": "npx @biomejs/biome check",
     "fix": "npx @biomejs/biome check --fix"
   },

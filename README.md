@@ -381,7 +381,7 @@ Files are loaded in the following order. Settings in later files override earlie
           "args": ["ci"]
         },
         "mode": "sandbox",
-        "extraArgs": ["--allow-net", "0.0.0.0/0"]
+        "additionalArgs": ["--allow-net", "0.0.0.0/0"]
       }
     ]
   }

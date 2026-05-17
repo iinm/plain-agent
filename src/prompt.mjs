@@ -70,6 +70,10 @@ Memory files should include:
 
 Call multiple tools at once when they don't depend on each other's results.
 
+## patch_file
+
+Always read the target lines with \`read_file\` first to verify line numbers and their 2-char hashes before calling \`patch_file\`.
+
 ## exec_command
 
 - Use relative paths.

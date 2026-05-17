@@ -44,7 +44,7 @@
           "args": ["ci"]
         },
         "mode": "sandbox",
-        "extraArgs": ["--allow-net", "0.0.0.0/0"]
+        "additionalArgs": ["--allow-net", "0.0.0.0/0"]
       }
     ]
   },
