@@ -9,18 +9,6 @@ import {
 } from "./env.mjs";
 import { noThrowSync } from "./utils/noThrow.mjs";
 
-// Paths that must never be auto-approvable as tool input, even when
-// git-managed. Sandbox scripts run on the host and the project config files
-// drive auto-approval policy itself, so silent in-sandbox modification of
-// either could lead to host code execution or self-granted privilege
-// escalation.
-const UNSAFE_PROJECT_PATHS = [
-  path.join(AGENT_PROJECT_METADATA_DIR, "sandbox"),
-  path.join(AGENT_PROJECT_METADATA_DIR, "config.json"),
-  path.join(AGENT_PROJECT_METADATA_DIR, "config.local.json"),
-];
-
-/** Built-in paths exempt from the working-directory restriction (agent-managed dirs) */
 const BUILTIN_ALLOWED_PATHS = [
   AGENT_MEMORY_DIR,
   AGENT_TMP_DIR,
@@ -83,14 +71,21 @@ export function isSafeToolInputItem(arg, allowedPaths = []) {
     return false;
   }
 
-  // Always require approval for these, even if git-managed.
-  if (isUnsafeProjectPath(realPath)) {
+  // Built-in allowed paths (memory, tmp, claude-code-plugins) are always safe.
+  // This check must come before the .plain-agent/ block below.
+  if (isInBuiltinAllowedPath(realPath)) {
+    return true;
+  }
+
+  // Any other path under .plain-agent/ is unsafe and cannot be overridden
+  // by allowedPaths. This prevents privilege escalation via sandbox scripts
+  // or config files even when explicitly listed in allowedPaths.
+  if (isInsideProjectMetadataDir(realPath)) {
     return false;
   }
 
-  // Check if the path is in allowed paths (built-in + configured)
-  // This allows access to directories outside the working directory
-  if (isInAllowedPath(realPath, allowedPaths)) {
+  // User-configured allowed paths (outside working directory)
+  if (isInUserAllowedPath(realPath, allowedPaths)) {
     return true;
   }
 
@@ -166,13 +161,12 @@ function isInsideWorkingDirectory(targetPath, workingDir) {
 }
 
 /**
- * Check if the path is in allowed paths (built-in + configured).
+ * Check if the path is under a built-in allowed directory
+ * (.plain-agent/{memory,tmp,claude-code-plugins}).
  * @param {string} targetPath - Must be an absolute path.
- * @param {string[]} allowedPaths - Additional absolute paths (outside working directory)
  * @returns {boolean}
  */
-function isInAllowedPath(targetPath, allowedPaths) {
-  // Built-in paths are developer-controlled and trusted; always check them.
+function isInBuiltinAllowedPath(targetPath) {
   for (const builtinPath of BUILTIN_ALLOWED_PATHS) {
     const absPath = path.resolve(builtinPath);
     if (
@@ -182,7 +176,16 @@ function isInAllowedPath(targetPath, allowedPaths) {
       return true;
     }
   }
+  return false;
+}
 
+/**
+ * Check if the path is under a user-configured allowed path.
+ * @param {string} targetPath - Must be an absolute path.
+ * @param {string[]} allowedPaths - Additional absolute paths (outside working directory)
+ * @returns {boolean}
+ */
+function isInUserAllowedPath(targetPath, allowedPaths) {
   // User-provided paths must be absolute; relative paths are silently skipped
   // to prevent unintended access from CWD-dependent resolution.
   for (const allowedPath of allowedPaths) {
@@ -196,26 +199,20 @@ function isInAllowedPath(targetPath, allowedPaths) {
       return true;
     }
   }
-
   return false;
 }
 
 /**
+ * Check if the path is under .plain-agent/.
  * @param {string} targetPath
  * @returns {boolean}
  */
-function isUnsafeProjectPath(targetPath) {
-  for (const unsafePath of UNSAFE_PROJECT_PATHS) {
-    const unsafeAbsPath = path.resolve(unsafePath);
-    if (
-      targetPath === unsafeAbsPath ||
-      targetPath.startsWith(`${unsafeAbsPath}${path.sep}`)
-    ) {
-      return true;
-    }
-  }
-
-  return false;
+function isInsideProjectMetadataDir(targetPath) {
+  const metadataAbsPath = path.resolve(AGENT_PROJECT_METADATA_DIR);
+  return (
+    targetPath === metadataAbsPath ||
+    targetPath.startsWith(`${metadataAbsPath}${path.sep}`)
+  );
 }
 
 /**

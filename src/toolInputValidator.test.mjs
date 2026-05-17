@@ -193,11 +193,8 @@ describe("isSafeToolInputItem", () => {
       expected: true,
     },
 
-    // .plain-agent/{sandbox/, config.json, config.local.json} always require
-    // explicit approval, even when git-managed: sandbox scripts run on the
-    // host and config files drive the auto-approval policy itself, so silent
-    // in-sandbox modification could lead to host code execution or
-    // self-granted privilege escalation.
+    // Everything under .plain-agent/ is unsafe by default, except for
+    // the built-in allowed subdirectories (memory, tmp, claude-code-plugins).
     {
       desc: "git managed file under .plain-agent/sandbox",
       arg: `${AGENT_PROJECT_METADATA_DIR}/sandbox/run.sh`,
@@ -218,22 +215,14 @@ describe("isSafeToolInputItem", () => {
       arg: `${AGENT_PROJECT_METADATA_DIR}/config.local.json`,
       expected: false,
     },
-
-    // Other entries under .plain-agent/ follow the standard git rule:
-    // git-managed -> safe, git-ignored -> unsafe.
     {
       desc: "git managed .plain-agent/setup.sh",
       arg: `${AGENT_PROJECT_METADATA_DIR}/setup.sh`,
-      expected: true,
+      expected: false,
     },
     {
-      desc: "git managed file under .plain-agent/prompts",
-      arg: `${AGENT_PROJECT_METADATA_DIR}/prompts/foo.md`,
-      expected: true,
-    },
-    {
-      desc: "git ignored file under .plain-agent/agents",
-      arg: `${AGENT_PROJECT_METADATA_DIR}/agents/foo.md`,
+      desc: ".plain-agent directory itself",
+      arg: AGENT_PROJECT_METADATA_DIR,
       expected: false,
     },
 
@@ -311,13 +300,14 @@ describe("allowedPaths parameter", () => {
     assert.strictEqual(result, true);
   });
 
-  it("should block isUnsafeProjectPath even when in allowedPaths", () => {
-    // given: sandbox path is in UNSAFE_PROJECT_PATHS and also in allowedPaths
+  it("should block .plain-agent paths even when in allowedPaths", () => {
+    // given: sandbox path is under .plain-agent (not a builtin allowed subdir)
+    // and explicitly added to allowedPaths
     const sandboxPath = path.resolve(AGENT_PROJECT_METADATA_DIR, "sandbox");
     const allowedPaths = [sandboxPath];
     // when
     const result = isSafeToolInputItem(`${sandboxPath}/run.sh`, allowedPaths);
-    // then: isUnsafeProjectPath takes priority over allowedPaths
+    // then: .plain-agent restriction takes priority over allowedPaths
     assert.strictEqual(result, false);
   });
 
