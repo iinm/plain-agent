@@ -31,18 +31,26 @@ Format — a single patch string may contain multiple blocks:
 >>> ${nonce} {start}:{startHash}-{end}:{endHash}
 new content
 <<< ${nonce}
->>> ${nonce} {N}:{afterHash}+
-inserted content
+
+>>> ${nonce} {start}:{startHash}-{end}:{endHash}
+another new content
 <<< ${nonce}
+
+>>> ${nonce} {N}:{afterHash}+
+appended content after line N
+<<< ${nonce}
+
 >>> ${nonce} 0+
 prepended content
+<<< ${nonce}
+
+>>> ${nonce} 10:ab-15:cd
+(empty body deletes the range)
 <<< ${nonce}
 
 - The nonce "${nonce}" is constant; always use the exact value shown above.
 - Line numbers are 1-indexed and refer to the original file; "{start}-{end}" is inclusive.
 - Hashes are 2-character hex hashes of each line's full content as shown by read_file (e.g. "a3").
-- "{N}:{afterHash}+" inserts after line N; "0+" prepends (no hash needed). "{lastLine}:{hash}+" appends.
-- An empty body deletes the range.
             `.trim(),
             type: "string",
           },
