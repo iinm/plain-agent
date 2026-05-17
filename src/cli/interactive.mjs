@@ -505,6 +505,8 @@ export function startInteractiveSession({
           `\r\x1b[K${styleText("gray", `<${partialContent.type}>`)} ${styleText("green", "✓")}\n`,
         );
       } else {
+        // Flush any buffered text before printing the closing tag
+        streamBuffer.forceFlush();
         console.log(styleText("gray", `\n</${partialContent.type}>`));
       }
     }
