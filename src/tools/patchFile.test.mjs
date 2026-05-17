@@ -41,16 +41,13 @@ describe("patchFileTool", () => {
     ]);
 
     // when:
-    const patch = `
->>> 012 1:${lineHash("Hello World")}-1:${lineHash("Hello World")}
-Hello Universe
-<<< 012
-
->>> 012 3:${lineHash("This is a test file content 2.")}-4:${lineHash("This is a test file content 3.")}
-This is a test file content updated 2.
-This is a test file content updated 3.
-<<< 012
-`.trim();
+    const patch = [
+      `@@@ 012 1:${lineHash("Hello World")}-1:${lineHash("Hello World")}`,
+      "Hello Universe",
+      `@@@ 012 3:${lineHash("This is a test file content 2.")}-4:${lineHash("This is a test file content 3.")}`,
+      "This is a test file content updated 2.",
+      "This is a test file content updated 3.",
+    ].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -67,7 +64,7 @@ This is a test file content updated 3.
     );
   });
 
-  it("deletes a range with an empty body", async () => {
+  it("deletes a range with an empty body (next header follows immediately)", async () => {
     // given:
     const tmpFilePath = await writeTmp([
       "Hello World",
@@ -76,11 +73,12 @@ This is a test file content updated 3.
       "keep me",
     ]);
 
-    // when:
-    const patch = `
->>> 012 2:${lineHash("drop me")}-3:${lineHash("drop me too")}
-<<< 012
-`.trim();
+    // when: deletion = header immediately followed by next header (no body lines)
+    const patch = [
+      `@@@ 012 2:${lineHash("drop me")}-3:${lineHash("drop me too")}`,
+      `@@@ 012 4:${lineHash("keep me")}-4:${lineHash("keep me")}`,
+      "keep me",
+    ].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -89,16 +87,26 @@ This is a test file content updated 3.
     assert.equal(patchedContent, ["Hello World", "keep me"].join("\n"));
   });
 
+  it("deletes a range with an empty body (at end of patch string)", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["keep", "drop me", "keep too"]);
+
+    // when: deletion = header at end of patch string (no body lines after it)
+    const patch = `@@@ 012 2:${lineHash("drop me")}-2:${lineHash("drop me")}`;
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
+    assert.equal(patchedContent, ["keep", "keep too"].join("\n"));
+  });
+
   it("inserts content with N:hash+ syntax (after a line)", async () => {
     // given:
     const tmpFilePath = await writeTmp(["alpha", "bravo", "delta"]);
 
     // when: insert "charlie" after line 2
-    const patch = `
->>> 012 2:${lineHash("bravo")}+
-charlie
-<<< 012
-`.trim();
+    const patch = [`@@@ 012 2:${lineHash("bravo")}+`, "charlie"].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -115,15 +123,12 @@ charlie
     const tmpFilePath = await writeTmp(["middle"]);
 
     // when:
-    const patch = `
->>> 012 0+
-top
-<<< 012
-
->>> 012 1:${lineHash("middle")}+
-bottom
-<<< 012
-`.trim();
+    const patch = [
+      "@@@ 012 0+",
+      "top",
+      `@@@ 012 1:${lineHash("middle")}+`,
+      "bottom",
+    ].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -140,11 +145,7 @@ bottom
     cleanups.push(() => fs.unlink(tmpFilePath));
 
     // when:
-    const patch = `
->>> 012 0+
-new content
-<<< 012
-`.trim();
+    const patch = ["@@@ 012 0+", "new content"].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -161,11 +162,7 @@ new content
     cleanups.push(() => fs.unlink(tmpFilePath));
 
     // when:
-    const patch = `
->>> 012 1:61-1:61
-new
-<<< 012
-`.trim();
+    const patch = ["@@@ 012 1:61-1:61", "new"].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -180,11 +177,10 @@ new
     cleanups.push(() => fs.unlink(tmpFilePath));
 
     // when:
-    const patch = `
->>> 012 1:${lineHash("alpha")}-1:${lineHash("alpha")}
-ALPHA
-<<< 012
-`.trim();
+    const patch = [
+      `@@@ 012 1:${lineHash("alpha")}-1:${lineHash("alpha")}`,
+      "ALPHA",
+    ].join("\n");
     await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -199,11 +195,10 @@ ALPHA
     cleanups.push(() => fs.unlink(tmpFilePath));
 
     // when:
-    const patch = `
->>> 012 2:${lineHash("bravo")}-2:${lineHash("bravo")}
-BRAVO
-<<< 012
-`.trim();
+    const patch = [
+      `@@@ 012 2:${lineHash("bravo")}-2:${lineHash("bravo")}`,
+      "BRAVO",
+    ].join("\n");
     await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -216,16 +211,13 @@ BRAVO
     const tmpFilePath = await writeTmp(["one", "two", "three", "four", "five"]);
 
     // when: line numbers refer to ORIGINAL file even though block 1 changes line count
-    const patch = `
->>> 012 1:${lineHash("one")}-1:${lineHash("one")}
-ONE
-TWO
-<<< 012
-
->>> 012 5:${lineHash("five")}-5:${lineHash("five")}
-FIVE
-<<< 012
-`.trim();
+    const patch = [
+      `@@@ 012 1:${lineHash("one")}-1:${lineHash("one")}`,
+      "ONE",
+      "TWO",
+      `@@@ 012 5:${lineHash("five")}-5:${lineHash("five")}`,
+      "FIVE",
+    ].join("\n");
     await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -245,11 +237,10 @@ FIVE
     ]);
 
     // when:
-    const patch = `
->>> 012 2:${lineHash("    return 1;")}-2:${lineHash("    return 1;")}
-    return 42;
-<<< 012
-`.trim();
+    const patch = [
+      `@@@ 012 2:${lineHash("    return 1;")}-2:${lineHash("    return 1;")}`,
+      "    return 42;",
+    ].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -269,11 +260,10 @@ FIVE
     ]);
 
     // when:
-    const patch = `
->>> 012 1:${lineHash('const greeting = "hello world";')}-1:${lineHash('const greeting = "hello world";')}
-const greeting = "Hello, World!";
-<<< 012
-`.trim();
+    const patch = [
+      `@@@ 012 1:${lineHash('const greeting = "hello world";')}-1:${lineHash('const greeting = "hello world";')}`,
+      'const greeting = "Hello, World!";',
+    ].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -292,11 +282,10 @@ const greeting = "Hello, World!";
     const tmpFilePath = await writeTmp(["alpha", "bravo", "charlie"]);
 
     // when: hash claims "alpha" but actual line 2 is "bravo"
-    const patch = `
->>> 012 2:${lineHash("alpha")}-2:${lineHash("alpha")}
-new
-<<< 012
-`.trim();
+    const patch = [
+      `@@@ 012 2:${lineHash("alpha")}-2:${lineHash("alpha")}`,
+      "new",
+    ].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -310,11 +299,10 @@ new
     const tmpFilePath = await writeTmp(["alpha", "bravo", "charlie"]);
 
     // when: start hash is correct but end hash is wrong
-    const patch = `
->>> 012 2:${lineHash("bravo")}-3:${lineHash("alpha")}
-new
-<<< 012
-`.trim();
+    const patch = [
+      `@@@ 012 2:${lineHash("bravo")}-3:${lineHash("alpha")}`,
+      "new",
+    ].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -327,11 +315,7 @@ new
     const tmpFilePath = await writeTmp(["alpha", "bravo"]);
 
     // when: insert after line 1 but hash is wrong
-    const patch = `
->>> 012 1:${lineHash("bravo")}+
-inserted
-<<< 012
-`.trim();
+    const patch = [`@@@ 012 1:${lineHash("bravo")}+`, "inserted"].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -345,11 +329,10 @@ inserted
       const tmpFilePath = await writeTmp(["alpha", middle, "charlie"]);
 
       // when:
-      const patch = `
->>> 012 2:${lineHash(middle)}-2:${lineHash(middle)}
-bravo
-<<< 012
-`.trim();
+      const patch = [
+        `@@@ 012 2:${lineHash(middle)}-2:${lineHash(middle)}`,
+        "bravo",
+      ].join("\n");
       const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
       // then:
@@ -364,11 +347,7 @@ bravo
     const tmpFilePath = await writeTmp(["alpha", "bravo", "charlie"]);
 
     // when: line 2 is "bravo", not blank, so empty hash should fail.
-    const patch = `
->>> 012 2:00-2:00
-new
-<<< 012
-`.trim();
+    const patch = ["@@@ 012 2:00-2:00", "new"].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -381,15 +360,12 @@ new
     const tmpFilePath = await writeTmp(["a", "b", "c", "d", "e"]);
 
     // when:
-    const patch = `
->>> 012 1:${lineHash("a")}-3:${lineHash("c")}
-X
-<<< 012
-
->>> 012 3:${lineHash("c")}-5:${lineHash("e")}
-Y
-<<< 012
-`.trim();
+    const patch = [
+      `@@@ 012 1:${lineHash("a")}-3:${lineHash("c")}`,
+      "X",
+      `@@@ 012 3:${lineHash("c")}-5:${lineHash("e")}`,
+      "Y",
+    ].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -402,15 +378,12 @@ Y
     const tmpFilePath = await writeTmp(["a", "b", "c", "d", "e"]);
 
     // when: insert at 2+ falls inside replace 1-3
-    const patch = `
->>> 012 1:${lineHash("a")}-3:${lineHash("c")}
-X
-<<< 012
-
->>> 012 2:${lineHash("b")}+
-Y
-<<< 012
-`.trim();
+    const patch = [
+      `@@@ 012 1:${lineHash("a")}-3:${lineHash("c")}`,
+      "X",
+      `@@@ 012 2:${lineHash("b")}+`,
+      "Y",
+    ].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -423,15 +396,12 @@ Y
     const tmpFilePath = await writeTmp(["a", "b", "c"]);
 
     // when: insert at 3+ (after the end of replace 1-3)
-    const patch = `
->>> 012 1:${lineHash("a")}-3:${lineHash("c")}
-X
-<<< 012
-
->>> 012 3:${lineHash("c")}+
-Y
-<<< 012
-`.trim();
+    const patch = [
+      `@@@ 012 1:${lineHash("a")}-3:${lineHash("c")}`,
+      "X",
+      `@@@ 012 3:${lineHash("c")}+`,
+      "Y",
+    ].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -445,15 +415,12 @@ Y
     const tmpFilePath = await writeTmp(["a", "b", "c"]);
 
     // when: insert at 0+ (before start of replace 1-3)
-    const patch = `
->>> 012 1:${lineHash("a")}-3:${lineHash("c")}
-X
-<<< 012
-
->>> 012 0+
-Y
-<<< 012
-`.trim();
+    const patch = [
+      "@@@ 012 0+",
+      "Y",
+      `@@@ 012 1:${lineHash("a")}-3:${lineHash("c")}`,
+      "X",
+    ].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -467,11 +434,7 @@ Y
     const tmpFilePath = await writeTmp(["a", "b"]);
 
     // when:
-    const patch = `
->>> 012 1:${lineHash("a")}-3:ab
-X
-<<< 012
-`.trim();
+    const patch = [`@@@ 012 1:${lineHash("a")}-3:ab`, "X"].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -484,11 +447,7 @@ X
     const tmpFilePath = await writeTmp(["a", "b"]);
 
     // when: insert at 3+ but file only has 2 lines
-    const patch = `
->>> 012 3:ab+
-X
-<<< 012
-`.trim();
+    const patch = ["@@@ 012 3:ab+", "X"].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -501,11 +460,7 @@ X
     const tmpFilePath = await writeTmp(["a"]);
 
     // when:
-    const patch = `
->>> 012 0:ab-1:${lineHash("a")}
-X
-<<< 012
-`.trim();
+    const patch = [`@@@ 012 0:ab-1:${lineHash("a")}`, "X"].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -518,11 +473,9 @@ X
     const tmpFilePath = await writeTmp(["a", "b", "c", "d", "e"]);
 
     // when:
-    const patch = `
->>> 012 5:${lineHash("e")}-3:${lineHash("c")}
-X
-<<< 012
-`.trim();
+    const patch = [`@@@ 012 5:${lineHash("e")}-3:${lineHash("c")}`, "X"].join(
+      "\n",
+    );
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -534,11 +487,12 @@ X
     // given:
     const tmpFilePath = await writeTmp(["a", "b"]);
 
-    // when:
-    const patch = `
->>> 012 1:${lineHash("a")}+
-<<< 012
-`.trim();
+    // when: insert with no body — next header follows immediately
+    const patch = [
+      `@@@ 012 1:${lineHash("a")}+`,
+      `@@@ 012 2:${lineHash("b")}+`,
+      "X",
+    ].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -551,11 +505,10 @@ X
     const tmpFilePath = await writeTmp(["Original text here"]);
 
     // when:
-    const patch = `
->>> 012 1:${lineHash("Original text here")}-1:${lineHash("Original text here")}
-$& means match, $1 means first group, $$ means literal dollar
-<<< 012
-`.trim();
+    const patch = [
+      `@@@ 012 1:${lineHash("Original text here")}-1:${lineHash("Original text here")}`,
+      "$& means match, $1 means first group, $$ means literal dollar",
+    ].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
@@ -572,31 +525,12 @@ $& means match, $1 means first group, $$ means literal dollar
     const tmpFilePath = await writeTmp(["a"]);
 
     // when:
-    const patch = `
->>> 012 abc
-nope
-<<< 012
-`.trim();
+    const patch = ["@@@ 012 abc", "nope"].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.ok(result instanceof Error);
     assert.match(result.message, /Invalid block header arguments/);
-  });
-
-  it("rejects close marker without an open block", async () => {
-    // given:
-    const tmpFilePath = await writeTmp(["a"]);
-
-    // when:
-    const patch = `
-<<< 012
-`.trim();
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
-
-    // then:
-    assert.ok(result instanceof Error);
-    assert.match(result.message, /Unexpected close marker/);
   });
 
   it("rejects HEAD= format (backward incompatible)", async () => {
@@ -604,27 +538,172 @@ nope
     const tmpFilePath = await writeTmp(["a", "b"]);
 
     // when: old HEAD= format should be rejected
-    const patch = `
->>> 012 1-1 HEAD=a
-X
-<<< 012
-`.trim();
+    const patch = ["@@@ 012 1-1 HEAD=a", "X"].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.ok(result instanceof Error);
     assert.match(result.message, /Invalid block header arguments/);
   });
+
+  it("replaces a single line using shorthand N:hash format", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["one", "two", "three"]);
+
+    // when: shorthand "2:hash" means replace just line 2
+    const patch = [`@@@ 012 2:${lineHash("two")}`, "TWO"].join("\n");
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
+    assert.equal(patchedContent, ["one", "TWO", "three"].join("\n"));
+  });
+
+  it("replaces from a line to end of file using N:hash- format", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a", "b", "c", "d"]);
+
+    // when: "3:hash-" means replace from line 3 to end of file
+    const patch = [`@@@ 012 3:${lineHash("c")}-`, "X", "Y"].join("\n");
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
+    assert.equal(patchedContent, ["a", "b", "X", "Y"].join("\n"));
+  });
+
+  it("skips end hash verification for N:hash- format", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a", "b", "c"]);
+
+    // when: endHash is null so only startHash is verified
+    const patch = [`@@@ 012 2:${lineHash("b")}-`, "X"].join("\n");
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
+    assert.equal(patchedContent, ["a", "X"].join("\n"));
+  });
+
+  it("strips read_file format leakage (pipe character) from header", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["alpha", "bravo"]);
+
+    // when: model copies read_file output format with "|"
+    const patch = [`@@@ 012 1:${lineHash("alpha")}|  alpha`, "ALPHA"].join(
+      "\n",
+    );
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
+    assert.equal(patchedContent, ["ALPHA", "bravo"].join("\n"));
+  });
+
+  it("preserves empty lines within body", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a", "b"]);
+
+    // when: body contains empty lines
+    const patch = [
+      `@@@ 012 1:${lineHash("a")}-1:${lineHash("a")}`,
+      "X",
+      "",
+      "Z",
+      `@@@ 012 2:${lineHash("b")}-2:${lineHash("b")}`,
+      "Y",
+    ].join("\n");
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
+    assert.equal(patchedContent, ["X", "", "Z", "Y"].join("\n"));
+  });
+
+  it("replaces from line 1 to end of file using 1:hash- format", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["old1", "old2", "old3"]);
+
+    // when: replace entire file from line 1
+    const patch = [`@@@ 012 1:${lineHash("old1")}-`, "new1", "new2"].join("\n");
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    const patchedContent = await fs.readFile(tmpFilePath, "utf8");
+    assert.equal(patchedContent, ["new1", "new2"].join("\n"));
+  });
+
+  it("rejects N:hash- with start < 1", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a"]);
+
+    // when:
+    const patch = ["@@@ 012 0:ab-", "X"].join("\n");
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /start must be >= 1/);
+  });
+
+  it("rejects single line shorthand with start < 1", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a"]);
+
+    // when:
+    const patch = ["@@@ 012 0:ab", "X"].join("\n");
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /start must be >= 1/);
+  });
+
+  it("rejects N:hash- on empty file", async () => {
+    // given:
+    const tmpFilePath = `tmp/patchFileTest-${generateRandomString()}.txt`;
+    await fs.mkdir("tmp", { recursive: true });
+    await fs.writeFile(tmpFilePath, "");
+    cleanups.push(() => fs.unlink(tmpFilePath));
+
+    // when:
+    const patch = ["@@@ 012 1:ab-", "X"].join("\n");
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /extends past end of file \(0 lines\)/);
+  });
+
+  it("handles single line shorthand in conflict detection", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["a", "b", "c"]);
+
+    // when: two single-line shorthands targeting the same line
+    const patch = [
+      `@@@ 012 2:${lineHash("b")}`,
+      "X",
+      `@@@ 012 2:${lineHash("b")}`,
+      "Y",
+    ].join("\n");
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /overlap/);
+  });
 });
 
 describe("parseBlocks", () => {
   it("parses replace block with hash", () => {
     // given:
-    const patch = `
->>> xyz 1:7b-3:20
-new content
-<<< xyz
-`.trim();
+    const patch = ["@@@ xyz 1:7b-3:20", "new content"].join("\n");
 
     // when:
     const blocks = parseBlocks(patch, "xyz");
@@ -645,11 +724,7 @@ new content
 
   it("parses insert block with hash", () => {
     // given:
-    const patch = `
->>> xyz 2:20+
-inserted
-<<< xyz
-`.trim();
+    const patch = ["@@@ xyz 2:20+", "inserted"].join("\n");
 
     // when:
     const blocks = parseBlocks(patch, "xyz");
@@ -668,11 +743,7 @@ inserted
 
   it("parses insert block with 0+ (no hash)", () => {
     // given:
-    const patch = `
->>> xyz 0+
-prepended
-<<< xyz
-`.trim();
+    const patch = ["@@@ xyz 0+", "prepended"].join("\n");
 
     // when:
     const blocks = parseBlocks(patch, "xyz");
@@ -689,20 +760,128 @@ prepended
     assert.deepEqual(block.body, ["prepended"]);
   });
 
-  it("rejects a second open marker before the first block is closed (missing close marker)", () => {
-    // given: 1つ目のブロックの終了マーカーがなく、2つ目のブロックが開始されている
-    const patch = `
->>> xyz 1:7b-1:7b
-new content
->>> xyz 3:20-3:20
-other content
-<<< xyz
-`.trim();
+  it("parses single line replace shorthand", () => {
+    // given:
+    const patch = ["@@@ xyz 5:ab", "new"].join("\n");
+
+    // when:
+    const blocks = parseBlocks(patch, "xyz");
+
+    // then:
+    assert.equal(blocks.length, 1);
+    const block =
+      /** @type {import("./patchFile").PatchBlock & {op: "replace"}} */ (
+        blocks[0]
+      );
+    assert.equal(block.op, "replace");
+    assert.equal(block.start, 5);
+    assert.equal(block.end, 5);
+    assert.equal(block.startHash, "ab");
+    assert.equal(block.endHash, "ab");
+    assert.deepEqual(block.body, ["new"]);
+  });
+
+  it("parses tail replace shorthand N:hash-", () => {
+    // given:
+    const patch = ["@@@ xyz 3:cd-", "tail content"].join("\n");
+
+    // when:
+    const blocks = parseBlocks(patch, "xyz");
+
+    // then:
+    assert.equal(blocks.length, 1);
+    const block =
+      /** @type {import("./patchFile").PatchBlock & {op: "replace"}} */ (
+        blocks[0]
+      );
+    assert.equal(block.op, "replace");
+    assert.equal(block.start, 3);
+    assert.equal(block.end, null);
+    assert.equal(block.startHash, "cd");
+    assert.equal(block.endHash, null);
+    assert.deepEqual(block.body, ["tail content"]);
+  });
+
+  it("parses multiple blocks with no separator lines", () => {
+    // given:
+    const patch = [
+      "@@@ xyz 1:7b-1:7b",
+      "first",
+      "@@@ xyz 3:20-3:20",
+      "second",
+    ].join("\n");
+
+    // when:
+    const blocks = parseBlocks(patch, "xyz");
+
+    // then:
+    assert.equal(blocks.length, 2);
+    assert.deepEqual(blocks[0].body, ["first"]);
+    assert.deepEqual(blocks[1].body, ["second"]);
+  });
+
+  it("parses deletion block (empty body at end of patch)", () => {
+    // given:
+    const patch = "@@@ xyz 5:ab-5:ab";
+
+    // when:
+    const blocks = parseBlocks(patch, "xyz");
+
+    // then:
+    assert.equal(blocks.length, 1);
+    assert.equal(blocks[0].op, "replace");
+    assert.deepEqual(blocks[0].body, []);
+  });
+
+  it("parses deletion block (empty body followed by next header)", () => {
+    // given:
+    const patch = ["@@@ xyz 5:ab-5:ab", "@@@ xyz 3:cd+", "new"].join("\n");
+
+    // when:
+    const blocks = parseBlocks(patch, "xyz");
+
+    // then:
+    assert.equal(blocks.length, 2);
+    assert.deepEqual(blocks[0].body, []);
+    assert.deepEqual(blocks[1].body, ["new"]);
+  });
+
+  it("strips read_file pipe format from header", () => {
+    // given:
+    const patch = ["@@@ xyz 5:ab|some content", "new"].join("\n");
+
+    // when:
+    const blocks = parseBlocks(patch, "xyz");
+
+    // then:
+    assert.equal(blocks.length, 1);
+    const block =
+      /** @type {import("./patchFile").PatchBlock & {op: "replace"}} */ (
+        blocks[0]
+      );
+    assert.equal(block.op, "replace");
+    assert.equal(block.start, 5);
+    assert.equal(block.end, 5);
+    assert.equal(block.startHash, "ab");
+    assert.equal(block.endHash, "ab");
+  });
+
+  it("throws for patch with wrong nonce", () => {
+    // given:
+    const patch = ["@@@ abc 1:7b-3:20", "content"].join("\n");
 
     // when/then:
     assert.throws(
       () => parseBlocks(patch, "xyz"),
-      /Unclosed block|close marker/i,
+      /No patch blocks found with nonce "xyz"/,
     );
+  });
+
+  it("throws for patch with no headers at all", () => {
+    // given:
+    const patch = "just some plain text";
+
+    // when/then:
+    assert.throws(() => parseBlocks(patch, "xyz"), /No patch blocks found/);
   });
 });

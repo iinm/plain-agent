@@ -846,12 +846,15 @@ function renderPatchBlock(block, originalLines, nonce) {
     out.push(
       styleText(
         "cyan",
-        `>>> ${nonce} ${block.start}:${block.startHash}-${block.end}:${block.endHash}`,
+        block.endHash !== null
+          ? `@@@ ${nonce} ${block.start}:${block.startHash}-${block.end}:${block.endHash}`
+          : `@@@ ${nonce} ${block.start}:${block.startHash}-`,
       ),
     );
     if (originalLines) {
       const safeStart = Math.max(1, block.start);
-      const safeEnd = Math.min(originalLines.length, block.end);
+      const resolvedEnd = block.end ?? originalLines.length;
+      const safeEnd = Math.min(originalLines.length, resolvedEnd);
       const oldSlice = originalLines.slice(safeStart - 1, safeEnd);
       // Use a real line diff so unchanged lines render as context
       // (no color, "  " prefix) instead of being shown as both "- " and
@@ -874,12 +877,11 @@ function renderPatchBlock(block, originalLines, nonce) {
     }
   } else {
     const afterSuffix = block.afterHash ? `:${block.afterHash}` : "";
-    out.push(styleText("cyan", `>>> ${nonce} ${block.after}${afterSuffix}+`));
+    out.push(styleText("cyan", `@@@ ${nonce} ${block.after}${afterSuffix}+`));
     for (const line of block.body) {
       out.push(styleText("green", `+ ${line}`));
     }
   }
-  out.push(styleText("cyan", `<<< ${nonce}`));
   return out.join("\n");
 }
 
@@ -893,8 +895,8 @@ function highlightPatchPlain(patch) {
   if (!patch) {
     return "";
   }
-  // Patch open/close markers look like ">>> <nonce> ..." or "<<< <nonce>".
-  const headerRegex = /^(>>>|<<<)\s+\S+(\s.*)?$/;
+  // Patch headers look like "@@@ <nonce> ...".
+  const headerRegex = /^@@@\s+\S+(\s.*)?$/;
   return patch
     .split("\n")
     .map((line) => {
@@ -915,7 +917,7 @@ function highlightPatchPlain(patch) {
  * @returns {string | null}
  */
 function extractPatchNonce(patch) {
-  const match = patch.match(/^>>>\s+(\S+)/m);
+  const match = patch.match(/^@@@\s+(\S+)/m);
   return match ? match[1] : null;
 }
 

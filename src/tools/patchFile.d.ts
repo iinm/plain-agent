@@ -7,9 +7,9 @@ export type PatchBlock =
   | {
       op: "replace";
       start: number;
-      end: number;
+      end: number | null;
       startHash: string;
-      endHash: string;
+      endHash: string | null;
       body: string[];
     }
   | {

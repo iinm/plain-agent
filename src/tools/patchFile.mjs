@@ -28,28 +28,22 @@ export function createPatchFileTool(
           patch: {
             description: `
 Format — a single patch string may contain multiple blocks:
->>> ${nonce} {start}:{startHash}-{end}:{endHash}
-new content
-<<< ${nonce}
-
->>> ${nonce} {start}:{startHash}-{end}:{endHash}
-another new content
-<<< ${nonce}
-
->>> ${nonce} {N}:{afterHash}+
+@@@ ${nonce} {start}:{startHash}-{end}:{endHash}
+replacement for lines {start}-{end}
+@@@ ${nonce} {start}:{startHash}-{end}:{endHash}
+another replacement for lines {start}-{end}
+@@@ ${nonce} {N}:{afterHash}+
 appended content after line N
-<<< ${nonce}
-
->>> ${nonce} 0+
+@@@ ${nonce} 0+
 prepended content
-<<< ${nonce}
-
->>> ${nonce} 10:ab-15:cd
+@@@ ${nonce} {N}:{hash}
+replace just that one line
+@@@ ${nonce} {N}:{hash}-
+replace from line N to end of file
+@@@ ${nonce} 10:ab-15:cd
 (empty body deletes the range)
-<<< ${nonce}
 
 - The nonce "${nonce}" is constant; always use the exact value shown above.
-- Line numbers are 1-indexed and refer to the original file; "{start}-{end}" is inclusive.
 - Hashes are 2-character hex hashes of each line's full content as shown by read_file (e.g. "a3").
             `.trim(),
             type: "string",
@@ -69,7 +63,7 @@ prepended content
         const blocks = parseBlocks(patch, nonce);
         if (blocks.length === 0) {
           throw new Error(
-            `No patch blocks found. Each block must start with ">>> ${nonce} ..." and end with "<<< ${nonce}".`,
+            `No patch blocks found. Each block must start with "@@@ ${nonce} ...".`,
           );
         }
 
@@ -99,52 +93,52 @@ prepended content
  * @returns {PatchBlock[]}
  */
 export function parseBlocks(patch, nonce) {
-  const openPrefix = `>>> ${nonce} `;
-  const closeMarker = `<<< ${nonce}`;
+  const openPrefix = `@@@ ${nonce} `;
   const lines = patch.split("\n");
+
+  // Find all header line indices
+  /** @type {number[]} */
+  const headerIndices = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].startsWith(openPrefix)) {
+      headerIndices.push(i);
+    }
+  }
+
+  if (headerIndices.length === 0) {
+    // Check if any line looks like a header with wrong nonce or old format
+    for (const line of lines) {
+      if (line.startsWith("@@@ ") || line.startsWith(">>> ")) {
+        throw new Error(
+          `No patch blocks found with nonce "${nonce}". Check that the nonce in each block header matches "${nonce}" exactly.`,
+        );
+      }
+    }
+    throw new Error(
+      `No patch blocks found. Each block must start with "@@@ ${nonce} ...".`,
+    );
+  }
 
   /** @type {PatchBlock[]} */
   const blocks = [];
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (line === "") {
-      continue;
-    }
-    if (line === closeMarker) {
-      throw new Error(
-        `Unexpected close marker "${closeMarker}" with no matching open block (line ${i + 1} of patch).`,
-      );
-    }
-    if (!line.startsWith(openPrefix)) {
-      throw new Error(
-        `Expected block header starting with "${openPrefix}" but got: ${JSON.stringify(line)} (line ${i + 1} of patch).`,
-      );
-    }
-
-    const headerArgs = line.slice(openPrefix.length);
+  for (let i = 0; i < headerIndices.length; i++) {
+    const headerLineIdx = headerIndices[i];
+    const headerLine = lines[headerLineIdx];
+    const headerArgs = headerLine.slice(openPrefix.length);
     const header = parseHeaderArgs(headerArgs);
-    const closeIdx = lines.indexOf(closeMarker, i + 1);
-    if (closeIdx === -1) {
-      throw new Error(
-        `Missing close marker "${closeMarker}" for block "${openPrefix}${headerArgs}".`,
-      );
-    }
-    const body = lines.slice(i + 1, closeIdx);
-    const nestedOpen = body.findIndex((l) => l.startsWith(openPrefix));
-    if (nestedOpen !== -1) {
-      throw new Error(
-        `Unclosed block "${openPrefix}${headerArgs}": found another open marker "${body[nestedOpen]}" ` +
-          `at line ${i + 1 + nestedOpen + 1} of patch before the close marker. ` +
-          `Did you forget "${closeMarker}" to close the previous block?`,
-      );
-    }
+
+    // Body: from the line after the header to the line before the next header (or EOF)
+    const bodyStart = headerLineIdx + 1;
+    const bodyEnd =
+      i + 1 < headerIndices.length ? headerIndices[i + 1] : lines.length;
+    const body = lines.slice(bodyStart, bodyEnd);
+
     if (header.op === "insert" && body.length === 0) {
       throw new Error(
-        `Insert block "${openPrefix}${headerArgs}" has empty body. Use a replace block to delete content.`,
+        `Insert block "@@@ ${nonce} ${headerArgs}" has empty body. Use a replace block to delete content.`,
       );
     }
     blocks.push({ ...header, body });
-    i = closeIdx;
   }
   return blocks;
 }
@@ -165,6 +159,15 @@ export function applyBlocks(original, blocks) {
   }
   const totalLines = lines.length;
 
+  // Resolve end=null (shorthand "to end of file") to actual totalLines.
+  // After this, all replace blocks have end: number.
+  for (const block of blocks) {
+    if (block.op === "replace" && block.end === null) {
+      block.end = totalLines;
+    }
+  }
+
+  // After resolution, all replace blocks have end: number (not null).
   validateBlocks(blocks, totalLines);
   detectConflicts(blocks);
 
@@ -191,6 +194,8 @@ export function applyBlocks(original, blocks) {
 
   for (const { block } of indexed) {
     if (block.op === "replace") {
+      // After resolve, end is guaranteed to be a number
+      const end = /** @type {number} */ (block.end);
       const actualStart = lines[block.start - 1];
       const expectedStartHash = block.startHash;
       const actualStartHash = lineHash(actualStart ?? "");
@@ -199,15 +204,18 @@ export function applyBlocks(original, blocks) {
           `Hash verification failed at line ${block.start}: expected hash ${expectedStartHash} but got ${actualStartHash} for line ${JSON.stringify(actualStart)}. The line numbers may be stale; re-read the file with read_file.`,
         );
       }
-      const actualEnd = lines[block.end - 1];
-      const expectedEndHash = block.endHash;
-      const actualEndHash = lineHash(actualEnd ?? "");
-      if (actualEndHash !== expectedEndHash) {
-        throw new Error(
-          `Hash verification failed at line ${block.end}: expected hash ${expectedEndHash} but got ${actualEndHash} for line ${JSON.stringify(actualEnd)}. The line numbers may be stale; re-read the file with read_file.`,
-        );
+      // Skip end hash verification when endHash is null (from "N:hash-" shorthand)
+      if (block.endHash !== null) {
+        const actualEnd = lines[end - 1];
+        const expectedEndHash = block.endHash;
+        const actualEndHash = lineHash(actualEnd ?? "");
+        if (actualEndHash !== expectedEndHash) {
+          throw new Error(
+            `Hash verification failed at line ${end}: expected hash ${expectedEndHash} but got ${actualEndHash} for line ${JSON.stringify(actualEnd)}. The line numbers may be stale; re-read the file with read_file.`,
+          );
+        }
       }
-      const removeCount = block.end - block.start + 1;
+      const removeCount = end - block.start + 1;
       lines.splice(block.start - 1, removeCount, ...block.body);
     } else {
       if (block.after > 0) {
@@ -233,11 +241,15 @@ export function applyBlocks(original, blocks) {
 
 /**
  * @param {string} headerArgs
- * @returns {{ op: "replace"; start: number; end: number; startHash: string; endHash: string } | { op: "insert"; after: number; afterHash: string }}
+ * @returns {{ op: "replace"; start: number; end: number | null; startHash: string; endHash: string | null } | { op: "insert"; after: number; afterHash: string }}
  */
 function parseHeaderArgs(headerArgs) {
+  // Strip read_file format leakage: "11:40|  ]" → "11:40"
+  const pipeIdx = headerArgs.indexOf("|");
+  const cleaned = pipeIdx !== -1 ? headerArgs.slice(0, pipeIdx) : headerArgs;
+
   // Replace form: "{start}:{startHash}-{end}:{endHash}"
-  const replaceMatch = headerArgs.match(
+  const replaceMatch = cleaned.match(
     /^(\d+):([a-f0-9]{2})-(\d+):([a-f0-9]{2})\s*$/,
   );
   if (replaceMatch) {
@@ -261,12 +273,50 @@ function parseHeaderArgs(headerArgs) {
       endHash: replaceMatch[4],
     };
   }
+
+  // Replace form: "{N}:{hash}-" (from that line to end of file)
+  const tailReplaceMatch = cleaned.match(/^(\d+):([a-f0-9]{2})-\s*$/);
+  if (tailReplaceMatch) {
+    const start = Number(tailReplaceMatch[1]);
+    if (start < 1) {
+      throw new Error(
+        `Invalid replace range "${headerArgs}": start must be >= 1.`,
+      );
+    }
+    return {
+      op: "replace",
+      start,
+      end: null,
+      startHash: tailReplaceMatch[2],
+      endHash: null,
+    };
+  }
+
+  // Replace form: "{N}:{hash}" (single line replace — shorthand for N:hash-N:hash)
+  const singleReplaceMatch = cleaned.match(/^(\d+):([a-f0-9]{2})\s*$/);
+  if (singleReplaceMatch) {
+    const start = Number(singleReplaceMatch[1]);
+    if (start < 1) {
+      throw new Error(
+        `Invalid replace range "${headerArgs}": start must be >= 1.`,
+      );
+    }
+    return {
+      op: "replace",
+      start,
+      end: start,
+      startHash: singleReplaceMatch[2],
+      endHash: singleReplaceMatch[2],
+    };
+  }
+
   // Insert form: "0+" (no hash — there is no line 0 to verify)
-  if (/^0\+\s*$/.test(headerArgs)) {
+  if (/^0\+\s*$/.test(cleaned)) {
     return { op: "insert", after: 0, afterHash: "" };
   }
+
   // Insert form: "{N}:{afterHash}+"
-  const insertMatch = headerArgs.match(/^(\d+):([a-f0-9]{2})\+\s*$/);
+  const insertMatch = cleaned.match(/^(\d+):([a-f0-9]{2})\+\s*$/);
   if (insertMatch) {
     return {
       op: "insert",
@@ -274,8 +324,9 @@ function parseHeaderArgs(headerArgs) {
       afterHash: insertMatch[2],
     };
   }
+
   throw new Error(
-    `Invalid block header arguments: ${JSON.stringify(headerArgs)}. Expected "{start}:{startHash}-{end}:{endHash}" or "{N}:{afterHash}+" or "0+".`,
+    `Invalid block header arguments: ${JSON.stringify(headerArgs)}. Expected "{start}:{startHash}-{end}:{endHash}" or "{N}:{hash}" or "{N}:{hash}-" or "{N}:{afterHash}+" or "0+".`,
   );
 }
 
@@ -294,9 +345,15 @@ function spliceIndexOf(block) {
 function validateBlocks(blocks, totalLines) {
   for (const block of blocks) {
     if (block.op === "replace") {
-      if (totalLines < block.end) {
+      const end = /** @type {number} */ (block.end);
+      if (block.start > totalLines) {
         throw new Error(
-          `Replace range ${block.start}-${block.end} extends past end of file (${totalLines} lines).`,
+          `Replace range ${block.start}-${end} extends past end of file (${totalLines} lines).`,
+        );
+      }
+      if (totalLines < end) {
+        throw new Error(
+          `Replace range ${block.start}-${end} extends past end of file (${totalLines} lines).`,
         );
       }
     } else if (block.after < 0 || totalLines < block.after) {
@@ -316,21 +373,25 @@ function detectConflicts(blocks) {
       const a = blocks[i];
       const b = blocks[j];
       if (a.op === "replace" && b.op === "replace") {
-        if (a.start <= b.end && b.start <= a.end) {
+        const aEnd = /** @type {number} */ (a.end);
+        const bEnd = /** @type {number} */ (b.end);
+        if (a.start <= bEnd && b.start <= aEnd) {
           throw new Error(
-            `Replace ranges overlap: ${a.start}-${a.end} and ${b.start}-${b.end}.`,
+            `Replace ranges overlap: ${a.start}-${aEnd} and ${b.start}-${bEnd}.`,
           );
         }
       } else if (a.op === "replace" && b.op === "insert") {
-        if (a.start <= b.after && b.after < a.end) {
+        const aEnd = /** @type {number} */ (a.end);
+        if (a.start <= b.after && b.after < aEnd) {
           throw new Error(
-            `Insert at ${b.after}+ falls inside replace range ${a.start}-${a.end}.`,
+            `Insert at ${b.after}+ falls inside replace range ${a.start}-${aEnd}.`,
           );
         }
       } else if (a.op === "insert" && b.op === "replace") {
-        if (b.start <= a.after && a.after < b.end) {
+        const bEnd = /** @type {number} */ (b.end);
+        if (b.start <= a.after && a.after < bEnd) {
           throw new Error(
-            `Insert at ${a.after}+ falls inside replace range ${b.start}-${b.end}.`,
+            `Insert at ${a.after}+ falls inside replace range ${b.start}-${bEnd}.`,
           );
         }
       }
