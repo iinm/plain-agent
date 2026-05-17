@@ -31,14 +31,14 @@ When editing multiple locations in the same file, include all blocks in a single
 Format — a single patch string may contain multiple blocks:
 @@@ ${nonce} {start}:{startHash}-{end}:{endHash}
 replacement for lines {start}-{end}
+@@@ ${nonce} {N}:{hash}
+replace just that one line
+@@@ ${nonce} {start}:{startHash}-{end}:{endHash}
+(empty body deletes the range)
 @@@ ${nonce} {N}:{afterHash}+
 appended content after line N
 @@@ ${nonce} 0+
 prepended content at beginning of file
-@@@ ${nonce} {N}:{hash}
-replace just that one line
-@@@ ${nonce} 10:ab-15:cd
-(empty body deletes the range)
 
 - Each block's content starts right after its @@@ header line and ends at the next @@@ or the end of the string. Any blank lines between the header and the content become part of the replacement.
 - The nonce "${nonce}" is constant; always use the exact value shown above.
