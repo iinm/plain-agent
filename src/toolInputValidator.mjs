@@ -20,28 +20,38 @@ const UNSAFE_PROJECT_PATHS = [
   path.join(AGENT_PROJECT_METADATA_DIR, "config.local.json"),
 ];
 
+/** Built-in allowed paths that are always safe */
+const BUILTIN_ALLOWED_PATHS = [
+  AGENT_MEMORY_DIR,
+  AGENT_TMP_DIR,
+  CLAUDE_CODE_PLUGIN_DIR,
+];
+
 /**
  * @param {unknown} input
+ * @param {string[]} [allowedPaths=[]] - Additional allowed paths (merged from config)
  * @returns {boolean}
  */
-export function isSafeToolInput(input) {
+export function isSafeToolInput(input, allowedPaths = []) {
   if (["number", "boolean", "undefined"].includes(typeof input)) {
     return true;
   }
 
   if (typeof input === "string") {
-    return isSafeToolInputItem(input);
+    return isSafeToolInputItem(input, allowedPaths);
   }
 
   if (Array.isArray(input)) {
-    return input.every((item) => isSafeToolInput(item));
+    return input.every((item) => isSafeToolInput(item, allowedPaths));
   }
 
   if (typeof input === "object") {
     if (input === null) {
       return true;
     }
-    return Object.values(input).every((value) => isSafeToolInput(value));
+    return Object.values(input).every((value) =>
+      isSafeToolInput(value, allowedPaths),
+    );
   }
 
   return false;
@@ -49,9 +59,10 @@ export function isSafeToolInput(input) {
 
 /**
  * @param {string} arg
+ * @param {string[]} [allowedPaths=[]] - Additional allowed paths (merged from config)
  * @returns {boolean}
  */
-export function isSafeToolInputItem(arg) {
+export function isSafeToolInputItem(arg, allowedPaths = []) {
   const workingDir = process.cwd();
 
   // Note: An argument can be a command option (e.g., '-l').
@@ -63,15 +74,15 @@ export function isSafeToolInputItem(arg) {
     return false;
   }
 
-  // Disallow paths outside the working directory (WITHOUT EXCEPTION)
-  if (!isInsideWorkingDirectory(realPath, workingDir)) {
-    return false;
-  }
+  // Disallow paths outside the working directory first
+  // (but we'll check allowedPaths after the .. check)
+  const isOutsideWorkingDir = !isInsideWorkingDirectory(realPath, workingDir);
 
   // Disallow any input that contains ".." as a path segment (directory traversal)
   // Example:
   // - When write_file is allowed for ^safe-dir/.+
   // - "safe-dir/../unsafe-path" should be disallowed
+  // This check must happen before allowedPaths check for security
   if (arg.split(path.sep).includes("..")) {
     return false;
   }
@@ -81,9 +92,15 @@ export function isSafeToolInputItem(arg) {
     return false;
   }
 
-  // Always allow these even if git-ignored.
-  if (isSafePath(realPath)) {
+  // Check if the path is in allowed paths (built-in + configured)
+  // This allows access to directories outside the working directory
+  if (isInAllowedPath(realPath, allowedPaths)) {
     return true;
+  }
+
+  // Disallow paths outside the working directory (not in allowedPaths)
+  if (isOutsideWorkingDir) {
+    return false;
   }
 
   // Deny git ignored files (which may contain sensitive information or should not be accessed)
@@ -153,17 +170,19 @@ function isInsideWorkingDirectory(targetPath, workingDir) {
 }
 
 /**
+ * Check if the path is in allowed paths (built-in + configured).
  * @param {string} targetPath
+ * @param {string[]} allowedPaths - Additional allowed paths from config
  * @returns {boolean}
  */
-function isSafePath(targetPath) {
-  const safePaths = [AGENT_MEMORY_DIR, AGENT_TMP_DIR, CLAUDE_CODE_PLUGIN_DIR];
+function isInAllowedPath(targetPath, allowedPaths) {
+  const allAllowedPaths = [...BUILTIN_ALLOWED_PATHS, ...allowedPaths];
 
-  for (const safePath of safePaths) {
-    const safeAbsPath = path.resolve(safePath);
+  for (const allowedPath of allAllowedPaths) {
+    const allowedAbsPath = path.resolve(allowedPath);
     if (
-      targetPath === safeAbsPath ||
-      targetPath.startsWith(`${safeAbsPath}${path.sep}`)
+      targetPath === allowedAbsPath ||
+      targetPath.startsWith(`${allowedAbsPath}${path.sep}`)
     ) {
       return true;
     }

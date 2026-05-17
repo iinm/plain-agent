@@ -257,3 +257,59 @@ describe("isSafeToolInputItem", () => {
     });
   }
 });
+
+describe("allowedPaths parameter", () => {
+  it("should allow access to configured path outside working directory", () => {
+    const allowedPaths = ["/tmp/allowed-test-dir"];
+    assert.strictEqual(
+      isSafeToolInputItem("/tmp/allowed-test-dir/some-file.txt", allowedPaths),
+      true,
+    );
+  });
+
+  it("should allow access to configured path itself", () => {
+    const allowedPaths = ["/tmp/allowed-test-dir"];
+    assert.strictEqual(
+      isSafeToolInputItem("/tmp/allowed-test-dir", allowedPaths),
+      true,
+    );
+  });
+
+  it("should not allow access to non-configured path outside working directory", () => {
+    const allowedPaths = ["/tmp/allowed-test-dir"];
+    assert.strictEqual(
+      isSafeToolInputItem("/tmp/other-dir/some-file.txt", allowedPaths),
+      false,
+    );
+  });
+
+  it("should merge multiple configured paths", () => {
+    const allowedPaths = ["/tmp/dir1", "/tmp/dir2"];
+    assert.strictEqual(
+      isSafeToolInputItem("/tmp/dir1/file.txt", allowedPaths),
+      true,
+    );
+    assert.strictEqual(
+      isSafeToolInputItem("/tmp/dir2/file.txt", allowedPaths),
+      true,
+    );
+    assert.strictEqual(
+      isSafeToolInputItem("/tmp/dir3/file.txt", allowedPaths),
+      false,
+    );
+  });
+
+  it("should return false for configured path when allowedPaths is empty", () => {
+    /** @type {string[]} */
+    const allowedPaths = [];
+    assert.strictEqual(
+      isSafeToolInputItem("/tmp/allowed-test-dir", allowedPaths),
+      false,
+    );
+  });
+
+  it("should still allow built-in safe paths when allowedPaths is empty", () => {
+    const agentTmpDir = path.resolve(AGENT_PROJECT_METADATA_DIR, "tmp");
+    assert.strictEqual(isSafeToolInputItem(agentTmpDir, []), true);
+  });
+});

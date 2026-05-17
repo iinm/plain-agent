@@ -73,6 +73,10 @@ export async function loadAppConfig(options = {}) {
         maxApprovals:
           config.autoApproval?.maxApprovals ??
           merged.autoApproval?.maxApprovals,
+        allowedPaths: [
+          ...(config.autoApproval?.allowedPaths ?? []),
+          ...(merged.autoApproval?.allowedPaths ?? []),
+        ],
       },
       sandbox: config.sandbox ?? merged.sandbox,
       tools: {

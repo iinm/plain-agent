@@ -15,6 +15,7 @@ export function createToolUseApprover({
   maxApprovals: max,
   defaultAction,
   maskApprovalInput,
+  allowedPaths,
 }) {
   const state = {
     approvalCount: 0,
@@ -64,7 +65,7 @@ export function createToolUseApprover({
 
       if (action === "allow") {
         const maskedInput = maskApprovalInput(toolUse.toolName, toolUse.input);
-        if (isSafeToolInput(maskedInput)) {
+        if (isSafeToolInput(maskedInput, allowedPaths)) {
           state.approvalCount += 1;
           return state.approvalCount <= max
             ? { action: "allow" }

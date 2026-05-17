@@ -37,6 +37,8 @@ export type ToolUseApproverConfig = {
   patterns: ToolUsePattern[];
   maxApprovals: number;
   defaultAction: "deny" | "ask";
+  /** Additional absolute paths to allow for auto-approval */
+  allowedPaths?: string[];
 
   /**
    * Mask the input before auto-approval checks and recording.
