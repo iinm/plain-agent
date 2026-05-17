@@ -112,12 +112,17 @@ export function startInteractiveSession({
   claudeCodePlugins,
   voiceInput,
 }) {
-  /** @type {{ turn: boolean, multiLineBuffer: string[] | null, subagentName: string }} */
+  /** @type {{ turn: boolean, multiLineBuffer: string[] | null, subagentName: string, toolSpinnerIndex: number, toolSpinnerLastTime: number }} */
   const state = {
     turn: true,
     multiLineBuffer: null,
     subagentName: agentCommands.getActiveSubagent()?.name ?? "",
+    toolSpinnerIndex: 0,
+    toolSpinnerLastTime: 0,
   };
+
+  const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+  const SPINNER_INTERVAL_MS = 80;
 
   /**
    * Active voice input session, or null when not recording.
@@ -466,11 +471,28 @@ export function startInteractiveSession({
         ? styleText("cyan", `[${state.subagentName}]\n`)
         : "";
       const partialContentStr = styleText("gray", `<${partialContent.type}>`);
-      console.log(`\n${subagentPrefix}${partialContentStr}`);
+
+      if (partialContent.type === "tool_use") {
+        state.toolSpinnerIndex = 0;
+        state.toolSpinnerLastTime = Date.now();
+        process.stdout.write(
+          `\n${subagentPrefix}${partialContentStr} ${styleText("cyan", SPINNER_FRAMES[0])}`,
+        );
+      } else {
+        console.log(`\n${subagentPrefix}${partialContentStr}`);
+      }
     }
     if (partialContent.content) {
       if (partialContent.type === "tool_use") {
-        process.stdout.write(styleText("gray", partialContent.content));
+        const now = Date.now();
+        if (now - state.toolSpinnerLastTime >= SPINNER_INTERVAL_MS) {
+          state.toolSpinnerIndex =
+            (state.toolSpinnerIndex + 1) % SPINNER_FRAMES.length;
+          state.toolSpinnerLastTime = now;
+          process.stdout.write(
+            `\r\x1b[K${styleText("gray", `<${partialContent.type}>`)} ${styleText("cyan", SPINNER_FRAMES[state.toolSpinnerIndex])}`,
+          );
+        }
       } else if (partialContent.type === "text") {
         tableBuffer.feed(partialContent.content);
       } else {
@@ -478,7 +500,13 @@ export function startInteractiveSession({
       }
     }
     if (partialContent.position === "stop") {
-      console.log(styleText("gray", `\n</${partialContent.type}>`));
+      if (partialContent.type === "tool_use") {
+        process.stdout.write(
+          `\r\x1b[K${styleText("gray", `<${partialContent.type}>`)} ${styleText("green", "✓")}\n`,
+        );
+      } else {
+        console.log(styleText("gray", `\n</${partialContent.type}>`));
+      }
     }
   });
 
