@@ -125,6 +125,23 @@
           ]
         },
         "action": "allow"
+      },
+      {
+        "toolName": "exec_command",
+        "input": {
+          "command": "gh",
+          "args": ["api", "--method"]
+        },
+        "action": "ask"
+      },
+      {
+        "toolName": "exec_command",
+        "input": {
+          "command": "gh",
+          "args": ["api"]
+        },
+        "action": "deny",
+        "reason": "--method must be specified"
       }
     ]
   },
