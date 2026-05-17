@@ -232,6 +232,25 @@ describe("predefined patterns from config.predefined.json", async () => {
       },
       action: "allow",
     },
+    {
+      desc: "gh api without --method should be denied",
+      toolUse: {
+        toolName: "exec_command",
+        input: { command: "gh", args: ["api", "repos/owner/repo/pulls"] },
+      },
+      action: "deny",
+    },
+    {
+      desc: "gh api --method POST should ask",
+      toolUse: {
+        toolName: "exec_command",
+        input: {
+          command: "gh",
+          args: ["api", "--method", "POST", "repos/owner/repo/issues"],
+        },
+      },
+      action: "ask",
+    },
   ];
 
   for (const { desc, toolUse, action } of testCases) {
