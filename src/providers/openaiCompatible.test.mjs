@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import assert from "node:assert";
 import test, { describe } from "node:test";
 import { callOpenAICompatibleModel } from "./openaiCompatible.mjs";
@@ -31,16 +31,22 @@ function encodeOpenAICompatibleSSE(chunks) {
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const platformConfig = {
+const platformConfig = /** @type {const} */ ({
   name: "openai-compatible",
+  variant: "default",
   baseURL: "https://api.example.com",
   apiKey: "test-key",
-};
+});
 
 const modelConfig = {
   model: "gpt-4o",
 };
 
+/**
+ * @param {string} userText
+ * @param {{tools?: import("../tool").ToolDefinition[], onPartialMessageContent?: import("../model").ModelInput["onPartialMessageContent"]}} [options]
+ * @returns {import("../model").ModelInput}
+ */
 function simpleInput(userText, options = {}) {
   return {
     messages: [
@@ -348,13 +354,14 @@ describe("callOpenAICompatibleModel", () => {
       });
     });
 
+    /** @type {import("../model").PartialMessageContent[]} */
     const partials = [];
 
     await callOpenAICompatibleModel(
       platformConfig,
       modelConfig,
       simpleInput("Hello", {
-        onPartialMessageContent: (p) => partials.push({ ...p }),
+        onPartialMessageContent: (/** @type {import("../model").PartialMessageContent} */ p) => partials.push({ ...p }),
       }),
     );
 
@@ -367,8 +374,9 @@ describe("callOpenAICompatibleModel", () => {
   });
 
   test("should verify request body structure", async (t) => {
+    /** @type {Record<string, unknown> | undefined} */
     let capturedBody;
-    t.mock.method(globalThis, "fetch", async (_url, options) => {
+    t.mock.method(globalThis, "fetch", async (/** @type {string} */ _url, /** @type {{body: string}} */ options) => {
       capturedBody = JSON.parse(options.body);
       return new Response(encodeOpenAICompatibleSSE(textStreamChunks("OK")), {
         status: 200,
@@ -390,26 +398,33 @@ describe("callOpenAICompatibleModel", () => {
     );
 
     assert.ok(capturedBody);
-    assert.strictEqual(capturedBody.stream, true);
-    assert.strictEqual(capturedBody.model, "gpt-4o");
+    const body = /** @type {Record<string, unknown>} */ (capturedBody);
+    assert.strictEqual(body.stream, true);
+    assert.strictEqual(body.model, "gpt-4o");
     // messages should contain system + user
-    assert.ok(Array.isArray(capturedBody.messages));
-    const systemMsg = capturedBody.messages.find((m) => m.role === "system");
+    const msgs = /** @type {Record<string, unknown>[]} */ (body.messages);
+    assert.ok(Array.isArray(msgs));
+    const systemMsg = /** @type {Record<string, unknown>} */ (msgs.find((m) => m.role === "system"));
     assert.ok(systemMsg);
-    assert.strictEqual(systemMsg.content[0].text, "You are a test assistant.");
+    const systemContent = /** @type {Record<string, unknown>[]} */ (systemMsg.content);
+    assert.strictEqual(systemContent[0].text, "You are a test assistant.");
     // tools converted to OpenAI format
-    assert.ok(capturedBody.tools);
-    assert.strictEqual(capturedBody.tools[0].type, "function");
-    assert.strictEqual(capturedBody.tools[0].function.name, "echo");
+    const bodyTools = /** @type {Record<string, unknown>[]} */ (body.tools);
+    assert.ok(bodyTools);
+    assert.strictEqual(bodyTools[0].type, "function");
+    assert.strictEqual(/** @type {Record<string, unknown>} */ (bodyTools[0].function).name, "echo");
     // stream_options
-    assert.ok(capturedBody.stream_options);
-    assert.strictEqual(capturedBody.stream_options.include_usage, true);
+    const streamOptions = /** @type {Record<string, unknown>} */ (body.stream_options);
+    assert.ok(streamOptions);
+    assert.strictEqual(streamOptions.include_usage, true);
   });
 
   test("should send correct URL and headers", async (t) => {
+    /** @type {string | undefined} */
     let capturedUrl;
+    /** @type {Record<string, string> | undefined} */
     let capturedHeaders;
-    t.mock.method(globalThis, "fetch", async (url, options) => {
+    t.mock.method(globalThis, "fetch", async (/** @type {string} */ url, /** @type {{headers: Record<string, string>}} */ options) => {
       capturedUrl = url;
       capturedHeaders = options.headers;
       return new Response(encodeOpenAICompatibleSSE(textStreamChunks("OK")), {
@@ -427,6 +442,7 @@ describe("callOpenAICompatibleModel", () => {
       capturedUrl,
       "https://api.example.com/v1/chat/completions",
     );
+    assert.ok(capturedHeaders);
     assert.strictEqual(capturedHeaders.Authorization, "Bearer test-key");
     assert.strictEqual(capturedHeaders["Content-Type"], "application/json");
   });
@@ -486,7 +502,7 @@ describe("callOpenAICompatibleModel", () => {
     const result = await resultPromise;
 
     assert.ok(!(result instanceof Error));
-    assert.strictEqual(result.message.content[0].text, "Retried!");
+    assert.strictEqual(/** @type {import("../model").MessageContentText} */ (result.message.content[0]).text, "Retried!");
     assert.strictEqual(callCount, 2);
   });
 
@@ -515,13 +531,14 @@ describe("callOpenAICompatibleModel", () => {
     const result = await resultPromise;
 
     assert.ok(!(result instanceof Error));
-    assert.strictEqual(result.message.content[0].text, "Recovered!");
+    assert.strictEqual(/** @type {import("../model").MessageContentText} */ (result.message.content[0]).text, "Recovered!");
     assert.strictEqual(callCount, 2);
   });
 
   test("should convert conversation history correctly", async (t) => {
+    /** @type {Record<string, unknown> | undefined} */
     let capturedBody;
-    t.mock.method(globalThis, "fetch", async (_url, options) => {
+    t.mock.method(globalThis, "fetch", async (/** @type {string} */ _url, /** @type {{body: string}} */ options) => {
       capturedBody = JSON.parse(options.body);
       return new Response(encodeOpenAICompatibleSSE(textStreamChunks("OK")), {
         status: 200,
@@ -562,20 +579,24 @@ describe("callOpenAICompatibleModel", () => {
       tools: [],
     };
 
-    await callOpenAICompatibleModel(platformConfig, modelConfig, input);
+    await callOpenAICompatibleModel(platformConfig, modelConfig, /** @type {import("../model").ModelInput} */ (/** @type {unknown} */ (input)));
 
     // assistant message should have tool_calls
-    const assistantMsg = capturedBody.messages.find(
+    assert.ok(capturedBody);
+    const histBody = /** @type {Record<string, unknown>} */ (capturedBody);
+    const histMsgs = /** @type {Record<string, unknown>[]} */ (histBody.messages);
+    const assistantMsg = /** @type {Record<string, unknown>} */ (histMsgs.find(
       (m) => m.role === "assistant",
-    );
+    ));
     assert.ok(assistantMsg);
     assert.strictEqual(assistantMsg.content, "Hi!");
-    assert.ok(assistantMsg.tool_calls);
-    assert.strictEqual(assistantMsg.tool_calls[0].id, "call-1");
-    assert.strictEqual(assistantMsg.tool_calls[0].function.name, "echo");
+    const toolCalls = /** @type {Record<string, unknown>[]} */ (assistantMsg.tool_calls);
+    assert.ok(toolCalls);
+    assert.strictEqual(toolCalls[0].id, "call-1");
+    assert.strictEqual(/** @type {Record<string, unknown>} */ (toolCalls[0].function).name, "echo");
 
     // tool result converted to tool message
-    const toolMsg = capturedBody.messages.find((m) => m.role === "tool");
+    const toolMsg = /** @type {Record<string, unknown>} */ (histMsgs.find((m) => m.role === "tool"));
     assert.ok(toolMsg);
     assert.strictEqual(toolMsg.tool_call_id, "call-1");
     assert.strictEqual(toolMsg.content, "hello");
@@ -612,7 +633,7 @@ describe("callOpenAICompatibleModel", () => {
     const result = await resultPromise;
 
     assert.ok(!(result instanceof Error));
-    assert.strictEqual(result.message.content[0].text, "Recovered!");
+    assert.strictEqual(/** @type {import("../model").MessageContentText} */ (result.message.content[0]).text, "Recovered!");
     assert.strictEqual(callCount, 2);
   });
 });

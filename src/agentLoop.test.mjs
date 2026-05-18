@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import assert from "node:assert";
 import test, { describe } from "node:test";
 import { createAgentLoop, createInputHandler } from "./agentLoop.mjs";
@@ -47,9 +47,12 @@ function createMockCallModel(responses) {
   };
 }
 
-/** @returns {import("./tool").ToolUseApprover} */
+/**
+ * @param {import("./tool").ToolUseDecision} [defaultDecision]
+ * @returns {import("./tool").ToolUseApprover}
+ */
 function createMockToolUseApprover(
-  defaultDecision = /** @type {const} */ ({ action: "allow" }),
+  defaultDecision = /** @type {import("./tool").ToolUseDecision} */ ({ action: "allow" }),
 ) {
   return {
     isAllowedToolUse: () => defaultDecision,
@@ -60,22 +63,23 @@ function createMockToolUseApprover(
   };
 }
 
+/** @returns {import("./subagent.mjs").SubagentManager} */
 function createMockSubagentManager() {
-  return {
+  return /** @type {import("./subagent.mjs").SubagentManager} */ (/** @type {unknown} */ ({
     isSubagentActive: () => false,
-    processToolResults: (_toolUses, _results, messages) => ({
+    processToolResults: (/** @type {import("./model").MessageContentToolUse[]} */ _toolUses, /** @type {import("./model").MessageContentToolResult[]} */ _results, /** @type {import("./model").Message[]} */ messages) => ({
       messages,
       newMessage: null,
     }),
     getActiveSubagent: () => null,
-    switchToSubagent: () => ({ success: true, value: "switched" }),
-    switchToMainAgent: async () => ({
+    switchToSubagent: () => (/** @type {const} */ ({ success: true, value: "switched" })),
+    switchToMainAgent: async () => (/** @type {const} */ ({
       success: true,
       memoryContent: "memory",
-    }),
+    })),
     restoreState: () => {},
     getState: () => ({ subagents: [], subagentCount: 0 }),
-  };
+  }));
 }
 
 function createMockPauseSignal() {
@@ -91,7 +95,10 @@ function createMockPauseSignal() {
   };
 }
 
-/** @returns {import("./model").ModelOutput} */
+/**
+ * @param {string} text
+ * @returns {import("./model").ModelOutput}
+ */
 function textResponse(text) {
   return {
     message: {
@@ -118,7 +125,10 @@ function toolUseResponse(toolName, toolUseId, input) {
   };
 }
 
-/** @returns {import("./model").ModelOutput} */
+/**
+ * @param {string} thinking
+ * @returns {import("./model").ModelOutput}
+ */
 function thinkingResponse(thinking) {
   return {
     message: {
@@ -128,19 +138,25 @@ function thinkingResponse(thinking) {
   };
 }
 
+/**
+ * @typedef {import("./agent").AgentEventEmitter & { emitted: Record<string, unknown[]> }} MockEmitter
+ */
+
+/** @returns {MockEmitter} */
 function createMockAgentEventEmitter() {
   /** @type {Record<string, unknown[]>} */
   const emitted = {};
-  return {
-    emit: (event, ...args) => {
+  return /** @type {MockEmitter} */ (/** @type {unknown} */ ({
+    emit: (/** @type {string} */ event, /** @type {unknown[]} */ ...args) => {
       if (!emitted[event]) emitted[event] = [];
       emitted[event].push(args.length <= 1 ? args[0] : args);
     },
     on: () => {},
     emitted,
-  };
+  }));
 }
 
+/** @type {import("./model").Message} */
 const systemMessage = {
   role: "system",
   content: [{ type: "text", text: "You are a test assistant." }],
@@ -174,7 +190,7 @@ describe("createAgentLoop", () => {
     assert.strictEqual(messages.length, 3); // system + user + assistant
     assert.strictEqual(messages[1].role, "user");
     assert.strictEqual(messages[2].role, "assistant");
-    assert.strictEqual(messages[2].content[0].text, "Hello!");
+    assert.strictEqual(/** @type {import("./model").MessageContentText} */ (messages[2].content[0]).text, "Hello!");
     assert.ok(emitter.emitted.turnEnd);
   });
 
@@ -182,7 +198,7 @@ describe("createAgentLoop", () => {
     // given:
     const echoTool = {
       def: { name: "echo", description: "Echo", inputSchema: {} },
-      impl: async (input) => `echoed: ${input.text}`,
+      impl: async (/** @type {Record<string, unknown>} */ input) => `echoed: ${input.text}`,
     };
     const toolByName = new Map([["echo", echoTool]]);
     const stateManager = createTestStateManager([systemMessage]);
@@ -211,8 +227,8 @@ describe("createAgentLoop", () => {
     assert.strictEqual(messages[2].content[0].type, "tool_use");
     assert.strictEqual(messages[3].role, "user");
     assert.strictEqual(messages[3].content[0].type, "tool_result");
-    assert.match(messages[3].content[0].content[0].text, /echoed: hello/);
-    assert.strictEqual(messages[4].content[0].text, "Done!");
+    assert.match(/** @type {import("./model").MessageContentText} */ (/** @type {import("./model").MessageContentToolResult} */ (messages[3].content[0]).content[0]).text, /echoed: hello/);
+    assert.strictEqual(/** @type {import("./model").MessageContentText} */ (messages[4].content[0]).text, "Done!");
   });
 
   test("should emit turnEnd event after loop completes", async () => {
@@ -340,7 +356,7 @@ describe("createAgentLoop", () => {
     assert.strictEqual(messages[3].role, "user");
     assert.strictEqual(messages[3].content[0].type, "tool_result");
     assert.strictEqual(messages[3].content[0].isError, true);
-    assert.match(messages[3].content[0].content[0].text, /rejected/);
+    assert.match(/** @type {import("./model").MessageContentText} */ (/** @type {import("./model").MessageContentToolResult} */ (messages[3].content[0]).content[0]).text, /rejected/);
   });
 
   test("should add validation error results when tool validation fails", async () => {
@@ -369,8 +385,8 @@ describe("createAgentLoop", () => {
     // system + user + assistant(tool_use) + user(validation error) + assistant(text)
     assert.strictEqual(messages.length, 5);
     assert.strictEqual(messages[3].role, "user");
-    assert.strictEqual(messages[3].content[0].isError, true);
-    assert.match(messages[3].content[0].content[0].text, /Tool not found/);
+    assert.strictEqual(/** @type {import("./model").MessageContentToolResult} */ (messages[3].content[0]).isError, true);
+    assert.match(/** @type {import("./model").MessageContentText} */ (/** @type {import("./model").MessageContentToolResult} */ (messages[3].content[0]).content[0]).text, /Tool not found/);
   });
 
   test("should emit error event when model returns Error", async () => {
@@ -393,7 +409,7 @@ describe("createAgentLoop", () => {
 
     // then:
     assert.ok(emitter.emitted.error);
-    assert.strictEqual(emitter.emitted.error[0].message, "API unavailable");
+    assert.strictEqual(/** @type {Error} */ (emitter.emitted.error[0]).message, "API unavailable");
     assert.ok(emitter.emitted.turnEnd);
   });
 
@@ -423,7 +439,7 @@ describe("createAgentLoop", () => {
     // system + user + assistant(thinking) + user("System: Continue") + assistant(text)
     assert.strictEqual(messages.length, 5);
     assert.strictEqual(messages[3].role, "user");
-    assert.strictEqual(messages[3].content[0].text, "System: Continue");
+    assert.strictEqual(/** @type {import("./model").MessageContentText} */ (messages[3].content[0]).text, "System: Continue");
   });
 
   test("should break after max thinking loops (5)", async () => {
@@ -462,7 +478,7 @@ describe("createAgentLoop", () => {
     const emitter = createMockAgentEventEmitter();
 
     let modelCallCount = 0;
-    const callModel = async (_input) => {
+    const callModel = async (/** @type {import("./model").ModelInput} */ _input) => {
       modelCallCount++;
       if (modelCallCount === 1) {
         // First call returns tool use, then we pause
@@ -583,7 +599,7 @@ describe("createInputHandler", () => {
     const messages = stateManager.getMessages();
     assert.strictEqual(messages.length, 2);
     assert.strictEqual(messages[1].role, "user");
-    assert.strictEqual(messages[1].content[0].text, "Hello");
+    assert.strictEqual(/** @type {import("./model").MessageContentText} */ (messages[1].content[0]).text, "Hello");
   });
 
   test("should execute tools on approval ('y')", async () => {
@@ -621,7 +637,7 @@ describe("createInputHandler", () => {
     const lastUserMsg = messages.filter((m) => m.role === "user").at(-1);
     assert.ok(lastUserMsg);
     assert.strictEqual(lastUserMsg.content[0].type, "tool_result");
-    assert.strictEqual(lastUserMsg.content[0].content[0].text, "echoed");
+    assert.strictEqual(/** @type {import("./model").MessageContentText} */ (/** @type {import("./model").MessageContentToolResult} */ (lastUserMsg.content[0]).content[0]).text, "echoed");
   });
 
   test("should execute tools and call allowToolUse on approval ('Y')", async () => {
@@ -635,6 +651,7 @@ describe("createInputHandler", () => {
         },
       ],
     ]);
+    /** @type {string[]} */
     const allowedTools = [];
     const toolUseApprover = createMockToolUseApprover();
     toolUseApprover.allowToolUse = (toolUse) => {
@@ -690,10 +707,10 @@ describe("createInputHandler", () => {
     // system + assistant(tool_use) + user(rejection tool_result) + user(text)
     assert.strictEqual(messages.length, 4);
     assert.strictEqual(messages[2].content[0].type, "tool_result");
-    assert.strictEqual(messages[2].content[0].isError, true);
-    assert.match(messages[2].content[0].content[0].text, /rejected/);
+    assert.strictEqual(/** @type {import("./model").MessageContentToolResult} */ (messages[2].content[0]).isError, true);
+    assert.match(/** @type {import("./model").MessageContentText} */ (/** @type {import("./model").MessageContentToolResult} */ (messages[2].content[0]).content[0]).text, /rejected/);
     assert.strictEqual(messages[3].role, "user");
-    assert.strictEqual(messages[3].content[0].text, "no, do something else");
+    assert.strictEqual(/** @type {import("./model").MessageContentText} */ (messages[3].content[0]).text, "no, do something else");
   });
 
   test("should do nothing on /resume", async () => {
