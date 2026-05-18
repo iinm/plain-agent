@@ -1,4 +1,3 @@
-
 import assert from "node:assert";
 import test, { describe } from "node:test";
 import { createToolExecutor } from "./toolExecutor.mjs";
@@ -151,12 +150,19 @@ describe("createToolExecutor", () => {
       // "good" tool gets a rejection message too
       assert.strictEqual(result.toolResults[0].isError, true);
       assert.match(
-        /** @type {import("./model").MessageContentText} */ (result.toolResults[0].content[0]).text,
+        /** @type {import("./model").MessageContentText} */ (
+          result.toolResults[0].content[0]
+        ).text,
         /rejected due to other tool/,
       );
       // "bad" tool gets the not-found error
       assert.strictEqual(result.toolResults[1].isError, true);
-      assert.match(/** @type {import("./model").MessageContentText} */ (result.toolResults[1].content[0]).text, /Tool not found/);
+      assert.match(
+        /** @type {import("./model").MessageContentText} */ (
+          result.toolResults[1].content[0]
+        ).text,
+        /Tool not found/,
+      );
     });
   });
 
@@ -174,7 +180,12 @@ describe("createToolExecutor", () => {
       assert.strictEqual(result.results.length, 1);
       assert.strictEqual(result.results[0].type, "tool_result");
       assert.strictEqual(result.results[0].toolName, "echo");
-      assert.strictEqual(/** @type {import("./model").MessageContentText} */ (result.results[0].content[0]).text, "echo result");
+      assert.strictEqual(
+        /** @type {import("./model").MessageContentText} */ (
+          result.results[0].content[0]
+        ).text,
+        "echo result",
+      );
       assert.strictEqual(result.results[0].isError, undefined);
     });
 
@@ -234,7 +245,12 @@ describe("createToolExecutor", () => {
       // then:
       assert.strictEqual(result.success, true);
       assert.strictEqual(result.results[0].isError, true);
-      assert.match(/** @type {import("./model").MessageContentText} */ (result.results[0].content[0]).text, /something broke/);
+      assert.match(
+        /** @type {import("./model").MessageContentText} */ (
+          result.results[0].content[0]
+        ).text,
+        /something broke/,
+      );
     });
 
     test("should execute multiple tools sequentially", async () => {
@@ -270,8 +286,18 @@ describe("createToolExecutor", () => {
       assert.strictEqual(result.success, true);
       assert.strictEqual(result.results.length, 2);
       assert.deepStrictEqual(order, ["first", "second"]);
-      assert.strictEqual(/** @type {import("./model").MessageContentText} */ (result.results[0].content[0]).text, "first done");
-      assert.strictEqual(/** @type {import("./model").MessageContentText} */ (result.results[1].content[0]).text, "second done");
+      assert.strictEqual(
+        /** @type {import("./model").MessageContentText} */ (
+          result.results[0].content[0]
+        ).text,
+        "first done",
+      );
+      assert.strictEqual(
+        /** @type {import("./model").MessageContentText} */ (
+          result.results[1].content[0]
+        ).text,
+        "second done",
+      );
     });
   });
 });

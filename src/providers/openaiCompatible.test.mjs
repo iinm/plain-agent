@@ -1,4 +1,3 @@
-
 import assert from "node:assert";
 import test, { describe } from "node:test";
 import { callOpenAICompatibleModel } from "./openaiCompatible.mjs";
@@ -361,7 +360,9 @@ describe("callOpenAICompatibleModel", () => {
       platformConfig,
       modelConfig,
       simpleInput("Hello", {
-        onPartialMessageContent: (/** @type {import("../model").PartialMessageContent} */ p) => partials.push({ ...p }),
+        onPartialMessageContent: (
+          /** @type {import("../model").PartialMessageContent} */ p,
+        ) => partials.push({ ...p }),
       }),
     );
 
@@ -376,12 +377,19 @@ describe("callOpenAICompatibleModel", () => {
   test("should verify request body structure", async (t) => {
     /** @type {Record<string, unknown> | undefined} */
     let capturedBody;
-    t.mock.method(globalThis, "fetch", async (/** @type {string} */ _url, /** @type {{body: string}} */ options) => {
-      capturedBody = JSON.parse(options.body);
-      return new Response(encodeOpenAICompatibleSSE(textStreamChunks("OK")), {
-        status: 200,
-      });
-    });
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (
+        /** @type {string} */ _url,
+        /** @type {{body: string}} */ options,
+      ) => {
+        capturedBody = JSON.parse(options.body);
+        return new Response(encodeOpenAICompatibleSSE(textStreamChunks("OK")), {
+          status: 200,
+        });
+      },
+    );
 
     const tools = [
       {
@@ -404,17 +412,26 @@ describe("callOpenAICompatibleModel", () => {
     // messages should contain system + user
     const msgs = /** @type {Record<string, unknown>[]} */ (body.messages);
     assert.ok(Array.isArray(msgs));
-    const systemMsg = /** @type {Record<string, unknown>} */ (msgs.find((m) => m.role === "system"));
+    const systemMsg = /** @type {Record<string, unknown>} */ (
+      msgs.find((m) => m.role === "system")
+    );
     assert.ok(systemMsg);
-    const systemContent = /** @type {Record<string, unknown>[]} */ (systemMsg.content);
+    const systemContent = /** @type {Record<string, unknown>[]} */ (
+      systemMsg.content
+    );
     assert.strictEqual(systemContent[0].text, "You are a test assistant.");
     // tools converted to OpenAI format
     const bodyTools = /** @type {Record<string, unknown>[]} */ (body.tools);
     assert.ok(bodyTools);
     assert.strictEqual(bodyTools[0].type, "function");
-    assert.strictEqual(/** @type {Record<string, unknown>} */ (bodyTools[0].function).name, "echo");
+    assert.strictEqual(
+      /** @type {Record<string, unknown>} */ (bodyTools[0].function).name,
+      "echo",
+    );
     // stream_options
-    const streamOptions = /** @type {Record<string, unknown>} */ (body.stream_options);
+    const streamOptions = /** @type {Record<string, unknown>} */ (
+      body.stream_options
+    );
     assert.ok(streamOptions);
     assert.strictEqual(streamOptions.include_usage, true);
   });
@@ -424,13 +441,20 @@ describe("callOpenAICompatibleModel", () => {
     let capturedUrl;
     /** @type {Record<string, string> | undefined} */
     let capturedHeaders;
-    t.mock.method(globalThis, "fetch", async (/** @type {string} */ url, /** @type {{headers: Record<string, string>}} */ options) => {
-      capturedUrl = url;
-      capturedHeaders = options.headers;
-      return new Response(encodeOpenAICompatibleSSE(textStreamChunks("OK")), {
-        status: 200,
-      });
-    });
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (
+        /** @type {string} */ url,
+        /** @type {{headers: Record<string, string>}} */ options,
+      ) => {
+        capturedUrl = url;
+        capturedHeaders = options.headers;
+        return new Response(encodeOpenAICompatibleSSE(textStreamChunks("OK")), {
+          status: 200,
+        });
+      },
+    );
 
     await callOpenAICompatibleModel(
       platformConfig,
@@ -502,7 +526,12 @@ describe("callOpenAICompatibleModel", () => {
     const result = await resultPromise;
 
     assert.ok(!(result instanceof Error));
-    assert.strictEqual(/** @type {import("../model").MessageContentText} */ (result.message.content[0]).text, "Retried!");
+    assert.strictEqual(
+      /** @type {import("../model").MessageContentText} */ (
+        result.message.content[0]
+      ).text,
+      "Retried!",
+    );
     assert.strictEqual(callCount, 2);
   });
 
@@ -531,19 +560,31 @@ describe("callOpenAICompatibleModel", () => {
     const result = await resultPromise;
 
     assert.ok(!(result instanceof Error));
-    assert.strictEqual(/** @type {import("../model").MessageContentText} */ (result.message.content[0]).text, "Recovered!");
+    assert.strictEqual(
+      /** @type {import("../model").MessageContentText} */ (
+        result.message.content[0]
+      ).text,
+      "Recovered!",
+    );
     assert.strictEqual(callCount, 2);
   });
 
   test("should convert conversation history correctly", async (t) => {
     /** @type {Record<string, unknown> | undefined} */
     let capturedBody;
-    t.mock.method(globalThis, "fetch", async (/** @type {string} */ _url, /** @type {{body: string}} */ options) => {
-      capturedBody = JSON.parse(options.body);
-      return new Response(encodeOpenAICompatibleSSE(textStreamChunks("OK")), {
-        status: 200,
-      });
-    });
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (
+        /** @type {string} */ _url,
+        /** @type {{body: string}} */ options,
+      ) => {
+        capturedBody = JSON.parse(options.body);
+        return new Response(encodeOpenAICompatibleSSE(textStreamChunks("OK")), {
+          status: 200,
+        });
+      },
+    );
 
     const input = {
       messages: [
@@ -579,24 +620,39 @@ describe("callOpenAICompatibleModel", () => {
       tools: [],
     };
 
-    await callOpenAICompatibleModel(platformConfig, modelConfig, /** @type {import("../model").ModelInput} */ (/** @type {unknown} */ (input)));
+    await callOpenAICompatibleModel(
+      platformConfig,
+      modelConfig,
+      /** @type {import("../model").ModelInput} */ (
+        /** @type {unknown} */ (input)
+      ),
+    );
 
     // assistant message should have tool_calls
     assert.ok(capturedBody);
     const histBody = /** @type {Record<string, unknown>} */ (capturedBody);
-    const histMsgs = /** @type {Record<string, unknown>[]} */ (histBody.messages);
-    const assistantMsg = /** @type {Record<string, unknown>} */ (histMsgs.find(
-      (m) => m.role === "assistant",
-    ));
+    const histMsgs = /** @type {Record<string, unknown>[]} */ (
+      histBody.messages
+    );
+    const assistantMsg = /** @type {Record<string, unknown>} */ (
+      histMsgs.find((m) => m.role === "assistant")
+    );
     assert.ok(assistantMsg);
     assert.strictEqual(assistantMsg.content, "Hi!");
-    const toolCalls = /** @type {Record<string, unknown>[]} */ (assistantMsg.tool_calls);
+    const toolCalls = /** @type {Record<string, unknown>[]} */ (
+      assistantMsg.tool_calls
+    );
     assert.ok(toolCalls);
     assert.strictEqual(toolCalls[0].id, "call-1");
-    assert.strictEqual(/** @type {Record<string, unknown>} */ (toolCalls[0].function).name, "echo");
+    assert.strictEqual(
+      /** @type {Record<string, unknown>} */ (toolCalls[0].function).name,
+      "echo",
+    );
 
     // tool result converted to tool message
-    const toolMsg = /** @type {Record<string, unknown>} */ (histMsgs.find((m) => m.role === "tool"));
+    const toolMsg = /** @type {Record<string, unknown>} */ (
+      histMsgs.find((m) => m.role === "tool")
+    );
     assert.ok(toolMsg);
     assert.strictEqual(toolMsg.tool_call_id, "call-1");
     assert.strictEqual(toolMsg.content, "hello");
@@ -633,7 +689,12 @@ describe("callOpenAICompatibleModel", () => {
     const result = await resultPromise;
 
     assert.ok(!(result instanceof Error));
-    assert.strictEqual(/** @type {import("../model").MessageContentText} */ (result.message.content[0]).text, "Recovered!");
+    assert.strictEqual(
+      /** @type {import("../model").MessageContentText} */ (
+        result.message.content[0]
+      ).text,
+      "Recovered!",
+    );
     assert.strictEqual(callCount, 2);
   });
 });

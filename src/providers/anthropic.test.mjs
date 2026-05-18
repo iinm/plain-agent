@@ -1,4 +1,3 @@
-
 import assert from "node:assert";
 import test, { describe } from "node:test";
 import { callAnthropicModel } from "./anthropic.mjs";
@@ -295,7 +294,10 @@ describe("callAnthropicModel", () => {
     assert.ok(!(result instanceof Error));
     assert.strictEqual(result.message.content.length, 2);
     assert.strictEqual(result.message.content[0].type, "thinking");
-    const thinkingPart = /** @type {import("../model").MessageContentThinking} */ (result.message.content[0]);
+    const thinkingPart =
+      /** @type {import("../model").MessageContentThinking} */ (
+        result.message.content[0]
+      );
     assert.strictEqual(thinkingPart.thinking, "Let me think...");
     assert.strictEqual(
       /** @type {string} */ (thinkingPart.provider?.fields?.signature),
@@ -321,7 +323,9 @@ describe("callAnthropicModel", () => {
       platformConfig,
       modelConfig,
       simpleInput("Hello", {
-        onPartialMessageContent: (/** @type {import("../model").PartialMessageContent} */ p) => partials.push({ ...p }),
+        onPartialMessageContent: (
+          /** @type {import("../model").PartialMessageContent} */ p,
+        ) => partials.push({ ...p }),
       }),
     );
 
@@ -332,19 +336,30 @@ describe("callAnthropicModel", () => {
     const deltas = partials.filter((p) => p.position === "delta");
     assert.ok(deltas.length >= 1);
     assert.strictEqual(deltas[0].content, "Hi");
-    assert.strictEqual(/** @type {import("../model").PartialMessageContent} */ (partials.at(-1)).position, "stop");
+    assert.strictEqual(
+      /** @type {import("../model").PartialMessageContent} */ (partials.at(-1))
+        .position,
+      "stop",
+    );
   });
 
   test("should verify request body structure", async (t) => {
     // given:
     /** @type {Record<string, unknown> | undefined} */
     let capturedBody;
-    t.mock.method(globalThis, "fetch", async (/** @type {string} */ _url, /** @type {{body: string, headers: Record<string, string>}} */ options) => {
-      capturedBody = JSON.parse(options.body);
-      return new Response(encodeAnthropicSSE(textStreamEvents("OK")), {
-        status: 200,
-      });
-    });
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (
+        /** @type {string} */ _url,
+        /** @type {{body: string, headers: Record<string, string>}} */ options,
+      ) => {
+        capturedBody = JSON.parse(options.body);
+        return new Response(encodeAnthropicSSE(textStreamEvents("OK")), {
+          status: 200,
+        });
+      },
+    );
 
     const tools = [
       {
@@ -385,12 +400,19 @@ describe("callAnthropicModel", () => {
     // given:
     /** @type {Record<string, unknown> | undefined} */
     let capturedBody;
-    t.mock.method(globalThis, "fetch", async (/** @type {string} */ _url, /** @type {{body: string, headers: Record<string, string>}} */ options) => {
-      capturedBody = JSON.parse(options.body);
-      return new Response(encodeAnthropicSSE(textStreamEvents("OK")), {
-        status: 200,
-      });
-    });
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (
+        /** @type {string} */ _url,
+        /** @type {{body: string, headers: Record<string, string>}} */ options,
+      ) => {
+        capturedBody = JSON.parse(options.body);
+        return new Response(encodeAnthropicSSE(textStreamEvents("OK")), {
+          status: 200,
+        });
+      },
+    );
 
     const input = {
       messages: [
@@ -414,7 +436,13 @@ describe("callAnthropicModel", () => {
     };
 
     // when:
-    await callAnthropicModel(platformConfig, modelConfig, /** @type {import("../model").ModelInput} */ (/** @type {unknown} */ (input)));
+    await callAnthropicModel(
+      platformConfig,
+      modelConfig,
+      /** @type {import("../model").ModelInput} */ (
+        /** @type {unknown} */ (input)
+      ),
+    );
 
     // then:
     // system field uses original messages (no cache_control)
@@ -423,20 +451,45 @@ describe("callAnthropicModel", () => {
     // Last 2 user messages should have cache_control
     assert.ok(capturedBody);
     const cacheBody = /** @type {Record<string, unknown>} */ (capturedBody);
-    const userMessages = /** @type {Record<string, unknown>[]} */ (/** @type {Record<string, unknown>[]} */ (cacheBody.messages).filter((m) => m.role === "user"));
-    const lastUser = /** @type {Record<string, unknown>} */ (userMessages.at(-1));
-    const secondLastUser = /** @type {Record<string, unknown>} */ (userMessages.at(-2));
-    const lastUserContent = /** @type {Record<string, unknown>[]} */ (lastUser.content);
-    const secondLastUserContent = /** @type {Record<string, unknown>[]} */ (secondLastUser.content);
-    const lastPart = /** @type {Record<string, unknown>} */ (lastUserContent.at(-1));
-    const secondLastPart = /** @type {Record<string, unknown>} */ (secondLastUserContent.at(-1));
+    const userMessages = /** @type {Record<string, unknown>[]} */ (
+      /** @type {Record<string, unknown>[]} */ (cacheBody.messages).filter(
+        (m) => m.role === "user",
+      )
+    );
+    const lastUser = /** @type {Record<string, unknown>} */ (
+      userMessages.at(-1)
+    );
+    const secondLastUser = /** @type {Record<string, unknown>} */ (
+      userMessages.at(-2)
+    );
+    const lastUserContent = /** @type {Record<string, unknown>[]} */ (
+      lastUser.content
+    );
+    const secondLastUserContent = /** @type {Record<string, unknown>[]} */ (
+      secondLastUser.content
+    );
+    const lastPart = /** @type {Record<string, unknown>} */ (
+      lastUserContent.at(-1)
+    );
+    const secondLastPart = /** @type {Record<string, unknown>} */ (
+      secondLastUserContent.at(-1)
+    );
     assert.ok(lastPart.cache_control);
-    assert.strictEqual(/** @type {Record<string, unknown>} */ (lastPart.cache_control).type, "ephemeral");
+    assert.strictEqual(
+      /** @type {Record<string, unknown>} */ (lastPart.cache_control).type,
+      "ephemeral",
+    );
     assert.ok(secondLastPart.cache_control);
     // First user message should NOT have cache_control
     const firstUser = userMessages[0];
-    const firstUserContent = /** @type {Record<string, unknown>[]} */ (firstUser.content);
-    assert.strictEqual(/** @type {Record<string, unknown>} */ (firstUserContent.at(-1)).cache_control, undefined);
+    const firstUserContent = /** @type {Record<string, unknown>[]} */ (
+      firstUser.content
+    );
+    assert.strictEqual(
+      /** @type {Record<string, unknown>} */ (firstUserContent.at(-1))
+        .cache_control,
+      undefined,
+    );
   });
 
   test("should return Error on HTTP 4xx", async (t) => {
@@ -503,7 +556,12 @@ describe("callAnthropicModel", () => {
 
     // then:
     assert.ok(!(result instanceof Error));
-    assert.strictEqual(/** @type {import("../model").MessageContentText} */ (result.message.content[0]).text, "Retried!");
+    assert.strictEqual(
+      /** @type {import("../model").MessageContentText} */ (
+        result.message.content[0]
+      ).text,
+      "Retried!",
+    );
     assert.strictEqual(callCount, 2);
   });
 
@@ -534,7 +592,12 @@ describe("callAnthropicModel", () => {
 
     // then:
     assert.ok(!(result instanceof Error));
-    assert.strictEqual(/** @type {import("../model").MessageContentText} */ (result.message.content[0]).text, "Recovered!");
+    assert.strictEqual(
+      /** @type {import("../model").MessageContentText} */ (
+        result.message.content[0]
+      ).text,
+      "Recovered!",
+    );
     assert.strictEqual(callCount, 2);
   });
 
@@ -544,13 +607,20 @@ describe("callAnthropicModel", () => {
     let capturedUrl;
     /** @type {Record<string, string> | undefined} */
     let capturedHeaders;
-    t.mock.method(globalThis, "fetch", async (/** @type {string} */ url, /** @type {{headers: Record<string, string>}} */ options) => {
-      capturedUrl = url;
-      capturedHeaders = options.headers;
-      return new Response(encodeAnthropicSSE(textStreamEvents("OK")), {
-        status: 200,
-      });
-    });
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (
+        /** @type {string} */ url,
+        /** @type {{headers: Record<string, string>}} */ options,
+      ) => {
+        capturedUrl = url;
+        capturedHeaders = options.headers;
+        return new Response(encodeAnthropicSSE(textStreamEvents("OK")), {
+          status: 200,
+        });
+      },
+    );
 
     // when:
     await callAnthropicModel(platformConfig, modelConfig, simpleInput("Hello"));
@@ -567,12 +637,19 @@ describe("callAnthropicModel", () => {
     // given:
     /** @type {Record<string, unknown> | undefined} */
     let capturedBody;
-    t.mock.method(globalThis, "fetch", async (/** @type {string} */ _url, /** @type {{body: string}} */ options) => {
-      capturedBody = JSON.parse(options.body);
-      return new Response(encodeAnthropicSSE(textStreamEvents("OK")), {
-        status: 200,
-      });
-    });
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (
+        /** @type {string} */ _url,
+        /** @type {{body: string}} */ options,
+      ) => {
+        capturedBody = JSON.parse(options.body);
+        return new Response(encodeAnthropicSSE(textStreamEvents("OK")), {
+          status: 200,
+        });
+      },
+    );
 
     const input = {
       messages: [
@@ -609,25 +686,39 @@ describe("callAnthropicModel", () => {
     };
 
     // when:
-    await callAnthropicModel(platformConfig, modelConfig, /** @type {import("../model").ModelInput} */ (/** @type {unknown} */ (input)));
+    await callAnthropicModel(
+      platformConfig,
+      modelConfig,
+      /** @type {import("../model").ModelInput} */ (
+        /** @type {unknown} */ (input)
+      ),
+    );
 
     // then:
     assert.ok(capturedBody);
     const histBody = /** @type {Record<string, unknown>} */ (capturedBody);
-    const histMsgs = /** @type {Record<string, unknown>[]} */ (histBody.messages);
-    const assistantMsg = /** @type {Record<string, unknown>} */ (histMsgs.find(
-      (m) => m.role === "assistant",
-    ));
+    const histMsgs = /** @type {Record<string, unknown>[]} */ (
+      histBody.messages
+    );
+    const assistantMsg = /** @type {Record<string, unknown>} */ (
+      histMsgs.find((m) => m.role === "assistant")
+    );
     assert.ok(assistantMsg);
-    const assistantContent = /** @type {Record<string, unknown>[]} */ (assistantMsg.content);
+    const assistantContent = /** @type {Record<string, unknown>[]} */ (
+      assistantMsg.content
+    );
     assert.strictEqual(assistantContent[0].type, "text");
     assert.strictEqual(assistantContent[1].type, "tool_use");
     assert.strictEqual(assistantContent[1].id, "tu-1");
     assert.strictEqual(assistantContent[1].name, "echo");
 
-    const toolResultMsg = /** @type {Record<string, unknown>} */ (histMsgs.at(-1));
+    const toolResultMsg = /** @type {Record<string, unknown>} */ (
+      histMsgs.at(-1)
+    );
     assert.strictEqual(toolResultMsg.role, "user");
-    const toolResultContent = /** @type {Record<string, unknown>[]} */ (toolResultMsg.content);
+    const toolResultContent = /** @type {Record<string, unknown>[]} */ (
+      toolResultMsg.content
+    );
     assert.strictEqual(toolResultContent[0].type, "tool_result");
     assert.strictEqual(toolResultContent[0].tool_use_id, "tu-1");
   });
