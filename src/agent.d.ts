@@ -37,7 +37,7 @@ type AgentEventMap = {
   message: [Message];
   partialMessageContent: [PartialMessageContent];
   error: [Error];
-  toolUseRequest: [];
+  toolUseRequest: [number];
   turnEnd: [];
   providerTokenUsage: [ProviderTokenUsage];
   subagentSwitched: [{ name: string } | null];

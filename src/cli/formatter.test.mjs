@@ -85,7 +85,7 @@ describe("formatToolUse", () => {
     assert.equal(
       output,
       [
-        "tool: exec_command",
+        "exec_command",
         'command: "bash"',
         "args:",
         '  - "-c"',
@@ -110,7 +110,7 @@ describe("formatToolUse", () => {
     assert.equal(
       output,
       [
-        "tool: tmux_command",
+        "tmux_command",
         "command: send-keys",
         "args:",
         '  - "session:0"',
@@ -134,7 +134,7 @@ describe("formatToolUse", () => {
 
     assert.equal(
       output,
-      ["tool: exec_command", 'command: "rg"', 'args: ["foo","src"]'].join("\n"),
+      ["exec_command", 'command: "rg"', 'args: ["foo","src"]'].join("\n"),
     );
   });
 });
@@ -188,13 +188,11 @@ describe("formatToolUse (patch_file)", () => {
     });
 
     // then:
-    assert.ok(
-      output.startsWith(`tool: patch_file\npath: ${tmpFilePath}\npatch:\n`),
-    );
+    assert.ok(output.startsWith(`patch_file\npath: ${tmpFilePath}\npatch:\n`));
     assert.equal(
       stripAnsi(output),
       [
-        "tool: patch_file",
+        "patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
         `@@@ abc 3:${lineHash("charlie")}-4:${lineHash("delta")}`,
@@ -271,7 +269,7 @@ describe("formatToolUse (patch_file)", () => {
     assert.equal(
       stripAnsi(output),
       [
-        "tool: patch_file",
+        "patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
         `@@@ abc 1:${lineHash("alpha")}-5:${lineHash("echo")}`,
@@ -307,7 +305,7 @@ describe("formatToolUse (patch_file)", () => {
     assert.equal(
       stripAnsi(output),
       [
-        "tool: patch_file",
+        "patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
         `@@@ abc 1:${lineHash("one")}-3:${lineHash("three")}`,
@@ -337,7 +335,7 @@ describe("formatToolUse (patch_file)", () => {
     assert.equal(
       stripAnsi(output),
       [
-        "tool: patch_file",
+        "patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
         `@@@ a2a 2:${lineHash("drop me")}-2:${lineHash("drop me")}`,
@@ -355,7 +353,7 @@ describe("formatToolUse (patch_file)", () => {
         toolName: "patch_file",
         input: { filePath: "empty.txt", patch },
       });
-      assert.equal(output, "tool: patch_file\npath: empty.txt\npatch:\n");
+      assert.equal(output, "patch_file\npath: empty.txt\npatch:\n");
     }
   });
 
@@ -378,7 +376,7 @@ describe("formatToolUse (patch_file)", () => {
     assert.equal(
       stripAnsi(output),
       [
-        "tool: patch_file",
+        "patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
         `@@@ abc 2:${lineHash("")}-2:${lineHash("")}`,
@@ -435,9 +433,7 @@ describe("formatToolUse (patch_file)", () => {
     // then: still shows the new content with `+` markers, but no `- ...` lines
     const stripped = stripAnsi(output);
     assert.ok(
-      stripped.startsWith(
-        "tool: patch_file\npath: does/not/exist.mjs\npatch:\n",
-      ),
+      stripped.startsWith("patch_file\npath: does/not/exist.mjs\npatch:\n"),
     );
     assert.ok(
       stripped.includes(
@@ -464,13 +460,9 @@ describe("formatToolUse (patch_file)", () => {
     // then: verbatim styling still applies, headers cyan, body green
     assert.equal(
       stripAnsi(output),
-      [
-        "tool: patch_file",
-        "path: anything.mjs",
-        "patch:",
-        "@@@ abc 1-1",
-        "new",
-      ].join("\n"),
+      ["patch_file", "path: anything.mjs", "patch:", "@@@ abc 1-1", "new"].join(
+        "\n",
+      ),
     );
   });
 
@@ -490,7 +482,7 @@ describe("formatToolUse (patch_file)", () => {
     assert.equal(
       stripAnsi(output),
       [
-        "tool: patch_file",
+        "patch_file",
         "path: anything.mjs",
         "patch:",
         "plain text",
@@ -511,7 +503,7 @@ describe("formatToolUse (read_file)", () => {
     });
 
     // then:
-    assert.equal(output, "tool: read_file\nfilePath: src/app.mjs");
+    assert.equal(output, "read_file\nfilePath: src/app.mjs");
   });
 
   it("includes offset and limit when provided", async () => {
@@ -529,12 +521,9 @@ describe("formatToolUse (read_file)", () => {
     // then:
     assert.equal(
       output,
-      [
-        "tool: read_file",
-        "filePath: src/app.mjs",
-        "offset: 10",
-        "limit: 50",
-      ].join("\n"),
+      ["read_file", "filePath: src/app.mjs", "offset: 10", "limit: 50"].join(
+        "\n",
+      ),
     );
   });
 });

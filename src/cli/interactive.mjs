@@ -501,9 +501,7 @@ export function startInteractiveSession({
     }
     if (partialContent.position === "stop") {
       if (partialContent.type === "tool_use") {
-        process.stdout.write(
-          `\r\x1b[K${styleText("gray", `<${partialContent.type}>`)}\n`,
-        );
+        process.stdout.write("\r\x1b[K");
       } else {
         // Flush any buffered text before printing the closing tag
         streamBuffer.forceFlush();
@@ -524,13 +522,14 @@ export function startInteractiveSession({
     );
   });
 
-  agentEventEmitter.on("toolUseRequest", () => {
+  agentEventEmitter.on("toolUseRequest", (toolCount) => {
+    const toolText = toolCount === 1 ? "tool call" : "tool calls";
     cli.setPrompt(
       getCliPrompt(
         state.subagentName,
         styleText(
           "yellow",
-          "Approve tool calls? (y = allow once, Y = allow in this session, or feedback)",
+          `Approve ${toolCount} ${toolText}? (y = allow once, Y = allow in this session, or feedback)`,
         ),
       ),
     );

@@ -28,7 +28,7 @@ export function createCompactContextTool() {
         properties: {
           memoryPath: {
             type: "string",
-            description: `Path to the memory file under ${AGENT_MEMORY_DIR}/.`,
+            description: "Path to the memory file.",
           },
           reason: {
             type: "string",

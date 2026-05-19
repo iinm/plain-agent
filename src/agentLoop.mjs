@@ -172,9 +172,6 @@ export function createAgentLoop({
             content: validation.toolResults,
           },
         ]);
-        if (validation.errorMessage) {
-          console.error(styleText("yellow", validation.errorMessage));
-        }
         continue;
       }
 
@@ -205,7 +202,7 @@ export function createAgentLoop({
 
       const isAllToolUseApproved = decisions.every((d) => d.action === "allow");
       if (!isAllToolUseApproved) {
-        agentEventEmitter.emit("toolUseRequest");
+        agentEventEmitter.emit("toolUseRequest", toolUseParts.length);
         break;
       }
 

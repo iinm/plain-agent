@@ -70,7 +70,7 @@ export async function formatToolUse(toolUse) {
     /** @type {Partial<ExecCommandInput>} */
     const execCommandInput = input;
     return [
-      `tool: ${toolName}`,
+      `${toolName}`,
       `command: ${JSON.stringify(execCommandInput.command)}`,
       formatArgs(execCommandInput.args),
     ].join("\n");
@@ -80,7 +80,7 @@ export async function formatToolUse(toolUse) {
     /** @type {Partial<WriteFileInput>} */
     const writeFileInput = input;
     return [
-      `tool: ${toolName}`,
+      `${toolName}`,
       `filePath: ${writeFileInput.filePath}`,
       `content:\n${writeFileInput.content}`,
     ].join("\n");
@@ -92,18 +92,16 @@ export async function formatToolUse(toolUse) {
     const filePath = patchFileInput.filePath ?? "";
     const patch = patchFileInput.patch || "";
     const rendered = await renderPatch(filePath, patch);
-    return [
-      `tool: ${toolName}`,
-      `path: ${filePath}`,
-      `patch:\n${rendered}`,
-    ].join("\n");
+    return [`${toolName}`, `path: ${filePath}`, `patch:\n${rendered}`].join(
+      "\n",
+    );
   }
 
   if (toolName === "read_file") {
     /** @type {Partial<ReadFileInput>} */
     const readFileInput = input;
     /** @type {string[]} */
-    const lines = [`tool: ${toolName}`, `filePath: ${readFileInput.filePath}`];
+    const lines = [`${toolName}`, `filePath: ${readFileInput.filePath}`];
     if (readFileInput.offset !== undefined) {
       lines.push(`offset: ${readFileInput.offset}`);
     }
@@ -117,7 +115,7 @@ export async function formatToolUse(toolUse) {
     /** @type {Partial<TmuxCommandInput>} */
     const tmuxCommandInput = input;
     return [
-      `tool: ${toolName}`,
+      `${toolName}`,
       `command: ${tmuxCommandInput.command}`,
       formatArgs(tmuxCommandInput.args),
     ].join("\n");
@@ -127,7 +125,7 @@ export async function formatToolUse(toolUse) {
     /** @type {Partial<SwitchToSubagentInput>} */
     const switchToSubagentInput = input;
     return [
-      `tool: ${toolName}`,
+      `${toolName}`,
       `name: ${switchToSubagentInput.name}`,
       `goal: ${switchToSubagentInput.goal}`,
     ].join("\n");
@@ -137,7 +135,7 @@ export async function formatToolUse(toolUse) {
     /** @type {Partial<CompactContextInput>} */
     const compactContextInput = input;
     return [
-      `tool: ${toolName}`,
+      `${toolName}`,
       `memoryPath: ${compactContextInput.memoryPath}`,
       `reason: ${compactContextInput.reason}`,
     ].join("\n");
@@ -147,7 +145,7 @@ export async function formatToolUse(toolUse) {
     /** @type {Partial<import("../tools/switchToMainAgent").SwitchToMainAgentInput>} */
     const switchToMainAgentInput = input;
     return [
-      `tool: ${toolName}`,
+      `${toolName}`,
       `memoryPath: ${switchToMainAgentInput.memoryPath}`,
     ].join("\n");
   }
@@ -159,7 +157,7 @@ export async function formatToolUse(toolUse) {
       ? webSearchInput.searches.map((s) => s.keywords.join(" ")).join(" | ")
       : "";
     return [
-      `tool: ${toolName}`,
+      `${toolName}`,
       `searches: ${searchesLine}`,
       `question: ${webSearchInput.question}`,
     ].join("\n");
@@ -169,7 +167,7 @@ export async function formatToolUse(toolUse) {
     /** @type {Partial<import("../tools/webFetch.mjs").WebFetchInput>} */
     const webFetchInput = input;
     return [
-      `tool: ${toolName}`,
+      `${toolName}`,
       `url: ${webFetchInput.url}`,
       `question: ${webFetchInput.question}`,
     ].join("\n");
@@ -212,7 +210,7 @@ export function formatToolResult(toolResult) {
   const contentString = contentStringParts.join("\n\n");
 
   if (isError) {
-    return styleText("red", contentString);
+    return styleText("magenta", contentString);
   }
 
   if (toolResult.toolName === "exec_command") {
@@ -223,7 +221,7 @@ export function formatToolResult(toolResult) {
         styleText("yellow", "$1"),
       )
       .replace(/(^<stderr>|<\/stderr>$)/gm, styleText("magenta", "$1"))
-      .replace(/(^<error>|<\/error>$)/gm, styleText("red", "$1"));
+      .replace(/(^<error>|<\/error>$)/gm, styleText("magenta", "$1"));
   }
 
   if (toolResult.toolName === "read_file") {
@@ -237,7 +235,7 @@ export function formatToolResult(toolResult) {
     return contentString
       .replace(/(^<stdout>|<\/stdout>$)/gm, styleText("blue", "$1"))
       .replace(/(^<stderr>|<\/stderr>$)/gm, styleText("magenta", "$1"))
-      .replace(/(^<error>|<\/error>$)/gm, styleText("red", "$1"))
+      .replace(/(^<error>|<\/error>$)/gm, styleText("magenta", "$1"))
       .replace(/(^<tmux:.*?>|<\/tmux:.*?>$)/gm, styleText("green", "$1"));
   }
 
@@ -858,7 +856,7 @@ function renderPatchBlock(block, originalLines, nonce) {
       // "+ ".
       for (const op of diffLines(oldSlice, block.body)) {
         if (op.type === "-") {
-          out.push(styleText("red", `- ${op.line}`));
+          out.push(styleText("magenta", `- ${op.line}`));
         } else if (op.type === "+") {
           out.push(styleText("green", `+ ${op.line}`));
         } else {
