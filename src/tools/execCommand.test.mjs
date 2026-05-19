@@ -59,7 +59,7 @@ Hello from stderr</stderr>
 
 <stderr></stderr>
 
-<error>
+<error code="1" killed="false" signal="null">
 Error: Command failed: node -e process.exit(1)
 </error>
 `.trim(),
@@ -215,6 +215,46 @@ SANDBOX --allow-net -- target --arg
 </stdout>
 
 <stderr></stderr>
+`.trim(),
+    );
+  });
+
+  it("mask sandbox command in error message", async () => {
+    // given:
+    const execCommandToolWithSeparator = createExecCommandTool({
+      sandbox: {
+        command: "false",
+        args: ["SANDBOX"],
+        separator: "--",
+        rules: [
+          {
+            pattern: {
+              command: "target",
+            },
+            mode: "sandbox",
+            additionalArgs: ["--allow-net"],
+          },
+        ],
+      },
+    });
+
+    // when:
+    const result = await execCommandToolWithSeparator.impl({
+      command: "target",
+      args: ["--arg"],
+    });
+
+    // then:
+    assert.equal(
+      result,
+      `
+<stdout></stdout>
+
+<stderr></stderr>
+
+<error code="1" killed="false" signal="null">
+Error: Command failed: target --arg
+</error>
 `.trim(),
     );
   });

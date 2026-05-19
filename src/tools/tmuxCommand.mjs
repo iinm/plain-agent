@@ -108,7 +108,7 @@ export function createTmuxCommandTool(config) {
                   ? `<stderr>\n${isStderrTruncated ? "(Output truncated) ..." : ""}${stderrTruncated}\n</stderr>`
                   : "<stderr></stderr>",
               ];
-              if (err) {
+              if (!stderr && err) {
                 const errMessageTruncated = err.message.slice(
                   0,
                   OUTPUT_MAX_LENGTH,

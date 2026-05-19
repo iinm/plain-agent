@@ -221,7 +221,7 @@ export function formatToolResult(toolResult) {
         styleText("yellow", "$1"),
       )
       .replace(/(^<stderr>|<\/stderr>$)/gm, styleText("magenta", "$1"))
-      .replace(/(^<error>|<\/error>$)/gm, styleText("magenta", "$1"));
+      .replace(/(^<error code=.+?>|<\/error>$)/gm, styleText("magenta", "$1"));
   }
 
   if (toolResult.toolName === "read_file") {
