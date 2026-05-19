@@ -34,8 +34,8 @@ export function createCacheEnabledGeminiModelCaller(
 
   const props = {
     cacheTTL: 2 * 60, // seconds
-    // https://ai.google.dev/gemini-api/docs/caching#considerations
-    minCacheableTokenCount: 2048,
+    // https://ai.google.dev/gemini-api/docs/caching
+    minCacheableTokenCount: 4096,
   };
 
   /**
@@ -60,7 +60,7 @@ export function createCacheEnabledGeminiModelCaller(
       /** @type {GeminiToolConfig} */
       const toolConfig = {
         functionCallingConfig: {
-          // Workaround to prevent MALFORMED_FUNCTION_CALL issues with gemini flash
+          // Workaround to prevent MALFORMED_FUNCTION_CALL issues with gemini 3 flash
           mode: "VALIDATED",
         },
       };
@@ -132,7 +132,7 @@ export function createCacheEnabledGeminiModelCaller(
               ...baseRequest,
               system_instruction: systemInstruction,
               contents: contentsWithoutSystem,
-              tools: tools.length ? tools : undefined,
+              tools: input.tools?.length ? tools : [],
               toolConfig,
             };
 
