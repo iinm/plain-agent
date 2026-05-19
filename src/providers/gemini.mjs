@@ -60,7 +60,7 @@ export function createCacheEnabledGeminiModelCaller(
       /** @type {GeminiToolConfig} */
       const toolConfig = {
         functionCallingConfig: {
-          // Workaround to prevent MALFORMED_FUNCTION_CALL issues with gemini-3-flash
+          // Workaround to prevent MALFORMED_FUNCTION_CALL issues with gemini flash
           mode: "VALIDATED",
         },
       };
