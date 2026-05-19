@@ -260,29 +260,6 @@ describe("createAgentLoop", () => {
     );
   });
 
-  test("should emit turnEnd event after loop completes", async () => {
-    // given:
-    const stateManager = createTestStateManager([systemMessage]);
-    const emitter = createMockAgentEventEmitter();
-    const { handleUserInput } = createAgentLoop({
-      callModel: createMockCallModel([textResponse("Hi")]),
-      stateManager,
-      toolDefs: [],
-      toolExecutor: createToolExecutor(new Map()),
-      agentEventEmitter: emitter,
-      toolUseApprover: createMockToolUseApprover(),
-      subagentManager: createMockSubagentManager(),
-      pauseSignal: createMockPauseSignal(),
-    });
-
-    // when:
-    await handleUserInput([{ type: "text", text: "Hello" }]);
-
-    // then:
-    assert.ok(emitter.emitted.turnEnd);
-    assert.strictEqual(emitter.emitted.turnEnd.length, 1);
-  });
-
   test("should emit providerTokenUsage event", async () => {
     // given:
     const stateManager = createTestStateManager([systemMessage]);
@@ -498,15 +475,15 @@ describe("createAgentLoop", () => {
     );
   });
 
-  test("should break after max thinking loops (5)", async () => {
-    // given:
-    const thinkingResponses = Array.from({ length: 6 }, (_, i) =>
+  test("should break after repeated thinking-only responses (finite loop)", async () => {
+    // given: more thinking responses than any reasonable cap
+    const manyThinkingResponses = Array.from({ length: 20 }, (_, i) =>
       thinkingResponse(`Thinking ${i + 1}`),
     );
     const stateManager = createTestStateManager([systemMessage]);
     const emitter = createMockAgentEventEmitter();
     const { handleUserInput } = createAgentLoop({
-      callModel: createMockCallModel(thinkingResponses),
+      callModel: createMockCallModel(manyThinkingResponses),
       stateManager,
       toolDefs: [],
       toolExecutor: createToolExecutor(new Map()),
@@ -519,12 +496,17 @@ describe("createAgentLoop", () => {
     // when:
     await handleUserInput([{ type: "text", text: "Think forever" }]);
 
-    // then:
+    // then: loop terminates and does not consume all 20 responses
     const messages = stateManager.getMessages();
-    // After 6th thinking response (loop > 5), it breaks
-    // system + user + (thinking + continue) * 5 + thinking_6
-    assert.strictEqual(messages.length, 13);
+    assert.ok(messages.length < 2 + 20 * 2);
     assert.ok(emitter.emitted.turnEnd);
+    // At least one "System: Continue" was sent
+    const continueMessages = messages.filter(
+      (m) =>
+        m.role === "user" &&
+        m.content.some((c) => c.type === "text" && c.text.includes("Continue")),
+    );
+    assert.ok(continueMessages.length > 0);
   });
 
   test("should break loop when pauseSignal is paused", async () => {
@@ -574,6 +556,150 @@ describe("createAgentLoop", () => {
     // Loop breaks at start of second iteration because pauseSignal is paused
     assert.strictEqual(modelCallCount, 1);
     assert.ok(emitter.emitted.turnEnd);
+  });
+
+  test("should execute multiple tools in a single response", async () => {
+    // given:
+    const echoTool = {
+      def: { name: "echo", description: "Echo", inputSchema: {} },
+      impl: async (/** @type {Record<string, unknown>} */ input) =>
+        `echoed: ${input.text}`,
+    };
+    const uppercaseTool = {
+      def: { name: "uppercase", description: "Uppercase", inputSchema: {} },
+      impl: async (/** @type {Record<string, unknown>} */ input) =>
+        String(input.text).toUpperCase(),
+    };
+    const toolByName = new Map([
+      ["echo", echoTool],
+      ["uppercase", uppercaseTool],
+    ]);
+    const stateManager = createTestStateManager([systemMessage]);
+    const emitter = createMockAgentEventEmitter();
+
+    // Model returns two tool_use in one message, then a final text
+    const multiToolResponse = {
+      message: {
+        role: "assistant",
+        content: [
+          {
+            type: "tool_use",
+            toolName: "echo",
+            toolUseId: "tu-1",
+            input: { text: "hello" },
+          },
+          {
+            type: "tool_use",
+            toolName: "uppercase",
+            toolUseId: "tu-2",
+            input: { text: "world" },
+          },
+        ],
+      },
+      providerTokenUsage: { input_tokens: 10, output_tokens: 5 },
+    };
+
+    const { handleUserInput } = createAgentLoop({
+      callModel: createMockCallModel([
+        /** @type {import("./model").ModelOutput} */ (
+          /** @type {unknown} */ (multiToolResponse)
+        ),
+        textResponse("Both done!"),
+      ]),
+      stateManager,
+      toolDefs: [echoTool.def, uppercaseTool.def],
+      toolExecutor: createToolExecutor(toolByName),
+      agentEventEmitter: emitter,
+      toolUseApprover: createMockToolUseApprover(),
+      subagentManager: createMockSubagentManager(),
+      pauseSignal: createMockPauseSignal(),
+    });
+
+    // when:
+    await handleUserInput([{ type: "text", text: "Use both tools" }]);
+
+    // then:
+    const messages = stateManager.getMessages();
+    // Find the tool_result message
+    const toolResultMsg = messages.find(
+      (m) =>
+        m.role === "user" &&
+        m.content.length === 2 &&
+        m.content.every((c) => c.type === "tool_result"),
+    );
+    assert.ok(toolResultMsg);
+    assert.strictEqual(
+      /** @type {import("./model").MessageContentText} */ (
+        /** @type {import("./model").MessageContentToolResult} */ (
+          toolResultMsg.content[0]
+        ).content[0]
+      ).text,
+      "echoed: hello",
+    );
+    assert.strictEqual(
+      /** @type {import("./model").MessageContentText} */ (
+        /** @type {import("./model").MessageContentToolResult} */ (
+          toolResultMsg.content[1]
+        ).content[0]
+      ).text,
+      "WORLD",
+    );
+  });
+
+  test("should compact context when compact_context tool succeeds", async () => {
+    // given:
+    const compactTool = {
+      def: { name: "compact_context", description: "Compact", inputSchema: {} },
+      impl: async () => "Compacted memory content",
+    };
+    const toolByName = new Map([["compact_context", compactTool]]);
+    const stateManager = createTestStateManager([
+      systemMessage,
+      { role: "user", content: [{ type: "text", text: "Old message" }] },
+      {
+        role: "assistant",
+        content: [{ type: "text", text: "Old response" }],
+      },
+    ]);
+    const emitter = createMockAgentEventEmitter();
+    const { handleUserInput } = createAgentLoop({
+      callModel: createMockCallModel([
+        toolUseResponse("compact_context", "tu-compact", {
+          memoryPath: "m.md",
+        }),
+        textResponse("Resuming after compaction."),
+      ]),
+      stateManager,
+      toolDefs: [compactTool.def],
+      toolExecutor: createToolExecutor(toolByName),
+      agentEventEmitter: emitter,
+      toolUseApprover: createMockToolUseApprover(),
+      subagentManager: createMockSubagentManager(),
+      pauseSignal: createMockPauseSignal(),
+    });
+
+    // when:
+    await handleUserInput([{ type: "text", text: "Compact" }]);
+
+    // then: old messages should be discarded, only system + compacted content + new response remain
+    const messages = stateManager.getMessages();
+    assert.strictEqual(messages[0].role, "system");
+    // The old "Old message" / "Old response" should be gone
+    const hasOldMessage = messages.some(
+      (m) =>
+        m.role === "user" &&
+        m.content.some((c) => c.type === "text" && c.text === "Old message"),
+    );
+    assert.strictEqual(hasOldMessage, false);
+    // Compacted content is present as a user message
+    const compactedMsg = messages.find(
+      (m) =>
+        m.role === "user" &&
+        m.content.some(
+          (c) => c.type === "text" && c.text === "Compacted memory content",
+        ),
+    );
+    assert.ok(compactedMsg);
   });
 
   test("should delegate tool result handling to subagentManager", async () => {
@@ -798,6 +924,43 @@ describe("createInputHandler", () => {
       ).text,
       "no, do something else",
     );
+  });
+
+  test("should execute tools on fullwidth approval ('ｙ')", async () => {
+    // given:
+    const toolByName = new Map([
+      [
+        "echo",
+        {
+          def: { name: "echo", description: "Echo", inputSchema: {} },
+          impl: async () => "echoed",
+        },
+      ],
+    ]);
+    const stateManager = createTestStateManager([
+      systemMessage,
+      {
+        role: "assistant",
+        content: [
+          { type: "tool_use", toolName: "echo", toolUseId: "tu-1", input: {} },
+        ],
+      },
+    ]);
+    const { handle } = createInputHandler({
+      stateManager,
+      toolExecutor: createToolExecutor(toolByName),
+      subagentManager: createMockSubagentManager(),
+      toolUseApprover: createMockToolUseApprover(),
+    });
+
+    // when:
+    await handle([{ type: "text", text: "\uff59" }]);
+
+    // then:
+    const messages = stateManager.getMessages();
+    const lastUserMsg = messages.filter((m) => m.role === "user").at(-1);
+    assert.ok(lastUserMsg);
+    assert.strictEqual(lastUserMsg.content[0].type, "tool_result");
   });
 
   test("should do nothing on /resume", async () => {

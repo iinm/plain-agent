@@ -556,6 +556,112 @@ describe("callOpenAIModel", () => {
     assert.ok(stops.length >= 1);
   });
 
+  test("should emit refusal partial content for refusal response", async (t) => {
+    // given: a stream that contains a refusal content part
+    const refusalEvents = [
+      {
+        type: "response.created",
+        sequence_number: 0,
+        response: { id: "resp_test", status: "in_progress" },
+      },
+      {
+        type: "response.in_progress",
+        sequence_number: 1,
+        response: { id: "resp_test", status: "in_progress" },
+      },
+      {
+        type: "response.output_item.added",
+        sequence_number: 2,
+        output_index: 0,
+        item: {
+          id: "msg_test",
+          type: "message",
+          role: "assistant",
+          content: [],
+          status: "in_progress",
+        },
+      },
+      {
+        type: "response.content_part.added",
+        sequence_number: 3,
+        item_id: "msg_test",
+        output_index: 0,
+        content_index: 0,
+        part: { type: "refusal", refusal: "" },
+      },
+      {
+        type: "response.content_part.done",
+        sequence_number: 4,
+        item_id: "msg_test",
+        output_index: 0,
+        content_index: 0,
+        part: { type: "refusal", refusal: "I cannot help with that." },
+      },
+      {
+        type: "response.output_item.done",
+        sequence_number: 5,
+        output_index: 0,
+        item: {
+          id: "msg_test",
+          type: "message",
+          role: "assistant",
+          content: [{ type: "refusal", refusal: "I cannot help with that." }],
+          status: "completed",
+        },
+      },
+      {
+        type: "response.completed",
+        sequence_number: 6,
+        response: {
+          id: "resp_test",
+          object: "response",
+          output: [
+            {
+              id: "msg_test",
+              type: "message",
+              role: "assistant",
+              content: [
+                { type: "refusal", refusal: "I cannot help with that." },
+              ],
+              status: "completed",
+            },
+          ],
+          usage: {
+            input_tokens: 10,
+            input_tokens_details: { cached_tokens: 0 },
+            output_tokens: 5,
+            output_tokens_details: { reasoning_tokens: 0 },
+            total_tokens: 15,
+          },
+        },
+      },
+    ];
+
+    t.mock.method(globalThis, "fetch", async () => {
+      return new Response(encodeOpenAISSE(refusalEvents), { status: 200 });
+    });
+
+    /** @type {import("../model").PartialMessageContent[]} */
+    const partials = [];
+
+    // when:
+    await callOpenAIModel(
+      platformConfig,
+      modelConfig,
+      simpleInput("Do something bad", {
+        onPartialMessageContent: (
+          /** @type {import("../model").PartialMessageContent} */ p,
+        ) => partials.push({ ...p }),
+      }),
+    );
+
+    // then: partial content should include refusal events
+    const refusalPartials = partials.filter((p) => p.type === "refusal");
+    assert.ok(refusalPartials.length >= 2);
+    assert.strictEqual(refusalPartials[0].position, "start");
+    assert.strictEqual(refusalPartials.at(-1)?.position, "stop");
+  });
+
   test("should verify request body structure", async (t) => {
     /** @type {Record<string, unknown> | undefined} */
     let capturedBody;

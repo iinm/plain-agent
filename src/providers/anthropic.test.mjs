@@ -202,6 +202,52 @@ function thinkingTextStreamEvents(thinking, text) {
   ];
 }
 
+/**
+ * Build a redacted_thinking + text response stream event sequence.
+ * @param {string} text
+ * @returns {{type: string; [key: string]: unknown}[]}
+ */
+function redactedThinkingTextStreamEvents(text) {
+  return [
+    {
+      type: "message_start",
+      message: {
+        id: "msg_test",
+        type: "message",
+        role: "assistant",
+        content: [],
+        model: "claude-sonnet-4-20250514",
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 10, output_tokens: 0 },
+      },
+    },
+    {
+      type: "content_block_start",
+      index: 0,
+      content_block: { type: "redacted_thinking", data: "encrypted_data_abc" },
+    },
+    { type: "content_block_stop", index: 0 },
+    {
+      type: "content_block_start",
+      index: 1,
+      content_block: { type: "text", text: "" },
+    },
+    {
+      type: "content_block_delta",
+      index: 1,
+      delta: { type: "text_delta", text },
+    },
+    { type: "content_block_stop", index: 1 },
+    {
+      type: "message_delta",
+      delta: { stop_reason: "end_turn", stop_sequence: null },
+      usage: { output_tokens: 15 },
+    },
+    { type: "message_stop" },
+  ];
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -305,6 +351,40 @@ describe("callAnthropicModel", () => {
     );
     assert.strictEqual(result.message.content[1].type, "text");
     assert.strictEqual(result.message.content[1].text, "Here's the answer.");
+  });
+
+  test("should return ModelOutput for redacted_thinking + text response", async (t) => {
+    // given:
+    t.mock.method(globalThis, "fetch", async () => {
+      return new Response(
+        encodeAnthropicSSE(
+          redactedThinkingTextStreamEvents("The visible answer."),
+        ),
+        { status: 200 },
+      );
+    });
+
+    // when:
+    const result = await callAnthropicModel(
+      { ...platformConfig },
+      { ...modelConfig, thinking: { type: "enabled", budget_tokens: 1024 } },
+      simpleInput("Think about this"),
+    );
+
+    // then:
+    assert.ok(!(result instanceof Error));
+    assert.strictEqual(result.message.content.length, 2);
+    assert.strictEqual(result.message.content[0].type, "redacted_thinking");
+    const redactedPart =
+      /** @type {import("../model").MessageContentRedactedThinking} */ (
+        result.message.content[0]
+      );
+    assert.strictEqual(
+      /** @type {string} */ (redactedPart.provider?.fields?.data),
+      "encrypted_data_abc",
+    );
+    assert.strictEqual(result.message.content[1].type, "text");
+    assert.strictEqual(result.message.content[1].text, "The visible answer.");
   });
 
   test("should call onPartialMessageContent with correct sequence", async (t) => {
