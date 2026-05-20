@@ -47,6 +47,7 @@ import { noThrow } from "../utils/noThrow.mjs";
  * @property {CallModel} modelCaller
  * @property {number=} maxLengthPerSearch Truncate each search's output to this many characters (default 50000).
  * @property {number=} maxTotalLength Truncate the combined output across searches to this many characters (default 200000).
+ * @property {number=} delayBetweenRequestsMs Delay between each search request in milliseconds (default 1000).
  */
 
 /**
@@ -68,6 +69,9 @@ const DEFAULT_MAX_TOTAL_LENGTH = 200_000;
 
 /** @type {number} */
 const DEFAULT_SEARCH_TIMEOUT_MS = 30_000;
+
+/** @type {number} */
+const DEFAULT_DELAY_BETWEEN_REQUESTS_MS = 1_000;
 
 /** @type {number} */
 const SEARCH_MAX_BUFFER_BYTES = 16 * 1024 * 1024;
@@ -200,10 +204,17 @@ async function webSearchViaCommand(config, input) {
   const maxLengthPerSearch =
     config.maxLengthPerSearch ?? DEFAULT_MAX_LENGTH_PER_SEARCH;
   const maxTotalLength = config.maxTotalLength ?? DEFAULT_MAX_TOTAL_LENGTH;
+  const delayBetweenRequestsMs =
+    config.delayBetweenRequestsMs ?? DEFAULT_DELAY_BETWEEN_REQUESTS_MS;
 
   /** @type {{ keywords: string[], text: string, truncated: boolean, originalLength: number, error?: string }[]} */
   const results = [];
   for (const search of input.searches) {
+    if (delayBetweenRequestsMs > 0 && results.length > 0) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, delayBetweenRequestsMs),
+      );
+    }
     try {
       const raw = await runSearchCommand(config, search.keywords);
       const { text, truncated, originalLength } = truncateText(
@@ -319,7 +330,7 @@ async function webSearchViaCommand(config, input) {
  * @returns {Promise<string | Error>}
  */
 async function webSearchViaGemini(config, input, retryCount) {
-  const model = config.model ?? "gemini-3-flash-preview";
+  const model = config.model ?? "gemini-3.5-flash";
   const url =
     config.provider === "gemini-vertex-ai"
       ? `${config.baseURL}/publishers/google/models/${config.model}:generateContent`

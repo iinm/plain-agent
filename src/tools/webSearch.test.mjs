@@ -99,6 +99,72 @@ describe("createWebSearchTool input validation", () => {
   });
 });
 
+describe("webSearchViaCommand delay between requests", () => {
+  it("completes multiple searches without error using default delay", async () => {
+    // given:
+    const tool = createWebSearchTool(newCommandConfig());
+
+    // when:
+    const result = await tool.impl({
+      searches: [{ keywords: ["a"] }, { keywords: ["b"] }],
+      question: "test",
+    });
+
+    // then:
+    assert.ok(
+      !(result instanceof Error),
+      result instanceof Error ? result.message : undefined,
+    );
+  });
+
+  it("completes with zero delay (no delay between searches)", async () => {
+    // given:
+    const config = { ...newCommandConfig(), delayBetweenRequestsMs: 0 };
+    const tool = createWebSearchTool(config);
+
+    // when:
+    const result = await tool.impl({
+      searches: [{ keywords: ["a"] }, { keywords: ["b"] }, { keywords: ["c"] }],
+      question: "test",
+    });
+
+    // then:
+    assert.ok(
+      !(result instanceof Error),
+      result instanceof Error ? result.message : undefined,
+    );
+  });
+
+  it("respects a custom delay between searches", async () => {
+    // given:
+    const customDelayMs = 50;
+    const config = {
+      ...newCommandConfig(),
+      delayBetweenRequestsMs: customDelayMs,
+    };
+    const tool = createWebSearchTool(config);
+
+    // when:
+    const start = performance.now();
+    const result = await tool.impl({
+      searches: [{ keywords: ["a"] }, { keywords: ["b"] }, { keywords: ["c"] }],
+      question: "test",
+    });
+    const elapsed = performance.now() - start;
+
+    // then:
+    assert.ok(
+      !(result instanceof Error),
+      result instanceof Error ? result.message : undefined,
+    );
+    // 2 delays between 3 searches: 2 * 50ms = 100ms minimum
+    assert.ok(
+      elapsed >= 2 * customDelayMs - 50,
+      `Expected at least ${2 * customDelayMs}ms elapsed, but got ${elapsed}ms`,
+    );
+  });
+});
+
 describe("truncateText", () => {
   it("returns the original content when it is within the length budget", () => {
     // given:

@@ -475,7 +475,7 @@
     },
 
     {
-      "name": "gemini-3-flash-preview",
+      "name": "gemini-3.5-flash",
       "variant": "thinking-medium",
       "platform": {
         "name": "gemini",
@@ -485,7 +485,7 @@
       "model": {
         "format": "gemini",
         "config": {
-          "model": "gemini-3-flash-preview",
+          "model": "gemini-3.5-flash",
           "config": {
             "requestConfig": {
               "generationConfig": {
@@ -503,14 +503,14 @@
         "currency": "USD",
         "unit": "1M",
         "costs": {
-          "promptTokenCount": 0.5,
-          "cachedContentTokenCount": -0.45,
-          "candidatesTokenCount": 3
+          "promptTokenCount": 1.5,
+          "cachedContentTokenCount": -1.35,
+          "candidatesTokenCount": 9
         }
       }
     },
     {
-      "name": "gemini-3-flash-preview",
+      "name": "gemini-3.5-flash",
       "variant": "thinking-high",
       "platform": {
         "name": "gemini",
@@ -520,7 +520,7 @@
       "model": {
         "format": "gemini",
         "config": {
-          "model": "gemini-3-flash-preview",
+          "model": "gemini-3.5-flash",
           "config": {
             "requestConfig": {
               "generationConfig": {
@@ -538,9 +538,9 @@
         "currency": "USD",
         "unit": "1M",
         "costs": {
-          "promptTokenCount": 0.5,
-          "cachedContentTokenCount": -0.45,
-          "candidatesTokenCount": 3
+          "promptTokenCount": 1.5,
+          "cachedContentTokenCount": -1.35,
+          "candidatesTokenCount": 9
         }
       }
     },
@@ -616,7 +616,7 @@
     },
 
     {
-      "name": "gemini-3-flash-preview",
+      "name": "gemini-3.5-flash",
       "variant": "thinking-medium-vertex-ai",
       "platform": {
         "name": "vertex-ai",
@@ -625,7 +625,7 @@
       "model": {
         "format": "gemini",
         "config": {
-          "model": "gemini-3-flash-preview",
+          "model": "gemini-3.5-flash",
           "config": {
             "requestConfig": {
               "generationConfig": {
@@ -643,14 +643,14 @@
         "currency": "USD",
         "unit": "1M",
         "costs": {
-          "promptTokenCount": 0.5,
-          "cachedContentTokenCount": -0.45,
-          "candidatesTokenCount": 3
+          "promptTokenCount": 1.5,
+          "cachedContentTokenCount": -1.35,
+          "candidatesTokenCount": 9
         }
       }
     },
     {
-      "name": "gemini-3-flash-preview",
+      "name": "gemini-3.5-flash",
       "variant": "thinking-high-vertex-ai",
       "platform": {
         "name": "vertex-ai",
@@ -659,7 +659,7 @@
       "model": {
         "format": "gemini",
         "config": {
-          "model": "gemini-3-flash-preview",
+          "model": "gemini-3.5-flash",
           "config": {
             "requestConfig": {
               "generationConfig": {
@@ -677,9 +677,9 @@
         "currency": "USD",
         "unit": "1M",
         "costs": {
-          "promptTokenCount": 0.5,
-          "cachedContentTokenCount": -0.45,
-          "candidatesTokenCount": 3
+          "promptTokenCount": 1.5,
+          "cachedContentTokenCount": -1.35,
+          "candidatesTokenCount": 9
         }
       }
     },

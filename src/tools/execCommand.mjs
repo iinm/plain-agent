@@ -140,19 +140,41 @@ export function createExecCommandTool(config) {
                   : "<stderr></stderr>",
               ];
 
-              if (err) {
-                // rg: 何もマッチしない場合は exit status != 0 になるので無視
-                const ignoreError = [command, ...(args || [])].includes("rg");
+              if (!stderr && err) {
+                // rg: exit status != 0 when no matches are found.
+                const ignoreError = ["rg"].includes(input.command);
                 if (!ignoreError) {
-                  // err.message が長過ぎる場合は先頭を表示
-                  const errMessageTruncated = err.message.slice(
+                  // mask sandbox details
+                  const originalCommand = [
+                    input.command,
+                    ...(input.args ?? []),
+                  ];
+                  const sandboxedCommand = [command, ...(args ?? [])];
+                  const sandboxStr = [
+                    ...sandboxedCommand.slice(
+                      0,
+                      sandboxedCommand.length - originalCommand.length,
+                    ),
+                    "",
+                  ].join(" ");
+
+                  const errMessageMasked = sandboxStr
+                    ? err.message.replaceAll(sandboxStr, "")
+                    : err.message;
+
+                  const errMessageTruncated = errMessageMasked.slice(
                     0,
                     OUTPUT_TRUNCATED_LENGTH,
                   );
                   const isErrMessageTruncated =
-                    err.message.length > OUTPUT_MAX_LENGTH;
+                    errMessageMasked.length > OUTPUT_TRUNCATED_LENGTH;
+
                   result.push(
-                    `\n<error>\n${err.name}: ${errMessageTruncated}${isErrMessageTruncated ? "... (Message truncated)" : ""}</error>`,
+                    [
+                      "",
+                      `<error code="${err.code}" killed="${err.killed}" signal="${err.signal}">`,
+                      `${err.name}: ${errMessageTruncated}${isErrMessageTruncated ? "... (Message truncated)" : ""}</error>`,
+                    ].join("\n"),
                   );
                 }
               }
