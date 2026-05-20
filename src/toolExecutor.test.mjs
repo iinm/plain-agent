@@ -2,33 +2,6 @@ import assert from "node:assert";
 import test, { describe } from "node:test";
 import { createToolExecutor } from "./toolExecutor.mjs";
 
-/**
- * @param {string} name
- * @param {object} [overrides]
- * @returns {import("./tool").Tool}
- */
-function createMockTool(name, overrides = {}) {
-  return {
-    def: { name, description: `Mock ${name}`, inputSchema: {} },
-    impl: async () => `${name} result`,
-    ...overrides,
-  };
-}
-
-/**
- * @param {string} toolName
- * @param {Record<string, unknown>} [input]
- * @returns {import("./model").MessageContentToolUse}
- */
-function toolUse(toolName, input = {}) {
-  return {
-    type: "tool_use",
-    toolUseId: `id-${toolName}`,
-    toolName,
-    input,
-  };
-}
-
 describe("createToolExecutor", () => {
   describe("validateBatch", () => {
     test("should return isValid:true for existing tool", () => {
@@ -301,3 +274,30 @@ describe("createToolExecutor", () => {
     });
   });
 });
+
+/**
+ * @param {string} name
+ * @param {object} [overrides]
+ * @returns {import("./tool").Tool}
+ */
+function createMockTool(name, overrides = {}) {
+  return {
+    def: { name, description: `Mock ${name}`, inputSchema: {} },
+    impl: async () => `${name} result`,
+    ...overrides,
+  };
+}
+
+/**
+ * @param {string} toolName
+ * @param {Record<string, unknown>} [input]
+ * @returns {import("./model").MessageContentToolUse}
+ */
+function toolUse(toolName, input = {}) {
+  return {
+    type: "tool_use",
+    toolUseId: `id-${toolName}`,
+    toolName,
+    input,
+  };
+}

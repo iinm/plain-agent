@@ -2,256 +2,6 @@ import assert from "node:assert";
 import test, { describe } from "node:test";
 import { callAnthropicModel } from "./anthropic.mjs";
 
-// ---------------------------------------------------------------------------
-// Stream encoder helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Encode Anthropic SSE events into a ReadableStream.
- * Format: "event: {type}\ndata: {json}\n\n"
- * @param {{type: string; [key: string]: unknown}[]} events
- * @returns {ReadableStream<Uint8Array>}
- */
-function encodeAnthropicSSE(events) {
-  const encoder = new TextEncoder();
-  const chunks = events.map((event) =>
-    encoder.encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`),
-  );
-  return new ReadableStream({
-    start(controller) {
-      for (const chunk of chunks) controller.enqueue(chunk);
-      controller.close();
-    },
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Fixtures
-// ---------------------------------------------------------------------------
-
-const platformConfig = /** @type {const} */ ({
-  name: "anthropic",
-  variant: "default",
-  baseURL: "https://api.anthropic.com",
-  apiKey: "test-key",
-});
-
-const modelConfig = {
-  model: "claude-sonnet-4-20250514",
-  max_tokens: 1024,
-};
-
-/**
- * @param {string} userText
- * @param {{tools?: import("../tool").ToolDefinition[], onPartialMessageContent?: import("../model").ModelInput["onPartialMessageContent"]}} [options]
- * @returns {import("../model").ModelInput}
- */
-function simpleInput(userText, options = {}) {
-  return {
-    messages: [
-      {
-        role: "system",
-        content: [{ type: "text", text: "You are a test assistant." }],
-      },
-      {
-        role: "user",
-        content: [{ type: "text", text: userText }],
-      },
-    ],
-    tools: options.tools || [],
-    onPartialMessageContent: options.onPartialMessageContent,
-  };
-}
-
-/**
- * Build a text response stream event sequence.
- * @param {string} text
- * @returns {{type: string; [key: string]: unknown}[]}
- */
-function textStreamEvents(text) {
-  return [
-    {
-      type: "message_start",
-      message: {
-        id: "msg_test",
-        type: "message",
-        role: "assistant",
-        content: [],
-        model: "claude-sonnet-4-20250514",
-        stop_reason: null,
-        stop_sequence: null,
-        usage: { input_tokens: 10, output_tokens: 0 },
-      },
-    },
-    {
-      type: "content_block_start",
-      index: 0,
-      content_block: { type: "text", text: "" },
-    },
-    {
-      type: "content_block_delta",
-      index: 0,
-      delta: { type: "text_delta", text },
-    },
-    { type: "content_block_stop", index: 0 },
-    {
-      type: "message_delta",
-      delta: { stop_reason: "end_turn", stop_sequence: null },
-      usage: { output_tokens: 5 },
-    },
-    { type: "message_stop" },
-  ];
-}
-
-/**
- * Build a tool_use response stream event sequence.
- * @param {string} id
- * @param {string} name
- * @param {Record<string, unknown>} input
- * @returns {{type: string; [key: string]: unknown}[]}
- */
-function toolUseStreamEvents(id, name, input) {
-  return [
-    {
-      type: "message_start",
-      message: {
-        id: "msg_test",
-        type: "message",
-        role: "assistant",
-        content: [],
-        model: "claude-sonnet-4-20250514",
-        stop_reason: null,
-        stop_sequence: null,
-        usage: { input_tokens: 15, output_tokens: 0 },
-      },
-    },
-    {
-      type: "content_block_start",
-      index: 0,
-      content_block: { type: "tool_use", id, name, input: {} },
-    },
-    {
-      type: "content_block_delta",
-      index: 0,
-      delta: { type: "input_json_delta", partial_json: JSON.stringify(input) },
-    },
-    { type: "content_block_stop", index: 0 },
-    {
-      type: "message_delta",
-      delta: { stop_reason: "tool_use", stop_sequence: null },
-      usage: { output_tokens: 8 },
-    },
-    { type: "message_stop" },
-  ];
-}
-
-/**
- * Build a thinking + text response stream event sequence.
- * @param {string} thinking
- * @param {string} text
- * @returns {{type: string; [key: string]: unknown}[]}
- */
-function thinkingTextStreamEvents(thinking, text) {
-  return [
-    {
-      type: "message_start",
-      message: {
-        id: "msg_test",
-        type: "message",
-        role: "assistant",
-        content: [],
-        model: "claude-sonnet-4-20250514",
-        stop_reason: null,
-        stop_sequence: null,
-        usage: { input_tokens: 10, output_tokens: 0 },
-      },
-    },
-    {
-      type: "content_block_start",
-      index: 0,
-      content_block: { type: "thinking", thinking: "" },
-    },
-    {
-      type: "content_block_delta",
-      index: 0,
-      delta: { type: "thinking_delta", thinking },
-    },
-    {
-      type: "content_block_delta",
-      index: 0,
-      delta: { type: "signature_delta", signature: "sig_test_abc" },
-    },
-    { type: "content_block_stop", index: 0 },
-    {
-      type: "content_block_start",
-      index: 1,
-      content_block: { type: "text", text: "" },
-    },
-    {
-      type: "content_block_delta",
-      index: 1,
-      delta: { type: "text_delta", text },
-    },
-    { type: "content_block_stop", index: 1 },
-    {
-      type: "message_delta",
-      delta: { stop_reason: "end_turn", stop_sequence: null },
-      usage: { output_tokens: 20 },
-    },
-    { type: "message_stop" },
-  ];
-}
-
-/**
- * Build a redacted_thinking + text response stream event sequence.
- * @param {string} text
- * @returns {{type: string; [key: string]: unknown}[]}
- */
-function redactedThinkingTextStreamEvents(text) {
-  return [
-    {
-      type: "message_start",
-      message: {
-        id: "msg_test",
-        type: "message",
-        role: "assistant",
-        content: [],
-        model: "claude-sonnet-4-20250514",
-        stop_reason: null,
-        stop_sequence: null,
-        usage: { input_tokens: 10, output_tokens: 0 },
-      },
-    },
-    {
-      type: "content_block_start",
-      index: 0,
-      content_block: { type: "redacted_thinking", data: "encrypted_data_abc" },
-    },
-    { type: "content_block_stop", index: 0 },
-    {
-      type: "content_block_start",
-      index: 1,
-      content_block: { type: "text", text: "" },
-    },
-    {
-      type: "content_block_delta",
-      index: 1,
-      delta: { type: "text_delta", text },
-    },
-    { type: "content_block_stop", index: 1 },
-    {
-      type: "message_delta",
-      delta: { stop_reason: "end_turn", stop_sequence: null },
-      usage: { output_tokens: 15 },
-    },
-    { type: "message_stop" },
-  ];
-}
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe("callAnthropicModel", () => {
   test("should return ModelOutput for text response", async (t) => {
     // given:
@@ -803,3 +553,241 @@ describe("callAnthropicModel", () => {
     assert.strictEqual(toolResultContent[0].tool_use_id, "tu-1");
   });
 });
+
+/**
+ * Encode Anthropic SSE events into a ReadableStream.
+ * Format: "event: {type}\ndata: {json}\n\n"
+ * @param {{type: string; [key: string]: unknown}[]} events
+ * @returns {ReadableStream<Uint8Array>}
+ */
+function encodeAnthropicSSE(events) {
+  const encoder = new TextEncoder();
+  const chunks = events.map((event) =>
+    encoder.encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`),
+  );
+  return new ReadableStream({
+    start(controller) {
+      for (const chunk of chunks) controller.enqueue(chunk);
+      controller.close();
+    },
+  });
+}
+
+const platformConfig = /** @type {const} */ ({
+  name: "anthropic",
+  variant: "default",
+  baseURL: "https://api.anthropic.com",
+  apiKey: "test-key",
+});
+
+const modelConfig = {
+  model: "claude-sonnet-4-20250514",
+  max_tokens: 1024,
+};
+
+/**
+ * @param {string} userText
+ * @param {{tools?: import("../tool").ToolDefinition[], onPartialMessageContent?: import("../model").ModelInput["onPartialMessageContent"]}} [options]
+ * @returns {import("../model").ModelInput}
+ */
+function simpleInput(userText, options = {}) {
+  return {
+    messages: [
+      {
+        role: "system",
+        content: [{ type: "text", text: "You are a test assistant." }],
+      },
+      {
+        role: "user",
+        content: [{ type: "text", text: userText }],
+      },
+    ],
+    tools: options.tools || [],
+    onPartialMessageContent: options.onPartialMessageContent,
+  };
+}
+
+/**
+ * Build a text response stream event sequence.
+ * @param {string} text
+ * @returns {{type: string; [key: string]: unknown}[]}
+ */
+function textStreamEvents(text) {
+  return [
+    {
+      type: "message_start",
+      message: {
+        id: "msg_test",
+        type: "message",
+        role: "assistant",
+        content: [],
+        model: "claude-sonnet-4-20250514",
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 10, output_tokens: 0 },
+      },
+    },
+    {
+      type: "content_block_start",
+      index: 0,
+      content_block: { type: "text", text: "" },
+    },
+    {
+      type: "content_block_delta",
+      index: 0,
+      delta: { type: "text_delta", text },
+    },
+    { type: "content_block_stop", index: 0 },
+    {
+      type: "message_delta",
+      delta: { stop_reason: "end_turn", stop_sequence: null },
+      usage: { output_tokens: 5 },
+    },
+    { type: "message_stop" },
+  ];
+}
+
+/**
+ * Build a tool_use response stream event sequence.
+ * @param {string} id
+ * @param {string} name
+ * @param {Record<string, unknown>} input
+ * @returns {{type: string; [key: string]: unknown}[]}
+ */
+function toolUseStreamEvents(id, name, input) {
+  return [
+    {
+      type: "message_start",
+      message: {
+        id: "msg_test",
+        type: "message",
+        role: "assistant",
+        content: [],
+        model: "claude-sonnet-4-20250514",
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 15, output_tokens: 0 },
+      },
+    },
+    {
+      type: "content_block_start",
+      index: 0,
+      content_block: { type: "tool_use", id, name, input: {} },
+    },
+    {
+      type: "content_block_delta",
+      index: 0,
+      delta: { type: "input_json_delta", partial_json: JSON.stringify(input) },
+    },
+    { type: "content_block_stop", index: 0 },
+    {
+      type: "message_delta",
+      delta: { stop_reason: "tool_use", stop_sequence: null },
+      usage: { output_tokens: 8 },
+    },
+    { type: "message_stop" },
+  ];
+}
+
+/**
+ * Build a thinking + text response stream event sequence.
+ * @param {string} thinking
+ * @param {string} text
+ * @returns {{type: string; [key: string]: unknown}[]}
+ */
+function thinkingTextStreamEvents(thinking, text) {
+  return [
+    {
+      type: "message_start",
+      message: {
+        id: "msg_test",
+        type: "message",
+        role: "assistant",
+        content: [],
+        model: "claude-sonnet-4-20250514",
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 10, output_tokens: 0 },
+      },
+    },
+    {
+      type: "content_block_start",
+      index: 0,
+      content_block: { type: "thinking", thinking: "" },
+    },
+    {
+      type: "content_block_delta",
+      index: 0,
+      delta: { type: "thinking_delta", thinking },
+    },
+    {
+      type: "content_block_delta",
+      index: 0,
+      delta: { type: "signature_delta", signature: "sig_test_abc" },
+    },
+    { type: "content_block_stop", index: 0 },
+    {
+      type: "content_block_start",
+      index: 1,
+      content_block: { type: "text", text: "" },
+    },
+    {
+      type: "content_block_delta",
+      index: 1,
+      delta: { type: "text_delta", text },
+    },
+    { type: "content_block_stop", index: 1 },
+    {
+      type: "message_delta",
+      delta: { stop_reason: "end_turn", stop_sequence: null },
+      usage: { output_tokens: 20 },
+    },
+    { type: "message_stop" },
+  ];
+}
+
+/**
+ * Build a redacted_thinking + text response stream event sequence.
+ * @param {string} text
+ * @returns {{type: string; [key: string]: unknown}[]}
+ */
+function redactedThinkingTextStreamEvents(text) {
+  return [
+    {
+      type: "message_start",
+      message: {
+        id: "msg_test",
+        type: "message",
+        role: "assistant",
+        content: [],
+        model: "claude-sonnet-4-20250514",
+        stop_reason: null,
+        stop_sequence: null,
+        usage: { input_tokens: 10, output_tokens: 0 },
+      },
+    },
+    {
+      type: "content_block_start",
+      index: 0,
+      content_block: { type: "redacted_thinking", data: "encrypted_data_abc" },
+    },
+    { type: "content_block_stop", index: 0 },
+    {
+      type: "content_block_start",
+      index: 1,
+      content_block: { type: "text", text: "" },
+    },
+    {
+      type: "content_block_delta",
+      index: 1,
+      delta: { type: "text_delta", text },
+    },
+    { type: "content_block_stop", index: 1 },
+    {
+      type: "message_delta",
+      delta: { stop_reason: "end_turn", stop_sequence: null },
+      usage: { output_tokens: 15 },
+    },
+    { type: "message_stop" },
+  ];
+}

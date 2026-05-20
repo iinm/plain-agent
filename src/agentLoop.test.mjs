@@ -4,179 +4,6 @@ import { createAgentLoop, createInputHandler } from "./agentLoop.mjs";
 import { createStateManager } from "./agentState.mjs";
 import { createToolExecutor } from "./toolExecutor.mjs";
 
-// ---------------------------------------------------------------------------
-// Test helpers
-// ---------------------------------------------------------------------------
-
-/** @param {import("./model").Message[]} [initial] */
-function createTestStateManager(initial = []) {
-  return createStateManager(initial, { onMessagesAppended: () => {} });
-}
-
-/**
- * @param {(import("./model").ModelOutput | Error)[]} responses
- * @returns {import("./model").CallModel}
- */
-function createMockCallModel(responses) {
-  let callIndex = 0;
-  return async (input) => {
-    const response = responses[callIndex++];
-    if (!response) throw new Error("No more mock responses");
-    // call onPartialMessageContent if provided and response is not Error
-    if (!(response instanceof Error) && input.onPartialMessageContent) {
-      for (const part of response.message.content) {
-        if (part.type === "text") {
-          input.onPartialMessageContent({
-            type: "text",
-            position: "start",
-          });
-          input.onPartialMessageContent({
-            type: "text",
-            position: "delta",
-            content: part.text,
-          });
-          input.onPartialMessageContent({
-            type: "text",
-            position: "stop",
-          });
-        }
-      }
-    }
-    return response;
-  };
-}
-
-/**
- * @param {import("./tool").ToolUseDecision} [defaultDecision]
- * @returns {import("./tool").ToolUseApprover}
- */
-function createMockToolUseApprover(
-  defaultDecision = /** @type {import("./tool").ToolUseDecision} */ ({
-    action: "allow",
-  }),
-) {
-  return {
-    isAllowedToolUse: () => defaultDecision,
-    allowToolUse: () => {},
-    resetApprovalCount: () => {},
-    getAllowedToolUseInSession: () => [],
-    restoreAllowedToolUseInSession: () => {},
-  };
-}
-
-/** @returns {import("./subagent.mjs").SubagentManager} */
-function createMockSubagentManager() {
-  return /** @type {import("./subagent.mjs").SubagentManager} */ (
-    /** @type {unknown} */ ({
-      isSubagentActive: () => false,
-      processToolResults: (
-        /** @type {import("./model").MessageContentToolUse[]} */ _toolUses,
-        /** @type {import("./model").MessageContentToolResult[]} */ _results,
-        /** @type {import("./model").Message[]} */ messages,
-      ) => ({
-        messages,
-        newMessage: null,
-      }),
-      getActiveSubagent: () => null,
-      switchToSubagent: () =>
-        /** @type {const} */ ({ success: true, value: "switched" }),
-      switchToMainAgent: async () =>
-        /** @type {const} */ ({
-          success: true,
-          memoryContent: "memory",
-        }),
-      restoreState: () => {},
-      getState: () => ({ subagents: [], subagentCount: 0 }),
-    })
-  );
-}
-
-function createMockPauseSignal() {
-  let paused = false;
-  return {
-    isPaused: () => paused,
-    reset: () => {
-      paused = false;
-    },
-    pause: () => {
-      paused = true;
-    },
-  };
-}
-
-/**
- * @param {string} text
- * @returns {import("./model").ModelOutput}
- */
-function textResponse(text) {
-  return {
-    message: {
-      role: "assistant",
-      content: [{ type: "text", text }],
-    },
-    providerTokenUsage: { input_tokens: 10, output_tokens: 5 },
-  };
-}
-
-/**
- * @param {string} toolName
- * @param {string} toolUseId
- * @param {Record<string, unknown>} input
- * @returns {import("./model").ModelOutput}
- */
-function toolUseResponse(toolName, toolUseId, input) {
-  return {
-    message: {
-      role: "assistant",
-      content: [{ type: "tool_use", toolName, toolUseId, input }],
-    },
-    providerTokenUsage: { input_tokens: 10, output_tokens: 5 },
-  };
-}
-
-/**
- * @param {string} thinking
- * @returns {import("./model").ModelOutput}
- */
-function thinkingResponse(thinking) {
-  return {
-    message: {
-      role: "assistant",
-      content: [{ type: "thinking", thinking }],
-    },
-  };
-}
-
-/**
- * @typedef {import("./agent").AgentEventEmitter & { emitted: Record<string, unknown[]> }} MockEmitter
- */
-
-/** @returns {MockEmitter} */
-function createMockAgentEventEmitter() {
-  /** @type {Record<string, unknown[]>} */
-  const emitted = {};
-  return /** @type {MockEmitter} */ (
-    /** @type {unknown} */ ({
-      emit: (/** @type {string} */ event, /** @type {unknown[]} */ ...args) => {
-        if (!emitted[event]) emitted[event] = [];
-        emitted[event].push(args.length <= 1 ? args[0] : args);
-      },
-      on: () => {},
-      emitted,
-    })
-  );
-}
-
-/** @type {import("./model").Message} */
-const systemMessage = {
-  role: "system",
-  content: [{ type: "text", text: "You are a test assistant." }],
-};
-
-// ---------------------------------------------------------------------------
-// createAgentLoop tests
-// ---------------------------------------------------------------------------
-
 describe("createAgentLoop", () => {
   test("should call model and end loop when model returns text only", async () => {
     // given:
@@ -761,10 +588,6 @@ describe("createAgentLoop", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// createInputHandler tests
-// ---------------------------------------------------------------------------
-
 describe("createInputHandler", () => {
   test("should append user message for text input", async () => {
     // given:
@@ -981,3 +804,168 @@ describe("createInputHandler", () => {
     assert.strictEqual(stateManager.getMessages().length, messageCountBefore);
   });
 });
+
+/** @param {import("./model").Message[]} [initial] */
+function createTestStateManager(initial = []) {
+  return createStateManager(initial, { onMessagesAppended: () => {} });
+}
+
+/**
+ * @param {(import("./model").ModelOutput | Error)[]} responses
+ * @returns {import("./model").CallModel}
+ */
+function createMockCallModel(responses) {
+  let callIndex = 0;
+  return async (input) => {
+    const response = responses[callIndex++];
+    if (!response) throw new Error("No more mock responses");
+    // call onPartialMessageContent if provided and response is not Error
+    if (!(response instanceof Error) && input.onPartialMessageContent) {
+      for (const part of response.message.content) {
+        if (part.type === "text") {
+          input.onPartialMessageContent({
+            type: "text",
+            position: "start",
+          });
+          input.onPartialMessageContent({
+            type: "text",
+            position: "delta",
+            content: part.text,
+          });
+          input.onPartialMessageContent({
+            type: "text",
+            position: "stop",
+          });
+        }
+      }
+    }
+    return response;
+  };
+}
+
+/**
+ * @param {import("./tool").ToolUseDecision} [defaultDecision]
+ * @returns {import("./tool").ToolUseApprover}
+ */
+function createMockToolUseApprover(
+  defaultDecision = /** @type {import("./tool").ToolUseDecision} */ ({
+    action: "allow",
+  }),
+) {
+  return {
+    isAllowedToolUse: () => defaultDecision,
+    allowToolUse: () => {},
+    resetApprovalCount: () => {},
+    getAllowedToolUseInSession: () => [],
+    restoreAllowedToolUseInSession: () => {},
+  };
+}
+
+/** @returns {import("./subagent.mjs").SubagentManager} */
+function createMockSubagentManager() {
+  return /** @type {import("./subagent.mjs").SubagentManager} */ (
+    /** @type {unknown} */ ({
+      isSubagentActive: () => false,
+      processToolResults: (
+        /** @type {import("./model").MessageContentToolUse[]} */ _toolUses,
+        /** @type {import("./model").MessageContentToolResult[]} */ _results,
+        /** @type {import("./model").Message[]} */ messages,
+      ) => ({
+        messages,
+        newMessage: null,
+      }),
+      getActiveSubagent: () => null,
+      switchToSubagent: () =>
+        /** @type {const} */ ({ success: true, value: "switched" }),
+      switchToMainAgent: async () =>
+        /** @type {const} */ ({
+          success: true,
+          memoryContent: "memory",
+        }),
+      restoreState: () => {},
+      getState: () => ({ subagents: [], subagentCount: 0 }),
+    })
+  );
+}
+
+function createMockPauseSignal() {
+  let paused = false;
+  return {
+    isPaused: () => paused,
+    reset: () => {
+      paused = false;
+    },
+    pause: () => {
+      paused = true;
+    },
+  };
+}
+
+/**
+ * @param {string} text
+ * @returns {import("./model").ModelOutput}
+ */
+function textResponse(text) {
+  return {
+    message: {
+      role: "assistant",
+      content: [{ type: "text", text }],
+    },
+    providerTokenUsage: { input_tokens: 10, output_tokens: 5 },
+  };
+}
+
+/**
+ * @param {string} toolName
+ * @param {string} toolUseId
+ * @param {Record<string, unknown>} input
+ * @returns {import("./model").ModelOutput}
+ */
+function toolUseResponse(toolName, toolUseId, input) {
+  return {
+    message: {
+      role: "assistant",
+      content: [{ type: "tool_use", toolName, toolUseId, input }],
+    },
+    providerTokenUsage: { input_tokens: 10, output_tokens: 5 },
+  };
+}
+
+/**
+ * @param {string} thinking
+ * @returns {import("./model").ModelOutput}
+ */
+function thinkingResponse(thinking) {
+  return {
+    message: {
+      role: "assistant",
+      content: [{ type: "thinking", thinking }],
+    },
+  };
+}
+
+/**
+ * @typedef {import("./agent").AgentEventEmitter & { emitted: Record<string, unknown[]> }} MockEmitter
+ */
+
+/** @returns {MockEmitter} */
+function createMockAgentEventEmitter() {
+  /** @type {Record<string, unknown[]>} */
+  const emitted = {};
+  return /** @type {MockEmitter} */ (
+    /** @type {unknown} */ ({
+      emit: (/** @type {string} */ event, /** @type {unknown[]} */ ...args) => {
+        if (!emitted[event]) emitted[event] = [];
+        emitted[event].push(args.length <= 1 ? args[0] : args);
+      },
+      on: () => {},
+      emitted,
+    })
+  );
+}
+
+/** @type {import("./model").Message} */
+const systemMessage = {
+  role: "system",
+  content: [{ type: "text", text: "You are a test assistant." }],
+};

@@ -2,418 +2,6 @@ import assert from "node:assert";
 import test, { describe } from "node:test";
 import { callOpenAIModel } from "./openai.mjs";
 
-// ---------------------------------------------------------------------------
-// Stream encoder helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Encode OpenAI SSE events into a ReadableStream.
- * Format: "event: {type}\ndata: {json}\n\n"
- * @param {{type: string; [key: string]: unknown}[]} events
- * @returns {ReadableStream<Uint8Array>}
- */
-function encodeOpenAISSE(events) {
-  const encoder = new TextEncoder();
-  const chunks = events.map((event) =>
-    encoder.encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`),
-  );
-  return new ReadableStream({
-    start(controller) {
-      for (const chunk of chunks) controller.enqueue(chunk);
-      controller.close();
-    },
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Fixtures
-// ---------------------------------------------------------------------------
-
-const platformConfig = /** @type {const} */ ({
-  name: "openai",
-  variant: "default",
-  baseURL: "https://api.openai.com",
-  apiKey: "test-key",
-});
-
-const modelConfig = /** @type {const} */ ({
-  model: "o4-mini",
-  reasoning: { effort: "medium", summary: "auto" },
-});
-
-/**
- * @param {string} userText
- * @param {{tools?: import("../tool").ToolDefinition[], onPartialMessageContent?: import("../model").ModelInput["onPartialMessageContent"]}} [options]
- * @returns {import("../model").ModelInput}
- */
-function simpleInput(userText, options = {}) {
-  return {
-    messages: [
-      {
-        role: "system",
-        content: [{ type: "text", text: "You are a test assistant." }],
-      },
-      {
-        role: "user",
-        content: [{ type: "text", text: userText }],
-      },
-    ],
-    tools: options.tools || [],
-    onPartialMessageContent: options.onPartialMessageContent,
-  };
-}
-
-/**
- * Build a text response stream event sequence.
- * @param {string} text
- * @returns {{type: string; [key: string]: unknown}[]}
- */
-function textStreamEvents(text) {
-  return [
-    {
-      type: "response.created",
-      sequence_number: 0,
-      response: { id: "resp_test", status: "in_progress" },
-    },
-    {
-      type: "response.in_progress",
-      sequence_number: 1,
-      response: { id: "resp_test", status: "in_progress" },
-    },
-    {
-      type: "response.output_item.added",
-      sequence_number: 2,
-      output_index: 0,
-      item: {
-        id: "msg_test",
-        type: "message",
-        role: "assistant",
-        content: [],
-        status: "in_progress",
-      },
-    },
-    {
-      type: "response.content_part.added",
-      sequence_number: 3,
-      item_id: "msg_test",
-      output_index: 0,
-      content_index: 0,
-      part: { type: "output_text", text: "" },
-    },
-    {
-      type: "response.output_text.delta",
-      sequence_number: 4,
-      item_id: "msg_test",
-      output_index: 0,
-      content_index: 0,
-      delta: text,
-      logprobs: [],
-      obfuscation: "",
-    },
-    {
-      type: "response.output_text.done",
-      sequence_number: 5,
-      item_id: "msg_test",
-      output_index: 0,
-      content_index: 0,
-      text,
-      logprobs: [],
-    },
-    {
-      type: "response.content_part.done",
-      sequence_number: 6,
-      item_id: "msg_test",
-      output_index: 0,
-      content_index: 0,
-      part: { type: "output_text", text },
-    },
-    {
-      type: "response.output_item.done",
-      sequence_number: 7,
-      output_index: 0,
-      item: {
-        id: "msg_test",
-        type: "message",
-        role: "assistant",
-        content: [{ type: "output_text", text }],
-        status: "completed",
-      },
-    },
-    {
-      type: "response.completed",
-      sequence_number: 8,
-      response: {
-        id: "resp_test",
-        object: "response",
-        output: [
-          {
-            id: "msg_test",
-            type: "message",
-            role: "assistant",
-            content: [{ type: "output_text", text }],
-            status: "completed",
-          },
-        ],
-        usage: {
-          input_tokens: 10,
-          input_tokens_details: { cached_tokens: 0 },
-          output_tokens: 5,
-          output_tokens_details: { reasoning_tokens: 0 },
-          total_tokens: 15,
-        },
-      },
-    },
-  ];
-}
-
-/**
- * Build a function_call response stream event sequence.
- * @param {string} callId
- * @param {string} name
- * @param {Record<string, unknown>} args
- * @returns {{type: string; [key: string]: unknown}[]}
- */
-function functionCallStreamEvents(callId, name, args) {
-  const argsStr = JSON.stringify(args);
-  return [
-    {
-      type: "response.created",
-      sequence_number: 0,
-      response: { id: "resp_test" },
-    },
-    {
-      type: "response.in_progress",
-      sequence_number: 1,
-      response: { id: "resp_test" },
-    },
-    {
-      type: "response.output_item.added",
-      sequence_number: 2,
-      output_index: 0,
-      item: {
-        id: "fc_test",
-        type: "function_call",
-        call_id: callId,
-        name,
-        arguments: "",
-        status: "in_progress",
-      },
-    },
-    {
-      type: "response.function_call_arguments.delta",
-      sequence_number: 3,
-      item_id: "fc_test",
-      output_index: 0,
-      delta: argsStr,
-      obfuscation: "",
-    },
-    {
-      type: "response.function_call_arguments.done",
-      sequence_number: 4,
-      item_id: "fc_test",
-      output_index: 0,
-      arguments: argsStr,
-    },
-    {
-      type: "response.output_item.done",
-      sequence_number: 5,
-      output_index: 0,
-      item: {
-        id: "fc_test",
-        type: "function_call",
-        call_id: callId,
-        name,
-        arguments: argsStr,
-        status: "completed",
-      },
-    },
-    {
-      type: "response.completed",
-      sequence_number: 6,
-      response: {
-        id: "resp_test",
-        object: "response",
-        output: [
-          {
-            id: "fc_test",
-            type: "function_call",
-            call_id: callId,
-            name,
-            arguments: argsStr,
-            status: "completed",
-          },
-        ],
-        usage: {
-          input_tokens: 15,
-          input_tokens_details: { cached_tokens: 0 },
-          output_tokens: 10,
-          output_tokens_details: { reasoning_tokens: 0 },
-          total_tokens: 25,
-        },
-      },
-    },
-  ];
-}
-
-/**
- * Build a reasoning + text response stream event sequence.
- * @param {string} thinkingSummary
- * @param {string} text
- * @returns {{type: string; [key: string]: unknown}[]}
- */
-function reasoningTextStreamEvents(thinkingSummary, text) {
-  return [
-    {
-      type: "response.created",
-      sequence_number: 0,
-      response: { id: "resp_test" },
-    },
-    {
-      type: "response.in_progress",
-      sequence_number: 1,
-      response: { id: "resp_test" },
-    },
-    {
-      type: "response.output_item.added",
-      sequence_number: 2,
-      output_index: 0,
-      item: {
-        id: "rs_test",
-        type: "reasoning",
-        summary: [],
-        encrypted_content: "enc_test",
-      },
-    },
-    {
-      type: "response.reasoning_summary_part.added",
-      sequence_number: 3,
-      item_id: "rs_test",
-      output_index: 0,
-      summary_index: 0,
-      part: { type: "summary_text", text: "" },
-    },
-    {
-      type: "response.reasoning_summary_text.delta",
-      sequence_number: 4,
-      item_id: "rs_test",
-      output_index: 0,
-      summary_index: 0,
-      delta: thinkingSummary,
-    },
-    {
-      type: "response.reasoning_summary_text.done",
-      sequence_number: 5,
-      item_id: "rs_test",
-      output_index: 0,
-      summary_index: 0,
-      text: thinkingSummary,
-    },
-    {
-      type: "response.reasoning_summary_part.done",
-      sequence_number: 6,
-      item_id: "rs_test",
-      output_index: 0,
-      summary_index: 0,
-      part: { type: "summary_text", text: thinkingSummary },
-    },
-    {
-      type: "response.output_item.done",
-      sequence_number: 7,
-      output_index: 0,
-      item: {
-        id: "rs_test",
-        type: "reasoning",
-        summary: [{ type: "summary_text", text: thinkingSummary }],
-        encrypted_content: "enc_test",
-      },
-    },
-    {
-      type: "response.output_item.added",
-      sequence_number: 8,
-      output_index: 1,
-      item: {
-        id: "msg_test",
-        type: "message",
-        role: "assistant",
-        content: [],
-        status: "in_progress",
-      },
-    },
-    {
-      type: "response.content_part.added",
-      sequence_number: 9,
-      item_id: "msg_test",
-      output_index: 1,
-      content_index: 0,
-      part: { type: "output_text", text: "" },
-    },
-    {
-      type: "response.output_text.delta",
-      sequence_number: 10,
-      item_id: "msg_test",
-      output_index: 1,
-      content_index: 0,
-      delta: text,
-      logprobs: [],
-      obfuscation: "",
-    },
-    {
-      type: "response.content_part.done",
-      sequence_number: 11,
-      item_id: "msg_test",
-      output_index: 1,
-      content_index: 0,
-      part: { type: "output_text", text },
-    },
-    {
-      type: "response.output_item.done",
-      sequence_number: 12,
-      output_index: 1,
-      item: {
-        id: "msg_test",
-        type: "message",
-        role: "assistant",
-        content: [{ type: "output_text", text }],
-        status: "completed",
-      },
-    },
-    {
-      type: "response.completed",
-      sequence_number: 13,
-      response: {
-        id: "resp_test",
-        object: "response",
-        output: [
-          {
-            id: "rs_test",
-            type: "reasoning",
-            summary: [{ type: "summary_text", text: thinkingSummary }],
-            encrypted_content: "enc_test",
-          },
-          {
-            id: "msg_test",
-            type: "message",
-            role: "assistant",
-            content: [{ type: "output_text", text }],
-            status: "completed",
-          },
-        ],
-        usage: {
-          input_tokens: 10,
-          input_tokens_details: { cached_tokens: 0 },
-          output_tokens: 20,
-          output_tokens_details: { reasoning_tokens: 12 },
-          total_tokens: 30,
-        },
-      },
-    },
-  ];
-}
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe("callOpenAIModel", () => {
   test("should return ModelOutput for text response", async (t) => {
     t.mock.method(globalThis, "fetch", async () => {
@@ -969,3 +557,403 @@ describe("callOpenAIModel", () => {
     assert.strictEqual(toolOutputItem.output, "hello");
   });
 });
+
+/**
+ * Encode OpenAI SSE events into a ReadableStream.
+ * Format: "event: {type}\ndata: {json}\n\n"
+ * @param {{type: string; [key: string]: unknown}[]} events
+ * @returns {ReadableStream<Uint8Array>}
+ */
+function encodeOpenAISSE(events) {
+  const encoder = new TextEncoder();
+  const chunks = events.map((event) =>
+    encoder.encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`),
+  );
+  return new ReadableStream({
+    start(controller) {
+      for (const chunk of chunks) controller.enqueue(chunk);
+      controller.close();
+    },
+  });
+}
+
+const platformConfig = /** @type {const} */ ({
+  name: "openai",
+  variant: "default",
+  baseURL: "https://api.openai.com",
+  apiKey: "test-key",
+});
+
+const modelConfig = /** @type {const} */ ({
+  model: "o4-mini",
+  reasoning: { effort: "medium", summary: "auto" },
+});
+
+/**
+ * @param {string} userText
+ * @param {{tools?: import("../tool").ToolDefinition[], onPartialMessageContent?: import("../model").ModelInput["onPartialMessageContent"]}} [options]
+ * @returns {import("../model").ModelInput}
+ */
+function simpleInput(userText, options = {}) {
+  return {
+    messages: [
+      {
+        role: "system",
+        content: [{ type: "text", text: "You are a test assistant." }],
+      },
+      {
+        role: "user",
+        content: [{ type: "text", text: userText }],
+      },
+    ],
+    tools: options.tools || [],
+    onPartialMessageContent: options.onPartialMessageContent,
+  };
+}
+
+/**
+ * Build a text response stream event sequence.
+ * @param {string} text
+ * @returns {{type: string; [key: string]: unknown}[]}
+ */
+function textStreamEvents(text) {
+  return [
+    {
+      type: "response.created",
+      sequence_number: 0,
+      response: { id: "resp_test", status: "in_progress" },
+    },
+    {
+      type: "response.in_progress",
+      sequence_number: 1,
+      response: { id: "resp_test", status: "in_progress" },
+    },
+    {
+      type: "response.output_item.added",
+      sequence_number: 2,
+      output_index: 0,
+      item: {
+        id: "msg_test",
+        type: "message",
+        role: "assistant",
+        content: [],
+        status: "in_progress",
+      },
+    },
+    {
+      type: "response.content_part.added",
+      sequence_number: 3,
+      item_id: "msg_test",
+      output_index: 0,
+      content_index: 0,
+      part: { type: "output_text", text: "" },
+    },
+    {
+      type: "response.output_text.delta",
+      sequence_number: 4,
+      item_id: "msg_test",
+      output_index: 0,
+      content_index: 0,
+      delta: text,
+      logprobs: [],
+      obfuscation: "",
+    },
+    {
+      type: "response.output_text.done",
+      sequence_number: 5,
+      item_id: "msg_test",
+      output_index: 0,
+      content_index: 0,
+      text,
+      logprobs: [],
+    },
+    {
+      type: "response.content_part.done",
+      sequence_number: 6,
+      item_id: "msg_test",
+      output_index: 0,
+      content_index: 0,
+      part: { type: "output_text", text },
+    },
+    {
+      type: "response.output_item.done",
+      sequence_number: 7,
+      output_index: 0,
+      item: {
+        id: "msg_test",
+        type: "message",
+        role: "assistant",
+        content: [{ type: "output_text", text }],
+        status: "completed",
+      },
+    },
+    {
+      type: "response.completed",
+      sequence_number: 8,
+      response: {
+        id: "resp_test",
+        object: "response",
+        output: [
+          {
+            id: "msg_test",
+            type: "message",
+            role: "assistant",
+            content: [{ type: "output_text", text }],
+            status: "completed",
+          },
+        ],
+        usage: {
+          input_tokens: 10,
+          input_tokens_details: { cached_tokens: 0 },
+          output_tokens: 5,
+          output_tokens_details: { reasoning_tokens: 0 },
+          total_tokens: 15,
+        },
+      },
+    },
+  ];
+}
+
+/**
+ * Build a function_call response stream event sequence.
+ * @param {string} callId
+ * @param {string} name
+ * @param {Record<string, unknown>} args
+ * @returns {{type: string; [key: string]: unknown}[]}
+ */
+function functionCallStreamEvents(callId, name, args) {
+  const argsStr = JSON.stringify(args);
+  return [
+    {
+      type: "response.created",
+      sequence_number: 0,
+      response: { id: "resp_test" },
+    },
+    {
+      type: "response.in_progress",
+      sequence_number: 1,
+      response: { id: "resp_test" },
+    },
+    {
+      type: "response.output_item.added",
+      sequence_number: 2,
+      output_index: 0,
+      item: {
+        id: "fc_test",
+        type: "function_call",
+        call_id: callId,
+        name,
+        arguments: "",
+        status: "in_progress",
+      },
+    },
+    {
+      type: "response.function_call_arguments.delta",
+      sequence_number: 3,
+      item_id: "fc_test",
+      output_index: 0,
+      delta: argsStr,
+      obfuscation: "",
+    },
+    {
+      type: "response.function_call_arguments.done",
+      sequence_number: 4,
+      item_id: "fc_test",
+      output_index: 0,
+      arguments: argsStr,
+    },
+    {
+      type: "response.output_item.done",
+      sequence_number: 5,
+      output_index: 0,
+      item: {
+        id: "fc_test",
+        type: "function_call",
+        call_id: callId,
+        name,
+        arguments: argsStr,
+        status: "completed",
+      },
+    },
+    {
+      type: "response.completed",
+      sequence_number: 6,
+      response: {
+        id: "resp_test",
+        object: "response",
+        output: [
+          {
+            id: "fc_test",
+            type: "function_call",
+            call_id: callId,
+            name,
+            arguments: argsStr,
+            status: "completed",
+          },
+        ],
+        usage: {
+          input_tokens: 15,
+          input_tokens_details: { cached_tokens: 0 },
+          output_tokens: 10,
+          output_tokens_details: { reasoning_tokens: 0 },
+          total_tokens: 25,
+        },
+      },
+    },
+  ];
+}
+
+/**
+ * Build a reasoning + text response stream event sequence.
+ * @param {string} thinkingSummary
+ * @param {string} text
+ * @returns {{type: string; [key: string]: unknown}[]}
+ */
+function reasoningTextStreamEvents(thinkingSummary, text) {
+  return [
+    {
+      type: "response.created",
+      sequence_number: 0,
+      response: { id: "resp_test" },
+    },
+    {
+      type: "response.in_progress",
+      sequence_number: 1,
+      response: { id: "resp_test" },
+    },
+    {
+      type: "response.output_item.added",
+      sequence_number: 2,
+      output_index: 0,
+      item: {
+        id: "rs_test",
+        type: "reasoning",
+        summary: [],
+        encrypted_content: "enc_test",
+      },
+    },
+    {
+      type: "response.reasoning_summary_part.added",
+      sequence_number: 3,
+      item_id: "rs_test",
+      output_index: 0,
+      summary_index: 0,
+      part: { type: "summary_text", text: "" },
+    },
+    {
+      type: "response.reasoning_summary_text.delta",
+      sequence_number: 4,
+      item_id: "rs_test",
+      output_index: 0,
+      summary_index: 0,
+      delta: thinkingSummary,
+    },
+    {
+      type: "response.reasoning_summary_text.done",
+      sequence_number: 5,
+      item_id: "rs_test",
+      output_index: 0,
+      summary_index: 0,
+      text: thinkingSummary,
+    },
+    {
+      type: "response.reasoning_summary_part.done",
+      sequence_number: 6,
+      item_id: "rs_test",
+      output_index: 0,
+      summary_index: 0,
+      part: { type: "summary_text", text: thinkingSummary },
+    },
+    {
+      type: "response.output_item.done",
+      sequence_number: 7,
+      output_index: 0,
+      item: {
+        id: "rs_test",
+        type: "reasoning",
+        summary: [{ type: "summary_text", text: thinkingSummary }],
+        encrypted_content: "enc_test",
+      },
+    },
+    {
+      type: "response.output_item.added",
+      sequence_number: 8,
+      output_index: 1,
+      item: {
+        id: "msg_test",
+        type: "message",
+        role: "assistant",
+        content: [],
+        status: "in_progress",
+      },
+    },
+    {
+      type: "response.content_part.added",
+      sequence_number: 9,
+      item_id: "msg_test",
+      output_index: 1,
+      content_index: 0,
+      part: { type: "output_text", text: "" },
+    },
+    {
+      type: "response.output_text.delta",
+      sequence_number: 10,
+      item_id: "msg_test",
+      output_index: 1,
+      content_index: 0,
+      delta: text,
+      logprobs: [],
+      obfuscation: "",
+    },
+    {
+      type: "response.content_part.done",
+      sequence_number: 11,
+      item_id: "msg_test",
+      output_index: 1,
+      content_index: 0,
+      part: { type: "output_text", text },
+    },
+    {
+      type: "response.output_item.done",
+      sequence_number: 12,
+      output_index: 1,
+      item: {
+        id: "msg_test",
+        type: "message",
+        role: "assistant",
+        content: [{ type: "output_text", text }],
+        status: "completed",
+      },
+    },
+    {
+      type: "response.completed",
+      sequence_number: 13,
+      response: {
+        id: "resp_test",
+        object: "response",
+        output: [
+          {
+            id: "rs_test",
+            type: "reasoning",
+            summary: [{ type: "summary_text", text: thinkingSummary }],
+            encrypted_content: "enc_test",
+          },
+          {
+            id: "msg_test",
+            type: "message",
+            role: "assistant",
+            content: [{ type: "output_text", text }],
+            status: "completed",
+          },
+        ],
+        usage: {
+          input_tokens: 10,
+          input_tokens_details: { cached_tokens: 0 },
+          output_tokens: 20,
+          output_tokens_details: { reasoning_tokens: 12 },
+          total_tokens: 30,
+        },
+      },
+    },
+  ];
+}

@@ -2,263 +2,6 @@ import assert from "node:assert";
 import test, { describe } from "node:test";
 import { callOpenAICompatibleModel } from "./openaiCompatible.mjs";
 
-// ---------------------------------------------------------------------------
-// Stream encoder helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Encode OpenAI Chat Completions SSE events into a ReadableStream.
- * Format: "data: {json}\n\n" ... "data: [DONE]\n\n"
- * @param {object[]} chunks
- * @returns {ReadableStream<Uint8Array>}
- */
-function encodeOpenAICompatibleSSE(chunks) {
-  const encoder = new TextEncoder();
-  const encoded = chunks.map((chunk) =>
-    encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`),
-  );
-  encoded.push(encoder.encode("data: [DONE]\n\n"));
-  return new ReadableStream({
-    start(controller) {
-      for (const chunk of encoded) controller.enqueue(chunk);
-      controller.close();
-    },
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Fixtures
-// ---------------------------------------------------------------------------
-
-const platformConfig = /** @type {const} */ ({
-  name: "openai-compatible",
-  variant: "default",
-  baseURL: "https://api.example.com",
-  apiKey: "test-key",
-});
-
-const modelConfig = {
-  model: "gpt-4o",
-};
-
-/**
- * @param {string} userText
- * @param {{tools?: import("../tool").ToolDefinition[], onPartialMessageContent?: import("../model").ModelInput["onPartialMessageContent"]}} [options]
- * @returns {import("../model").ModelInput}
- */
-function simpleInput(userText, options = {}) {
-  return {
-    messages: [
-      {
-        role: "system",
-        content: [{ type: "text", text: "You are a test assistant." }],
-      },
-      {
-        role: "user",
-        content: [{ type: "text", text: userText }],
-      },
-    ],
-    tools: options.tools || [],
-    onPartialMessageContent: options.onPartialMessageContent,
-  };
-}
-
-/**
- * Build a text response stream chunk sequence.
- * @param {string} text
- * @returns {object[]}
- */
-function textStreamChunks(text) {
-  return [
-    {
-      id: "chatcmpl-test",
-      object: "chat.completion.chunk",
-      model: "gpt-4o",
-      choices: [
-        {
-          index: 0,
-          delta: { role: "assistant", content: "" },
-          finish_reason: null,
-        },
-      ],
-    },
-    {
-      id: "chatcmpl-test",
-      object: "chat.completion.chunk",
-      model: "gpt-4o",
-      choices: [
-        {
-          index: 0,
-          delta: { content: text },
-          finish_reason: null,
-        },
-      ],
-    },
-    {
-      id: "chatcmpl-test",
-      object: "chat.completion.chunk",
-      model: "gpt-4o",
-      choices: [
-        {
-          index: 0,
-          delta: {},
-          finish_reason: "stop",
-        },
-      ],
-    },
-    {
-      id: "chatcmpl-test",
-      object: "chat.completion.chunk",
-      model: "gpt-4o",
-      choices: [],
-      usage: {
-        prompt_tokens: 10,
-        completion_tokens: 5,
-        total_tokens: 15,
-      },
-    },
-  ];
-}
-
-/**
- * Build a tool_calls response stream chunk sequence.
- * @param {string} callId
- * @param {string} name
- * @param {Record<string, unknown>} args
- * @returns {object[]}
- */
-function toolCallStreamChunks(callId, name, args) {
-  const argsStr = JSON.stringify(args);
-  return [
-    {
-      id: "chatcmpl-test",
-      object: "chat.completion.chunk",
-      model: "gpt-4o",
-      choices: [
-        {
-          index: 0,
-          delta: {
-            role: "assistant",
-            tool_calls: [
-              {
-                index: 0,
-                id: callId,
-                type: "function",
-                function: { name, arguments: "" },
-              },
-            ],
-          },
-          finish_reason: null,
-        },
-      ],
-    },
-    {
-      id: "chatcmpl-test",
-      object: "chat.completion.chunk",
-      model: "gpt-4o",
-      choices: [
-        {
-          index: 0,
-          delta: {
-            tool_calls: [
-              {
-                index: 0,
-                function: { arguments: argsStr },
-              },
-            ],
-          },
-          finish_reason: null,
-        },
-      ],
-    },
-    {
-      id: "chatcmpl-test",
-      object: "chat.completion.chunk",
-      model: "gpt-4o",
-      choices: [
-        {
-          index: 0,
-          delta: {},
-          finish_reason: "tool_calls",
-        },
-      ],
-    },
-    {
-      id: "chatcmpl-test",
-      object: "chat.completion.chunk",
-      model: "gpt-4o",
-      choices: [],
-      usage: {
-        prompt_tokens: 15,
-        completion_tokens: 10,
-        total_tokens: 25,
-      },
-    },
-  ];
-}
-
-/**
- * Build a reasoning_content + text response stream chunk sequence.
- * @param {string} thinking
- * @param {string} text
- * @returns {object[]}
- */
-function reasoningTextStreamChunks(thinking, text) {
-  return [
-    {
-      id: "chatcmpl-test",
-      object: "chat.completion.chunk",
-      model: "gpt-4o",
-      choices: [
-        {
-          index: 0,
-          delta: { role: "assistant", reasoning_content: thinking },
-          finish_reason: null,
-        },
-      ],
-    },
-    {
-      id: "chatcmpl-test",
-      object: "chat.completion.chunk",
-      model: "gpt-4o",
-      choices: [
-        {
-          index: 0,
-          delta: { content: text },
-          finish_reason: null,
-        },
-      ],
-    },
-    {
-      id: "chatcmpl-test",
-      object: "chat.completion.chunk",
-      model: "gpt-4o",
-      choices: [
-        {
-          index: 0,
-          delta: {},
-          finish_reason: "stop",
-        },
-      ],
-    },
-    {
-      id: "chatcmpl-test",
-      object: "chat.completion.chunk",
-      model: "gpt-4o",
-      choices: [],
-      usage: {
-        prompt_tokens: 10,
-        completion_tokens: 20,
-        total_tokens: 30,
-      },
-    },
-  ];
-}
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 describe("callOpenAICompatibleModel", () => {
   test("should return ModelOutput for text response", async (t) => {
     t.mock.method(globalThis, "fetch", async () => {
@@ -698,3 +441,248 @@ describe("callOpenAICompatibleModel", () => {
     assert.strictEqual(callCount, 2);
   });
 });
+
+/**
+ * Encode OpenAI Chat Completions SSE events into a ReadableStream.
+ * Format: "data: {json}\n\n" ... "data: [DONE]\n\n"
+ * @param {object[]} chunks
+ * @returns {ReadableStream<Uint8Array>}
+ */
+function encodeOpenAICompatibleSSE(chunks) {
+  const encoder = new TextEncoder();
+  const encoded = chunks.map((chunk) =>
+    encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`),
+  );
+  encoded.push(encoder.encode("data: [DONE]\n\n"));
+  return new ReadableStream({
+    start(controller) {
+      for (const chunk of encoded) controller.enqueue(chunk);
+      controller.close();
+    },
+  });
+}
+
+const platformConfig = /** @type {const} */ ({
+  name: "openai-compatible",
+  variant: "default",
+  baseURL: "https://api.example.com",
+  apiKey: "test-key",
+});
+
+const modelConfig = {
+  model: "gpt-4o",
+};
+
+/**
+ * @param {string} userText
+ * @param {{tools?: import("../tool").ToolDefinition[], onPartialMessageContent?: import("../model").ModelInput["onPartialMessageContent"]}} [options]
+ * @returns {import("../model").ModelInput}
+ */
+function simpleInput(userText, options = {}) {
+  return {
+    messages: [
+      {
+        role: "system",
+        content: [{ type: "text", text: "You are a test assistant." }],
+      },
+      {
+        role: "user",
+        content: [{ type: "text", text: userText }],
+      },
+    ],
+    tools: options.tools || [],
+    onPartialMessageContent: options.onPartialMessageContent,
+  };
+}
+
+/**
+ * Build a text response stream chunk sequence.
+ * @param {string} text
+ * @returns {object[]}
+ */
+function textStreamChunks(text) {
+  return [
+    {
+      id: "chatcmpl-test",
+      object: "chat.completion.chunk",
+      model: "gpt-4o",
+      choices: [
+        {
+          index: 0,
+          delta: { role: "assistant", content: "" },
+          finish_reason: null,
+        },
+      ],
+    },
+    {
+      id: "chatcmpl-test",
+      object: "chat.completion.chunk",
+      model: "gpt-4o",
+      choices: [
+        {
+          index: 0,
+          delta: { content: text },
+          finish_reason: null,
+        },
+      ],
+    },
+    {
+      id: "chatcmpl-test",
+      object: "chat.completion.chunk",
+      model: "gpt-4o",
+      choices: [
+        {
+          index: 0,
+          delta: {},
+          finish_reason: "stop",
+        },
+      ],
+    },
+    {
+      id: "chatcmpl-test",
+      object: "chat.completion.chunk",
+      model: "gpt-4o",
+      choices: [],
+      usage: {
+        prompt_tokens: 10,
+        completion_tokens: 5,
+        total_tokens: 15,
+      },
+    },
+  ];
+}
+
+/**
+ * Build a tool_calls response stream chunk sequence.
+ * @param {string} callId
+ * @param {string} name
+ * @param {Record<string, unknown>} args
+ * @returns {object[]}
+ */
+function toolCallStreamChunks(callId, name, args) {
+  const argsStr = JSON.stringify(args);
+  return [
+    {
+      id: "chatcmpl-test",
+      object: "chat.completion.chunk",
+      model: "gpt-4o",
+      choices: [
+        {
+          index: 0,
+          delta: {
+            role: "assistant",
+            tool_calls: [
+              {
+                index: 0,
+                id: callId,
+                type: "function",
+                function: { name, arguments: "" },
+              },
+            ],
+          },
+          finish_reason: null,
+        },
+      ],
+    },
+    {
+      id: "chatcmpl-test",
+      object: "chat.completion.chunk",
+      model: "gpt-4o",
+      choices: [
+        {
+          index: 0,
+          delta: {
+            tool_calls: [
+              {
+                index: 0,
+                function: { arguments: argsStr },
+              },
+            ],
+          },
+          finish_reason: null,
+        },
+      ],
+    },
+    {
+      id: "chatcmpl-test",
+      object: "chat.completion.chunk",
+      model: "gpt-4o",
+      choices: [
+        {
+          index: 0,
+          delta: {},
+          finish_reason: "tool_calls",
+        },
+      ],
+    },
+    {
+      id: "chatcmpl-test",
+      object: "chat.completion.chunk",
+      model: "gpt-4o",
+      choices: [],
+      usage: {
+        prompt_tokens: 15,
+        completion_tokens: 10,
+        total_tokens: 25,
+      },
+    },
+  ];
+}
+
+/**
+ * Build a reasoning_content + text response stream chunk sequence.
+ * @param {string} thinking
+ * @param {string} text
+ * @returns {object[]}
+ */
+function reasoningTextStreamChunks(thinking, text) {
+  return [
+    {
+      id: "chatcmpl-test",
+      object: "chat.completion.chunk",
+      model: "gpt-4o",
+      choices: [
+        {
+          index: 0,
+          delta: { role: "assistant", reasoning_content: thinking },
+          finish_reason: null,
+        },
+      ],
+    },
+    {
+      id: "chatcmpl-test",
+      object: "chat.completion.chunk",
+      model: "gpt-4o",
+      choices: [
+        {
+          index: 0,
+          delta: { content: text },
+          finish_reason: null,
+        },
+      ],
+    },
+    {
+      id: "chatcmpl-test",
+      object: "chat.completion.chunk",
+      model: "gpt-4o",
+      choices: [
+        {
+          index: 0,
+          delta: {},
+          finish_reason: "stop",
+        },
+      ],
+    },
+    {
+      id: "chatcmpl-test",
+      object: "chat.completion.chunk",
+      model: "gpt-4o",
+      choices: [],
+      usage: {
+        prompt_tokens: 10,
+        completion_tokens: 20,
+        total_tokens: 30,
+      },
+    },
+  ];
+}
