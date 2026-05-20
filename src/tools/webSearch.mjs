@@ -330,7 +330,7 @@ async function webSearchViaCommand(config, input) {
  * @returns {Promise<string | Error>}
  */
 async function webSearchViaGemini(config, input, retryCount) {
-  const model = config.model ?? "gemini-3-flash-preview";
+  const model = config.model ?? "gemini-3.5-flash";
   const url =
     config.provider === "gemini-vertex-ai"
       ? `${config.baseURL}/publishers/google/models/${config.model}:generateContent`

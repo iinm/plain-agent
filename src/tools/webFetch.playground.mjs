@@ -12,7 +12,7 @@ const provider = process.argv[2] ?? "gemini";
     const webFetchTool = createWebFetchTool({
       provider: "gemini",
       apiKey: process.env.GEMINI_API_KEY ?? "",
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.5-flash",
     });
 
     const answer = await webFetchTool.impl({ url: URL, question: QUESTION });
