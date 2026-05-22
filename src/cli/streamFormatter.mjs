@@ -15,12 +15,12 @@ import { applyInlineMarkdown, formatMarkdownTable } from "./formatter.mjs";
  * correctly without special boundary-detection logic.
  *
  * @param {(lines: string[], maxWidth?: number) => string} [formatTable=formatMarkdownTable] - Table formatting function (injectable for testing)
- * @param {number} [maxWidth] - Maximum terminal display width (defaults to process.stdout.columns - 4 or 80)
+ * @param {() => number} [maxWidth] - Maximum terminal display width (defaults to process.stdout.columns - 4 or 100)
  * @returns {{ feed: (chunk: string) => StreamFormatterResult, forceFlush: () => StreamFormatterResult }}
  */
 export function createStreamFormatter(
   formatTable = formatMarkdownTable,
-  maxWidth = process.stdout.columns ? process.stdout.columns - 4 : 80,
+  maxWidth = () => (process.stdout.columns ? process.stdout.columns - 4 : 100),
 ) {
   /** @type {string} - Accumulated incomplete line */
   let pendingLine = "";
@@ -168,7 +168,7 @@ export function createStreamFormatter(
         l.endsWith("\n") ? l.slice(0, -1) : l,
       );
       try {
-        const formatted = formatTable(rawLines, maxWidth);
+        const formatted = formatTable(rawLines, maxWidth());
         output.push(`${formatted}\n`);
       } catch (err) {
         // Fallback: output raw lines if formatting fails
