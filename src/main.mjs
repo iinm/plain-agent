@@ -241,23 +241,22 @@ export async function main(argv = process.argv) {
 
   if (resumedState) {
     // Switching models on resume is not supported. The model from the saved
-    // session always wins. If config disagrees, fail loudly.
+    // session always wins. If config disagrees, warn and continue.
     if (
       modelNameWithVariant &&
       modelNameWithVariant !== resumedState.modelName
     ) {
       console.error(
         styleText(
-          "red",
+          "yellow",
           [
-            `Cannot resume session ${resumedState.sessionId}: model mismatch.`,
+            `⚠️ Model mismatch for session ${resumedState.sessionId}.`,
             `  saved model:   ${resumedState.modelName}`,
             `  current model: ${modelNameWithVariant}`,
-            "Resume must use the same model the session was started with.",
+            "Resuming with the saved model.",
           ].join("\n"),
         ),
       );
-      process.exit(1);
     }
     modelNameWithVariant = resumedState.modelName;
   }
