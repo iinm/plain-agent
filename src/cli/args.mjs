@@ -184,7 +184,7 @@ export function printHelp(exitCode = 0) {
   console.log(`
 Usage: plain [options]
        plain batch [options] <task>
-       plain resume [<sessionId>] [--list] [-c <file>]
+       plain resume [<sessionId>] [--list]
        plain cost [--from YYYY-MM-DD] [--to YYYY-MM-DD]
        plain list-models
        plain install-claude-code-plugins
@@ -210,7 +210,7 @@ Subcommands:
   install-claude-code-plugins  Install Claude Code plugins
 
 Examples:
-  plain -m gpt-5.4+thinking-medium
+  plain -m claude-sonnet-4-6+thinking-high
   plain batch \\
         -c ~/.config/plain-agent/config.local.json \\
         -c .plain-agent/config.json \\
