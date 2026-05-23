@@ -1120,6 +1120,30 @@
       }
     },
     {
+      "name": "glm-5",
+      "variant": "bedrock",
+      "platform": {
+        "name": "bedrock",
+        "variant": "default"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "zai.glm-5",
+          "reasoning_effort": "high"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "prompt_tokens": 1,
+          "completion_tokens": 3.2
+        }
+      }
+    },
+
+    {
       "name": "glm-5.1",
       "variant": "fireworks",
       "platform": {
@@ -1212,6 +1236,21 @@
         }
       }
     },
+    {
+      "name": "kimi-k2.6",
+      "variant": "azure",
+      "platform": {
+        "name": "azure",
+        "variant": "default"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "Kimi-K2.6",
+          "reasoning_effort": "high"
+        }
+      }
+    },
 
     {
       "name": "deepseek-v4-pro",
@@ -1256,6 +1295,21 @@
           "prompt_tokens": 1.74,
           "prompt_tokens_details.cached_tokens": -1.6,
           "completion_tokens": 3.48
+        }
+      }
+    },
+    {
+      "name": "deepseek-v4-pro",
+      "variant": "azure",
+      "platform": {
+        "name": "azure",
+        "variant": "default"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "DeepSeek-V4-Pro",
+          "reasoning_effort": "high"
         }
       }
     },

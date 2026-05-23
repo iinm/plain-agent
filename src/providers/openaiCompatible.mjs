@@ -8,6 +8,7 @@ import { styleText } from "node:util";
 import { noThrow } from "../utils/noThrow.mjs";
 import { retryOnError } from "../utils/retryOnError.mjs";
 import { loadAwsCredentials, signAwsRequest } from "./platform/awsSigV4.mjs";
+import { getAzureAccessToken } from "./platform/azure.mjs";
 import { readBedrockStreamEvents } from "./platform/bedrock.mjs";
 import { getGoogleCloudAccessToken } from "./platform/googleCloud.mjs";
 
@@ -43,6 +44,8 @@ export async function callOpenAICompatibleModel(
           return `${baseURL}/model/${modelConfig.model}/invoke-with-response-stream`;
         case "vertex-ai":
           return `${baseURL}/endpoints/openapi/chat/completions`;
+        case "azure":
+          return `${baseURL}/models/chat/completions?api-version=2024-05-01-preview`;
         default:
           throw new Error(`Unsupported platform: ${platformConfig.name}`);
       }
@@ -64,6 +67,15 @@ export async function callOpenAICompatibleModel(
             ...platformConfig.customHeaders,
             Authorization: `Bearer ${await getGoogleCloudAccessToken()}`,
           };
+        case "azure":
+          return {
+            ...platformConfig.customHeaders,
+            Authorization: `Bearer ${await getAzureAccessToken(
+              platformConfig.azureConfigDir
+                ? { azureConfigDir: platformConfig.azureConfigDir }
+                : undefined,
+            )}`,
+          };
       }
     })();
 
@@ -83,7 +95,11 @@ export async function callOpenAICompatibleModel(
         case "vertex-ai":
           return {
             ...modelConfig,
-            model: modelConfig.model,
+            stream: true,
+          };
+        case "azure":
+          return {
+            ...modelConfig,
             stream: true,
           };
       }

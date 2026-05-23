@@ -103,28 +103,38 @@ Create the configuration.
 ```js
 {
   "platforms": [
+    // Bedrock: Requires AWS CLI to get credentials
     {
-      // Requires Azure CLI to get access token
-      "name": "azure",
-      "variant": "openai",
-      "baseURL": "https://<resource>.openai.azure.com/openai",
-      // Optional
-      "azureConfigDir": "/home/xxx/.azure-for-agent"
-    },
-    {
-      // Requires AWS CLI to get credentials
       "name": "bedrock",
       "variant": "default",
       "baseURL": "https://bedrock-runtime.<region>.amazonaws.com",
       "awsProfile": "<AWS_PROFILE>"
     },
+
+    // Vertex AI: Requires gcloud CLI to get authentication token
     {
-      // Requires gcloud CLI to get authentication token
       "name": "vertex-ai",
       "variant": "default",
       "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project>/locations/<location>",
       // (Optional) Impersonate this service account to obtain an auth token
       "account": "<SERVICE_ACCOUNT_EMAIL>"
+    },
+
+    // Azure: Requires Azure CLI to get access token
+    {
+      "name": "azure",
+      "variant": "default",
+      "baseURL": "https://<resource>.services.ai.azure.com",
+      // Optional
+      "azureConfigDir": "/home/xxx/.azure-for-agent"
+    },
+    // Azure OpenAI
+    {
+      "name": "azure",
+      "variant": "openai",
+      "baseURL": "https://<resource>.openai.azure.com/openai",
+      // Optional
+      "azureConfigDir": "/home/xxx/.azure-for-agent"
     }
   ]
 }
