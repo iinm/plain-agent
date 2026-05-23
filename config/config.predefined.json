@@ -916,7 +916,7 @@
     },
 
     {
-      "name": "gpt-5.2-chat",
+      "name": "gpt-5.4-mini",
       "variant": "thinking-medium-azure",
       "platform": {
         "name": "azure",
@@ -925,8 +925,149 @@
       "model": {
         "format": "openai-responses",
         "config": {
-          "model": "gpt-5.2-latest",
-          "reasoning": { "effort": "medium", "summary": "auto" }
+          "model": "gpt-5.4-mini",
+          "reasoning": { "effort": "medium", "summary": "auto" },
+          "store": false,
+          "include": ["reasoning.encrypted_content"]
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "input_tokens": 0.75,
+          "input_tokens_details.cached_tokens": -0.675,
+          "output_tokens": 4.5
+        }
+      }
+    },
+    {
+      "name": "gpt-5.4-mini",
+      "variant": "thinking-high-azure",
+      "platform": {
+        "name": "azure",
+        "variant": "openai"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-5.4-mini",
+          "reasoning": { "effort": "high", "summary": "auto" },
+          "store": false,
+          "include": ["reasoning.encrypted_content"]
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "input_tokens": 0.75,
+          "input_tokens_details.cached_tokens": -0.675,
+          "output_tokens": 4.5
+        }
+      }
+    },
+    {
+      "name": "gpt-5.4-mini",
+      "variant": "thinking-xhigh-azure",
+      "platform": {
+        "name": "azure",
+        "variant": "openai"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-5.4-mini",
+          "reasoning": { "effort": "xhigh", "summary": "auto" },
+          "store": false,
+          "include": ["reasoning.encrypted_content"]
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "input_tokens": 0.75,
+          "input_tokens_details.cached_tokens": -0.675,
+          "output_tokens": 4.5
+        }
+      }
+    },
+    {
+      "name": "gpt-5.5",
+      "variant": "thinking-medium-azure",
+      "platform": {
+        "name": "azure",
+        "variant": "openai"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-5.5",
+          "reasoning": { "effort": "medium", "summary": "auto" },
+          "store": false,
+          "include": ["reasoning.encrypted_content"]
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "input_tokens": 5,
+          "input_tokens_details.cached_tokens": -4.5,
+          "output_tokens": 30
+        }
+      }
+    },
+    {
+      "name": "gpt-5.5",
+      "variant": "thinking-high-azure",
+      "platform": {
+        "name": "azure",
+        "variant": "openai"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-5.5",
+          "reasoning": { "effort": "high", "summary": "auto" },
+          "store": false,
+          "include": ["reasoning.encrypted_content"]
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "input_tokens": 5,
+          "input_tokens_details.cached_tokens": -4.5,
+          "output_tokens": 30
+        }
+      }
+    },
+    {
+      "name": "gpt-5.5",
+      "variant": "thinking-xhigh-azure",
+      "platform": {
+        "name": "azure",
+        "variant": "openai"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-5.5",
+          "reasoning": { "effort": "xhigh", "summary": "auto" },
+          "store": false,
+          "include": ["reasoning.encrypted_content"]
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "input_tokens": 5,
+          "input_tokens_details.cached_tokens": -4.5,
+          "output_tokens": 30
         }
       }
     },
