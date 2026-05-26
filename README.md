@@ -1,26 +1,24 @@
 # Plain Agent
 
-A lightweight, capable coding agent for the terminal.
+A lightweight coding agent for the terminal.
 
-- **Multi-provider** — Use Claude, GPT, Gemini, or any OpenAI-compatible model via Bedrock, Vertex AI, or direct APIs.
-- **Fine-grained auto-approval** — Auto-approve tool calls by name and arguments using regex patterns, with path validation on tool arguments.
+- **Multi-provider** — Use Claude, GPT, Gemini, or any OpenAI-compatible model via direct APIs or through Bedrock, Vertex AI, or Azure.
+- **Fine-grained auto-approval** — Auto-approve tool calls by matching tool names and inputs against configurable patterns, while validating string inputs as paths for safety.
 - **Sandboxed execution** — Run commands in a Docker container with filesystem and network isolation.
-- **Claude Code compatible** — Use Claude Code plugins, commands, subagents, and skills from `.claude/`.
-- **Zero external dependencies** — Built with Node.js standard libraries only.
+- **Supports Claude Code resources** — Use Claude Code plugins, commands, subagents, and skills from `.claude/`.
+- **Zero external dependencies** — Built using only Node.js standard libraries.
 
 ## Limitations
 
-- **Path validation only covers tool arguments** — It blocks paths outside the working directory, directory traversal (`..`), symlinks escaping the project, and git-ignored files — but only for paths explicitly passed as tool-use arguments; it cannot control file access inside arbitrary scripts. Always use sandboxed execution when allowing arbitrary script execution.
-- **Sequential subagent execution** — Subagents run one at a time rather than
-  in parallel. The trade-off is full visibility: every step is streamed to
-  your terminal so you can follow exactly what each subagent is doing.
+- **Path validation only covers tool arguments** — It blocks paths outside the working directory, directory traversal (`..`), symlinks that escape the project, and git-ignored files. However, it only applies to paths explicitly passed as tool-use arguments, so it cannot control file access inside arbitrary scripts. Always use sandboxed execution when running arbitrary scripts.
+- **Sequential subagent execution** — Subagents run one at a time rather than in parallel. The trade-off is that every step is streamed to your terminal, so you can follow exactly what each subagent is doing.
 
 ## Requirements
 
 - Node.js 22 or later
-- LLM provider credentials
+- Credentials for your LLM provider
 - [ripgrep](https://github.com/burntsushi/ripgrep), [fd](https://github.com/sharkdp/fd)
-- Bash / Docker for sandboxed execution
+- Bash and Docker for sandboxed execution
 
 ## Quick Start
 
@@ -28,13 +26,13 @@ A lightweight, capable coding agent for the terminal.
 npm install -g @iinm/plain-agent
 ```
 
-List available models.
+List the available models.
 
 ```sh
 plain list-models
 ```
 
-Create the configuration.
+Create a configuration file.
 
 ```js
 // ~/.config/plain-agent/config.local.json
@@ -63,14 +61,14 @@ Create the configuration.
     }
   ],
 
-  // (Optional) Enable web tools
+  // Optional: enable web tools
   "tools": {
     "webSearch": {
       "provider": "gemini",
       "apiKey": "<GEMINI_API_KEY>",
       "model": "gemini-3.5-flash"
 
-      // Or use Vertex AI (Requires gcloud CLI to get authentication token)
+      // Or use Vertex AI (requires the gcloud CLI for authentication)
       // "provider": "gemini-vertex-ai",
       // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
       // "model": "gemini-3.5-flash"
@@ -86,7 +84,7 @@ Create the configuration.
       "apiKey": "<GEMINI_API_KEY>",
       "model": "gemini-3.5-flash"
 
-      // Or use Vertex AI (Requires gcloud CLI to get authentication token)
+      // Or use Vertex AI (requires the gcloud CLI for authentication)
 
       // Or use a custom command
       // "provider": "command",
@@ -98,12 +96,12 @@ Create the configuration.
 ```
 
 <details>
-<summary><b>Azure / Bedrock / Vertex AI provider examples</b></summary>
+<summary><b>Bedrock / Vertex AI / Azure provider examples</b></summary>
 
 ```js
 {
   "platforms": [
-    // Bedrock: Requires AWS CLI to get credentials
+    // Bedrock: Requires the AWS CLI for authentication
     {
       "name": "bedrock",
       "variant": "default",
@@ -111,16 +109,16 @@ Create the configuration.
       "awsProfile": "<AWS_PROFILE>"
     },
 
-    // Vertex AI: Requires gcloud CLI to get authentication token
+    // Vertex AI: Requires the gcloud CLI for authentication
     {
       "name": "vertex-ai",
       "variant": "default",
       "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project>/locations/<location>",
-      // (Optional) Impersonate this service account to obtain an auth token
+      // Optional: impersonate this service account to obtain an auth token
       "account": "<SERVICE_ACCOUNT_EMAIL>"
     },
 
-    // Azure: Requires Azure CLI to get access token
+    // Azure: Requires the Azure CLI for authentication
     {
       "name": "azure",
       "variant": "default",
@@ -142,7 +140,7 @@ Create the configuration.
 </details>
 
 <details>
-<summary><b>OpenAI compatible provider examples</b></summary>
+<summary><b>OpenAI-compatible provider examples</b></summary>
 
 ```js
 {
@@ -195,7 +193,7 @@ Create the configuration.
 </details>
 
 <details>
-<summary><b>Bedrock example using Claude Japan inference profiles</b></summary>
+<summary><b>Bedrock example with Claude Geo Cross-Region inference</b></summary>
 
 ```js
 {
@@ -270,22 +268,21 @@ Run the agent.
 
 ```sh
 plain
-```
 
-```
+# Or
 plain -m <model+variant>
 ```
 
-Press **Ctrl-C** to pause auto-approve. The agent will finish the current tool call, then return to the prompt.
+Press **Ctrl-C** to pause auto-approval. The agent will finish the current tool call, then return to the prompt.
 
-Display the help message.
+Show the help message.
 
 ```
 /help
 ```
 
-Run in batch mode (non-interactive).
-In batch mode, config files are not loaded automatically. Only the files specified with `-c` are loaded.
+Run in batch mode (non-interactively).
+In batch mode, configuration files are not loaded automatically. Only the files specified with `-c` are loaded.
 
 ```sh
 plain batch \
@@ -294,34 +291,32 @@ plain batch \
       "Add tests for ..."
 ```
 
-Show daily token costs across sessions. `plain cost` reads
+Show daily token costs by session. `plain cost` reads
 `~/.local/share/plain-agent/usage.jsonl`; use `--from` / `--to` to set the
-period. Currencies are shown separately.
+period. Costs are shown separately by currency.
 
 ```sh
 plain cost
-```
 
-```
+# Or
 plain cost --from 2026-04-01 --to 2026-04-30
 ```
 
 Resume a previously interrupted interactive session. Sessions are
-auto-saved to `.plain-agent/sessions/` and can be removed with `rm` when
-no longer needed. Without an argument, the most recently updated session
+automatically saved to `.plain-agent/sessions/` and can be deleted with `rm` when
+no longer needed. If no argument is provided, the most recently updated session
 is resumed. Use `--list` to see resumable sessions. Switching models is
-not supported (`-m` is rejected).
+not supported (`-m` is not allowed).
 
 ```sh
 plain resume
-```
 
-```
+# Or
 plain resume --list
 plain resume 2026-05-10-0803-a7k
 ```
 
-Configure plain-agent for your project.
+Set up Plain Agent for your project.
 
 ```
 /configure Auto-approve file writes and patches
@@ -353,7 +348,7 @@ Files are loaded in the following order. Settings in later files override earlie
 ### Example
 
 <details>
-<summary><b>YOLO mode example (requires sandbox for safety)</b></summary>
+<summary><b>YOLO mode example (requires a sandbox for safety)</b></summary>
 
 ```js
 {
@@ -373,7 +368,7 @@ Files are loaded in the following order. Settings in later files override earlie
         "toolName": { "$regex": "^(web_search|web_fetch)$" },
         "action": "allow"
       }
-      // ⚠️ Never do this. mcp run outside the sandbox, so they can send anything externally.
+      // ⚠️ Never do this. MCP runs outside the sandbox, so it can send anything externally.
       // {
       //   "toolName": { "$regex": "." },
       //   "action": "allow"
@@ -405,10 +400,10 @@ Files are loaded in the following order. Settings in later files override earlie
 ```js
 {
   "autoApproval": {
-    // Absolute paths outside the working directory to allow access to. Relative paths are ignored.
+    // Absolute paths outside the working directory that are allowed. Relative paths are ignored.
     "allowedPaths": ["/tmp"],
     "defaultAction": "ask",
-    // The maximum number of automatic approvals.
+    // Maximum number of automatic approvals.
     "maxApprovals": 50,
     // Patterns are evaluated in order. First match wins.
     "patterns": [
@@ -435,7 +430,7 @@ Files are loaded in the following order. Settings in later files override earlie
         "action": "allow"
       },
 
-      // MCP Tool naming convention: mcp__<serverName>__<toolName>
+      // MCP tool naming convention: mcp__<serverName>__<toolName>
       {
         "toolName": { "$regex": "mcp__slack__slack_(read|search)_.+" },
         "action": "allow"
@@ -477,7 +472,7 @@ Files are loaded in the following order. Settings in later files override earlie
       "command": "npx",
       "args": ["-y", "chrome-devtools-mcp@latest", "--isolated"]
     },
-    // ⚠️ Add to config.local.json to avoid committing secrets to Git
+    // ⚠️ Add this to config.local.json to avoid committing secrets to Git
     "slack": {
       "command": "npx",
       "args": ["-y", "mcp-remote", "https://mcp.slack.com/mcp", "--header", "Authorization:Bearer <SLACK_TOKEN>"],
@@ -486,7 +481,7 @@ Files are loaded in the following order. Settings in later files override earlie
       "command": "npx",
       "args": ["-y", "mcp-remote", "https://mcp.notion.com/mcp"],
       "options": {
-        // Enable only specific tools (optional - if not specified, all tools are enabled)
+        // Enable only specific tools. If not specified, all tools are enabled.
         "enabledTools": ["notion-search", "notion-fetch"]
       }
     },
@@ -494,18 +489,18 @@ Files are loaded in the following order. Settings in later files override earlie
       "command": "npx",
       "args": ["-y", "mcp-remote", "https://knowledge-mcp.global.api.aws"]
     },
-    // ⚠️ Add to config.local.json to avoid committing secrets to Git
+    // ⚠️ Add this to config.local.json to avoid committing secrets to Git
     "google_developer-knowledge": {
       "command": "npx",
       "args": ["-y", "mcp-remote", "https://developerknowledge.googleapis.com/mcp", "--header", "X-Goog-Api-Key:<GOOGLE_API_KEY>"]
     }
   },
 
-  // Override default notification command
+  // Override the default notification command
   "notifyCmd": { "command": "plain-notify-desktop", "args": [] }
 
   // Voice input. See "Voice Input" below.
-  // ⚠️ Add to config.local.json to avoid committing secrets to Git
+  // ⚠️ Add this to config.local.json to avoid committing secrets to Git
   "voiceInput": {
     "provider": "openai",
     "apiKey": "<OPENAI_API_KEY>"
@@ -516,7 +511,7 @@ Files are loaded in the following order. Settings in later files override earlie
 
 ## Available Tools
 
-The agent can use the following tools to assist with tasks:
+The agent can use the following tools:
 
 - **read_file**: Read a file with line numbers (1-indexed). Supports `offset` and `limit` to read a specific range.
 - **write_file**: Write a file.
@@ -527,7 +522,7 @@ The agent can use the following tools to assist with tasks:
 - **web_fetch**: Fetch the contents of a single URL and answer a question based on it (requires Google API key, Vertex AI configuration, or the `command` provider with a local fetch command such as `w3m`, `curl`, or `lynx`).
 - **switch_to_subagent**: Switch to a subagent role within the same conversation, focusing on the specified goal.
 - **switch_to_main_agent**: Switch back to the main agent role and report the result. After reporting, the subagent's conversation history is removed from the context.
-- **compact_context**: Compact the conversation context by discarding prior messages and reloading task state from a memory file. Use when the context has grown large but the task is not yet complete. Can also be invoked via the `/compact` slash command.
+- **compact_context**: Compact the conversation context by discarding earlier messages and reloading task state from a memory file. Use this when the context has grown large but the task is not yet complete. You can also invoke it with the `/compact` slash command.
 
 ## Prompts
 
@@ -561,7 +556,7 @@ Prompts located in a `shortcuts/` subdirectory (e.g., `.plain-agent/prompts/shor
 
 ## Subagents
 
-Subagents are specialized agents designed for specific tasks.
+Subagents are specialized helpers for specific tasks.
 
 ### Locations
 
@@ -587,12 +582,7 @@ You are a web content reader and analyzer. Given a URL and a question, you:
 
 ## Claude Code Plugin Support
 
-Plugins are installed under `.plain-agent/claude-code-plugins/` and must be
-installed per project by running `plain install-claude-code-plugins` from
-the project root. Global installation (e.g., under `~/.plain-agent`) is not
-supported, because plugins may include skills that the agent invokes
-autonomously, and scoping them to the project keeps approval rules and
-permission management straightforward.
+Plugins are installed under `.plain-agent/claude-code-plugins/` and must be installed per project by running `plain install-claude-code-plugins` from the project root. Global installation (e.g., under `~/.plain-agent`) is not supported because plugins may include skills the agent invokes autonomously. Keeping them scoped to the project keeps approval rules and permission management straightforward.
 
 Example:
 
@@ -623,15 +613,13 @@ plain install-claude-code-plugins
 
 ## Voice Input
 
-Press **Ctrl-O** to start recording, press it again to stop. Partial
-transcripts are inserted into the prompt as you speak so you can edit
-and send them like regular text.
+Press **Ctrl-O** to start recording, then press it again to stop. Partial transcripts are inserted into the prompt as you speak, so you can edit and send them like regular text.
 
 ### Requirements
 
 - A recording command on `PATH`: `arecord`, `sox`, or `ffmpeg`.
 - An API key for the chosen provider.
-- Your host must have microphone access. The sandbox does not need to.
+- Your host must have microphone access.
 
 ### Providers
 
@@ -665,17 +653,17 @@ and send them like regular text.
 
 ### Options
 
-- `toggleKey` — Rebind the toggle. Accepts `"ctrl-<char>"` where `<char>`
+- `toggleKey` — Rebind the toggle key. Accepts `"ctrl-<char>"` where `<char>`
   is a letter (a-z) or one of `[ \ ] ^ _`. Defaults to `"ctrl-o"`.
-- `recorder` — Override recorder auto-detection, e.g. `{ "command": "sox", "args": ["-q", "-d", "-b", "16", "-c", "1", "-r", "24000", "-e", "signed-integer", "-t", "raw", "-"] }`. Must write raw 16-bit little-endian mono PCM to stdout at 24 kHz (OpenAI) or 16 kHz (Gemini).
+- `recorder` — Override automatic recorder detection, e.g. `{ "command": "sox", "args": ["-q", "-d", "-b", "16", "-c", "1", "-r", "24000", "-e", "signed-integer", "-t", "raw", "-"] }`. It must write raw 16-bit little-endian mono PCM to stdout at 24 kHz (OpenAI) or 16 kHz (Gemini).
 
 ## Development
 
 ```sh
-# Run lint, typecheck, and test
+# Run lint, typecheck, and tests
 npm run check
 
-# Fix lint errors
+# Fix lint issues
 npm run fix
 # or
 npm run fix -- --unsafe
@@ -702,7 +690,7 @@ npm publish --access public
 <summary><b>Amazon Bedrock</b></summary>
 
 ```sh
-# IAM Identity Center 
+# IAM Identity Center
 identity_center_instance_arn="<IDENTITY_CENTER_INSTANCE_ARN>" # e.g., arn:aws:sso:::instance/ssoins-xxxxxxxxxxxxxxxx"
 identity_store_id=<IDENTITY_STORE_ID>
 aws_account_id=<AWS_ACCOUNT_ID>
@@ -710,7 +698,7 @@ aws_account_id=<AWS_ACCOUNT_ID>
 # Create a permission set
 permission_set_arn=$(aws sso-admin create-permission-set \
   --instance-arn "$identity_center_instance_arn" \
-  --name "BedrockForCodingAgent" \
+  --name "BedrockCodingAgent" \
   --description "Allows only Bedrock model invocation" \
   --query "PermissionSet.PermissionSetArn" --output text)
 
@@ -785,7 +773,7 @@ aws bedrock-runtime invoke-model \
 
 ```sh
 resource_group=<RESOURCE_GROUP>
-account_name=<ACCOUNT_NAME> # resource name
+account_name=<ACCOUNT_NAME> # Resource name
 
 # Create a service principal
 service_principal=$(az ad sp create-for-rbac --name "CodingAgentServicePrincipal" --skip-assignment)
@@ -808,7 +796,7 @@ az role assignment create \
 export app_secret=$(echo "$service_principal" | jq -r .password)
 export tenant_id=$(echo "$service_principal" | jq -r .tenant)
 
-export AZURE_CONFIG_DIR=$HOME/.azure-for-agent # Change the location to store credentials
+export AZURE_CONFIG_DIR=$HOME/.azure-for-agent # Change this to store credentials elsewhere
 az login --service-principal -u "$app_id" -p "$app_secret" --tenant "$tenant_id"
 ```
 </details>
