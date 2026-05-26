@@ -8,6 +8,9 @@
     "type": "git",
     "url": "git+https://github.com/iinm/plain-agent.git"
   },
+  "keywords": [
+    "coding-agent"
+  ],
   "bin": {
     "plain": "bin/plain",
     "plain-notify-desktop": "bin/plain-notify-desktop",
