@@ -29,18 +29,18 @@ When editing multiple locations in the same file, include all blocks in a single
           patch: {
             description: `
 Format — a single patch string may contain multiple blocks:
-@@@ ${nonce} {start}:{startHash}-{end}:{endHash}
+REPLACE ${nonce} {start}:{startHash}-{end}:{endHash}
 replacement for lines {start}-{end}
-@@@ ${nonce} {N}:{hash}
+REPLACE ${nonce} {N}:{hash}
 replace just that one line
-@@@ ${nonce} {start}:{startHash}-{end}:{endHash}
+REPLACE ${nonce} {start}:{startHash}-{end}:{endHash}
 (empty body deletes the range)
-@@@ ${nonce} {N}:{afterHash}+
-appended content after line N
-@@@ ${nonce} 0+
-prepended content at beginning of file
+INSERT_AFTER ${nonce} {N}:{afterHash}
+new content after line N
+INSERT_AFTER ${nonce} 0
+content at beginning of file
 
-- Each block's content starts right after its @@@ header line and ends at the next @@@ or the end of the string. Any blank lines between the header and the content become part of the replacement.
+- Each block's content starts right after its header line and ends at the next header or the end of the string. Any blank lines between the header and the content become part of the replacement.
 - The nonce "${nonce}" is constant; always use the exact value shown above.
 - Hashes are 2-character hex hashes of each line's full content as shown by read_file.
             `.trim(),
@@ -61,7 +61,7 @@ prepended content at beginning of file
         const blocks = parseBlocks(patch, nonce);
         if (blocks.length === 0) {
           throw new Error(
-            `No patch blocks found. Each block must start with "@@@ ${nonce} ...".`,
+            `No patch blocks found. Each block must start with "REPLACE ${nonce} ..." or "INSERT_AFTER ${nonce} ...".`,
           );
         }
 
@@ -91,7 +91,8 @@ prepended content at beginning of file
  * @returns {PatchBlock[]}
  */
 export function parseBlocks(patch, nonce) {
-  const openPrefix = `@@@ ${nonce} `;
+  const replacePrefix = `REPLACE ${nonce} `;
+  const insertPrefix = `INSERT_AFTER ${nonce} `;
   const lines = patch.split("\n");
   // Drop trailing empty element produced by split() when patch ends with \n.
   if (lines.length > 0 && lines[lines.length - 1] === "") {
@@ -101,14 +102,17 @@ export function parseBlocks(patch, nonce) {
   /** @type {number[]} */
   const headerIndices = [];
   for (let i = 0; i < lines.length; i++) {
-    if (lines[i].startsWith(openPrefix)) {
+    if (
+      lines[i].startsWith(replacePrefix) ||
+      lines[i].startsWith(insertPrefix)
+    ) {
       headerIndices.push(i);
     }
   }
 
   if (headerIndices.length === 0) {
     throw new Error(
-      `No patch blocks found. Each block must start with "@@@ ${nonce} ...".`,
+      `No patch blocks found. Each block must start with "REPLACE ${nonce} ..." or "INSERT_AFTER ${nonce} ...".`,
     );
   }
 
@@ -117,8 +121,19 @@ export function parseBlocks(patch, nonce) {
   for (let i = 0; i < headerIndices.length; i++) {
     const headerLineIdx = headerIndices[i];
     const headerLine = lines[headerLineIdx];
-    const headerArgs = headerLine.slice(openPrefix.length);
-    const header = parseHeaderArgs(headerArgs);
+
+    /** @type {"replace" | "insert"} */
+    let op;
+    let headerArgs;
+    if (headerLine.startsWith(replacePrefix)) {
+      op = "replace";
+      headerArgs = headerLine.slice(replacePrefix.length);
+    } else {
+      op = "insert";
+      headerArgs = headerLine.slice(insertPrefix.length);
+    }
+
+    const header = parseHeaderArgs(headerArgs, op);
 
     // Body: from the line after the header to the line before the next header (or EOF)
     const bodyStart = headerLineIdx + 1;
@@ -126,9 +141,9 @@ export function parseBlocks(patch, nonce) {
       i + 1 < headerIndices.length ? headerIndices[i + 1] : lines.length;
     const body = lines.slice(bodyStart, bodyEnd);
 
-    if (header.op === "insert" && body.length === 0) {
+    if (op === "insert" && body.length === 0) {
       throw new Error(
-        `Insert block "@@@ ${nonce} ${headerArgs}" has empty body. Use a replace block to delete content.`,
+        "Insert block has empty body. Use a replace block to delete content.",
       );
     }
     blocks.push({ ...header, body });
@@ -221,61 +236,69 @@ export function applyBlocks(original, blocks) {
 
 /**
  * @param {string} headerArgs
+ * @param {"replace" | "insert"} op
  * @returns {{ op: "replace"; start: number; end: number; startHash: string; endHash: string } | { op: "insert"; after: number; afterHash: string }}
  */
-function parseHeaderArgs(headerArgs) {
-  // Replace form: "{start}:{startHash}-{end}:{endHash}"
-  const replaceMatch = headerArgs.match(
-    /^(\d+):([a-f0-9]{2})-(\d+):([a-f0-9]{2})\s*$/,
-  );
+function parseHeaderArgs(headerArgs, op) {
+  if (op === "replace") {
+    // Replace form: "{start}:{startHash}-{end}:{endHash}"
+    const rangeMatch = headerArgs.match(
+      /^(\d+):([a-f0-9]{2})-(\d+):([a-f0-9]{2})\s*$/,
+    );
 
-  if (replaceMatch) {
-    const start = Number(replaceMatch[1]);
-    const end = Number(replaceMatch[3]);
-    if (start < 1) {
-      throw new Error(
-        `Invalid replace range "${headerArgs}": start must be >= 1.`,
-      );
+    if (rangeMatch) {
+      const start = Number(rangeMatch[1]);
+      const end = Number(rangeMatch[3]);
+      if (start < 1) {
+        throw new Error(
+          `Invalid replace range "${headerArgs}": start must be >= 1.`,
+        );
+      }
+      if (end < start) {
+        throw new Error(
+          `Invalid replace range "${headerArgs}": end (${end}) must be >= start (${start}).`,
+        );
+      }
+      return {
+        op: "replace",
+        start,
+        end,
+        startHash: rangeMatch[2],
+        endHash: rangeMatch[4],
+      };
     }
-    if (end < start) {
-      throw new Error(
-        `Invalid replace range "${headerArgs}": end (${end}) must be >= start (${start}).`,
-      );
+
+    // Replace form: "{N}:{hash}" (single line replace — shorthand for N:hash-N:hash)
+    const singleMatch = headerArgs.match(/^(\d+):([a-f0-9]{2})\s*$/);
+    if (singleMatch) {
+      const start = Number(singleMatch[1]);
+      if (start < 1) {
+        throw new Error(
+          `Invalid replace range "${headerArgs}": start must be >= 1.`,
+        );
+      }
+      return {
+        op: "replace",
+        start,
+        end: start,
+        startHash: singleMatch[2],
+        endHash: singleMatch[2],
+      };
     }
-    return {
-      op: "replace",
-      start,
-      end,
-      startHash: replaceMatch[2],
-      endHash: replaceMatch[4],
-    };
+
+    throw new Error(
+      `Invalid replace header arguments: ${JSON.stringify(headerArgs)}. Expected "{start}:{startHash}-{end}:{endHash}" or "{N}:{hash}".`,
+    );
   }
 
-  // Replace form: "{N}:{hash}" (single line replace — shorthand for N:hash-N:hash)
-  const singleReplaceMatch = headerArgs.match(/^(\d+):([a-f0-9]{2})\s*$/);
-  if (singleReplaceMatch) {
-    const start = Number(singleReplaceMatch[1]);
-    if (start < 1) {
-      throw new Error(
-        `Invalid replace range "${headerArgs}": start must be >= 1.`,
-      );
-    }
-    return {
-      op: "replace",
-      start,
-      end: start,
-      startHash: singleReplaceMatch[2],
-      endHash: singleReplaceMatch[2],
-    };
-  }
-
-  // Insert form: "0+" (no hash — there is no line 0 to verify)
-  if (/^0\+\s*$/.test(headerArgs)) {
+  // op === "insert"
+  // Insert form: "0" (no hash — there is no line 0 to verify)
+  if (/^0\s*$/.test(headerArgs)) {
     return { op: "insert", after: 0, afterHash: "" };
   }
 
-  // Insert form: "{N}:{afterHash}+"
-  const insertMatch = headerArgs.match(/^(\d+):([a-f0-9]{2})\+\s*$/);
+  // Insert form: "{N}:{afterHash}"
+  const insertMatch = headerArgs.match(/^(\d+):([a-f0-9]{2})\s*$/);
 
   if (insertMatch) {
     return {
@@ -286,7 +309,7 @@ function parseHeaderArgs(headerArgs) {
   }
 
   throw new Error(
-    `Invalid block header arguments: ${JSON.stringify(headerArgs)}. Expected "{start}:{startHash}-{end}:{endHash}" or "{N}:{hash}" or "{N}:{afterHash}+" or "0+".`,
+    `Invalid insert header arguments: ${JSON.stringify(headerArgs)}. Expected "{N}:{afterHash}" or "0".`,
   );
 }
 

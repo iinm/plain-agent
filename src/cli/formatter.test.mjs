@@ -174,7 +174,7 @@ describe("formatToolUse (patch_file)", () => {
       "echo",
     ]);
     const patch = [
-      `@@@ abc 3:${lineHash("charlie")}-4:${lineHash("delta")}`,
+      `REPLACE abc 3:${lineHash("charlie")}-4:${lineHash("delta")}`,
       "first new",
       "second new",
     ].join("\n");
@@ -195,7 +195,7 @@ describe("formatToolUse (patch_file)", () => {
         "patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
-        `@@@ abc 3:${lineHash("charlie")}-4:${lineHash("delta")}`,
+        `REPLACE abc 3:${lineHash("charlie")}-4:${lineHash("delta")}`,
         "- charlie",
         "- delta",
         "+ first new",
@@ -208,9 +208,9 @@ describe("formatToolUse (patch_file)", () => {
     // given:
     const tmpFilePath = await writeTmp(["one", "two", "three", "four", "five"]);
     const patch = [
-      `@@@ a1a 1:${lineHash("one")}-1:${lineHash("one")}`,
+      `REPLACE a1a 1:${lineHash("one")}-1:${lineHash("one")}`,
       "first new",
-      `@@@ a1a 5:${lineHash("five")}+`,
+      `INSERT_AFTER a1a 5:${lineHash("five")}`,
       "appended A",
       "appended B",
     ].join("\n");
@@ -227,12 +227,12 @@ describe("formatToolUse (patch_file)", () => {
     const stripped = stripAnsi(output);
     assert.ok(
       stripped.includes(
-        `@@@ a1a 1:${lineHash("one")}-1:${lineHash("one")}\n- one\n+ first new`,
+        `REPLACE a1a 1:${lineHash("one")}-1:${lineHash("one")}\n- one\n+ first new`,
       ),
     );
     assert.ok(
       stripped.includes(
-        `@@@ a1a 5:${lineHash("five")}+\n+ appended A\n+ appended B`,
+        `INSERT_AFTER a1a 5:${lineHash("five")}\n+ appended A\n+ appended B`,
       ),
     );
   });
@@ -249,7 +249,7 @@ describe("formatToolUse (patch_file)", () => {
     // Replace 1-5 but only line 3 ("charlie") actually changes; the
     // first/last two lines round-trip unchanged.
     const patch = [
-      `@@@ abc 1:${lineHash("alpha")}-5:${lineHash("echo")}`,
+      `REPLACE abc 1:${lineHash("alpha")}-5:${lineHash("echo")}`,
       "alpha",
       "bravo",
       "CHARLIE",
@@ -272,7 +272,7 @@ describe("formatToolUse (patch_file)", () => {
         "patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
-        `@@@ abc 1:${lineHash("alpha")}-5:${lineHash("echo")}`,
+        `REPLACE abc 1:${lineHash("alpha")}-5:${lineHash("echo")}`,
         "  alpha",
         "  bravo",
         "- charlie",
@@ -287,7 +287,7 @@ describe("formatToolUse (patch_file)", () => {
     // given: body matches the original range exactly.
     const tmpFilePath = await writeTmp(["one", "two", "three"]);
     const patch = [
-      `@@@ abc 1:${lineHash("one")}-3:${lineHash("three")}`,
+      `REPLACE abc 1:${lineHash("one")}-3:${lineHash("three")}`,
       "one",
       "two",
       "three",
@@ -308,7 +308,7 @@ describe("formatToolUse (patch_file)", () => {
         "patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
-        `@@@ abc 1:${lineHash("one")}-3:${lineHash("three")}`,
+        `REPLACE abc 1:${lineHash("one")}-3:${lineHash("three")}`,
         "  one",
         "  two",
         "  three",
@@ -320,7 +320,7 @@ describe("formatToolUse (patch_file)", () => {
     // given:
     const tmpFilePath = await writeTmp(["keep", "drop me", "keep too"]);
     const patch = [
-      `@@@ a2a 2:${lineHash("drop me")}-2:${lineHash("drop me")}`,
+      `REPLACE a2a 2:${lineHash("drop me")}-2:${lineHash("drop me")}`,
     ].join("\n");
 
     // when:
@@ -338,7 +338,7 @@ describe("formatToolUse (patch_file)", () => {
         "patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
-        `@@@ a2a 2:${lineHash("drop me")}-2:${lineHash("drop me")}`,
+        `REPLACE a2a 2:${lineHash("drop me")}-2:${lineHash("drop me")}`,
         "- drop me",
       ].join("\n"),
     );
@@ -360,9 +360,10 @@ describe("formatToolUse (patch_file)", () => {
   it("renders a replace block targeting a blank line", async () => {
     // given: line 2 is blank; hash of "" is "00".
     const tmpFilePath = await writeTmp(["alpha", "", "charlie"]);
-    const patch = [`@@@ abc 2:${lineHash("")}-2:${lineHash("")}`, "bravo"].join(
-      "\n",
-    );
+    const patch = [
+      `REPLACE abc 2:${lineHash("")}-2:${lineHash("")}`,
+      "bravo",
+    ].join("\n");
 
     // when:
     const output = await formatToolUse({
@@ -379,7 +380,7 @@ describe("formatToolUse (patch_file)", () => {
         "patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
-        `@@@ abc 2:${lineHash("")}-2:${lineHash("")}`,
+        `REPLACE abc 2:${lineHash("")}-2:${lineHash("")}`,
         "- ",
         "+ bravo",
       ].join("\n"),
@@ -390,7 +391,7 @@ describe("formatToolUse (patch_file)", () => {
     // given:
     const tmpFilePath = await writeTmp(["alpha", "old line", "charlie"]);
     const patch = [
-      `@@@ abc 2:${lineHash("old line")}-2:${lineHash("old line")}`,
+      `REPLACE abc 2:${lineHash("old line")}-2:${lineHash("old line")}`,
       "new",
     ].join("\n");
 
@@ -404,7 +405,7 @@ describe("formatToolUse (patch_file)", () => {
 
     // then:
     const stripped = stripAnsi(output);
-    const header = `@@@ abc 2:${lineHash("old line")}-2:${lineHash("old line")}`;
+    const header = `REPLACE abc 2:${lineHash("old line")}-2:${lineHash("old line")}`;
     assert.ok(stripped.includes(header));
     assert.ok(stripped.includes("- old line"));
     assert.ok(stripped.includes("+ new"));
@@ -417,7 +418,7 @@ describe("formatToolUse (patch_file)", () => {
   it("falls back to verbatim highlight when the file cannot be read", async () => {
     // given:
     const patch = [
-      `@@@ abc 3:${lineHash("anything")}-4:${lineHash("anything2")}`,
+      `REPLACE abc 3:${lineHash("anything")}-4:${lineHash("anything2")}`,
       "first new",
       "second new",
     ].join("\n");
@@ -437,7 +438,7 @@ describe("formatToolUse (patch_file)", () => {
     );
     assert.ok(
       stripped.includes(
-        `@@@ abc 3:${lineHash("anything")}-4:${lineHash("anything2")}`,
+        `REPLACE abc 3:${lineHash("anything")}-4:${lineHash("anything2")}`,
       ),
     );
     assert.ok(stripped.includes("+ first new"));
@@ -447,7 +448,7 @@ describe("formatToolUse (patch_file)", () => {
 
   it("falls back to verbatim highlight when the patch fails to parse", async () => {
     // given: patch that fails to parse
-    const patch = ["@@@ abc 1-1", "new"].join("\n");
+    const patch = ["REPLACE abc 1-1", "new"].join("\n");
 
     // when:
     const output = await formatToolUse({
@@ -460,14 +461,18 @@ describe("formatToolUse (patch_file)", () => {
     // then: verbatim styling still applies, headers cyan, body green
     assert.equal(
       stripAnsi(output),
-      ["patch_file", "path: anything.mjs", "patch:", "@@@ abc 1-1", "new"].join(
-        "\n",
-      ),
+      [
+        "patch_file",
+        "path: anything.mjs",
+        "patch:",
+        "REPLACE abc 1-1",
+        "new",
+      ].join("\n"),
     );
   });
 
   it("falls back to verbatim highlight when no nonce can be extracted", async () => {
-    // given: patch contains no "@@@ ..." header at all.
+    // given: patch contains no "REPLACE ..." or "INSERT ..." header at all.
     const patch = ["plain text", "with no markers"].join("\n");
 
     // when:
