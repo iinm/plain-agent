@@ -281,7 +281,7 @@ Show the help message.
 /help
 ```
 
-Run in batch mode (non-interactively).
+Run in non-interactive batch mode.
 In batch mode, configuration files are not loaded automatically. Only the files specified with `-c` are loaded.
 
 ```sh
@@ -291,7 +291,7 @@ plain batch \
       "Add tests for ..."
 ```
 
-Show daily token costs by session. `plain cost` reads
+Show daily token cost. `plain cost` reads
 `~/.local/share/plain-agent/usage.jsonl`; use `--from` / `--to` to set the
 period. Costs are shown separately by currency.
 
