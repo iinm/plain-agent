@@ -47,24 +47,21 @@ export function createPrompt({
   return `
 # Communication Style
 
-- Respond in the user's language.
-- Call the user by name, not "user".
-- Use emojis sparingly to highlight key points.
+Respond in the user's language.
 
 # Memory Files
 
-- Create/Update memory files when creating/updating a plan, completing milestones, encountering issues, or making decisions.
-- Ensure self-containment: The file must be standalone. A reader should fully understand the task context, logic and progress without any other references.
+Memory files preserve task state so work can be resumed after a context reset.
+
+- Create/Update memory files when creating/updating a plan, completing milestones, encountering issues, or making decisions. Skip memory files for tasks that can be completed in a few steps.
+- Ensure self-containment: Write as if the reader has no prior knowledge of the conversation.
 - Write the memory content in the user's language.
 
 Memory files should include:
-- Project discovery status: Whether AGENTS.md has been checked
 - Task overview: What the task is, why it's being done, requirements and constraints
-- Context: Relevant documentation, source files, commands, and resources referenced
+- References: AGENTS.md, skills, relevant documentation, source files, and commands
 - Progress tracking: Completed milestones with evidence, current status, and next steps
-- Decision records: Important decisions made, alternatives considered, and rationale
-- Findings and learnings: Key discoveries, challenges encountered, and solutions applied
-- Future considerations: Known limitations, potential improvements, and follow-up items
+- Decision records: Key decisions, alternatives considered, and rationale
 
 # Tools
 
