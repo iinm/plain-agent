@@ -261,35 +261,6 @@ export async function main(argv = process.argv) {
     modelNameWithVariant = resumedState.modelName;
   }
 
-  const pluginPaths = resolvePluginPaths(appConfig.claudeCodePlugins ?? []);
-  const [prompts, agentRoles] = await Promise.all([
-    loadPrompts(pluginPaths),
-    loadAgentRoles(pluginPaths),
-  ]);
-
-  const prompt = createPrompt({
-    username: USER_NAME,
-    modelName: modelNameWithVariant,
-    workingDir: process.cwd(),
-    today: new Date().toISOString().split("T")[0],
-    sessionId,
-    tmuxSessionId,
-    projectMetadataDir: AGENT_PROJECT_METADATA_DIR,
-    agentRoles,
-    skills: Array.from(prompts.values()).filter((p) => p.isSkill),
-  });
-
-  const builtinTools = [
-    createExecCommandTool({ sandbox: appConfig.sandbox }),
-    readFileTool,
-    writeFileTool,
-    createPatchFileTool(),
-    createTmuxCommandTool({ sandbox: appConfig.sandbox }),
-    createCompactContextTool(),
-    createSwitchToSubagentTool(),
-    createSwitchToMainAgentTool(),
-  ];
-
   const [modelName, modelVariant] = modelNameWithVariant.split("+");
   const modelDef = (appConfig.models ?? []).find(
     (entry) => entry.name === modelName && entry.variant === modelVariant,
@@ -310,6 +281,35 @@ export async function main(argv = process.argv) {
       `Platform ${modelDef.platform.name} variant=${modelDef.platform.variant} not found in configuration.`,
     );
   }
+
+  const pluginPaths = resolvePluginPaths(appConfig.claudeCodePlugins ?? []);
+  const [prompts, agentRoles] = await Promise.all([
+    loadPrompts(pluginPaths),
+    loadAgentRoles(pluginPaths),
+  ]);
+
+  const prompt = createPrompt({
+    username: USER_NAME,
+    modelName,
+    workingDir: process.cwd(),
+    today: new Date().toISOString().split("T")[0],
+    sessionId,
+    tmuxSessionId,
+    projectMetadataDir: AGENT_PROJECT_METADATA_DIR,
+    agentRoles,
+    skills: Array.from(prompts.values()).filter((p) => p.isSkill),
+  });
+
+  const builtinTools = [
+    createExecCommandTool({ sandbox: appConfig.sandbox }),
+    readFileTool,
+    writeFileTool,
+    createPatchFileTool(),
+    createTmuxCommandTool({ sandbox: appConfig.sandbox }),
+    createCompactContextTool(),
+    createSwitchToSubagentTool(),
+    createSwitchToMainAgentTool(),
+  ];
 
   if (appConfig.tools?.webSearch) {
     const webSearchConfig = appConfig.tools.webSearch;
