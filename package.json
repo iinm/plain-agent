@@ -1,6 +1,6 @@
 {
   "name": "@iinm/plain-agent",
-  "version": "1.10.18",
+  "version": "1.10.19",
   "description": "A lightweight coding agent for the terminal.",
   "license": "MIT",
   "type": "module",
