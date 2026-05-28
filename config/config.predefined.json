@@ -257,7 +257,7 @@
       }
     },
     {
-      "name": "claude-opus-4-7",
+      "name": "claude-opus-4-8",
       "variant": "thinking-high",
       "platform": {
         "name": "anthropic",
@@ -267,7 +267,7 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "claude-opus-4-7",
+          "model": "claude-opus-4-8",
           "max_tokens": 32768,
           "thinking": { "type": "adaptive" },
           "output_config": { "effort": "high" }
@@ -285,7 +285,7 @@
       }
     },
     {
-      "name": "claude-opus-4-7",
+      "name": "claude-opus-4-8",
       "variant": "thinking-max",
       "platform": {
         "name": "anthropic",
@@ -295,7 +295,7 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "claude-opus-4-7",
+          "model": "claude-opus-4-8",
           "max_tokens": 64000,
           "thinking": { "type": "adaptive" },
           "output_config": { "effort": "max" }
@@ -420,7 +420,7 @@
       }
     },
     {
-      "name": "claude-opus-4-7",
+      "name": "claude-opus-4-8",
       "variant": "thinking-high-bedrock",
       "platform": {
         "name": "bedrock",
@@ -429,7 +429,7 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "global.anthropic.claude-opus-4-7",
+          "model": "global.anthropic.claude-opus-4-8",
           "max_tokens": 32768,
           "thinking": { "type": "adaptive" },
           "output_config": { "effort": "high" }
@@ -447,7 +447,7 @@
       }
     },
     {
-      "name": "claude-opus-4-7",
+      "name": "claude-opus-4-8",
       "variant": "thinking-max-bedrock",
       "platform": {
         "name": "bedrock",
@@ -456,7 +456,7 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "global.anthropic.claude-opus-4-7",
+          "model": "global.anthropic.claude-opus-4-8",
           "max_tokens": 64000,
           "thinking": { "type": "adaptive" },
           "output_config": { "effort": "max" }
