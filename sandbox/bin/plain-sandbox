@@ -890,8 +890,6 @@ test -L ~/.zsh_history || (touch /persistent/home/.zsh_history; ln -s /persisten
 test -L ~/.config || (mkdir -p /persistent/home/.config; ln -s /persistent/home/.config ~/ 2> /dev/null)
 test -L ~/.gitconfig || (touch /persistent/home/.gitconfig; ln -s /persistent/home/.gitconfig ~/ 2> /dev/null)
 test -L ~/.local || (mkdir -p /persistent/home/.local/share; ln -s /persistent/home/.local ~/ 2> /dev/null)
-test -L ~/.gemini || (mkdir -p /persistent/home/.gemini; ln -s /persistent/home/.gemini ~/ 2> /dev/null)
-test -L ~/.codex || (mkdir -p /persistent/home/.codex; ln -s /persistent/home/.codex ~/ 2> /dev/null)
 
 eval "$(mise activate bash)"
 exec "$@"
