@@ -5,24 +5,16 @@
     "patterns": [
       {
         "toolName": "exec_command",
-        "input": { "command": "git", "args": ["commit"] },
-        "action": "ask"
-      },
-      {
-        "toolName": "exec_command",
         "input": { "command": { "$regex": "^(gh|docker)$" } },
         "action": "ask"
       },
       {
-        "toolName": { "$regex": "^(write_file|patch_file)$" },
-        "action": "allow"
+        "toolName": "exec_command",
+        "input": { "command": "git", "args": { "$has": "commit" } },
+        "action": "ask"
       },
       {
-        "toolName": { "$regex": "^(exec_command|tmux_command)$" },
-        "action": "allow"
-      },
-      {
-        "toolName": { "$regex": "^(web_search|web_fetch)$" },
+        "toolName": { "$regex": "^(write_file|patch_file|exec_command|web_search|web_fetch)$" },
         "action": "allow"
       }
     ]
