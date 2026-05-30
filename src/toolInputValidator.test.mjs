@@ -364,3 +364,68 @@ describe("allowedPaths parameter", () => {
     assert.strictEqual(result, false);
   });
 });
+
+describe("allowGitIgnoredFiles parameter", () => {
+  it("should allow git-ignored file when allowGitIgnoredFiles is true", () => {
+    // given:
+    const allowGitIgnoredFiles = true;
+    // when:
+    const result = isSafeToolInputItem(
+      "node_modules",
+      [],
+      allowGitIgnoredFiles,
+    );
+    // then:
+    assert.strictEqual(result, true);
+  });
+
+  it("should block git-ignored file when allowGitIgnoredFiles is false", () => {
+    // given:
+    const allowGitIgnoredFiles = false;
+    // when:
+    const result = isSafeToolInputItem(
+      "node_modules",
+      [],
+      allowGitIgnoredFiles,
+    );
+    // then:
+    assert.strictEqual(result, false);
+  });
+
+  it("should block git-ignored file by default (no allowGitIgnoredFiles argument)", () => {
+    // when:
+    const result = isSafeToolInputItem("node_modules");
+    // then:
+    assert.strictEqual(result, false);
+  });
+
+  it("should propagate allowGitIgnoredFiles through isSafeToolInput", () => {
+    // given:
+    const input = { filePath: "node_modules/.package-lock.json" };
+    // when:
+    const resultAllowed = isSafeToolInput(input, [], true);
+    const resultBlocked = isSafeToolInput(input, [], false);
+    // then:
+    assert.strictEqual(resultAllowed, true);
+    assert.strictEqual(resultBlocked, false);
+  });
+
+  it("should still block paths outside working directory even with allowGitIgnoredFiles", () => {
+    // given:
+    const allowGitIgnoredFiles = true;
+    // when:
+    const result = isSafeToolInputItem("/etc/passwd", [], allowGitIgnoredFiles);
+    // then:
+    assert.strictEqual(result, false);
+  });
+
+  it("should still block .plain-agent paths even with allowGitIgnoredFiles", () => {
+    // given:
+    const allowGitIgnoredFiles = true;
+    const sandboxPath = `${AGENT_PROJECT_METADATA_DIR}/sandbox/run.sh`;
+    // when:
+    const result = isSafeToolInputItem(sandboxPath, [], allowGitIgnoredFiles);
+    // then:
+    assert.strictEqual(result, false);
+  });
+});
