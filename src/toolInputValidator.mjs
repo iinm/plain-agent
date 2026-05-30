@@ -84,13 +84,11 @@ export function isSafeToolInputItem(arg, allowedPaths = []) {
     return false;
   }
 
-  // User-configured allowed paths (outside working directory)
-  if (isInUserAllowedPath(realPath, allowedPaths)) {
-    return true;
-  }
-
-  // Disallow paths outside the working directory (not in allowedPaths)
-  if (!isInsideWorkingDirectory(realPath, workingDir)) {
+  // Path must be inside the working directory or in user-configured allowed paths
+  if (
+    !isInsideWorkingDirectory(realPath, workingDir) &&
+    !isInUserAllowedPath(realPath, allowedPaths)
+  ) {
     return false;
   }
 

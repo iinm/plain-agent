@@ -353,4 +353,14 @@ describe("allowedPaths parameter", () => {
     // then: empty string should not allow arbitrary access
     assert.strictEqual(result, false);
   });
+
+  it("should block git-ignored path even when in allowedPaths", () => {
+    // given: node_modules is git-ignored in this repo, add it to allowedPaths
+    const nodeModulesPath = path.resolve("node_modules");
+    const allowedPaths = [nodeModulesPath];
+    // when
+    const result = isSafeToolInputItem("node_modules", allowedPaths);
+    // then: git-ignore check takes precedence over allowedPaths
+    assert.strictEqual(result, false);
+  });
 });
