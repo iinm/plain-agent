@@ -220,11 +220,32 @@ function isInsideProjectMetadataDir(targetPath) {
  * @returns {boolean}
  */
 function isGitIgnored(absPath) {
+  /** @type {string} */
+  let gitRoot;
   try {
-    execFileSync("git", ["check-ignore", "--no-index", "-q", absPath], {
-      stdio: ["ignore", "ignore", "ignore"],
-    });
-    // The path is ignored (exit code 0)
+    let dir;
+    try {
+      dir = fs.statSync(absPath).isDirectory()
+        ? absPath
+        : path.dirname(absPath);
+    } catch {
+      dir = path.dirname(absPath);
+    }
+    gitRoot = execFileSync("git", ["-C", dir, "rev-parse", "--show-toplevel"], {
+      stdio: ["ignore", "pipe", "ignore"],
+      encoding: "utf-8",
+    }).trim();
+  } catch {
+    // Not inside a git repository
+    return false;
+  }
+
+  try {
+    execFileSync(
+      "git",
+      ["-C", gitRoot, "check-ignore", "--no-index", "-q", absPath],
+      { stdio: ["ignore", "ignore", "ignore"] },
+    );
     return true;
   } catch (error) {
     if (
@@ -233,11 +254,8 @@ function isGitIgnored(absPath) {
       typeof error.status === "number" &&
       error.status === 1
     ) {
-      // Path is not ignored
       return false;
     }
-    // Other errors (e.g., status 128 if not a git repo or other git error)
-    // We treat this as "effectively ignored" to be safe.
-    return true;
+    return false;
   }
 }
