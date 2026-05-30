@@ -401,7 +401,7 @@ Files are loaded in the following order. Settings in later files override earlie
 {
   "autoApproval": {
     // Absolute paths outside the working directory that are allowed. Relative paths are ignored.
-    "allowedPaths": ["/tmp"],
+    "allowedPaths": ["/path/to/other/git-repo"],
     "defaultAction": "ask",
     // Maximum number of automatic approvals.
     "maxApprovals": 50,

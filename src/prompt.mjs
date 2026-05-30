@@ -73,7 +73,7 @@ Always read the target lines with \`read_file\` first to verify line numbers and
 
 ## exec_command
 
-- Use relative paths.
+- Use relative paths for files inside the working directory, absolute paths for files outside.
 - Use ${projectMetadataDir}/tmp/ for temporary files.
 - Use bash -c only when pipes (|) or redirection (>, <) are required.
 
