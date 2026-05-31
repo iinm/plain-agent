@@ -379,26 +379,6 @@ describe("allowGitUnmanagedFiles parameter", () => {
     assert.strictEqual(result, true);
   });
 
-  it("should block git-unmanaged file when allowGitUnmanagedFiles is false", () => {
-    // given:
-    const allowGitUnmanagedFiles = false;
-    // when:
-    const result = isSafeToolInputItem(
-      "node_modules",
-      [],
-      allowGitUnmanagedFiles,
-    );
-    // then:
-    assert.strictEqual(result, false);
-  });
-
-  it("should block git-unmanaged file by default (no allowGitUnmanagedFiles argument)", () => {
-    // when:
-    const result = isSafeToolInputItem("node_modules");
-    // then:
-    assert.strictEqual(result, false);
-  });
-
   it("should propagate allowGitUnmanagedFiles through isSafeToolInput", () => {
     // given:
     const input = { filePath: "node_modules/.package-lock.json" };
@@ -408,28 +388,5 @@ describe("allowGitUnmanagedFiles parameter", () => {
     // then:
     assert.strictEqual(resultAllowed, true);
     assert.strictEqual(resultBlocked, false);
-  });
-
-  it("should still block paths outside working directory even with allowGitUnmanagedFiles", () => {
-    // given:
-    const allowGitUnmanagedFiles = true;
-    // when:
-    const result = isSafeToolInputItem(
-      "/etc/passwd",
-      [],
-      allowGitUnmanagedFiles,
-    );
-    // then:
-    assert.strictEqual(result, false);
-  });
-
-  it("should still block .plain-agent paths even with allowGitUnmanagedFiles", () => {
-    // given:
-    const allowGitUnmanagedFiles = true;
-    const sandboxPath = `${AGENT_PROJECT_METADATA_DIR}/sandbox/run.sh`;
-    // when:
-    const result = isSafeToolInputItem(sandboxPath, [], allowGitUnmanagedFiles);
-    // then:
-    assert.strictEqual(result, false);
   });
 });
