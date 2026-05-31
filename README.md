@@ -403,6 +403,7 @@ Files are loaded in the following order. Settings in later files override earlie
     // Absolute paths outside the working directory that are allowed. Relative paths are ignored.
     "allowedPaths": ["/path/to/other/git-repo"],
     // Allow access to git-unmanaged files (default: false).
+    // ⚠️ Risk: Changes to git-unmanaged files are hard to detect (e.g., node_modules). Sandbox is recommended.
     "allowGitUnmanagedFiles": false,
     "defaultAction": "ask",
     // Maximum number of automatic approvals.
