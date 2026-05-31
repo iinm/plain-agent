@@ -104,8 +104,8 @@ export function isSafeToolInputItem(
     return false;
   }
 
-  // Deny git ignored files (which may contain sensitive information or should not be accessed)
-  if (!allowGitUnmanagedFiles && isGitIgnored(realPath)) {
+  // Deny git-unmanaged files (outside git repo or git-ignored)
+  if (!allowGitUnmanagedFiles && !isGitManaged(realPath)) {
     return false;
   }
 
@@ -230,21 +230,16 @@ function isInsideProjectMetadataDir(targetPath) {
 }
 
 /**
+ * Check if the path is managed by git (inside a git repo and not ignored).
  * @param {string} absPath
  * @returns {boolean}
  */
-function isGitIgnored(absPath) {
+function isGitManaged(absPath) {
+  const dir = findExistingDirectory(absPath);
+
   /** @type {string} */
   let gitRoot;
   try {
-    let dir;
-    try {
-      dir = fs.statSync(absPath).isDirectory()
-        ? absPath
-        : path.dirname(absPath);
-    } catch {
-      dir = path.dirname(absPath);
-    }
     gitRoot = execFileSync("git", ["-C", dir, "rev-parse", "--show-toplevel"], {
       stdio: ["ignore", "pipe", "ignore"],
       encoding: "utf-8",
@@ -260,7 +255,8 @@ function isGitIgnored(absPath) {
       ["-C", gitRoot, "check-ignore", "--no-index", "-q", absPath],
       { stdio: ["ignore", "ignore", "ignore"] },
     );
-    return true;
+    // File is git-ignored: not managed
+    return false;
   } catch (error) {
     if (
       error instanceof Error &&
@@ -268,8 +264,28 @@ function isGitIgnored(absPath) {
       typeof error.status === "number" &&
       error.status === 1
     ) {
-      return false;
+      // Not ignored: managed
+      return true;
     }
+    // Other error: treat as not managed for safety
     return false;
   }
+}
+
+/**
+ * @param {string} absPath
+ * @returns {string}
+ */
+function findExistingDirectory(absPath) {
+  const stats = noThrowSync(() => fs.statSync(absPath));
+  if (!(stats instanceof Error)) {
+    return stats.isDirectory() ? absPath : path.dirname(absPath);
+  }
+  let dir = absPath;
+  while (!fs.existsSync(dir)) {
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return dir;
 }

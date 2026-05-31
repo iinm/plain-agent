@@ -76,6 +76,8 @@ export type AppConfig = {
     defaultAction?: "deny" | "ask";
     /** Additional absolute paths to allow for auto-approval (outside working directory) */
     allowedPaths?: string[];
+    /** Allow access to git-unmanaged files (default: false) */
+    allowGitUnmanagedFiles?: boolean;
   };
   sandbox?: ExecCommandSanboxConfig;
   tools?: {

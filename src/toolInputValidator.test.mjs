@@ -248,24 +248,38 @@ describe("isSafeToolInputItem", () => {
 });
 
 describe("allowedPaths parameter", () => {
-  it("should allow access to configured path outside working directory", () => {
-    // given
+  it("should block path outside git repo even when in allowedPaths", () => {
+    // given:
     const allowedPaths = ["/tmp/allowed-test-dir"];
-    // when
+    // when:
     const result = isSafeToolInputItem(
       "/tmp/allowed-test-dir/some-file.txt",
       allowedPaths,
     );
-    // then
-    assert.strictEqual(result, true);
+    // then:
+    assert.strictEqual(result, false);
   });
 
-  it("should allow access to configured path itself", () => {
-    // given
+  it("should block path outside git repo (directory itself) even when in allowedPaths", () => {
+    // given:
     const allowedPaths = ["/tmp/allowed-test-dir"];
-    // when
+    // when:
     const result = isSafeToolInputItem("/tmp/allowed-test-dir", allowedPaths);
-    // then
+    // then:
+    assert.strictEqual(result, false);
+  });
+
+  it("should allow path outside git repo when allowGitUnmanagedFiles is true", () => {
+    // given:
+    const allowedPaths = ["/tmp/allowed-test-dir"];
+    const allowGitUnmanagedFiles = true;
+    // when:
+    const result = isSafeToolInputItem(
+      "/tmp/allowed-test-dir/some-file.txt",
+      allowedPaths,
+      allowGitUnmanagedFiles,
+    );
+    // then:
     assert.strictEqual(result, true);
   });
 
