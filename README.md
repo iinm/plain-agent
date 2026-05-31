@@ -345,14 +345,13 @@ Files are loaded in the following order. Settings in later files override earlie
         └── agents/                # Project-specific agent roles
 ```
 
-### Example
-
 <details>
 <summary><b>YOLO mode example (requires a sandbox for safety)</b></summary>
 
 ```js
 {
   "autoApproval": {
+    // Deny all actions except explicitly allowed
     "defaultAction": "deny",
     "maxApprovals": 100,
     "patterns": [
@@ -378,17 +377,7 @@ Files are loaded in the following order. Settings in later files override earlie
   "sandbox": {
     "command": "plain-sandbox",
     "args": ["--allow-write", "--skip-build", "--keep-alive", "30"],
-    "separator": "--",
-    "rules": [
-      {
-        "pattern": {
-          "command": "npm",
-          "args": ["ci"]
-        },
-        "mode": "sandbox",
-        "additionalArgs": ["--allow-net", "0.0.0.0/0"]
-      }
-    ]
+    "separator": "--"
   }
 }
 ```
@@ -403,18 +392,14 @@ Files are loaded in the following order. Settings in later files override earlie
     // Absolute paths outside the working directory that are allowed. Relative paths are ignored.
     "allowedPaths": ["/path/to/other/git-repo"],
     // Allow access to git-unmanaged files (default: false).
-    // ⚠️ Risk: Changes to git-unmanaged files are hard to detect (e.g., node_modules). Sandbox is recommended.
+    // ⚠️ Changes to git-unmanaged files are hard to detect (e.g., node_modules). Sandbox is recommended.
     "allowGitUnmanagedFiles": false,
+    // Default action when no patterns match. Can be "ask" (prompt user) or "deny" (block action).
     "defaultAction": "ask",
     // Maximum number of automatic approvals.
     "maxApprovals": 50,
     // Patterns are evaluated in order. First match wins.
     "patterns": [
-      {
-        "toolName": { "$regex": "^(write_file|patch_file)$" },
-        "input": { "filePath": { "$regex": "^\\.plain-agent/memory/.+\\.md$" } },
-        "action": "allow"
-      },
       {
         "toolName": { "$regex": "^(write_file|patch_file)$" },
         "input": { "filePath": { "$regex": "^src/" } },
@@ -443,6 +428,7 @@ Files are loaded in the following order. Settings in later files override earlie
 
   // Sandbox environment for the exec_command and tmux_command tools
   "sandbox": {
+    // Commands are wrapped and executed with this command
     "command": "plain-sandbox",
     "args": ["--allow-write", "--skip-build", "--keep-alive", "30"],
     // separator is inserted between sandbox flags and the user command to prevent bypasses
@@ -460,16 +446,15 @@ Files are loaded in the following order. Settings in later files override earlie
       {
         "pattern": {
           "command": "npm",
-          "args": ["install"]
+          "args": [{ "$regex": "^(install|ci)$" }]
         },
         "mode": "sandbox",
-        // Allow access to registry.npmjs.org
         "additionalArgs": ["--allow-net", "registry.npmjs.org"]
       }
     ]
   },
 
-  // Configure MCP servers
+  // MCP servers
   "mcpServers": {
     "chrome_devtools": {
       "command": "npx",
@@ -487,27 +472,11 @@ Files are loaded in the following order. Settings in later files override earlie
         // Enable only specific tools. If not specified, all tools are enabled.
         "enabledTools": ["notion-search", "notion-fetch"]
       }
-    },
-    "aws_knowledge": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "https://knowledge-mcp.global.api.aws"]
-    },
-    // ⚠️ Add this to config.local.json to avoid committing secrets to Git
-    "google_developer-knowledge": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote", "https://developerknowledge.googleapis.com/mcp", "--header", "X-Goog-Api-Key:<GOOGLE_API_KEY>"]
     }
   },
 
   // Override the default notification command
   "notifyCmd": { "command": "plain-notify-desktop", "args": [] }
-
-  // Voice input. See "Voice Input" below.
-  // ⚠️ Add this to config.local.json to avoid committing secrets to Git
-  "voiceInput": {
-    "provider": "openai",
-    "apiKey": "<OPENAI_API_KEY>"
-  }
 }
 ```
 </details>
