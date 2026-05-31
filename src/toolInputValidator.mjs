@@ -18,25 +18,25 @@ const BUILTIN_ALLOWED_PATHS = [
 /**
  * @param {unknown} input
  * @param {string[]} [allowedPaths=[]] - Additional allowed paths (outside working directory)
- * @param {boolean} [allowGitIgnoredFiles=false] - Allow access to git-ignored files
+ * @param {boolean} [allowGitUnmanagedFiles=false] - Allow access to git-unmanaged files
  * @returns {boolean}
  */
 export function isSafeToolInput(
   input,
   allowedPaths = [],
-  allowGitIgnoredFiles = false,
+  allowGitUnmanagedFiles = false,
 ) {
   if (["number", "boolean", "undefined"].includes(typeof input)) {
     return true;
   }
 
   if (typeof input === "string") {
-    return isSafeToolInputItem(input, allowedPaths, allowGitIgnoredFiles);
+    return isSafeToolInputItem(input, allowedPaths, allowGitUnmanagedFiles);
   }
 
   if (Array.isArray(input)) {
     return input.every((item) =>
-      isSafeToolInput(item, allowedPaths, allowGitIgnoredFiles),
+      isSafeToolInput(item, allowedPaths, allowGitUnmanagedFiles),
     );
   }
 
@@ -45,7 +45,7 @@ export function isSafeToolInput(
       return true;
     }
     return Object.values(input).every((value) =>
-      isSafeToolInput(value, allowedPaths, allowGitIgnoredFiles),
+      isSafeToolInput(value, allowedPaths, allowGitUnmanagedFiles),
     );
   }
 
@@ -55,13 +55,13 @@ export function isSafeToolInput(
 /**
  * @param {string} arg
  * @param {string[]} [allowedPaths=[]] - Additional allowed paths (outside working directory)
- * @param {boolean} [allowGitIgnoredFiles=false] - Allow access to git-ignored files
+ * @param {boolean} [allowGitUnmanagedFiles=false] - Allow access to git-unmanaged files
  * @returns {boolean}
  */
 export function isSafeToolInputItem(
   arg,
   allowedPaths = [],
-  allowGitIgnoredFiles = false,
+  allowGitUnmanagedFiles = false,
 ) {
   const workingDir = process.cwd();
 
@@ -105,7 +105,7 @@ export function isSafeToolInputItem(
   }
 
   // Deny git ignored files (which may contain sensitive information or should not be accessed)
-  if (!allowGitIgnoredFiles && isGitIgnored(realPath)) {
+  if (!allowGitUnmanagedFiles && isGitIgnored(realPath)) {
     return false;
   }
 

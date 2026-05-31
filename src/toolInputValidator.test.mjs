@@ -365,41 +365,41 @@ describe("allowedPaths parameter", () => {
   });
 });
 
-describe("allowGitIgnoredFiles parameter", () => {
-  it("should allow git-ignored file when allowGitIgnoredFiles is true", () => {
+describe("allowGitUnmanagedFiles parameter", () => {
+  it("should allow git-unmanaged file when allowGitUnmanagedFiles is true", () => {
     // given:
-    const allowGitIgnoredFiles = true;
+    const allowGitUnmanagedFiles = true;
     // when:
     const result = isSafeToolInputItem(
       "node_modules",
       [],
-      allowGitIgnoredFiles,
+      allowGitUnmanagedFiles,
     );
     // then:
     assert.strictEqual(result, true);
   });
 
-  it("should block git-ignored file when allowGitIgnoredFiles is false", () => {
+  it("should block git-unmanaged file when allowGitUnmanagedFiles is false", () => {
     // given:
-    const allowGitIgnoredFiles = false;
+    const allowGitUnmanagedFiles = false;
     // when:
     const result = isSafeToolInputItem(
       "node_modules",
       [],
-      allowGitIgnoredFiles,
+      allowGitUnmanagedFiles,
     );
     // then:
     assert.strictEqual(result, false);
   });
 
-  it("should block git-ignored file by default (no allowGitIgnoredFiles argument)", () => {
+  it("should block git-unmanaged file by default (no allowGitUnmanagedFiles argument)", () => {
     // when:
     const result = isSafeToolInputItem("node_modules");
     // then:
     assert.strictEqual(result, false);
   });
 
-  it("should propagate allowGitIgnoredFiles through isSafeToolInput", () => {
+  it("should propagate allowGitUnmanagedFiles through isSafeToolInput", () => {
     // given:
     const input = { filePath: "node_modules/.package-lock.json" };
     // when:
@@ -410,21 +410,25 @@ describe("allowGitIgnoredFiles parameter", () => {
     assert.strictEqual(resultBlocked, false);
   });
 
-  it("should still block paths outside working directory even with allowGitIgnoredFiles", () => {
+  it("should still block paths outside working directory even with allowGitUnmanagedFiles", () => {
     // given:
-    const allowGitIgnoredFiles = true;
+    const allowGitUnmanagedFiles = true;
     // when:
-    const result = isSafeToolInputItem("/etc/passwd", [], allowGitIgnoredFiles);
+    const result = isSafeToolInputItem(
+      "/etc/passwd",
+      [],
+      allowGitUnmanagedFiles,
+    );
     // then:
     assert.strictEqual(result, false);
   });
 
-  it("should still block .plain-agent paths even with allowGitIgnoredFiles", () => {
+  it("should still block .plain-agent paths even with allowGitUnmanagedFiles", () => {
     // given:
-    const allowGitIgnoredFiles = true;
+    const allowGitUnmanagedFiles = true;
     const sandboxPath = `${AGENT_PROJECT_METADATA_DIR}/sandbox/run.sh`;
     // when:
-    const result = isSafeToolInputItem(sandboxPath, [], allowGitIgnoredFiles);
+    const result = isSafeToolInputItem(sandboxPath, [], allowGitUnmanagedFiles);
     // then:
     assert.strictEqual(result, false);
   });

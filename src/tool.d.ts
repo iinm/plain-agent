@@ -39,8 +39,8 @@ export type ToolUseApproverConfig = {
   defaultAction: "deny" | "ask";
   /** Additional absolute paths to allow for auto-approval (outside working directory) */
   allowedPaths?: string[];
-  /** Allow access to git-ignored files (default: false) */
-  allowGitIgnoredFiles?: boolean;
+  /** Allow access to git-unmanaged files (default: false) */
+  allowGitUnmanagedFiles?: boolean;
 
   /**
    * Mask the input before auto-approval checks and recording.
