@@ -235,23 +235,11 @@ function isInsideProjectMetadataDir(targetPath) {
  * @returns {boolean}
  */
 function isGitManaged(absPath) {
+  const dir = findExistingDirectory(absPath);
+
   /** @type {string} */
   let gitRoot;
   try {
-    let dir;
-    try {
-      dir = fs.statSync(absPath).isDirectory()
-        ? absPath
-        : path.dirname(absPath);
-    } catch {
-      // Path doesn't exist; walk up to find an existing ancestor directory
-      dir = absPath;
-      while (!fs.existsSync(dir)) {
-        const parent = path.dirname(dir);
-        if (parent === dir) break;
-        dir = parent;
-      }
-    }
     gitRoot = execFileSync("git", ["-C", dir, "rev-parse", "--show-toplevel"], {
       stdio: ["ignore", "pipe", "ignore"],
       encoding: "utf-8",
@@ -282,4 +270,22 @@ function isGitManaged(absPath) {
     // Other error: treat as not managed for safety
     return false;
   }
+}
+
+/**
+ * @param {string} absPath
+ * @returns {string}
+ */
+function findExistingDirectory(absPath) {
+  const stats = noThrowSync(() => fs.statSync(absPath));
+  if (!(stats instanceof Error)) {
+    return stats.isDirectory() ? absPath : path.dirname(absPath);
+  }
+  let dir = absPath;
+  while (!fs.existsSync(dir)) {
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return dir;
 }
