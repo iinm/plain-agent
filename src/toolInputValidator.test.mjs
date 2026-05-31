@@ -364,3 +364,29 @@ describe("allowedPaths parameter", () => {
     assert.strictEqual(result, false);
   });
 });
+
+describe("allowGitUnmanagedFiles parameter", () => {
+  it("should allow git-unmanaged file when allowGitUnmanagedFiles is true", () => {
+    // given:
+    const allowGitUnmanagedFiles = true;
+    // when:
+    const result = isSafeToolInputItem(
+      "node_modules",
+      [],
+      allowGitUnmanagedFiles,
+    );
+    // then:
+    assert.strictEqual(result, true);
+  });
+
+  it("should propagate allowGitUnmanagedFiles through isSafeToolInput", () => {
+    // given:
+    const input = { filePath: "node_modules/.package-lock.json" };
+    // when:
+    const resultAllowed = isSafeToolInput(input, [], true);
+    const resultBlocked = isSafeToolInput(input, [], false);
+    // then:
+    assert.strictEqual(resultAllowed, true);
+    assert.strictEqual(resultBlocked, false);
+  });
+});

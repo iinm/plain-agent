@@ -18,19 +18,26 @@ const BUILTIN_ALLOWED_PATHS = [
 /**
  * @param {unknown} input
  * @param {string[]} [allowedPaths=[]] - Additional allowed paths (outside working directory)
+ * @param {boolean} [allowGitUnmanagedFiles=false] - Allow access to git-unmanaged files
  * @returns {boolean}
  */
-export function isSafeToolInput(input, allowedPaths = []) {
+export function isSafeToolInput(
+  input,
+  allowedPaths = [],
+  allowGitUnmanagedFiles = false,
+) {
   if (["number", "boolean", "undefined"].includes(typeof input)) {
     return true;
   }
 
   if (typeof input === "string") {
-    return isSafeToolInputItem(input, allowedPaths);
+    return isSafeToolInputItem(input, allowedPaths, allowGitUnmanagedFiles);
   }
 
   if (Array.isArray(input)) {
-    return input.every((item) => isSafeToolInput(item, allowedPaths));
+    return input.every((item) =>
+      isSafeToolInput(item, allowedPaths, allowGitUnmanagedFiles),
+    );
   }
 
   if (typeof input === "object") {
@@ -38,7 +45,7 @@ export function isSafeToolInput(input, allowedPaths = []) {
       return true;
     }
     return Object.values(input).every((value) =>
-      isSafeToolInput(value, allowedPaths),
+      isSafeToolInput(value, allowedPaths, allowGitUnmanagedFiles),
     );
   }
 
@@ -48,9 +55,14 @@ export function isSafeToolInput(input, allowedPaths = []) {
 /**
  * @param {string} arg
  * @param {string[]} [allowedPaths=[]] - Additional allowed paths (outside working directory)
+ * @param {boolean} [allowGitUnmanagedFiles=false] - Allow access to git-unmanaged files
  * @returns {boolean}
  */
-export function isSafeToolInputItem(arg, allowedPaths = []) {
+export function isSafeToolInputItem(
+  arg,
+  allowedPaths = [],
+  allowGitUnmanagedFiles = false,
+) {
   const workingDir = process.cwd();
 
   // Note: An argument can be a command option (e.g., '-l').
@@ -93,7 +105,11 @@ export function isSafeToolInputItem(arg, allowedPaths = []) {
   }
 
   // Deny git ignored files (which may contain sensitive information or should not be accessed)
-  return !isGitIgnored(realPath);
+  if (!allowGitUnmanagedFiles && isGitIgnored(realPath)) {
+    return false;
+  }
+
+  return true;
 }
 
 /**
