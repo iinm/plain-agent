@@ -77,6 +77,9 @@ export async function loadAppConfig(options = {}) {
           ...(config.autoApproval?.allowedPaths ?? []),
           ...(merged.autoApproval?.allowedPaths ?? []),
         ],
+        allowGitUnmanagedFiles:
+          config.autoApproval?.allowGitUnmanagedFiles ??
+          merged.autoApproval?.allowGitUnmanagedFiles,
       },
       sandbox: config.sandbox ?? merged.sandbox,
       tools: {

@@ -369,6 +369,8 @@ export async function main(argv = process.argv) {
     defaultAction: appConfig.autoApproval?.defaultAction || "ask",
     patterns: appConfig.autoApproval?.patterns || [],
     allowedPaths: appConfig.autoApproval?.allowedPaths ?? [],
+    allowGitUnmanagedFiles:
+      appConfig.autoApproval?.allowGitUnmanagedFiles ?? false,
     maskApprovalInput: (toolName, input) => {
       for (const tool of builtinTools) {
         if (tool.def.name === toolName && tool.maskApprovalInput) {
