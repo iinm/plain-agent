@@ -251,6 +251,38 @@ describe("predefined patterns from config.predefined.json", async () => {
       },
       action: "ask",
     },
+    {
+      desc: "bash -c without shell operators should be denied",
+      toolUse: {
+        toolName: "exec_command",
+        input: { command: "bash", args: ["-c", "echo hello"] },
+      },
+      action: "deny",
+    },
+    {
+      desc: "bash -c with pipe should not match deny pattern",
+      toolUse: {
+        toolName: "exec_command",
+        input: { command: "bash", args: ["-c", "echo hello | grep hello"] },
+      },
+      action: undefined,
+    },
+    {
+      desc: "bash -c with redirect should not match deny pattern",
+      toolUse: {
+        toolName: "exec_command",
+        input: { command: "bash", args: ["-c", "echo hello > file.txt"] },
+      },
+      action: undefined,
+    },
+    {
+      desc: "bash -c with ampersand should not match deny pattern",
+      toolUse: {
+        toolName: "exec_command",
+        input: { command: "bash", args: ["-c", "cmd1 && cmd2"] },
+      },
+      action: undefined,
+    },
   ];
 
   for (const { desc, toolUse, action } of testCases) {
