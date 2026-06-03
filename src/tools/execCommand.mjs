@@ -20,7 +20,15 @@ export function createExecCommandTool(config) {
   return {
     def: {
       name: "exec_command",
-      description: "Run a command without shell interpretation.",
+      description: `Run a command without shell interpretation.
+
+Examples:
+- List directories or find files: fd [".", "./", "--max-depth", "3", "--type", "d", "--hidden"]
+- Search for strings: rg ["--heading", "--line-number", "pattern", "./"]
+- Manage GitHub issues and PRs:
+  Get PR details: gh ["pr", "view", "123", "--json", "title,body,url"]
+  Get PR comment: gh ["api", "--method", "GET", "repos/<owner>/<repo>/pulls/comments/<id>", "--jq", "{user: .user.login, path: .path, line: .line, body: .body}"]
+      `.trim(),
       inputSchema: {
         type: "object",
         properties: {
@@ -29,9 +37,7 @@ export function createExecCommandTool(config) {
             type: "string",
           },
           args: {
-            // Gemini 3 flashが command: rg, args: [rg, ...] のようにargsにコマンドを含めることがある
-            description:
-              "Array of arguments to pass to the command. Do not include the command name itself in this array.",
+            description: "Array of arguments to pass to the command.",
             type: "array",
             items: {
               type: "string",
