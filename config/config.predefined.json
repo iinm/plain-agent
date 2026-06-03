@@ -13,10 +13,10 @@
         "toolName": "exec_command",
         "input": {
           "command": "bash",
-          "args": ["-c", { "$not": { "$regex": "[|><&]" } }]
+          "args": ["-c", { "$not": { "$regex": "[|><&;$`]" } }]
         },
         "action": "deny",
-        "reason": "Use bash -c only when shell operators (|, >, <, &) are required"
+        "reason": "Use bash -c only when shell features (|, >, <, &, ;, $, `) are required"
       },
       {
         "toolName": "exec_command",
