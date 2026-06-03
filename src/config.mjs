@@ -95,6 +95,12 @@ export async function loadAppConfig(options = {}) {
               ...config.tools.webFetch,
             }
           : merged.tools?.webFetch,
+        tmux: config.tools?.tmux
+          ? {
+              ...(merged.tools?.tmux ?? {}),
+              ...config.tools.tmux,
+            }
+          : merged.tools?.tmux,
       },
       mcpServers: {
         ...(merged.mcpServers ?? {}),

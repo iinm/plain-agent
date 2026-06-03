@@ -83,6 +83,7 @@ export type AppConfig = {
   tools?: {
     webSearch?: WebSearchToolConfig;
     webFetch?: WebFetchToolConfig;
+    tmux?: { enabled: boolean };
   };
   mcpServers?: Record<string, MCPServerConfig>;
   notifyCmd?: { command: string; args?: string[] };

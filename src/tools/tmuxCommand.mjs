@@ -18,7 +18,17 @@ export function createTmuxCommandTool(config) {
   return {
     def: {
       name: "tmux_command",
-      description: "Run a tmux command",
+      description: [
+        "Run a tmux command.",
+        "The tmux session id is plain-agent-<session-id>.",
+        "",
+        "Examples:",
+        '- Start session: new-session ["-d", "-s", "<tmux-session-id>"]',
+        '- Detect window number to send keys: list-windows ["-t", "<tmux-session-id>"]',
+        '- Get output of window before sending keys: capture-pane ["-p", "-t", "<tmux-session-id>:<window>"]',
+        '- Send key to session: send-keys ["-t", "<tmux-session-id>:<window>", "echo hello", "Enter"]',
+        '- Delete line: send-keys ["-t", "<tmux-session-id>:<window>", "C-a", "C-k"]',
+      ].join("\n"),
       inputSchema: {
         type: "object",
         properties: {
