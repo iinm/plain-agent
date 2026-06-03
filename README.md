@@ -360,7 +360,7 @@ Files are loaded in the following order. Settings in later files override earlie
         "action": "allow"
       },
       {
-        "toolName": { "$regex": "^(exec_command|tmux_command)$" },
+        "toolName": "exec_command",
         "action": "allow"
       },
       {
@@ -426,6 +426,14 @@ Files are loaded in the following order. Settings in later files override earlie
     ]
   },
 
+  "tools": {
+    // Enable web tools. See Quick Start section.
+    "webSearch": {},
+    "webFetch": {},
+    // Enable the tmux tool
+    "tmux": { "enabled": true }
+  },
+
   // Sandbox environment for the exec_command and tmux_command tools
   "sandbox": {
     // Commands are wrapped and executed with this command
@@ -489,7 +497,7 @@ The agent can use the following tools:
 - **write_file**: Write a file.
 - **patch_file**: Patch a file.
 - **exec_command**: Run a command without shell interpretation.
-- **tmux_command**: Run a tmux command.
+- **tmux_command**: Run a tmux command. It is disabled by default.
 - **web_search**: Search the web with one or more keyword sets and answer a question based on the combined results (requires Google API key, Vertex AI configuration, or the `command` provider with a local search command).
 - **web_fetch**: Fetch the contents of a single URL and answer a question based on it (requires Google API key, Vertex AI configuration, or the `command` provider with a local fetch command such as `w3m`, `curl`, or `lynx`).
 - **switch_to_subagent**: Switch to a subagent role within the same conversation, focusing on the specified goal.
