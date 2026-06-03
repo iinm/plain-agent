@@ -20,7 +20,6 @@ export function createTmuxCommandTool(config) {
       name: "tmux_command",
       description: [
         "Run a tmux command.",
-        "Use only when the user explicitly requests it.",
         "The tmux session id is plain-agent-<session-id>.",
         "",
         "Examples:",
