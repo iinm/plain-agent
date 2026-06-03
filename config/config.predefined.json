@@ -12,6 +12,15 @@
       {
         "toolName": "exec_command",
         "input": {
+          "command": "bash",
+          "args": ["-c", { "$not": { "$regex": "[|><&]" } }]
+        },
+        "action": "deny",
+        "reason": "Use bash -c only when shell operators (|, >, <, &) are required"
+      },
+      {
+        "toolName": "exec_command",
+        "input": {
           "command": "fd",
           "args": {
             "$has": {

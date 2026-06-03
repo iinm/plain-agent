@@ -73,7 +73,6 @@ Always read the target lines with \`read_file\` first to verify line numbers and
 
 - Use relative paths for files inside the working directory, absolute paths for files outside.
 - Use ${projectMetadataDir}/tmp/ for temporary files.
-- Use bash -c only when pipes (|) or redirection (>, <) are required.
 
 Examples:
 - List directories or find files: fd [".", "./", "--max-depth", "3", "--type", "d", "--hidden"]
