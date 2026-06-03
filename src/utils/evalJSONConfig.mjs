@@ -40,6 +40,23 @@ export function evalJSONConfig(configItem) {
       );
     }
 
+    if (Object.keys(configItem).length === 1 && "$not" in configItem) {
+      const pattern = evalJSONConfig(configItem.$not);
+      /** @param {unknown} value */
+      return (value) => {
+        if (typeof pattern === "string") {
+          return value !== pattern;
+        }
+        if (pattern instanceof RegExp) {
+          return typeof value !== "string" || !pattern.test(value);
+        }
+        if (typeof pattern === "function") {
+          return !pattern(value);
+        }
+        return true;
+      };
+    }
+
     if (Object.keys(configItem).length === 1 && "$has" in configItem) {
       const pattern = evalJSONConfig(configItem.$has);
       /** @param {unknown} value */

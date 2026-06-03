@@ -43,6 +43,44 @@ describe("evalJSONConfig", () => {
     assert.strictEqual(outAny.c[1].d.source, "foo");
   });
 
+  it("should convert {$not: string} to a function that negates string match", () => {
+    // given:
+    const fn = /** @type {(value: unknown) => boolean} */ (
+      evalJSONConfig({ $not: "foo" })
+    );
+
+    // when: / then:
+    assert.strictEqual(typeof fn, "function");
+    assert.strictEqual(fn("foo"), false);
+    assert.strictEqual(fn("bar"), true);
+  });
+
+  it("should convert {$not: {$regex: string}} to a function that negates regex match", () => {
+    // given:
+    const fn = /** @type {(value: unknown) => boolean} */ (
+      evalJSONConfig({ $not: { $regex: "[|><&]" } })
+    );
+
+    // when: / then:
+    assert.strictEqual(typeof fn, "function");
+    assert.strictEqual(fn("echo hello"), true);
+    assert.strictEqual(fn("echo hello | grep foo"), false);
+    assert.strictEqual(fn("echo hello > file"), false);
+    assert.strictEqual(fn(123), true);
+  });
+
+  it("should convert {$not: function} to a function that negates the inner function", () => {
+    // given:
+    const fn = /** @type {(value: unknown) => boolean} */ (
+      evalJSONConfig({ $not: { $has: "secret" } })
+    );
+
+    // when: / then:
+    assert.strictEqual(typeof fn, "function");
+    assert.strictEqual(fn(["secret", "public"]), false);
+    assert.strictEqual(fn(["public", "open"]), true);
+  });
+
   it("should convert {$has: string} to a function", () => {
     const fn = /** @type {(value: unknown) => boolean} */ (
       evalJSONConfig({ $has: "foo" })

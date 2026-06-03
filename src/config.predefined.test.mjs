@@ -251,6 +251,65 @@ describe("predefined patterns from config.predefined.json", async () => {
       },
       action: "ask",
     },
+    {
+      desc: "bash -c without shell features should be denied",
+      toolUse: {
+        toolName: "exec_command",
+        input: { command: "bash", args: ["-c", "echo hello"] },
+      },
+      action: "deny",
+    },
+    {
+      desc: "bash -c with pipe should not match deny pattern",
+      toolUse: {
+        toolName: "exec_command",
+        input: { command: "bash", args: ["-c", "echo hello | grep hello"] },
+      },
+      action: undefined,
+    },
+    {
+      desc: "bash -c with redirect should not match deny pattern",
+      toolUse: {
+        toolName: "exec_command",
+        input: { command: "bash", args: ["-c", "echo hello > file.txt"] },
+      },
+      action: undefined,
+    },
+    {
+      desc: "bash -c with ampersand should not match deny pattern",
+      toolUse: {
+        toolName: "exec_command",
+        input: { command: "bash", args: ["-c", "cmd1 && cmd2"] },
+      },
+      action: undefined,
+    },
+    {
+      desc: "bash -c with semicolon should not match deny pattern",
+      toolUse: {
+        toolName: "exec_command",
+        input: {
+          command: "bash",
+          args: ["-c", "for i in *.txt; do echo $i; done"],
+        },
+      },
+      action: undefined,
+    },
+    {
+      desc: "bash -c with command substitution should not match deny pattern",
+      toolUse: {
+        toolName: "exec_command",
+        input: { command: "bash", args: ["-c", "echo $(date)"] },
+      },
+      action: undefined,
+    },
+    {
+      desc: "bash -c with backtick should not match deny pattern",
+      toolUse: {
+        toolName: "exec_command",
+        input: { command: "bash", args: ["-c", "echo `date`"] },
+      },
+      action: undefined,
+    },
   ];
 
   for (const { desc, toolUse, action } of testCases) {
