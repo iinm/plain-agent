@@ -139,8 +139,6 @@ export async function main(argv = process.argv) {
     ? new Date(resumedState.startTime)
     : new Date();
   const sessionId = resumedState ? resumedState.sessionId : generateSessionId();
-  const tmuxSessionId = `agent-${sessionId}`;
-
   const isBatchMode = cliArgs.subcommand.type === "batch";
   /** @type {string[]} */
   const configFiles =
@@ -294,7 +292,6 @@ export async function main(argv = process.argv) {
     workingDir: process.cwd(),
     today: new Date().toISOString().split("T")[0],
     sessionId,
-    tmuxSessionId,
     projectMetadataDir: AGENT_PROJECT_METADATA_DIR,
     agentRoles,
     skills: Array.from(prompts.values()).filter((p) => p.isSkill),
@@ -305,11 +302,14 @@ export async function main(argv = process.argv) {
     readFileTool,
     writeFileTool,
     createPatchFileTool(),
-    createTmuxCommandTool({ sandbox: appConfig.sandbox }),
     createCompactContextTool(),
     createSwitchToSubagentTool(),
     createSwitchToMainAgentTool(),
   ];
+
+  if (appConfig.tools?.tmux?.enabled) {
+    builtinTools.push(createTmuxCommandTool({ sandbox: appConfig.sandbox }));
+  }
 
   if (appConfig.tools?.webSearch) {
     const webSearchConfig = appConfig.tools.webSearch;

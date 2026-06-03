@@ -7,7 +7,6 @@ import { toOneLine } from "./utils/toOneLine.mjs";
  * @property {string} workingDir - The current working directory.
  * @property {string} today - Today's date in YYYY-MM-DD format.
  * @property {string} sessionId
- * @property {string} tmuxSessionId
  * @property {string} projectMetadataDir - The directory where memory files are stored.
  * @property {Map<string, import('./context/loadAgentRoles.mjs').AgentRole>} agentRoles - Available agent roles.
  * @property {{filePath: string, description: string}[]} skills
@@ -22,7 +21,6 @@ export function createPrompt({
   modelName,
   sessionId,
   today,
-  tmuxSessionId,
   workingDir,
   projectMetadataDir,
   agentRoles,
@@ -84,18 +82,6 @@ Examples:
   Get PR details: gh ["pr", "view", "123", "--json", "title,body,url"]
   Get PR comment: gh ["api", "--method", "GET", "repos/<owner>/<repo>/pulls/comments/<id>", "--jq", "{user: .user.login, path: .path, line: .line, body: .body}"]
 
-## tmux_command
-
-- Use only when the user explicitly requests it.
-- Create a new session with the given tmux session id.
-
-Examples:
-- Start session: new-session ["-d", "-s", "<tmux-session-id>"]
-- Detect window number to send keys: list-windows ["-t", "<tmux-session-id>"]
-- Get output of window before sending keys: capture-pane ["-p", "-t", "<tmux-session-id>:<window>"]
-- Send key to session: send-keys ["-t", "<tmux-session-id>:<window>", "echo hello", "Enter"]
-- Delete line: send-keys ["-t", "<tmux-session-id>:<window>", "C-a", "C-k"]
-
 # Project Rules and Skills
  
 Discover and apply project-specific rules and reusable skills.
@@ -119,7 +105,6 @@ ${skillDescriptions}
 - Current working directory: ${workingDir}
 - Today's date: ${today}
 - Session id: ${sessionId}
-- Tmux session id: ${tmuxSessionId}
 - Memory file path: ${projectMetadataDir}/memory/${sessionId}--<kebab-case-title>.md
 
 Available subagents:
