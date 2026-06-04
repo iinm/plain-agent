@@ -53,12 +53,16 @@ Options:
   --mount-readonly HOST_PATH[:CONTAINER_PATH]
                             Mount a host file or directory to a container path as read-only.
                             If CONTAINER_PATH is omitted, the resolved absolute host path is used.
-                            Relative paths are resolved from the current working directory.
+                            Relative HOST_PATH is resolved from the current working directory.
+                            Relative CONTAINER_PATH is resolved from the working directory
+                            inside the container.
 
   --mount-writable HOST_PATH[:CONTAINER_PATH]
                             Mount a host file or directory to a container path as writable.
                             If CONTAINER_PATH is omitted, the resolved absolute host path is used.
-                            Relative paths are resolved from the current working directory.
+                            Relative HOST_PATH is resolved from the current working directory.
+                            Relative CONTAINER_PATH is resolved from the working directory
+                            inside the container.
 
   --publish [HOST_ADDRESS:]HOST_PORT:CONTAINER_PORT
                             Publish container port(s) to the host.
@@ -401,6 +405,8 @@ main() {
       fi
       if test -z "$container_path"; then
         container_path="$host_abs_path"
+      elif ! grep -qE '^/' <<< "$container_path"; then
+        container_path="${container_workdir}/${container_path}"
       fi
       docker_run_opts+=(--mount "type=bind,source=${host_abs_path},target=${container_path},readonly,consistency=delegated")
     done
@@ -423,6 +429,8 @@ main() {
       fi
       if test -z "$container_path"; then
         container_path="$host_abs_path"
+      elif ! grep -qE '^/' <<< "$container_path"; then
+        container_path="${container_workdir}/${container_path}"
       fi
       docker_run_opts+=(--mount "type=bind,source=${host_abs_path},target=${container_path},consistency=delegated")
     done
