@@ -108,6 +108,14 @@ grep -qE " --mount type=bind,source=/.+/sandbox/bin,target=/mnt/bin-readonly,rea
 grep -qE " --mount type=bind,source=/.+/sandbox/bin,target=/mnt/bin-writable,consistency=delegated" <<< "$out"
 
 
+echo "case: --mount-* option accepts relative container path"
+# when:
+out=$(plain-sandbox --dry-run --dockerfile Dockerfile.minimum --mount-readonly bin:mnt/bin-readonly --mount-writable bin:mnt/bin-writable true)
+# then:
+grep -qE " --mount type=bind,source=/.+/sandbox/bin,target=mnt/bin-readonly,readonly,consistency=delegated" <<< "$out"
+grep -qE " --mount type=bind,source=/.+/sandbox/bin,target=mnt/bin-writable,consistency=delegated" <<< "$out"
+
+
 echo "case: --mount-* option uses resolved host path as container path when container path is omitted"
 # when:
 out=$(plain-sandbox --dry-run --dockerfile Dockerfile.minimum --mount-readonly bin --mount-writable bin true)
