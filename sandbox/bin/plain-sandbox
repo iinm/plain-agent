@@ -18,8 +18,8 @@ Usage: $SCRIPT_NAME [--dockerfile FILE]
            [--env-file FILE]
            [--allow-write] [--allow-net [DESTINATIONS|--]]
            [--volume [NAME:]PATH]
-           [--mount-writable HOST_DIR:CONTAINER_DIR]
-           [--mount-readonly HOST_DIR:CONTAINER_DIR]
+           [--mount-writable HOST_PATH[:CONTAINER_PATH]]
+           [--mount-readonly HOST_PATH[:CONTAINER_PATH]]
            [--publish [HOST_ADDRESS:]HOST_PORT:CONTAINER_PORT]
            [--tty]
            [--no-cache]
@@ -50,11 +50,15 @@ Options:
                             inside the container.
                             If NAME is not given, the volume name is generated.
 
-  --mount-readonly HOST_DIR:CONTAINER_DIR
+  --mount-readonly HOST_PATH[:CONTAINER_PATH]
                             Mount a host file or directory to a container path as read-only.
+                            If CONTAINER_PATH is omitted, the resolved absolute host path is used.
+                            Relative paths are resolved from the current working directory.
 
-  --mount-writable HOST_DIR:CONTAINER_DIR
+  --mount-writable HOST_PATH[:CONTAINER_PATH]
                             Mount a host file or directory to a container path as writable.
+                            If CONTAINER_PATH is omitted, the resolved absolute host path is used.
+                            Relative paths are resolved from the current working directory.
 
   --publish [HOST_ADDRESS:]HOST_PORT:CONTAINER_PORT
                             Publish container port(s) to the host.
@@ -384,11 +388,19 @@ main() {
     for mount in "${readonly_mounts[@]}"; do
       local host_path
       local container_path
-      IFS=':' read -r host_path container_path <<< "$mount"
+      if grep -qE ':' <<< "$mount"; then
+        IFS=':' read -r host_path container_path <<< "$mount"
+      else
+        host_path="$mount"
+        container_path=""
+      fi
       local host_abs_path="$host_path"
       if ! grep -qE '^/' <<< "$host_abs_path"; then
         # shellcheck disable=SC2001
         host_abs_path=$(readlink -f "$(sed "s,~/,$HOME/," <<< "$host_abs_path")")
+      fi
+      if test -z "$container_path"; then
+        container_path="$host_abs_path"
       fi
       docker_run_opts+=(--mount "type=bind,source=${host_abs_path},target=${container_path},readonly,consistency=delegated")
     done
@@ -398,11 +410,19 @@ main() {
     for mount in "${writable_mounts[@]}"; do
       local host_path
       local container_path
-      IFS=':' read -r host_path container_path <<< "$mount"
+      if grep -qE ':' <<< "$mount"; then
+        IFS=':' read -r host_path container_path <<< "$mount"
+      else
+        host_path="$mount"
+        container_path=""
+      fi
       local host_abs_path="$host_path"
       if ! grep -qE '^/' <<< "$host_abs_path"; then
         # shellcheck disable=SC2001
         host_abs_path=$(readlink -f "$(sed "s,~/,$HOME/," <<< "$host_abs_path")")
+      fi
+      if test -z "$container_path"; then
+        container_path="$host_abs_path"
       fi
       docker_run_opts+=(--mount "type=bind,source=${host_abs_path},target=${container_path},consistency=delegated")
     done
