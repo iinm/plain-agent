@@ -779,33 +779,6 @@ Press **Ctrl-O** to start recording, then press it again to stop. Partial transc
   is a letter (a-z) or one of `[ \ ] ^ _`. Defaults to `"ctrl-o"`.
 - `recorder` — Override automatic recorder detection, e.g. `{ "command": "sox", "args": ["-q", "-d", "-b", "16", "-c", "1", "-r", "24000", "-e", "signed-integer", "-t", "raw", "-"] }`. It must write raw 16-bit little-endian mono PCM to stdout at 24 kHz (OpenAI) or 16 kHz (Gemini).
 
-## Development
-
-```sh
-# Run lint, typecheck, and tests
-npm run check
-
-# Fix lint issues
-npm run fix
-# or
-npm run fix -- --unsafe
-
-# Update dependencies
-npx npm-check-updates -t minor -c 3
-npx npm-check-updates -t minor -c 3 -u
-```
-
-## Release
-
-```sh
-npm version <major|minor|patch>
-
-git push --follow-tags
-gh release create $(git describe --tags) --generate-notes
-
-npm publish --access public
-```
-
 ## Appendix: Creating Least-Privilege Users for Cloud Providers
 
 <details>
@@ -951,3 +924,19 @@ gcloud iam service-accounts add-iam-policy-binding "$service_account_email" \
 gcloud auth print-access-token --impersonate-service-account "$service_account_email"
 ```
 </details>
+
+## Developer Notes
+
+<details>
+<summary>Release</summary>
+
+```sh
+npm version <major|minor|patch>
+
+git push --follow-tags
+gh release create $(git describe --tags) --generate-notes
+
+npm publish --access public
+```
+</details>
+
