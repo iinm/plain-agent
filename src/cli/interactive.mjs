@@ -391,6 +391,8 @@ export function startInteractiveSession({
 
   // Handle readline close (e.g., stdin closed externally)
   cli.on("close", handleExit);
+  process.on("SIGTERM", handleExit);
+  process.on("SIGHUP", handleExit);
 
   const handleCommand = createCommandHandler({
     agentCommands,
