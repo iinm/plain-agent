@@ -165,6 +165,7 @@ export async function main(argv = process.argv) {
       const sandboxStr = [
         appConfig.sandbox.command,
         ...(appConfig.sandbox.args || []),
+        ...(appConfig.sandbox.separator ? [appConfig.sandbox.separator] : []),
       ].join(" ");
       console.log(styleText("green", "\n📦 Sandbox: on"));
       console.log(`  ⤷ ${sandboxStr}`);
