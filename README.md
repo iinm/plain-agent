@@ -47,7 +47,7 @@ Configure what the agent can do automatically using a small DSL with regex match
         },
         "action": "allow"
       },
-      // Deny when the second arg after 'api' is not --method or --help
+      // Require --method to be explicit, so GET calls can be safely auto-approved
       {
         "toolName": "exec_command",
         "input": { "command": "gh", "args": ["api", { "$not": { "$regex": "^--(method|help)" } }] },
