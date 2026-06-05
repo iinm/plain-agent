@@ -72,7 +72,7 @@ String values in tool inputs are treated as file paths and validated against the
 - No directory traversal (`..` is not allowed)
 - The file must be tracked by Git (not ignored)
 
-**Note**: validation only applies when the agent explicitly passes file paths to tools. It cannot catch file access inside scripts the agent writes — something like `bash -c "rm -rf /"` is beyond its reach. Always use a sandbox when allowing arbitrary script execution.
+**Note**: validation only applies when the agent explicitly passes file paths to tools. It cannot catch file access inside scripts the agent writes — something like `bash -c "rm -rf /"` is beyond its reach. Always use a sandbox when auto-approving script execution.
 
 ### Sandbox
 
@@ -457,6 +457,31 @@ Files are loaded in the following order. Settings in later files override earlie
         └── agents/                # Project-specific agent roles
 ```
 
+
+<details>
+<summary><b>Minimal example (file editing and web search only — no script execution, no sandbox required)</b></summary>
+
+```js
+{
+  "autoApproval": {
+    "defaultAction": "ask",
+    "maxApprovals": 100,
+    "patterns": [
+      {
+        "toolName": { "$regex": "^(write_file|patch_file)$" },
+        "action": "allow"
+      },
+      {
+        "toolName": { "$regex": "^(web_search|web_fetch)$" },
+        "action": "allow"
+      }
+    ]
+  }
+}
+```
+
+</details>
+
 <details>
 <summary><b>YOLO mode example (requires a sandbox for safety)</b></summary>
 
@@ -472,11 +497,11 @@ Files are loaded in the following order. Settings in later files override earlie
         "action": "allow"
       },
       {
-        "toolName": "exec_command",
+        "toolName": { "$regex": "^(web_search|web_fetch)$" },
         "action": "allow"
       },
       {
-        "toolName": { "$regex": "^(web_search|web_fetch)$" },
+        "toolName": "exec_command",
         "action": "allow"
       }
       // ⚠️ Never do this. MCP runs outside the sandbox, so it can send anything externally.
@@ -487,8 +512,10 @@ Files are loaded in the following order. Settings in later files override earlie
     ]
   },
   "sandbox": {
+    // ⚠️ Build the image before first use: plain-sandbox --verbose echo done
     "command": "plain-sandbox",
-    "args": ["--allow-write", "--skip-build", "--keep-alive", "30"],
+    "args": ["--allow-write", "--mount-readonly", ".plain-agent/config.json", "--skip-build", "--keep-alive", "30"],
+    // ↑ --mount-readonly: prevents the agent from overwriting its own config
     "separator": "--"
   }
 }
@@ -518,7 +545,7 @@ Files are loaded in the following order. Settings in later files override earlie
         "action": "allow"
       },
 
-      // ⚠️ Arbitrary code execution can access unauthorized files and networks. Always use a sandbox.
+      // ⚠️ When auto-approving execution, scripts can access unauthorized files and networks. Always use a sandbox.
       {
         "toolName": "exec_command",
         "input": { "command": "npm", "args": ["run", { "$regex": "^(lint|test)$" }] },
@@ -549,13 +576,16 @@ Files are loaded in the following order. Settings in later files override earlie
   // Sandbox environment for the exec_command and tmux_command tools
   "sandbox": {
     // Commands are wrapped and executed with this command
+    // ⚠️ Build the image before first use: plain-sandbox --verbose echo done
     "command": "plain-sandbox",
-    "args": ["--allow-write", "--skip-build", "--keep-alive", "30"],
+    "args": ["--allow-write", "--mount-readonly", ".plain-agent/config.json", "--skip-build", "--keep-alive", "30"],
+    // ↑ --mount-readonly: prevents the agent from overwriting its own config
     // separator is inserted between sandbox flags and the user command to prevent bypasses
     "separator": "--",
 
     "rules": [
       // Run specific commands outside the sandbox
+      // ⚠️ Do not auto-approve unsandboxed commands.
       {
         "pattern": {
           "command": { "$regex": "^(gh|docker)$" }
