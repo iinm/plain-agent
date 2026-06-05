@@ -1,17 +1,129 @@
 # Plain Agent
 
-A lightweight coding agent for the terminal.
+A lightweight terminal-based coding agent focused on safety and low token cost
 
-- **Multi-provider** — Use Claude, GPT, Gemini, or any OpenAI-compatible model via direct APIs or through Bedrock, Vertex AI, or Azure.
-- **Fine-grained auto-approval** — Auto-approve tool calls by matching tool names and inputs against configurable patterns, while validating string inputs as paths for safety.
-- **Sandboxed execution** — Run commands in a Docker container with filesystem and network isolation.
-- **Supports Claude Code resources** — Use Claude Code plugins, commands, subagents, and skills from `.claude/`.
-- **Zero external dependencies** — Built using only Node.js standard libraries.
+## Design
 
-## Limitations
+### Multi-provider support
 
-- **Path validation only covers tool arguments** — It blocks paths outside the working directory, directory traversal (`..`), symlinks that escape the project, and git-ignored files. However, it only applies to paths explicitly passed as tool-use arguments, so it cannot control file access inside arbitrary scripts. Always use sandboxed execution when running arbitrary scripts.
-- **Sequential subagent execution** — Subagents run one at a time rather than in parallel. The trade-off is that every step is streamed to your terminal, so you can follow exactly what each subagent is doing.
+Supports Claude, OpenAI, Gemini, and any OpenAI-compatible provider. Bedrock, Vertex AI, and Azure are also supported for teams working in environments restricted to managed cloud providers.
+
+### Auto-approval
+
+Configure what the agent can do automatically using a small DSL with regex matching. Below is an excerpt from the [default config](https://github.com/iinm/plain-agent/blob/main/config/config.predefined.json).
+
+```js
+{
+  "autoApproval": {
+    // What to do when no pattern matches: ask - prompt the user, deny - reject automatically
+    "defaultAction": "ask",
+
+    // Patterns are evaluated top-to-bottom; first match wins
+    "patterns": [
+      // fd example:
+      // Ask for approval when risky flags like --exec or --no-ignore are present
+      {
+        "toolName": "exec_command",
+        "input": {
+          "command": "fd",
+          "args": { "$has": { "$regex": "^(--unrestricted|--no-ignore|--exec|--exec-batch|--follow|-[^-]*[uIxXL])" } }
+        },
+        "action": "ask"
+      },
+      // Allow all other fd calls
+      {
+        "toolName": "exec_command",
+        "input": { "command": "fd" },
+        "action": "allow"
+      },
+
+      // GitHub CLI example:
+      // Allow read access to PRs and issues
+      {
+        "toolName": "exec_command",
+        "input": {
+          "command": "gh",
+          "args": ["api", "--method", "GET", { "$regex": "^repos/[^/]+/[^/]+/(pulls|issues)/" }]
+        },
+        "action": "allow"
+      },
+      // Require --method to be explicit, so GET calls can be safely auto-approved
+      {
+        "toolName": "exec_command",
+        "input": { "command": "gh", "args": ["api", "--method"] },
+        "action": "ask"
+      },
+      {
+        "toolName": "exec_command",
+        "input": { "command": "gh", "args": ["api"] },
+        "action": "deny",
+        "reason": "--method must be specified"
+      }
+    ]
+  }
+}
+```
+
+### Path Validation
+
+String values in tool inputs are treated as file paths and validated against these rules. This takes precedence over `autoApproval` — even if a pattern marks an action as `allow`, a validation failure falls back to `defaultAction`.
+
+- The path must be under the working directory or a path listed in `autoApproval.allowedPaths`
+- No directory traversal (`..` is not allowed)
+- The file must be tracked by Git (not ignored)
+
+**Note**: validation only applies when the agent explicitly passes file paths to tools. It cannot catch file access inside scripts the agent writes — something like `bash -c "rm -rf /"` is beyond its reach. Always use a sandbox when allowing arbitrary script execution.
+
+### Sandbox
+
+The agent can run arbitrary commands via `exec_command` and `tmux_command`. You can configure a wrapper command that intercepts both.
+A Docker-based wrapper called `plain-sandbox` is included, but the interface is designed to work with other tools as well, such as [Anthropic Sandbox Runtime (srt)](https://github.com/anthropic-experimental/sandbox-runtime).
+
+```js
+{
+  // Sandbox environment for the exec_command and tmux_command tools
+  "sandbox": {
+    // Commands are wrapped and executed with this command
+    "command": "plain-sandbox",
+    "args": ["--allow-write", "--skip-build", "--keep-alive", "30"],
+    // separator is inserted between sandbox flags and the user command to prevent bypasses
+    "separator": "--",
+
+    "rules": [
+      // Run specific commands outside the sandbox
+      {
+        "pattern": {
+          "command": { "$regex": "^(gh|docker)$" }
+        },
+        "mode": "unsandboxed"
+      },
+      // Run commands in the sandbox with network access
+      {
+        "pattern": {
+          "command": "npm",
+          "args": [{ "$regex": "^(install|ci)$" }]
+        },
+        "mode": "sandbox",
+        "additionalArgs": ["--allow-net", "registry.npmjs.org"]
+      }
+    ]
+  }
+}
+```
+
+### Token Efficiency
+
+A few design choices keep token usage low:
+
+- Minimal system prompt — the [system prompt](https://github.com/iinm/plain-agent/blob/main/src/prompt.mjs) contains only what the agent needs to function. 
+- Output truncation — when a command or MCP tool produces large output, it is truncated and saved to a file. The agent can then read only the relevant parts.
+- (Experimental) [Hashline-based](https://blog.can.ac/2026/02/12/the-harness-problem/) patch_file tool.
+
+### Claude Code Compatibility
+
+Claude Code has a plugin ecosystem and is widely used across teams. plain-agent supports `.claude/` commands, subagents, and skills so you can share project skills with Claude Code users. Plugins can also be installed.
+
+**Limitation:** Subagents run sequentially, not in parallel. The upside is that their activity is fully observable and they don't spike token usage. They also inherit the main context rather than starting fresh — a simplification chosen for ease of implementation, which also avoids redundant file reads and reduces the chance of losing context between handoffs.
 
 ## Requirements
 
