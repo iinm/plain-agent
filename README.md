@@ -81,11 +81,12 @@ A Docker-based wrapper called `plain-sandbox` is included, but the interface is 
 
 ```js
 {
-  // Sandbox environment for the exec_command and tmux_command tools
   "sandbox": {
     // Commands are wrapped and executed with this command
+    // Build the image before first use: plain-sandbox --verbose echo done
     "command": "plain-sandbox",
-    "args": ["--allow-write", "--skip-build", "--keep-alive", "30"],
+    "args": ["--allow-write", "--mount-readonly", ".plain-agent/config.json", "--skip-build", "--keep-alive", "30"],
+    // ↑ --mount-readonly: prevents the agent from overwriting its own config
     // separator is inserted between sandbox flags and the user command to prevent bypasses
     "separator": "--",
 
@@ -117,7 +118,6 @@ A few design choices keep token usage low:
 
 - Minimal system prompt — the [system prompt](https://github.com/iinm/plain-agent/blob/main/src/prompt.mjs) contains only what the agent needs to function. 
 - Output truncation — when a command or MCP tool produces large output, it is truncated and saved to a file. The agent can then read only the relevant parts.
-- (Experimental) [Hashline-based](https://blog.can.ac/2026/02/12/the-harness-problem/) patch_file tool.
 
 ### Claude Code Compatibility
 
@@ -576,7 +576,7 @@ Files are loaded in the following order. Settings in later files override earlie
   // Sandbox environment for the exec_command and tmux_command tools
   "sandbox": {
     // Commands are wrapped and executed with this command
-    // ⚠️ Build the image before first use: plain-sandbox --verbose echo done
+    // Build the image before first use: plain-sandbox --verbose echo done
     "command": "plain-sandbox",
     "args": ["--allow-write", "--mount-readonly", ".plain-agent/config.json", "--skip-build", "--keep-alive", "30"],
     // ↑ --mount-readonly: prevents the agent from overwriting its own config
@@ -585,7 +585,6 @@ Files are loaded in the following order. Settings in later files override earlie
 
     "rules": [
       // Run specific commands outside the sandbox
-      // ⚠️ Do not auto-approve unsandboxed commands.
       {
         "pattern": {
           "command": { "$regex": "^(gh|docker)$" }
