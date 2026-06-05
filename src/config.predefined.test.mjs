@@ -241,7 +241,7 @@ describe("predefined patterns from config.predefined.json", async () => {
       action: "deny",
     },
     {
-      desc: "gh api --method POST should ask",
+      desc: "gh api --method POST should fall through to defaultAction",
       toolUse: {
         toolName: "exec_command",
         input: {
@@ -249,7 +249,7 @@ describe("predefined patterns from config.predefined.json", async () => {
           args: ["api", "--method", "POST", "repos/owner/repo/issues"],
         },
       },
-      action: "ask",
+      action: undefined,
     },
     {
       desc: "bash -c without shell features should be denied",
