@@ -139,18 +139,10 @@
         "toolName": "exec_command",
         "input": {
           "command": "gh",
-          "args": ["api", "--method"]
-        },
-        "action": "ask"
-      },
-      {
-        "toolName": "exec_command",
-        "input": {
-          "command": "gh",
-          "args": ["api"]
+          "args": ["api", { "$not": { "$regex": "^--(method|help)" } }]
         },
         "action": "deny",
-        "reason": "--method must be specified"
+        "reason": "--method must be specified right after 'api'"
       }
     ]
   },

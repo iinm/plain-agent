@@ -50,14 +50,9 @@ Configure what the agent can do automatically using a small DSL with regex match
       // Require --method to be explicit, so GET calls can be safely auto-approved
       {
         "toolName": "exec_command",
-        "input": { "command": "gh", "args": ["api", "--method"] },
-        "action": "ask"
-      },
-      {
-        "toolName": "exec_command",
-        "input": { "command": "gh", "args": ["api"] },
+        "input": { "command": "gh", "args": ["api", { "$not": { "$regex": "^--(method|help)" } }] },
         "action": "deny",
-        "reason": "--method must be specified"
+        "reason": "--method must be specified right after 'api'"
       }
     ]
   }
