@@ -83,6 +83,7 @@ export async function main(argv = process.argv) {
 
   if (cliArgs.subcommand.type === "test-approval") {
     const { appConfig } = await loadAppConfig({
+      skipTrustCheck: true,
       configFiles: cliArgs.subcommand.config,
     });
     const exitCode = runTestApprovalCommand(appConfig);
