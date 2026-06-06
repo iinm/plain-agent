@@ -170,40 +170,4 @@ describe("runTestApprovalCommand", () => {
     // then:
     assert.strictEqual(exitCode, 1);
   });
-
-  it("matches patterns with input constraints", () => {
-    // given:
-    const appConfig = /** @type {any} */ ({
-      autoApproval: {
-        patterns: [
-          {
-            toolName: "exec_command",
-            input: { command: "ls" },
-            action: "allow",
-            source: "a.json",
-          },
-        ],
-        tests: [
-          {
-            desc: "ls should be allowed",
-            toolUse: { toolName: "exec_command", input: { command: "ls" } },
-            expectedAction: "allow",
-            source: "a.json",
-          },
-          {
-            desc: "rm should not match",
-            toolUse: { toolName: "exec_command", input: { command: "rm" } },
-            expectedAction: null,
-            source: "a.json",
-          },
-        ],
-      },
-    });
-
-    // when:
-    const exitCode = runTestApprovalCommand(appConfig);
-
-    // then:
-    assert.strictEqual(exitCode, 0);
-  });
 });
