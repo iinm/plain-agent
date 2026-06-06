@@ -1,6 +1,7 @@
 # Plain Agent
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/iinm/plain-agent)
+[![Socket Badge](https://badge.socket.dev/npm/package/@iinm/plain-agent/1.10.27)](https://socket.dev/npm/package/@iinm/plain-agent/1.10.27)
 
 A lightweight terminal-based coding agent focused on safety and low token cost
 
@@ -66,8 +67,8 @@ Configure what the agent can do automatically using a small DSL with regex match
         "expectedAction": "allow"
       },
       {
-        "desc": "fd with -I should require approval",
-        "toolUse": { "toolName": "exec_command", "input": { "command": "fd", "args": ["-I", ".env", "./"] } },
+        "desc": "fd with --exec should require approval",
+        "toolUse": { "toolName": "exec_command", "input": { "command": "fd", "args": [".env", "./", "--exec", "cat", "{}"] } },
         "expectedAction": "ask"
       },
       {
@@ -528,7 +529,7 @@ Files are loaded in the following order. Settings in later files override earlie
     ]
   },
   "sandbox": {
-    // ⚠️ Build the image before first use: plain-sandbox --verbose echo done
+    // Build the image before first use: plain-sandbox --verbose echo done
     "command": "plain-sandbox",
     "args": ["--allow-write", "--mount-readonly", ".plain-agent/config.json", "--skip-build", "--keep-alive", "30"],
     // ↑ --mount-readonly: prevents the agent from overwriting its own config

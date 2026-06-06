@@ -37,7 +37,8 @@
     "coverage": "node --experimental-test-coverage --test-coverage-exclude='src/**/*.test.mjs' --test",
     "test:predefined-approval": "bash -c 'set -e; mkdir -p tmp; cd tmp; env HOME=. ../bin/plain test-approval'",
     "lint": "npx @biomejs/biome check",
-    "fix": "npx @biomejs/biome check --fix"
+    "fix": "npx @biomejs/biome check --fix",
+    "version": "sed -i \"s|badge.socket.dev/npm/package/@iinm/plain-agent/[0-9][0-9.]*|badge.socket.dev/npm/package/@iinm/plain-agent/${npm_package_version}|g\" README.md && sed -i \"s|socket.dev/npm/package/@iinm/plain-agent/[0-9][0-9.]*|socket.dev/npm/package/@iinm/plain-agent/${npm_package_version}|g\" README.md && git add README.md"
   },
   "dependencies": {},
   "devDependencies": {
