@@ -1,5 +1,7 @@
 # Plain Agent
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/iinm/plain-agent)
+
 A lightweight terminal-based coding agent focused on safety and low token cost
 
 ## Design
