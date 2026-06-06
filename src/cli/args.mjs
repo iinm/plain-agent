@@ -1,5 +1,5 @@
 /**
- * @typedef {HelpSubcommand | InteractiveSubcommand | BatchSubcommand | ListModelsSubcommand | InstallClaudeCodePluginsSubcommand | CostSubcommand | ResumeSubcommand} Subcommand
+ * @typedef {HelpSubcommand | InteractiveSubcommand | BatchSubcommand | ListModelsSubcommand | InstallClaudeCodePluginsSubcommand | CostSubcommand | ResumeSubcommand | TestApprovalSubcommand} Subcommand
  */
 
 /**
@@ -24,6 +24,10 @@
 
 /**
  * @typedef {{ type: 'cost', from: string | null, to: string | null }} CostSubcommand
+ */
+
+/**
+ * @typedef {{ type: 'test-approval', config: string[] }} TestApprovalSubcommand
  */
 
 /**
@@ -149,6 +153,25 @@ export function parseCliArgs(argv) {
     };
   }
 
+  if (subcommandName === "test-approval") {
+    const subArgs = args.slice(1);
+    /** @type {string[]} */
+    const config = [];
+
+    for (let i = 0; i < subArgs.length; i++) {
+      if (subArgs[i] === "-c" || subArgs[i] === "--config") {
+        if (subArgs[i + 1]) {
+          config.push(subArgs[i + 1]);
+          i++;
+        }
+      }
+    }
+
+    return {
+      subcommand: { type: "test-approval", config },
+    };
+  }
+
   if (subcommandName === "cost") {
     const costArgs = args.slice(1);
     let from = null;
@@ -203,6 +226,7 @@ Subcommands:
                                most recently updated session. Use --list to
                                see resumable sessions. Switching models is
                                not supported (-m is rejected).
+  test-approval                Run auto-approval rule tests defined in config.
   cost                         Show aggregated token cost per day for a period.
                                Defaults to the first day of the current month
                                through today.

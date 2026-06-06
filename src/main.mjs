@@ -14,6 +14,7 @@ import { parseCliArgs, printHelp } from "./cli/args.mjs";
 import { startBatchSession } from "./cli/batch.mjs";
 import { runCostCommand } from "./cli/cost.mjs";
 import { startInteractiveSession } from "./cli/interactive.mjs";
+import { runTestApprovalCommand } from "./cli/testApproval.mjs";
 import { loadAppConfig } from "./config.mjs";
 import { loadAgentRoles } from "./context/loadAgentRoles.mjs";
 import { loadPrompts } from "./context/loadPrompts.mjs";
@@ -78,6 +79,15 @@ export async function main(argv = process.argv) {
       console.error(message);
       process.exit(1);
     }
+  }
+
+  if (cliArgs.subcommand.type === "test-approval") {
+    const { appConfig } = await loadAppConfig({
+      skipTrustCheck: true,
+      configFiles: cliArgs.subcommand.config,
+    });
+    const exitCode = runTestApprovalCommand(appConfig);
+    process.exit(exitCode);
   }
 
   if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
