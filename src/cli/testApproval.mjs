@@ -48,8 +48,10 @@ export function runTestApprovalCommand(appConfig) {
     const patternSource = matchedPattern?.source;
     const testSource = tc.source;
 
+    const testSourceLabel = testSource ? `  [${testSource}]` : "";
+
     if (got === expected) {
-      console.log(styleText("green", `✓ ${tc.desc}`));
+      console.log(styleText("green", `✓ ${tc.desc}`) + testSourceLabel);
       if (got !== undefined) {
         console.log(`  matched: ${got}  [${patternSource}]`);
       } else {
@@ -57,7 +59,7 @@ export function runTestApprovalCommand(appConfig) {
       }
     } else if (isOverriddenByDifferentConfig(testSource, patternSource, got)) {
       warnCount++;
-      console.log(styleText("yellow", `⚠ ${tc.desc}`));
+      console.log(styleText("yellow", `⚠ ${tc.desc}`) + testSourceLabel);
       const expectedStr = expected ?? "no match";
       const gotStr = got ?? "no match";
       console.log(
@@ -65,7 +67,7 @@ export function runTestApprovalCommand(appConfig) {
       );
     } else {
       failCount++;
-      console.log(styleText("red", `✗ ${tc.desc}`));
+      console.log(styleText("red", `✗ ${tc.desc}`) + testSourceLabel);
       const expectedStr = expected ?? "no match";
       const gotStr = got ?? "no match";
       const sourceLabel = patternSource ? `  [${patternSource}]` : "";
