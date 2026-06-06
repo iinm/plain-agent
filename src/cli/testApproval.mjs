@@ -46,6 +46,7 @@ export function runTestApprovalCommand(appConfig) {
   }
 
   const results = evaluateTests(tests, patterns);
+  console.log();
   printResults(results);
 
   const failCount = results.filter((r) => r.verdict === "fail").length;
