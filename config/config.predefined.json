@@ -1447,8 +1447,8 @@
         "currency": "USD",
         "unit": "1M",
         "costs": {
-          "prompt_tokens": 1.25,
-          "prompt_tokens_details.cached_tokens": -1.125,
+          "prompt_tokens": 1.5625,
+          "prompt_tokens_details.cached_tokens": -1.4375,
           "completion_tokens": 3.75
         }
       }
