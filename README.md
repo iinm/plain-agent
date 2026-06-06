@@ -54,6 +54,13 @@ Configure what the agent can do automatically using a small DSL with regex match
         "action": "deny",
         "reason": "--method must be specified right after 'api'"
       }
+    ],
+
+    // Test cases for verifying patterns. Run: plain test-approval
+    "tests": [
+      { "desc": "fd with safe args should be allowed", "toolUse": { "toolName": "exec_command", "input": { "command": "fd", "args": ["README"] } }, "expectedAction": "allow" },
+      { "desc": "fd with -I should be ask", "toolUse": { "toolName": "exec_command", "input": { "command": "fd", "args": ["-I", "README"] } }, "expectedAction": "ask" },
+      { "desc": "gh api without --method should be denied", "toolUse": { "toolName": "exec_command", "input": { "command": "gh", "args": ["api", "/repos/o/r"] } }, "expectedAction": "deny" }
     ]
   }
 }
@@ -557,6 +564,11 @@ Files are loaded in the following order. Settings in later files override earlie
         "toolName": { "$regex": "mcp__slack__slack_(read|search)_.+" },
         "action": "allow"
       }
+    ],
+
+    // Test cases for verifying patterns. Run: plain test-approval
+    "tests": [
+      { "desc": "npm test should be allowed", "toolUse": { "toolName": "exec_command", "input": { "command": "npm", "args": ["run", "test"] } }, "expectedAction": "allow" }
     ]
   },
 
