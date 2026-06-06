@@ -60,17 +60,17 @@ Configure what the agent can do automatically using a small DSL with regex match
     "tests": [
       {
         "desc": "fd with safe args should be allowed",
-        "toolUse": { "toolName": "exec_command", "input": { "command": "fd", "args": ["README"] } },
+        "toolUse": { "toolName": "exec_command", "input": { "command": "fd", "args": ["README", "./"] } },
         "expectedAction": "allow"
       },
       {
-        "desc": "fd with -I should be ask",
-        "toolUse": { "toolName": "exec_command", "input": { "command": "fd", "args": ["-I", "README"] } },
+        "desc": "fd with -I should require approval",
+        "toolUse": { "toolName": "exec_command", "input": { "command": "fd", "args": ["-I", ".env", "./"] } },
         "expectedAction": "ask"
       },
       {
         "desc": "gh api without --method should be denied",
-        "toolUse": { "toolName": "exec_command", "input": { "command": "gh", "args": ["api", "/repos/o/r"] } },
+        "toolUse": { "toolName": "exec_command", "input": { "command": "gh", "args": ["api", "/repos/owner/repo/pulls"] } },
         "expectedAction": "deny"
       }
     ]

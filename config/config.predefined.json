@@ -173,7 +173,7 @@
         "expectedAction": "allow"
       },
       {
-        "desc": "fd with unsafe args should be ask",
+        "desc": "fd with unsafe args should require approval",
         "toolUse": {
           "toolName": "exec_command",
           "input": { "command": "fd", "args": ["--unrestricted"] }
@@ -181,7 +181,7 @@
         "expectedAction": "ask"
       },
       {
-        "desc": "fd with -I option should be ask",
+        "desc": "fd with -I option should require approval",
         "toolUse": {
           "toolName": "exec_command",
           "input": { "command": "fd", "args": ["-I", "pattern"] }
@@ -189,7 +189,7 @@
         "expectedAction": "ask"
       },
       {
-        "desc": "fd with -HI combined options should be ask",
+        "desc": "fd with -HI combined options should require approval",
         "toolUse": {
           "toolName": "exec_command",
           "input": { "command": "fd", "args": ["-HI", "pattern"] }
@@ -197,7 +197,7 @@
         "expectedAction": "ask"
       },
       {
-        "desc": "fd with -IH combined options should be ask",
+        "desc": "fd with -IH combined options should require approval",
         "toolUse": {
           "toolName": "exec_command",
           "input": { "command": "fd", "args": ["-IH", "pattern"] }
@@ -205,7 +205,7 @@
         "expectedAction": "ask"
       },
       {
-        "desc": "fd with -Hx=command combined options with value should be ask",
+        "desc": "fd with -Hx=command combined options with value should require approval",
         "toolUse": {
           "toolName": "exec_command",
           "input": { "command": "fd", "args": ["-Hx=cat", "pattern"] }
@@ -229,7 +229,7 @@
         "expectedAction": "allow"
       },
       {
-        "desc": "rg with unsafe args should be ask",
+        "desc": "rg with unsafe args should require approval",
         "toolUse": {
           "toolName": "exec_command",
           "input": { "command": "rg", "args": ["--unrestricted"] }
@@ -237,7 +237,7 @@
         "expectedAction": "ask"
       },
       {
-        "desc": "rg with -u option should be ask",
+        "desc": "rg with -u option should require approval",
         "toolUse": {
           "toolName": "exec_command",
           "input": { "command": "rg", "args": ["-u", "pattern"] }
@@ -245,7 +245,7 @@
         "expectedAction": "ask"
       },
       {
-        "desc": "rg with -Hu combined options should be ask",
+        "desc": "rg with -Hu combined options should require approval",
         "toolUse": {
           "toolName": "exec_command",
           "input": { "command": "rg", "args": ["-Hu", "pattern"] }
@@ -253,7 +253,7 @@
         "expectedAction": "ask"
       },
       {
-        "desc": "rg with -uH combined options should be ask",
+        "desc": "rg with -uH combined options should require approval",
         "toolUse": {
           "toolName": "exec_command",
           "input": { "command": "rg", "args": ["-uH", "pattern"] }

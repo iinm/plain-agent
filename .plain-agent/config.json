@@ -17,6 +17,23 @@
         "toolName": { "$regex": "^(write_file|patch_file|exec_command|web_search|web_fetch)$" },
         "action": "allow"
       }
+    ],
+    "tests": [
+      {
+        "desc": "gh should require approval",
+        "toolUse": { "toolName": "exec_command", "input": { "command": "gh" } },
+        "expectedAction": "ask"
+      },
+      {
+        "desc": "docker should require approval",
+        "toolUse": { "toolName": "exec_command", "input": { "command": "docker" } },
+        "expectedAction": "ask"
+      },
+      {
+        "desc": "git commit should require approval",
+        "toolUse": { "toolName": "exec_command", "input": { "command": "git", "args": ["-C", "/anywhere", "commit"] } },
+        "expectedAction": "ask"
+      }
     ]
   },
   "sandbox": {
