@@ -72,6 +72,7 @@ export type AppConfig = {
   platforms?: PlatformConfig[];
   autoApproval?: {
     patterns?: ToolUsePattern[];
+    tests?: AutoApprovalTestCase[];
     maxApprovals?: number;
     defaultAction?: "deny" | "ask";
     /** Additional absolute paths to allow for auto-approval (outside working directory) */
@@ -89,6 +90,12 @@ export type AppConfig = {
   notifyCmd?: { command: string; args?: string[] };
   voiceInput?: VoiceInputConfig;
   claudeCodePlugins?: ClaudeCodePluginRepo[];
+};
+
+export type AutoApprovalTestCase = {
+  desc: string;
+  toolUse: { toolName: string; input?: Record<string, unknown> };
+  expectedAction: "allow" | "deny" | "ask" | null;
 };
 
 export type MCPServerConfig = {

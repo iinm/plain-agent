@@ -1,5 +1,10 @@
 /**
  * @import { AppConfig } from "./config";
+ * @import { ToolUsePattern } from "./tool";
+ */
+
+/**
+ * @typedef {ToolUsePattern & { source?: string }} ToolUsePatternWithSource
  */
 
 import crypto from "node:crypto";
@@ -67,7 +72,13 @@ export async function loadAppConfig(options = {}) {
           config.autoApproval?.defaultAction ??
           merged.autoApproval?.defaultAction,
         patterns: [
-          ...(config.autoApproval?.patterns ?? []),
+          ...(config.autoApproval?.patterns ?? []).map(
+            (p) =>
+              /** @type {ToolUsePatternWithSource} */ ({
+                ...p,
+                source: filePath,
+              }),
+          ),
           ...(merged.autoApproval?.patterns ?? []),
         ],
         maxApprovals:
@@ -80,6 +91,10 @@ export async function loadAppConfig(options = {}) {
         allowGitUnmanagedFiles:
           config.autoApproval?.allowGitUnmanagedFiles ??
           merged.autoApproval?.allowGitUnmanagedFiles,
+        tests: [
+          ...(config.autoApproval?.tests ?? []),
+          ...(merged.autoApproval?.tests ?? []),
+        ],
       },
       sandbox: config.sandbox ?? merged.sandbox,
       tools: {
