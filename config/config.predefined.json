@@ -144,6 +144,288 @@
         "action": "deny",
         "reason": "--method must be specified right after 'api'"
       }
+    ],
+    "tests": [
+      {
+        "desc": "ls should be allowed",
+        "toolUse": { "toolName": "exec_command", "input": { "command": "ls" } },
+        "expectedAction": "allow"
+      },
+      {
+        "desc": "rm should not match any pattern",
+        "toolUse": { "toolName": "exec_command", "input": { "command": "rm" } },
+        "expectedAction": null
+      },
+      {
+        "desc": "fd with safe args should be allowed",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "fd", "args": ["--max-depth", "3"] }
+        },
+        "expectedAction": "allow"
+      },
+      {
+        "desc": "fd with -H only should be allowed",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "fd", "args": ["-H", "pattern"] }
+        },
+        "expectedAction": "allow"
+      },
+      {
+        "desc": "fd with unsafe args should be ask",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "fd", "args": ["--unrestricted"] }
+        },
+        "expectedAction": "ask"
+      },
+      {
+        "desc": "fd with -I option should be ask",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "fd", "args": ["-I", "pattern"] }
+        },
+        "expectedAction": "ask"
+      },
+      {
+        "desc": "fd with -HI combined options should be ask",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "fd", "args": ["-HI", "pattern"] }
+        },
+        "expectedAction": "ask"
+      },
+      {
+        "desc": "fd with -IH combined options should be ask",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "fd", "args": ["-IH", "pattern"] }
+        },
+        "expectedAction": "ask"
+      },
+      {
+        "desc": "fd with -Hx=command combined options with value should be ask",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "fd", "args": ["-Hx=cat", "pattern"] }
+        },
+        "expectedAction": "ask"
+      },
+      {
+        "desc": "rg with safe args should be allowed",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "rg", "args": ["--ignore-case", "pattern"] }
+        },
+        "expectedAction": "allow"
+      },
+      {
+        "desc": "rg with -H only should be allowed",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "rg", "args": ["-H", "pattern"] }
+        },
+        "expectedAction": "allow"
+      },
+      {
+        "desc": "rg with unsafe args should be ask",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "rg", "args": ["--unrestricted"] }
+        },
+        "expectedAction": "ask"
+      },
+      {
+        "desc": "rg with -u option should be ask",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "rg", "args": ["-u", "pattern"] }
+        },
+        "expectedAction": "ask"
+      },
+      {
+        "desc": "rg with -Hu combined options should be ask",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "rg", "args": ["-Hu", "pattern"] }
+        },
+        "expectedAction": "ask"
+      },
+      {
+        "desc": "rg with -uH combined options should be ask",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "rg", "args": ["-uH", "pattern"] }
+        },
+        "expectedAction": "ask"
+      },
+      {
+        "desc": "sed with known pattern should be allowed",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "sed", "args": ["-n", "10,20p", "file.txt"] }
+        },
+        "expectedAction": "allow"
+      },
+      {
+        "desc": "sed with single line pattern should be allowed",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "sed", "args": ["-n", "42p", "file.txt"] }
+        },
+        "expectedAction": "allow"
+      },
+      {
+        "desc": "git status should be allowed",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "git", "args": ["status"] }
+        },
+        "expectedAction": "allow"
+      },
+      {
+        "desc": "git branch --show-current should be allowed",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "git", "args": ["branch", "--show-current"] }
+        },
+        "expectedAction": "allow"
+      },
+      {
+        "desc": "git commit should not match any pattern",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "git", "args": ["commit"] }
+        },
+        "expectedAction": null
+      },
+      {
+        "desc": "docker ps should be allowed",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "docker", "args": ["ps"] }
+        },
+        "expectedAction": "allow"
+      },
+      {
+        "desc": "docker compose ps should be allowed",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "docker", "args": ["compose", "ps"] }
+        },
+        "expectedAction": "allow"
+      },
+      {
+        "desc": "docker compose logs should be allowed",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "docker", "args": ["compose", "logs"] }
+        },
+        "expectedAction": "allow"
+      },
+      {
+        "desc": "tmux list-sessions should be allowed",
+        "toolUse": {
+          "toolName": "tmux_command",
+          "input": { "command": "list-sessions" }
+        },
+        "expectedAction": "allow"
+      },
+      {
+        "desc": "gh pr view should be allowed",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "gh", "args": ["pr", "view"] }
+        },
+        "expectedAction": "allow"
+      },
+      {
+        "desc": "gh api for PR comments should be allowed",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": {
+            "command": "gh",
+            "args": ["api", "--method", "GET", "repos/owner/repo/pulls/123/comments"]
+          }
+        },
+        "expectedAction": "allow"
+      },
+      {
+        "desc": "gh api without --method should be denied",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "gh", "args": ["api", "repos/owner/repo/pulls"] }
+        },
+        "expectedAction": "deny"
+      },
+      {
+        "desc": "gh api --method POST should fall through to defaultAction",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": {
+            "command": "gh",
+            "args": ["api", "--method", "POST", "repos/owner/repo/issues"]
+          }
+        },
+        "expectedAction": null
+      },
+      {
+        "desc": "bash -c without shell features should be denied",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "bash", "args": ["-c", "echo hello"] }
+        },
+        "expectedAction": "deny"
+      },
+      {
+        "desc": "bash -c with pipe should not match deny pattern",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "bash", "args": ["-c", "echo hello | grep hello"] }
+        },
+        "expectedAction": null
+      },
+      {
+        "desc": "bash -c with redirect should not match deny pattern",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "bash", "args": ["-c", "echo hello > file.txt"] }
+        },
+        "expectedAction": null
+      },
+      {
+        "desc": "bash -c with ampersand should not match deny pattern",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "bash", "args": ["-c", "cmd1 && cmd2"] }
+        },
+        "expectedAction": null
+      },
+      {
+        "desc": "bash -c with semicolon should not match deny pattern",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "bash", "args": ["-c", "for i in *.txt; do echo $i; done"] }
+        },
+        "expectedAction": null
+      },
+      {
+        "desc": "bash -c with command substitution should not match deny pattern",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "bash", "args": ["-c", "echo $(date)"] }
+        },
+        "expectedAction": null
+      },
+      {
+        "desc": "bash -c with backtick should not match deny pattern",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "bash", "args": ["-c", "echo `date`"] }
+        },
+        "expectedAction": null
+      }
     ]
   },
   "models": [
