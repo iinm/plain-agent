@@ -92,7 +92,10 @@ export async function loadAppConfig(options = {}) {
           config.autoApproval?.allowGitUnmanagedFiles ??
           merged.autoApproval?.allowGitUnmanagedFiles,
         tests: [
-          ...(config.autoApproval?.tests ?? []),
+          ...(config.autoApproval?.tests ?? []).map((t) => ({
+            ...t,
+            source: filePath,
+          })),
           ...(merged.autoApproval?.tests ?? []),
         ],
       },
