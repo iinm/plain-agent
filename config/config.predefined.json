@@ -1361,6 +1361,29 @@
         }
       }
     },
+    {
+      "name": "minimax-m3",
+      "variant": "novita",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "novita"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "minimax/minimax-m3"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "prompt_tokens": 0.3,
+          "prompt_tokens_details.cached_tokens": -0.24,
+          "completion_tokens": 1.2
+        }
+      }
+    },
 
     {
       "name": "qwen3.6-plus",
@@ -1404,6 +1427,29 @@
         "costs": {
           "prompt_tokens": 0.6,
           "completion_tokens": 3.6
+        }
+      }
+    },
+    {
+      "name": "qwen3.7-max",
+      "variant": "novita",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "novita"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "qwen/qwen3.7-max"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "costs": {
+          "prompt_tokens": 1.5625,
+          "prompt_tokens_details.cached_tokens": -1.4375,
+          "completion_tokens": 3.75
         }
       }
     },
