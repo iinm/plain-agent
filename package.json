@@ -32,9 +32,10 @@
     "node": ">=22"
   },
   "scripts": {
-    "check": "npm run lint && tsc && npm run test",
+    "check": "npm run lint && tsc && npm run test && npm run test:predefined",
     "test": "node --test",
     "coverage": "node --experimental-test-coverage --test-coverage-exclude='src/**/*.test.mjs' --test",
+    "test:predefined": "bash -c 'set -e; mkdir -p tmp; cd tmp; env HOME=. ../bin/plain test-approval'",
     "lint": "npx @biomejs/biome check",
     "fix": "npx @biomejs/biome check --fix"
   },
