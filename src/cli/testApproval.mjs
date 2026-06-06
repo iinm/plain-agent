@@ -51,7 +51,6 @@ export function runTestApprovalCommand(appConfig) {
   const failCount = results.filter((r) => r.verdict === "fail").length;
   const warnCount = results.filter((r) => r.verdict === "warn").length;
 
-  console.log();
   if (failCount > 0) {
     console.error(
       styleText("red", `${failCount} failed`) +
