@@ -1,6 +1,7 @@
 # Plain Agent
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/iinm/plain-agent)
+[![CodeQL](https://github.com/iinm/plain-agent/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/iinm/plain-agent/actions/workflows/github-code-scanning/codeql)
 [![Socket Badge](https://badge.socket.dev/npm/package/@iinm/plain-agent/1.10.28)](https://socket.dev/npm/package/@iinm/plain-agent)
 
 A lightweight terminal-based coding agent focused on safety and low token cost
@@ -450,7 +451,7 @@ Create a configuration file.
       "cost": {
         "currency": "USD",
         "unit": "1M",
-        "costs": {
+        "prices": {
           "input_tokens": 1.1,
           "output_tokens": 5.5,
           "cache_read_input_tokens": 0.11,
@@ -477,7 +478,7 @@ Create a configuration file.
       "cost": {
         "currency": "USD",
         "unit": "1M",
-        "costs": {
+        "prices": {
           "input_tokens": 3.3,
           "output_tokens": 16.5,
           "cache_read_input_tokens": 0.33,
