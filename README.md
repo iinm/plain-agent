@@ -79,7 +79,7 @@ Because these are separate, the same API format works across different platforms
 
 Models are identified by `name+variant` (e.g., `claude-sonnet-4-6+thinking-high`). You can define multiple variants of the same model with different settings — such as thinking budget or region — and switch between them as needed.
 
-You can also add entries to the `models` array to use any OpenAI-compatible endpoint, such as Ollama or Fireworks. See the Quick Start section for examples.
+You can also add entries to `platforms` and `models` to use any OpenAI-compatible endpoint, such as Ollama or Fireworks. See the Quick Start section for examples.
 
 ### Auto-approval
 
