@@ -18,6 +18,20 @@ Each model definition has two independent parts:
 
 Because these are separate, the same API format works across different platforms. For example, Claude models use the `anthropic` format whether you call Anthropic directly or through Bedrock.
 
+```js
+// Anthropic direct
+{
+  "platform": { "name": "anthropic", "variant": "default" },
+  "model": { "format": "anthropic", "config": { "model": "claude-sonnet-4-6" } }
+}
+
+// Bedrock — same format, different platform
+{
+  "platform": { "name": "bedrock", "variant": "jp" },
+  "model": { "format": "anthropic", "config": { "model": "jp.anthropic.claude-sonnet-4-6" } }
+}
+```
+
 Models are identified by `name+variant` (e.g., `claude-sonnet-4-6+thinking-high`). You can define multiple variants of the same model with different settings — such as thinking budget or region — and switch between them as needed.
 
 You can also add entries to the `models` array to use any OpenAI-compatible endpoint, such as Ollama or Fireworks. See the Quick Start section for examples.
