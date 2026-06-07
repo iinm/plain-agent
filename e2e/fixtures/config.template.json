@@ -4,7 +4,7 @@
     {
       "name": "fake",
       "variant": "default",
-      "platform": { "name": "openai-compatible", "variant": "default" },
+      "platform": { "name": "openai-compatible", "variant": "fake" },
       "model": {
         "format": "openai-messages",
         "config": { "model": "fake-model" }
@@ -14,13 +14,13 @@
   "platforms": [
     {
       "name": "openai-compatible",
-      "variant": "default",
+      "variant": "fake",
       "baseURL": "http://localhost:__PORT__",
       "apiKey": "test-key"
     }
   ],
   "autoApproval": {
-    "defaultAction": "allow",
+    "defaultAction": "ask",
     "maxApprovals": 100
   }
 }
