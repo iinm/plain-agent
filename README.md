@@ -23,6 +23,8 @@ A lightweight terminal-based coding agent focused on safety and low token cost
 - [Subagents](#subagents)
 - [Claude Code Plugin Support](#claude-code-plugin-support)
 - [Voice Input](#voice-input)
+- [Appendix: Creating Least-Privilege Users for Cloud Providers](#appendix-creating-least-privilege-users-for-cloud-providers)
+- [Developer Notes](#developer-notes)
 
 ## Design
 
