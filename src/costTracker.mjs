@@ -20,7 +20,7 @@
  * @typedef {Object} CostConfig
  * @property {string} currency
  * @property {string} unit
- * @property {Record<string, number>} costs
+ * @property {Record<string, number>} prices
  */
 
 /**
@@ -49,15 +49,15 @@ function validateCostConfig(config) {
   if (typeof c.unit !== "string") {
     throw new TypeError("CostConfig.unit must be a string");
   }
-  if (typeof c.costs !== "object" || c.costs === null) {
-    throw new TypeError("CostConfig.costs must be an object");
+  if (typeof c.prices !== "object" || c.prices === null) {
+    throw new TypeError("CostConfig.prices must be an object");
   }
   for (const [key, value] of Object.entries(
-    /** @type {Record<string, unknown>} */ (c.costs),
+    /** @type {Record<string, unknown>} */ (c.prices),
   )) {
     if (typeof value !== "number") {
       throw new TypeError(
-        `CostConfig.costs["${key}"] must be a number, got ${typeof value}`,
+        `CostConfig.prices["${key}"] must be a number, got ${typeof value}`,
       );
     }
   }
@@ -200,16 +200,16 @@ function calculateCostFromConfig(aggregated, config) {
   for (const [key, tokens] of Object.entries(aggregated)) {
     breakdown[key] = Object.freeze({ tokens, cost: undefined });
 
-    if (!config?.costs?.[key]) {
+    if (!config?.prices?.[key]) {
       continue;
     }
 
-    const costValue = config.costs[key];
+    const costValue = config.prices[key];
     const unitSize = parseUnit(config.unit);
 
     if (typeof costValue !== "number") {
       throw new TypeError(
-        `config.costs["${key}"] must be a number, got ${typeof costValue}`,
+        `config.prices["${key}"] must be a number, got ${typeof costValue}`,
       );
     }
 
@@ -222,7 +222,7 @@ function calculateCostFromConfig(aggregated, config) {
     currency: config?.currency ?? "USD",
     unit: config?.unit ?? "1M",
     breakdown,
-    totalCost: config?.costs ? totalCost : undefined,
+    totalCost: config?.prices ? totalCost : undefined,
   });
 }
 

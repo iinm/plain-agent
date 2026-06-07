@@ -450,7 +450,7 @@ Create a configuration file.
       "cost": {
         "currency": "USD",
         "unit": "1M",
-        "costs": {
+        "prices": {
           "input_tokens": 1.1,
           "output_tokens": 5.5,
           "cache_read_input_tokens": 0.11,
@@ -477,7 +477,7 @@ Create a configuration file.
       "cost": {
         "currency": "USD",
         "unit": "1M",
-        "costs": {
+        "prices": {
           "input_tokens": 3.3,
           "output_tokens": 16.5,
           "cache_read_input_tokens": 0.33,

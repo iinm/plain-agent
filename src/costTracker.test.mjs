@@ -45,7 +45,7 @@ describe("createCostTracker", () => {
     const tracker = createCostTracker({
       currency: "USD",
       unit: "1M",
-      costs: { input: 1, output: 2 },
+      prices: { input: 1, output: 2 },
     });
     tracker.recordUsage({ input: 1_000_000, output: 500_000 });
     const summary = tracker.calculateCost();
@@ -67,7 +67,7 @@ describe("createCostTracker", () => {
     const tracker = createCostTracker({
       currency: "USD",
       unit: "1M",
-      costs: { a: 1 },
+      prices: { a: 1 },
     });
     tracker.recordUsage({ a: 100 });
     const summary = tracker.calculateCost();
@@ -85,7 +85,7 @@ describe("createCostTracker", () => {
         // @ts-expect-error testing invalid config
         createCostTracker({
           unit: "1M",
-          costs: { a: 1 },
+          prices: { a: 1 },
         }),
       TypeError,
     );
@@ -98,7 +98,7 @@ describe("createCostTracker", () => {
           currency: "USD",
           unit: "1M",
           // @ts-expect-error testing invalid cost value
-          costs: { a: "not-a-number" },
+          prices: { a: "not-a-number" },
         }),
       TypeError,
     );
@@ -108,7 +108,7 @@ describe("createCostTracker", () => {
     const tracker = createCostTracker({
       currency: "USD",
       unit: "1X",
-      costs: { a: 1 },
+      prices: { a: 1 },
     });
     tracker.recordUsage({ a: 100 });
     assert.throws(() => tracker.calculateCost(), /Unknown cost unit/);
@@ -118,7 +118,7 @@ describe("createCostTracker", () => {
     const tracker = createCostTracker({
       currency: "USD",
       unit: "1K",
-      costs: { a: 1 },
+      prices: { a: 1 },
     });
     tracker.recordUsage({ a: 500 });
     const summary = tracker.calculateCost();

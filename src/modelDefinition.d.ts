@@ -88,5 +88,5 @@ export type ModelConfig =
 export type CostConfig = {
   currency: string;
   unit: string;
-  costs: Record<string, number>;
+  prices: Record<string, number>;
 };
