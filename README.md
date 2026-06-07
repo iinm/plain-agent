@@ -161,7 +161,7 @@ A few design choices keep token usage low:
 
 - Minimal system prompt — the [system prompt](https://github.com/iinm/plain-agent/blob/main/src/prompt.mjs) contains only what the agent needs to function. 
 - Output truncation — when a command or MCP tool produces large output, it is truncated and saved to a file. The agent can then read only the relevant parts.
-- **Prompt caching** — cache hints are added automatically on every request. For Anthropic models, the system prompt and the last two user messages are marked for caching. For Gemini, the context is cached server-side when it exceeds 4,096 tokens.
+- **Prompt caching** — cache hints are added automatically on every request.
 - **Context compaction** — when the context grows large, the agent can call `compact_context` to discard old messages and reload task state from a memory file. You can also trigger this manually with `/compact`.
 - **MCP tool filtering** — MCP servers often expose many tools. Use `enabledTools` in the server config to enable only the ones you need, which reduces the number of tool definitions sent to the model.
 
