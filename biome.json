@@ -8,6 +8,7 @@
   "files": {
     "includes": [
       "src/**",
+      "e2e/**",
       "bin/**",
       "scripts/**",
       "*.json",

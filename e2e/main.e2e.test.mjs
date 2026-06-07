@@ -70,7 +70,7 @@ describe("main E2E", () => {
 
     // given: config file derived from template
     const template = await fs.readFile(
-      path.join(__dirname, "test/fixtures/config.template.json"),
+      path.join(__dirname, "fixtures/config.template.json"),
       "utf-8",
     );
     const configContent = template.replace("__PORT__", String(port));
