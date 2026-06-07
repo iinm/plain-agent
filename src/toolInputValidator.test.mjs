@@ -238,6 +238,93 @@ describe("isSafeToolInputItem", () => {
       arg: "feature...main",
       expected: true,
     },
+
+    // @<path> pattern
+    { desc: "@file pattern with safe path", arg: "@README.md", expected: true },
+    {
+      desc: "@file pattern with parent traversal",
+      arg: "@../parent-file",
+      expected: false,
+    },
+    {
+      desc: "@file pattern with absolute path outside",
+      arg: "@/etc/passwd",
+      expected: false,
+    },
+
+    // --opt=val pattern
+    {
+      desc: "--prefix= with safe path",
+      arg: "--prefix=README.md",
+      expected: true,
+    },
+    {
+      desc: "--prefix= with parent traversal",
+      arg: "--prefix=../parent-dir",
+      expected: false,
+    },
+    {
+      desc: "--prefix= with absolute path outside",
+      arg: "--prefix=/tmp/foo",
+      expected: false,
+    },
+
+    // -X<val> pattern
+    {
+      desc: "-o with safe output file",
+      arg: "-oREADME.md",
+      expected: true,
+    },
+    {
+      desc: "-o with parent traversal",
+      arg: "-o../parent-file",
+      expected: false,
+    },
+    {
+      desc: "-o with absolute path outside",
+      arg: "-o/tmp/out",
+      expected: false,
+    },
+    {
+      desc: "-I with absolute include path outside",
+      arg: "-I/usr/include",
+      expected: false,
+    },
+
+    // VAR=val pattern
+    {
+      desc: "VAR=val with safe path",
+      arg: "OUTPUT=README.md",
+      expected: true,
+    },
+    {
+      desc: "VAR=val with parent traversal",
+      arg: "OUTPUT=../parent-file",
+      expected: false,
+    },
+    {
+      desc: "VAR=val with absolute path outside",
+      arg: "OUTPUT=/etc/passwd",
+      expected: false,
+    },
+    // cmake -DVAR=val: -D + VAR=/path → VAR=/path → /path (chained)
+    {
+      desc: "-D cmake define with absolute path outside",
+      arg: "-DINSTALL_DIR=/etc",
+      expected: false,
+    },
+
+    // proto://path pattern
+    {
+      desc: "file:// with absolute path outside",
+      arg: "file:///etc/passwd",
+      expected: false,
+    },
+    {
+      desc: "file:// with relative path",
+      arg: "file://README.md",
+      expected: false,
+    },
   ];
 
   for (const { desc, arg, expected } of testCases) {
