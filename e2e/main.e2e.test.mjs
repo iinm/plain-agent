@@ -100,8 +100,8 @@ describe("main E2E", () => {
   it("ユーザー入力に対してエージェントが応答する", async () => {
     // when: spawn the agent as a child process
     const proc = spawn(
-      "node",
-      [path.join(AGENT_ROOT, "bin/plain"), "--config", configPath],
+      path.join(AGENT_ROOT, "bin/plain"),
+      ["--config", configPath],
       {
         cwd: workDir,
         env: {
