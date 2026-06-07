@@ -116,7 +116,7 @@ Error: Command failed: node -e process.exit(1)
             command: "target-command",
             args: ["--target-command-arg"],
             mode: "sandbox",
-            additionalArgs: ["--sandbox-additional-arg"],
+            additionalSandboxArgs: ["--sandbox-additional-arg"],
           },
         ],
       },
@@ -188,7 +188,7 @@ THIS_IS_SANDBOX non-target-command --non-target-command-arg
           {
             command: "target",
             mode: "sandbox",
-            additionalArgs: ["--allow-net"],
+            additionalSandboxArgs: ["--allow-net"],
           },
         ],
       },
@@ -224,7 +224,7 @@ SANDBOX --allow-net -- target --arg
           {
             command: "target",
             mode: "sandbox",
-            additionalArgs: ["--allow-net"],
+            additionalSandboxArgs: ["--allow-net"],
           },
         ],
       },

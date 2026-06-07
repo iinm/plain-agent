@@ -212,7 +212,7 @@ function rewriteInputForSandbox(input, sandbox) {
 
   const args = [
     ...(sandbox.args || []),
-    ...(matchedRule?.additionalArgs || []),
+    ...(matchedRule?.additionalSandboxArgs || []),
   ];
 
   if (sandbox.separator) {

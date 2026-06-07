@@ -205,7 +205,7 @@ A Docker-based wrapper called `plain-sandbox` is included, but the interface is 
           "args": [{ "$regex": "^(install|ci)$" }]
         },
         "mode": "sandbox",
-        "additionalArgs": ["--allow-net", "registry.npmjs.org"]
+        "additionalSandboxArgs": ["--allow-net", "registry.npmjs.org"]
       }
     ]
   }
@@ -711,7 +711,7 @@ Files are loaded in the following order. Settings in later files override earlie
           "args": [{ "$regex": "^(install|ci)$" }]
         },
         "mode": "sandbox",
-        "additionalArgs": ["--allow-net", "registry.npmjs.org"]
+        "additionalSandboxArgs": ["--allow-net", "registry.npmjs.org"]
       }
     ]
   },
