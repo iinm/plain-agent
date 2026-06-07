@@ -5,11 +5,83 @@
 
 A lightweight terminal-based coding agent focused on safety and low token cost
 
+## Table of Contents
+
+- [Design](#design)
+  - [Multi-provider support](#multi-provider-support)
+  - [Auto-approval](#auto-approval)
+  - [Path Validation](#path-validation)
+  - [Sandbox](#sandbox)
+  - [Memory file](#memory-file)
+  - [Token Efficiency](#token-efficiency)
+  - [Claude Code Compatibility](#claude-code-compatibility)
+- [Requirements](#requirements)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Available Tools](#available-tools)
+- [Prompts](#prompts)
+- [Subagents](#subagents)
+- [Claude Code Plugin Support](#claude-code-plugin-support)
+- [Voice Input](#voice-input)
+- [Appendix: Creating Least-Privilege Users for Cloud Providers](#appendix-creating-least-privilege-users-for-cloud-providers)
+- [Developer Notes](#developer-notes)
+
 ## Design
 
 ### Multi-provider support
 
 Supports Claude, OpenAI, Gemini, and any OpenAI-compatible provider. Bedrock, Vertex AI, and Azure are also supported for teams working in environments restricted to managed cloud providers.
+
+Each model definition has two independent parts:
+
+- **`platform`** — where to send the request and how to authenticate (Anthropic, Bedrock, Vertex AI, Azure, etc.)
+- **`model.format`** — which API format to use (`anthropic`, `gemini`, `openai-responses`, `openai-messages`, `bedrock-converse`)
+
+Because these are separate, the same API format works across different platforms. For example, Claude models use the `anthropic` format whether you call Anthropic directly or through Bedrock.
+
+```js
+// Anthropic direct
+{
+  "name": "claude-sonnet-4-6",
+  "variant": "thinking-high",
+  "platform": {
+    "name": "anthropic",
+    "variant": "default"
+  },
+  "model": {
+    "format": "anthropic",
+    "config": {
+      "model": "claude-sonnet-4-6",
+      "max_tokens": 32768,
+      "thinking": { "type": "adaptive" },
+      "output_config": { "effort": "high" }
+    }
+  }
+}
+
+// Bedrock — same format, different platform
+{
+  "name": "claude-sonnet-4-6",
+  "variant": "thinking-high-bedrock-jp",
+  "platform": {
+    "name": "bedrock",
+    "variant": "jp"
+  },
+  "model": {
+    "format": "anthropic",
+    "config": {
+      "model": "jp.anthropic.claude-sonnet-4-6",
+      "max_tokens": 32768,
+      "thinking": { "type": "adaptive" },
+      "output_config": { "effort": "high" }
+    }
+  }
+}
+```
+
+Models are identified by `name+variant` (e.g., `claude-sonnet-4-6+thinking-high`). You can define multiple variants of the same model with different settings — such as thinking budget or region — and switch between them as needed.
+
+You can also add entries to `platforms` and `models` to use any OpenAI-compatible endpoint, such as Ollama or Fireworks. See the Quick Start section for examples.
 
 ### Auto-approval
 
@@ -144,12 +216,22 @@ A Docker-based wrapper called `plain-sandbox` is included, but the interface is 
 }
 ```
 
+### Memory file
+
+The agent maintains a memory file (`.plain-agent/memory/`) for each session to:
+
+- Keep task state human-readable — you can open the file to see exactly where things stand.
+- Resume cleanly — the agent can restart a task from the memory file with a clean context.
+- Pass information between dependent tasks — subagents write their results to the memory file, which the main agent or a follow-up session reads to continue.
+
 ### Token Efficiency
 
 A few design choices keep token usage low:
 
 - Minimal system prompt — the [system prompt](https://github.com/iinm/plain-agent/blob/main/src/prompt.mjs) contains only what the agent needs to function. 
 - Output truncation — when a command or MCP tool produces large output, it is truncated and saved to a file. The agent can then read only the relevant parts.
+- Context compaction — when the context grows large, you can run `/compact` to discard old messages and reload task state from a memory file.
+- MCP tool filtering — MCP servers often expose many tools. Use `enabledTools` in the server config to enable only the ones you need, which reduces the number of tool definitions sent to the model.
 
 ### Claude Code Compatibility
 
