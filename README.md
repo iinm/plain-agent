@@ -90,6 +90,8 @@ String values in tool inputs are treated as file paths and validated against the
 - Symlinks are resolved to their real path before validation — a symlink inside the working directory that points outside is rejected. Broken and circular symlinks are also rejected.
 - The file must be tracked by Git (not ignored)
 
+Commands are executed without a shell (`execFile` style) — shell operators like `&&`, `|`, `;`, and redirects are not interpreted unless the agent explicitly uses `bash -c`. This makes each argument a discrete token that can be validated individually.
+
 Compound arguments are decomposed before validation — embedded paths are extracted and checked individually:
 
 | Pattern | Example | Extracted |
