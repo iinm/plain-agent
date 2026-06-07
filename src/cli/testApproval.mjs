@@ -34,7 +34,7 @@ import { matchValue } from "../utils/matchValue.mjs";
  */
 export function runTestApprovalCommand(appConfig) {
   const patterns = /** @type {ToolUsePatternWithSource[]} */ (
-    appConfig.autoApproval?.patterns ?? []
+    appConfig.autoApproval?.rules ?? []
   );
   const tests = /** @type {AutoApprovalTestCaseWithSource[]} */ (
     appConfig.autoApproval?.tests ?? []
@@ -81,10 +81,13 @@ export function runTestApprovalCommand(appConfig) {
 function evaluateTests(tests, patterns) {
   return tests.map((tc) => {
     const matchedPattern = patterns.find((p) =>
-      matchValue(tc.toolUse, {
-        toolName: p.toolName,
-        ...(p.input !== undefined && { input: p.input }),
-      }),
+      matchValue(
+        { toolName: tc.toolName, input: tc.input },
+        {
+          toolName: p.toolName,
+          ...(p.input !== undefined && { input: p.input }),
+        },
+      ),
     );
 
     const got = matchedPattern?.action;

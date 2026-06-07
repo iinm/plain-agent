@@ -10,7 +10,7 @@ describe("createToolUseApprover", () => {
   it("should approve allowed tool use up to maxAutoApprovals", () => {
     // given:
     const toolApprover = createToolUseApprover({
-      patterns: [
+      rules: [
         { toolName: "exec_command", input: { command: "ls" }, action: "allow" },
       ],
       maxApprovals: 2,
@@ -55,7 +55,7 @@ describe("createToolUseApprover", () => {
   it("should not approve disallowed tool use (action: ask by default)", () => {
     // given:
     const toolApprover = createToolUseApprover({
-      patterns: [
+      rules: [
         { toolName: "exec_command", input: { command: "ls" }, action: "allow" },
       ],
       maxApprovals: 2,
@@ -80,7 +80,7 @@ describe("createToolUseApprover", () => {
   it("should ask when action is invalid (typo)", () => {
     // given:
     const toolApprover = createToolUseApprover({
-      patterns: [
+      rules: [
         // @ts-expect-error
         { toolName: "exec_command", input: { command: "ls" }, action: "denyy" },
       ],
@@ -106,7 +106,7 @@ describe("createToolUseApprover", () => {
   it("should deny tool use when action is deny", () => {
     // given:
     const toolApprover = createToolUseApprover({
-      patterns: [
+      rules: [
         {
           toolName: "exec_command",
           input: { command: "grep" },
@@ -137,7 +137,7 @@ describe("createToolUseApprover", () => {
   it("should mask input when allowed", () => {
     // given:
     const toolApprover = createToolUseApprover({
-      patterns: [],
+      rules: [],
       maxApprovals: 2,
       defaultAction: "ask",
       maskApprovalInput: (_name, input) => {
@@ -174,7 +174,7 @@ describe("createToolUseApprover", () => {
   it("should match tool use when pattern.input is undefined", () => {
     // given:
     const toolApprover = createToolUseApprover({
-      patterns: [
+      rules: [
         { toolName: "switch_to_subagent", action: "allow" },
         { toolName: /^switch_to_main_agent$/, action: "allow" },
       ],
@@ -215,7 +215,7 @@ describe("createToolUseApprover", () => {
   it("should deny tool use when defaultAction is deny and no pattern matches", () => {
     // given:
     const toolApprover = createToolUseApprover({
-      patterns: [
+      rules: [
         { toolName: "exec_command", input: { command: "ls" }, action: "allow" },
       ],
       maxApprovals: 2,
@@ -240,7 +240,7 @@ describe("createToolUseApprover", () => {
   it("should deny tool use when a pattern matches but action is undefined and defaultAction is deny", () => {
     // given:
     const toolApprover = createToolUseApprover({
-      patterns: [{ toolName: "exec_command", input: { command: "ls" } }],
+      rules: [{ toolName: "exec_command", input: { command: "ls" } }],
       maxApprovals: 2,
       defaultAction: "deny",
       maskApprovalInput: (_name, input) => input,
@@ -264,7 +264,7 @@ describe("createToolUseApprover", () => {
   it("should take default action when git-ignored file is specified", () => {
     // given:
     const toolApprover = createToolUseApprover({
-      patterns: [
+      rules: [
         {
           toolName: "exec_command",
           input: { command: "cat" },
@@ -293,7 +293,7 @@ describe("createToolUseApprover", () => {
   it("snapshots and restores allowed tool-use patterns", () => {
     // given:
     const a = createToolUseApprover({
-      patterns: [],
+      rules: [],
       maxApprovals: 5,
       defaultAction: "ask",
       maskApprovalInput: (_name, input) => input,
@@ -310,7 +310,7 @@ describe("createToolUseApprover", () => {
     // when:
     const snapshot = a.getAllowedToolUseInSession();
     const b = createToolUseApprover({
-      patterns: [],
+      rules: [],
       maxApprovals: 5,
       defaultAction: "ask",
       maskApprovalInput: (_name, input) => input,

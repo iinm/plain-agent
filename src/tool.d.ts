@@ -34,7 +34,7 @@ export type StructuredToolResultContent =
     };
 
 export type ToolUseApproverConfig = {
-  patterns: ToolUsePattern[];
+  rules: ToolUsePattern[];
   maxApprovals: number;
   defaultAction: "deny" | "ask";
   /** Additional absolute paths to allow for auto-approval (outside working directory) */

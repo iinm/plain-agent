@@ -35,7 +35,7 @@ Supports Claude, OpenAI, Gemini, and any OpenAI-compatible provider. Bedrock, Ve
 Each model definition has two independent parts:
 
 - **`platform`** — where to send the request and how to authenticate (Anthropic, Bedrock, Vertex AI, Azure, etc.)
-- **`model.format`** — which API format to use (`anthropic`, `gemini`, `openai-responses`, `openai-messages`, `bedrock-converse`)
+- **`format`** — which API format to use (`anthropic`, `gemini`, `openai-responses`, `openai-messages`, `bedrock-converse`)
 
 Because these are separate, the same API format works across different platforms. For example, Claude models use the `anthropic` format whether you call Anthropic directly or through Bedrock.
 
@@ -48,14 +48,12 @@ Because these are separate, the same API format works across different platforms
     "name": "anthropic",
     "variant": "default"
   },
-  "model": {
-    "format": "anthropic",
-    "config": {
-      "model": "claude-sonnet-4-6",
-      "max_tokens": 32768,
-      "thinking": { "type": "adaptive" },
-      "output_config": { "effort": "high" }
-    }
+  "format": "anthropic",
+  "config": {
+    "model": "claude-sonnet-4-6",
+    "max_tokens": 32768,
+    "thinking": { "type": "adaptive" },
+    "output_config": { "effort": "high" }
   }
 }
 
@@ -67,14 +65,12 @@ Because these are separate, the same API format works across different platforms
     "name": "bedrock",
     "variant": "jp"
   },
-  "model": {
-    "format": "anthropic",
-    "config": {
-      "model": "jp.anthropic.claude-sonnet-4-6",
-      "max_tokens": 32768,
-      "thinking": { "type": "adaptive" },
-      "output_config": { "effort": "high" }
-    }
+  "format": "anthropic",
+  "config": {
+    "model": "jp.anthropic.claude-sonnet-4-6",
+    "max_tokens": 32768,
+    "thinking": { "type": "adaptive" },
+    "output_config": { "effort": "high" }
   }
 }
 ```
@@ -406,11 +402,9 @@ Create a configuration file.
         "name": "openai-compatible",
         "variant": "ollama"
       },
-      "model": {
-        "format": "openai-responses",
-        "config": {
-          "model": "gpt-oss:120b-cloud"
-        }
+      "format": "openai-responses",
+      "config": {
+        "model": "gpt-oss:120b-cloud"
       }
     }
   ]
@@ -439,18 +433,16 @@ Create a configuration file.
         "name": "bedrock",
         "variant": "jp"
       },
-      "model": {
-        "format": "anthropic",
-        "config": {
-          "model": "jp.anthropic.claude-haiku-4-5-20251001-v1:0",
-          "max_tokens": 32768,
-          "thinking": { "type": "enabled", "budget_tokens": 16384 }
-        }
+      "format": "anthropic",
+      "config": {
+        "model": "jp.anthropic.claude-haiku-4-5-20251001-v1:0",
+        "max_tokens": 32768,
+        "thinking": { "type": "enabled", "budget_tokens": 16384 }
       },
       "cost": {
         "currency": "USD",
         "unit": "1M",
-        "costs": {
+        "prices": {
           "input_tokens": 1.1,
           "output_tokens": 5.5,
           "cache_read_input_tokens": 0.11,
@@ -465,19 +457,17 @@ Create a configuration file.
         "name": "bedrock",
         "variant": "jp"
       },
-      "model": {
-        "format": "anthropic",
-        "config": {
-          "model": "jp.anthropic.claude-sonnet-4-6",
-          "max_tokens": 32768,
-          "thinking": { "type": "adaptive" },
-          "output_config": { "effort": "high" }
-        }
+      "format": "anthropic",
+      "config": {
+        "model": "jp.anthropic.claude-sonnet-4-6",
+        "max_tokens": 32768,
+        "thinking": { "type": "adaptive" },
+        "output_config": { "effort": "high" }
       },
       "cost": {
         "currency": "USD",
         "unit": "1M",
-        "costs": {
+        "prices": {
           "input_tokens": 3.3,
           "output_tokens": 16.5,
           "cache_read_input_tokens": 0.33,
@@ -748,7 +738,7 @@ Files are loaded in the following order. Settings in later files override earlie
   },
 
   // Override the default notification command
-  "notifyCmd": { "command": "plain-notify-desktop", "args": [] }
+  "notifyCommand": { "command": "plain-notify-desktop", "args": [] }
 }
 ```
 </details>

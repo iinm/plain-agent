@@ -62,7 +62,7 @@ const HELP_MESSAGE = [
  * @property {string} sessionId
  * @property {string} modelName
  * @property {Date} startTime
- * @property {{ command: string; args?: string[] } | undefined} notifyCmd
+ * @property {{ command: string; args?: string[] } | undefined} notifyCommand
  * @property {boolean} sandbox
  * @property {() => Promise<void>} onStop
  * @property {ClaudeCodePlugin[]} [claudeCodePlugins]
@@ -106,7 +106,7 @@ export function startInteractiveSession({
   sessionId,
   modelName,
   startTime,
-  notifyCmd,
+  notifyCommand,
   sandbox,
   onStop,
   claudeCodePlugins,
@@ -563,7 +563,7 @@ export function startInteractiveSession({
     // Flush any remaining stream buffer content
     streamBuffer.forceFlush();
 
-    const err = notify(notifyCmd);
+    const err = notify(notifyCommand);
     if (err) {
       console.error(
         styleText("yellow", `\nNotification error: ${err.message}`),

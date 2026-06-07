@@ -6,7 +6,7 @@ describe("runTestApprovalCommand", () => {
   it("returns 0 when no test cases exist", () => {
     // given:
     const appConfig = /** @type {any} */ ({
-      autoApproval: { patterns: [] },
+      autoApproval: { rules: [] },
     });
 
     // when:
@@ -20,13 +20,11 @@ describe("runTestApprovalCommand", () => {
     // given:
     const appConfig = /** @type {any} */ ({
       autoApproval: {
-        patterns: [
-          { toolName: "read_file", action: "allow", source: "a.json" },
-        ],
+        rules: [{ toolName: "read_file", action: "allow", source: "a.json" }],
         tests: [
           {
             desc: "read_file should be allowed",
-            toolUse: { toolName: "read_file" },
+            toolName: "read_file",
             expectedAction: "allow",
             source: "a.json",
           },
@@ -45,13 +43,11 @@ describe("runTestApprovalCommand", () => {
     // given:
     const appConfig = /** @type {any} */ ({
       autoApproval: {
-        patterns: [
-          { toolName: "read_file", action: "allow", source: "a.json" },
-        ],
+        rules: [{ toolName: "read_file", action: "allow", source: "a.json" }],
         tests: [
           {
             desc: "write_file should not match",
-            toolUse: { toolName: "write_file" },
+            toolName: "write_file",
             expectedAction: null,
             source: "a.json",
           },
@@ -70,13 +66,11 @@ describe("runTestApprovalCommand", () => {
     // given:
     const appConfig = /** @type {any} */ ({
       autoApproval: {
-        patterns: [
-          { toolName: "read_file", action: "allow", source: "a.json" },
-        ],
+        rules: [{ toolName: "read_file", action: "allow", source: "a.json" }],
         tests: [
           {
             desc: "read_file should be denied",
-            toolUse: { toolName: "read_file" },
+            toolName: "read_file",
             expectedAction: "deny",
             source: "a.json",
           },
@@ -95,13 +89,13 @@ describe("runTestApprovalCommand", () => {
     // given:
     const appConfig = /** @type {any} */ ({
       autoApproval: {
-        patterns: [
+        rules: [
           { toolName: "read_file", action: "allow", source: "user.json" },
         ],
         tests: [
           {
             desc: "read_file should be denied",
-            toolUse: { toolName: "read_file" },
+            toolName: "read_file",
             expectedAction: "deny",
             source: "predefined.json",
           },
@@ -120,20 +114,20 @@ describe("runTestApprovalCommand", () => {
     // given:
     const appConfig = /** @type {any} */ ({
       autoApproval: {
-        patterns: [
+        rules: [
           { toolName: "read_file", action: "allow", source: "user.json" },
           { toolName: "exec_command", action: "allow", source: "a.json" },
         ],
         tests: [
           {
             desc: "read_file overridden (warn)",
-            toolUse: { toolName: "read_file" },
+            toolName: "read_file",
             expectedAction: "deny",
             source: "predefined.json",
           },
           {
             desc: "exec_command wrong action (fail)",
-            toolUse: { toolName: "exec_command" },
+            toolName: "exec_command",
             expectedAction: "deny",
             source: "a.json",
           },
@@ -152,11 +146,11 @@ describe("runTestApprovalCommand", () => {
     // given:
     const appConfig = /** @type {any} */ ({
       autoApproval: {
-        patterns: [],
+        rules: [],
         tests: [
           {
             desc: "read_file should be allowed",
-            toolUse: { toolName: "read_file" },
+            toolName: "read_file",
             expectedAction: "allow",
             source: "a.json",
           },

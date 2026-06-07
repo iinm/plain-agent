@@ -39,7 +39,7 @@ Ask what the user wants to configure. Common topics:
 - **MCP servers** — external tool integrations (`mcpServers`)
 - **Claude Code plugins** — reuse Claude Code plugin prompts/agents (`claudeCodePlugins`)
 - **Voice input** — voice transcription settings (`voiceInput`)
-- **Notifications** — custom notify command (`notifyCmd`)
+- **Notifications** — custom notify command (`notifyCommand`)
 
 If the request is vague, ask a focused clarifying question before proceeding.
 

@@ -8,9 +8,8 @@ export type ModelDefinition = {
   name: string;
   variant: string;
   platform: PlatformConfig;
-  model: ModelConfig;
   cost?: CostConfig;
-};
+} & ModelConfig;
 
 export type PlatformConfig =
   | {
@@ -88,5 +87,5 @@ export type ModelConfig =
 export type CostConfig = {
   currency: string;
   unit: string;
-  costs: Record<string, number>;
+  prices: Record<string, number>;
 };

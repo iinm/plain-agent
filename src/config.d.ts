@@ -71,7 +71,7 @@ export type AppConfig = {
   models?: ModelDefinition[];
   platforms?: PlatformConfig[];
   autoApproval?: {
-    patterns?: ToolUsePattern[];
+    rules?: ToolUsePattern[];
     tests?: AutoApprovalTestCase[];
     maxApprovals?: number;
     defaultAction?: "deny" | "ask";
@@ -87,14 +87,15 @@ export type AppConfig = {
     tmux?: { enabled: boolean };
   };
   mcpServers?: Record<string, MCPServerConfig>;
-  notifyCmd?: { command: string; args?: string[] };
+  notifyCommand?: { command: string; args?: string[] };
   voiceInput?: VoiceInputConfig;
   claudeCodePlugins?: ClaudeCodePluginRepo[];
 };
 
 export type AutoApprovalTestCase = {
   desc: string;
-  toolUse: { toolName: string; input?: Record<string, unknown> };
+  toolName: string;
+  input?: Record<string, unknown>;
   expectedAction: "allow" | "deny" | "ask" | null;
 };
 

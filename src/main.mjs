@@ -378,7 +378,7 @@ export async function main(argv = process.argv) {
   const toolUseApprover = createToolUseApprover({
     maxApprovals: appConfig.autoApproval?.maxApprovals || 50,
     defaultAction: appConfig.autoApproval?.defaultAction || "ask",
-    patterns: appConfig.autoApproval?.patterns || [],
+    rules: appConfig.autoApproval?.rules || [],
     allowedPaths: appConfig.autoApproval?.allowedPaths ?? [],
     allowGitUnmanagedFiles:
       appConfig.autoApproval?.allowGitUnmanagedFiles ?? false,
@@ -443,7 +443,7 @@ export async function main(argv = process.argv) {
   } else {
     startInteractiveSession({
       ...sessionOptions,
-      notifyCmd: appConfig.notifyCmd,
+      notifyCommand: appConfig.notifyCommand,
       claudeCodePlugins: resolvePluginPaths(appConfig.claudeCodePlugins ?? []),
       voiceInput: appConfig.voiceInput,
     });

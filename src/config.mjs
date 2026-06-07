@@ -71,15 +71,15 @@ export async function loadAppConfig(options = {}) {
         defaultAction:
           config.autoApproval?.defaultAction ??
           merged.autoApproval?.defaultAction,
-        patterns: [
-          ...(config.autoApproval?.patterns ?? []).map(
+        rules: [
+          ...(config.autoApproval?.rules ?? []).map(
             (p) =>
               /** @type {ToolUsePatternWithSource} */ ({
                 ...p,
                 source: filePath,
               }),
           ),
-          ...(merged.autoApproval?.patterns ?? []),
+          ...(merged.autoApproval?.rules ?? []),
         ],
         maxApprovals:
           config.autoApproval?.maxApprovals ??
@@ -124,7 +124,7 @@ export async function loadAppConfig(options = {}) {
         ...(merged.mcpServers ?? {}),
         ...(config.mcpServers ?? {}),
       },
-      notifyCmd: config.notifyCmd ?? merged.notifyCmd,
+      notifyCommand: config.notifyCommand ?? merged.notifyCommand,
       claudeCodePlugins: [
         ...(merged.claudeCodePlugins ?? []),
         ...(config.claudeCodePlugins ?? []),

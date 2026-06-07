@@ -200,7 +200,10 @@ Examples:
  */
 function rewriteInputForSandbox(input, sandbox) {
   const matchedRule = (sandbox.rules || []).find((rule) =>
-    matchValue(input, rule.pattern),
+    matchValue(input, {
+      command: rule.command,
+      ...(rule.args !== undefined && { args: rule.args }),
+    }),
   );
 
   if (matchedRule?.mode === "unsandboxed") {

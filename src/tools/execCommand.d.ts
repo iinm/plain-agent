@@ -12,10 +12,8 @@ export type ExecCommandSanboxConfig = {
   args?: string[];
   separator?: string;
   rules?: {
-    pattern: {
-      command: string;
-      args?: string[];
-    };
+    command: string;
+    args?: string[];
     mode: "sandbox" | "unsandboxed";
     additionalArgs?: string[];
   }[];

@@ -9,24 +9,20 @@ import { callOpenAICompatibleModel } from "./providers/openaiCompatible.mjs";
  * @returns {import("./model").CallModel}
  */
 export function createModelCaller(modelDef) {
-  const { platform, model } = modelDef;
+  const { platform, format, config } = modelDef;
 
-  switch (model.format) {
+  switch (format) {
     case "anthropic":
-      return (input) => callAnthropicModel(platform, model.config, input);
+      return (input) => callAnthropicModel(platform, config, input);
     case "gemini": {
-      const modelCaller = createCacheEnabledGeminiModelCaller(
-        platform,
-        model.config,
-      );
-      return (input) => modelCaller(model.config, input);
+      const modelCaller = createCacheEnabledGeminiModelCaller(platform, config);
+      return (input) => modelCaller(config, input);
     }
     case "openai-responses":
-      return (input) => callOpenAIModel(platform, model.config, input);
+      return (input) => callOpenAIModel(platform, config, input);
     case "openai-messages":
-      return (input) =>
-        callOpenAICompatibleModel(platform, model.config, input);
+      return (input) => callOpenAICompatibleModel(platform, config, input);
     case "bedrock-converse":
-      return (input) => callBedrockConverseModel(platform, model.config, input);
+      return (input) => callBedrockConverseModel(platform, config, input);
   }
 }

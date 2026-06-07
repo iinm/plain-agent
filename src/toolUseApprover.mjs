@@ -11,7 +11,7 @@ import { matchValue } from "./utils/matchValue.mjs";
  * @returns {ToolUseApprover}
  */
 export function createToolUseApprover({
-  patterns,
+  rules,
   maxApprovals: max,
   defaultAction,
   maskApprovalInput,
@@ -39,7 +39,7 @@ export function createToolUseApprover({
       input: toolUse.input,
     };
 
-    for (const pattern of [...patterns, ...state.allowedToolUseInSession]) {
+    for (const pattern of [...rules, ...state.allowedToolUseInSession]) {
       const patternToMatch = {
         toolName: pattern.toolName,
         ...(pattern.input !== undefined && { input: pattern.input }),

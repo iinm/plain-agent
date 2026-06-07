@@ -109,16 +109,12 @@ Error: Command failed: node -e process.exit(1)
         args: ["THIS_IS_SANDBOX"],
         rules: [
           {
-            pattern: {
-              command: "echo",
-            },
+            command: "echo",
             mode: "unsandboxed",
           },
           {
-            pattern: {
-              command: "target-command",
-              args: ["--target-command-arg"],
-            },
+            command: "target-command",
+            args: ["--target-command-arg"],
             mode: "sandbox",
             additionalArgs: ["--sandbox-additional-arg"],
           },
@@ -190,9 +186,7 @@ THIS_IS_SANDBOX non-target-command --non-target-command-arg
         separator: "--",
         rules: [
           {
-            pattern: {
-              command: "target",
-            },
+            command: "target",
             mode: "sandbox",
             additionalArgs: ["--allow-net"],
           },
@@ -228,9 +222,7 @@ SANDBOX --allow-net -- target --arg
         separator: "--",
         rules: [
           {
-            pattern: {
-              command: "target",
-            },
+            command: "target",
             mode: "sandbox",
             additionalArgs: ["--allow-net"],
           },
