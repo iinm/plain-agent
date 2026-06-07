@@ -219,7 +219,7 @@ A Docker-based wrapper called `plain-sandbox` is included, but the interface is 
 The agent maintains a memory file (`.plain-agent/memory/`) for each session to:
 
 - Keep task state human-readable — you can open the file to see exactly where things stand.
-- Resume cleanly — the agent can restart a task from the memory file instead of replaying the full conversation history.
+- Resume cleanly — the agent can restart a task from the memory file with a clean context.
 - Pass information between dependent tasks — subagents write their results to the memory file, which the main agent or a follow-up session reads to continue.
 
 ### Token Efficiency
