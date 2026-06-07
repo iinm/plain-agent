@@ -21,7 +21,7 @@ import { getGoogleCloudAccessToken } from "./platform/googleCloud.mjs";
  * - https://ai.google.dev/gemini-api/docs/caching
  * - https://ai.google.dev/api/caching
  * @param {import("../modelDefinition").PlatformConfig} platformConfig
- * @param {Pick<GeminiModelConfig, "model">} modelConfig
+ * @param {GeminiModelConfig} modelConfig
  * @returns {GeminiModelCaller}
  */
 export function createCacheEnabledGeminiModelCaller(
@@ -99,12 +99,12 @@ export function createCacheEnabledGeminiModelCaller(
         }
       })();
 
+      const { model, ...modelConfigWithoutName } = modelConfig;
+
       /** @type {Pick<GeminiGenerateContentInput, "generationConfig" | "safetySettings">} */
       const baseRequest = {
-        generationConfig: config.generationConfig || {
-          temperature: 0,
-        },
-        safetySettings: config.safetySettings || [
+        generationConfig: {},
+        safetySettings: [
           {
             category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
             threshold: "BLOCK_NONE",
@@ -116,6 +116,7 @@ export function createCacheEnabledGeminiModelCaller(
             threshold: "BLOCK_NONE",
           },
         ],
+        ...modelConfigWithoutName,
       };
 
       /** @type {GeminiGenerateContentInput} */
