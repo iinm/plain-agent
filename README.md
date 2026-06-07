@@ -11,6 +11,17 @@ A lightweight terminal-based coding agent focused on safety and low token cost
 
 Supports Claude, OpenAI, Gemini, and any OpenAI-compatible provider. Bedrock, Vertex AI, and Azure are also supported for teams working in environments restricted to managed cloud providers.
 
+Each model definition has two independent parts:
+
+- **`platform`** — where to send the request and how to authenticate (Anthropic, Bedrock, Vertex AI, Azure, etc.)
+- **`model.format`** — which API format to use (`anthropic`, `gemini`, `openai-responses`, `openai-messages`, `bedrock-converse`)
+
+Because these are separate, the same API format works across different platforms. For example, Claude models use the `anthropic` format whether you call Anthropic directly or through Bedrock.
+
+Models are identified by `name+variant` (e.g., `claude-sonnet-4-6+thinking-high`). You can define multiple variants of the same model with different settings — such as thinking budget or region — and switch between them as needed.
+
+You can also add entries to the `models` array to use any OpenAI-compatible endpoint, such as Ollama or Fireworks. See the Quick Start section for examples.
+
 ### Auto-approval
 
 Configure what the agent can do automatically using a small DSL with regex matching. Below is an excerpt from the [default config](https://github.com/iinm/plain-agent/blob/main/config/config.predefined.json).
@@ -150,6 +161,9 @@ A few design choices keep token usage low:
 
 - Minimal system prompt — the [system prompt](https://github.com/iinm/plain-agent/blob/main/src/prompt.mjs) contains only what the agent needs to function. 
 - Output truncation — when a command or MCP tool produces large output, it is truncated and saved to a file. The agent can then read only the relevant parts.
+- **Prompt caching** — cache hints are added automatically on every request. For Anthropic models, the system prompt and the last two user messages are marked for caching. For Gemini, the context is cached server-side when it exceeds 4,096 tokens.
+- **Context compaction** — when the context grows large, the agent can call `compact_context` to discard old messages and reload task state from a memory file. You can also trigger this manually with `/compact`.
+- **MCP tool filtering** — MCP servers often expose many tools. Use `enabledTools` in the server config to enable only the ones you need, which reduces the number of tool definitions sent to the model.
 
 ### Claude Code Compatibility
 
