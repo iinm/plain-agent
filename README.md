@@ -1,6 +1,7 @@
 # Plain Agent
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/iinm/plain-agent)
+[![CodeQL](https://github.com/iinm/plain-agent/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/iinm/plain-agent/actions/workflows/github-code-scanning/codeql)
 [![Socket Badge](https://badge.socket.dev/npm/package/@iinm/plain-agent/1.10.28)](https://socket.dev/npm/package/@iinm/plain-agent)
 
 A lightweight terminal-based coding agent focused on safety and low token cost
