@@ -5,11 +5,7 @@
     "rules": [
       {
         "toolName": "exec_command",
-        "input": {
-          "command": {
-            "$regex": "^(find|grep)$"
-          }
-        },
+        "input": { "command": { "$regex": "^(find|grep)$" } },
         "action": "deny",
         "reason": "Use rg or fd instead"
       },
@@ -17,14 +13,7 @@
         "toolName": "exec_command",
         "input": {
           "command": "bash",
-          "args": [
-            "-c",
-            {
-              "$not": {
-                "$regex": "[|><&;$`]"
-              }
-            }
-          ]
+          "args": ["-c", { "$not": { "$regex": "[|><&;$`]" } }]
         },
         "action": "deny",
         "reason": "Use bash -c only when shell features (|, >, <, &, ;, $, `) are required"
@@ -53,14 +42,9 @@
         },
         "action": "ask"
       },
+      { "toolName": "read_file", "action": "allow" },
       {
-        "toolName": "read_file",
-        "action": "allow"
-      },
-      {
-        "toolName": {
-          "$regex": "^(switch_to_subagent|switch_to_main_agent)$"
-        },
+        "toolName": { "$regex": "^(switch_to_subagent|switch_to_main_agent)$" },
         "action": "allow"
       },
       {
@@ -76,12 +60,7 @@
         "toolName": "exec_command",
         "input": {
           "command": "sed",
-          "args": [
-            "-n",
-            {
-              "$regex": "^\\d+(,\\d+)?(p|l)$"
-            }
-          ]
+          "args": ["-n", { "$regex": "^\\d+(,\\d+)?(p|l)$" }]
         },
         "action": "allow"
       },
@@ -89,56 +68,38 @@
         "toolName": "exec_command",
         "input": {
           "command": "git",
-          "args": [
-            {
-              "$regex": "^(status|diff|log|show|ls-remote|rev-parse)$"
-            }
-          ]
+          "args": [{ "$regex": "^(status|diff|log|show|ls-remote|rev-parse)$" }]
         },
         "action": "allow"
       },
       {
         "toolName": "exec_command",
-        "input": {
-          "command": "git",
-          "args": [
-            "branch",
-            "--show-current"
-          ]
-        },
+        "input": { "command": "git", "args": ["branch", "--show-current"] },
         "action": "allow"
       },
       {
         "toolName": "exec_command",
-        "input": {
-          "command": "docker",
-          "args": [
-            {
-              "$regex": "^(ps|logs)$"
-            }
-          ]
-        },
+        "input": { "command": "docker", "args": [{ "$regex": "^(ps|logs)$" }] },
         "action": "allow"
       },
       {
         "toolName": "exec_command",
         "input": {
           "command": "docker",
-          "args": [
-            "compose",
-            {
-              "$regex": "^(ps|logs)$"
-            }
-          ]
+          "args": ["compose", { "$regex": "^(ps|logs)$" }]
         },
         "action": "allow"
       },
       {
         "toolName": "tmux_command",
+        "input": { "command": { "$regex": "^(list-sessions|list-windows)$" } },
+        "action": "allow"
+      },
+      {
+        "toolName": "exec_command",
         "input": {
-          "command": {
-            "$regex": "^(list-sessions|list-windows)$"
-          }
+          "command": "gh",
+          "args": ["pr", { "$regex": "^(list|view|diff)$" }]
         },
         "action": "allow"
       },
@@ -146,36 +107,13 @@
         "toolName": "exec_command",
         "input": {
           "command": "gh",
-          "args": [
-            "pr",
-            {
-              "$regex": "^(list|view|diff)$"
-            }
-          ]
+          "args": ["issue", { "$regex": "^(list|view)$" }]
         },
         "action": "allow"
       },
       {
         "toolName": "exec_command",
-        "input": {
-          "command": "gh",
-          "args": [
-            "issue",
-            {
-              "$regex": "^(list|view)$"
-            }
-          ]
-        },
-        "action": "allow"
-      },
-      {
-        "toolName": "exec_command",
-        "input": {
-          "command": "gh",
-          "args": [
-            "search"
-          ]
-        },
+        "input": { "command": "gh", "args": ["search"] },
         "action": "allow"
       },
       {
@@ -186,9 +124,7 @@
             "api",
             "--method",
             "GET",
-            {
-              "$regex": "^repos/[^/]+/[^/]+/(pulls|issues)/"
-            }
+            { "$regex": "^repos/[^/]+/[^/]+/(pulls|issues)/" }
           ]
         },
         "action": "allow"
@@ -197,14 +133,7 @@
         "toolName": "exec_command",
         "input": {
           "command": "gh",
-          "args": [
-            "api",
-            {
-              "$not": {
-                "$regex": "^--(method|help)"
-              }
-            }
-          ]
+          "args": ["api", { "$not": { "$regex": "^--(method|help)" } }]
         },
         "action": "deny",
         "reason": "--method must be specified right after 'api'"
@@ -215,286 +144,151 @@
         "desc": "ls should be allowed",
         "expectedAction": "allow",
         "toolName": "exec_command",
-        "input": {
-          "command": "ls"
-        }
+        "input": { "command": "ls" }
       },
       {
         "desc": "rm should not match any pattern",
         "expectedAction": null,
         "toolName": "exec_command",
-        "input": {
-          "command": "rm"
-        }
+        "input": { "command": "rm" }
       },
       {
         "desc": "fd with safe args should be allowed",
         "expectedAction": "allow",
         "toolName": "exec_command",
-        "input": {
-          "command": "fd",
-          "args": [
-            "--max-depth",
-            "3"
-          ]
-        }
+        "input": { "command": "fd", "args": ["--max-depth", "3"] }
       },
       {
         "desc": "fd with -H only should be allowed",
         "expectedAction": "allow",
         "toolName": "exec_command",
-        "input": {
-          "command": "fd",
-          "args": [
-            "-H",
-            "pattern"
-          ]
-        }
+        "input": { "command": "fd", "args": ["-H", "pattern"] }
       },
       {
         "desc": "fd with unsafe args should require approval",
         "expectedAction": "ask",
         "toolName": "exec_command",
-        "input": {
-          "command": "fd",
-          "args": [
-            "--unrestricted"
-          ]
-        }
+        "input": { "command": "fd", "args": ["--unrestricted"] }
       },
       {
         "desc": "fd with -I option should require approval",
         "expectedAction": "ask",
         "toolName": "exec_command",
-        "input": {
-          "command": "fd",
-          "args": [
-            "-I",
-            "pattern"
-          ]
-        }
+        "input": { "command": "fd", "args": ["-I", "pattern"] }
       },
       {
         "desc": "fd with -HI combined options should require approval",
         "expectedAction": "ask",
         "toolName": "exec_command",
-        "input": {
-          "command": "fd",
-          "args": [
-            "-HI",
-            "pattern"
-          ]
-        }
+        "input": { "command": "fd", "args": ["-HI", "pattern"] }
       },
       {
         "desc": "fd with -IH combined options should require approval",
         "expectedAction": "ask",
         "toolName": "exec_command",
-        "input": {
-          "command": "fd",
-          "args": [
-            "-IH",
-            "pattern"
-          ]
-        }
+        "input": { "command": "fd", "args": ["-IH", "pattern"] }
       },
       {
         "desc": "fd with -Hx=command combined options with value should require approval",
         "expectedAction": "ask",
         "toolName": "exec_command",
-        "input": {
-          "command": "fd",
-          "args": [
-            "-Hx=cat",
-            "pattern"
-          ]
-        }
+        "input": { "command": "fd", "args": ["-Hx=cat", "pattern"] }
       },
       {
         "desc": "rg with safe args should be allowed",
         "expectedAction": "allow",
         "toolName": "exec_command",
-        "input": {
-          "command": "rg",
-          "args": [
-            "--ignore-case",
-            "pattern"
-          ]
-        }
+        "input": { "command": "rg", "args": ["--ignore-case", "pattern"] }
       },
       {
         "desc": "rg with -H only should be allowed",
         "expectedAction": "allow",
         "toolName": "exec_command",
-        "input": {
-          "command": "rg",
-          "args": [
-            "-H",
-            "pattern"
-          ]
-        }
+        "input": { "command": "rg", "args": ["-H", "pattern"] }
       },
       {
         "desc": "rg with unsafe args should require approval",
         "expectedAction": "ask",
         "toolName": "exec_command",
-        "input": {
-          "command": "rg",
-          "args": [
-            "--unrestricted"
-          ]
-        }
+        "input": { "command": "rg", "args": ["--unrestricted"] }
       },
       {
         "desc": "rg with -u option should require approval",
         "expectedAction": "ask",
         "toolName": "exec_command",
-        "input": {
-          "command": "rg",
-          "args": [
-            "-u",
-            "pattern"
-          ]
-        }
+        "input": { "command": "rg", "args": ["-u", "pattern"] }
       },
       {
         "desc": "rg with -Hu combined options should require approval",
         "expectedAction": "ask",
         "toolName": "exec_command",
-        "input": {
-          "command": "rg",
-          "args": [
-            "-Hu",
-            "pattern"
-          ]
-        }
+        "input": { "command": "rg", "args": ["-Hu", "pattern"] }
       },
       {
         "desc": "rg with -uH combined options should require approval",
         "expectedAction": "ask",
         "toolName": "exec_command",
-        "input": {
-          "command": "rg",
-          "args": [
-            "-uH",
-            "pattern"
-          ]
-        }
+        "input": { "command": "rg", "args": ["-uH", "pattern"] }
       },
       {
         "desc": "sed with known pattern should be allowed",
         "expectedAction": "allow",
         "toolName": "exec_command",
-        "input": {
-          "command": "sed",
-          "args": [
-            "-n",
-            "10,20p",
-            "file.txt"
-          ]
-        }
+        "input": { "command": "sed", "args": ["-n", "10,20p", "file.txt"] }
       },
       {
         "desc": "sed with single line pattern should be allowed",
         "expectedAction": "allow",
         "toolName": "exec_command",
-        "input": {
-          "command": "sed",
-          "args": [
-            "-n",
-            "42p",
-            "file.txt"
-          ]
-        }
+        "input": { "command": "sed", "args": ["-n", "42p", "file.txt"] }
       },
       {
         "desc": "git status should be allowed",
         "expectedAction": "allow",
         "toolName": "exec_command",
-        "input": {
-          "command": "git",
-          "args": [
-            "status"
-          ]
-        }
+        "input": { "command": "git", "args": ["status"] }
       },
       {
         "desc": "git branch --show-current should be allowed",
         "expectedAction": "allow",
         "toolName": "exec_command",
-        "input": {
-          "command": "git",
-          "args": [
-            "branch",
-            "--show-current"
-          ]
-        }
+        "input": { "command": "git", "args": ["branch", "--show-current"] }
       },
       {
         "desc": "git commit should not match any pattern",
         "expectedAction": null,
         "toolName": "exec_command",
-        "input": {
-          "command": "git",
-          "args": [
-            "commit"
-          ]
-        }
+        "input": { "command": "git", "args": ["commit"] }
       },
       {
         "desc": "docker ps should be allowed",
         "expectedAction": "allow",
         "toolName": "exec_command",
-        "input": {
-          "command": "docker",
-          "args": [
-            "ps"
-          ]
-        }
+        "input": { "command": "docker", "args": ["ps"] }
       },
       {
         "desc": "docker compose ps should be allowed",
         "expectedAction": "allow",
         "toolName": "exec_command",
-        "input": {
-          "command": "docker",
-          "args": [
-            "compose",
-            "ps"
-          ]
-        }
+        "input": { "command": "docker", "args": ["compose", "ps"] }
       },
       {
         "desc": "docker compose logs should be allowed",
         "expectedAction": "allow",
         "toolName": "exec_command",
-        "input": {
-          "command": "docker",
-          "args": [
-            "compose",
-            "logs"
-          ]
-        }
+        "input": { "command": "docker", "args": ["compose", "logs"] }
       },
       {
         "desc": "tmux list-sessions should be allowed",
         "expectedAction": "allow",
         "toolName": "tmux_command",
-        "input": {
-          "command": "list-sessions"
-        }
+        "input": { "command": "list-sessions" }
       },
       {
         "desc": "gh pr view should be allowed",
         "expectedAction": "allow",
         "toolName": "exec_command",
-        "input": {
-          "command": "gh",
-          "args": [
-            "pr",
-            "view"
-          ]
-        }
+        "input": { "command": "gh", "args": ["pr", "view"] }
       },
       {
         "desc": "gh api for PR comments should be allowed",
@@ -514,13 +308,7 @@
         "desc": "gh api without --method should be denied",
         "expectedAction": "deny",
         "toolName": "exec_command",
-        "input": {
-          "command": "gh",
-          "args": [
-            "api",
-            "repos/owner/repo/pulls"
-          ]
-        }
+        "input": { "command": "gh", "args": ["api", "repos/owner/repo/pulls"] }
       },
       {
         "desc": "gh api --method POST should fall through to defaultAction",
@@ -528,25 +316,14 @@
         "toolName": "exec_command",
         "input": {
           "command": "gh",
-          "args": [
-            "api",
-            "--method",
-            "POST",
-            "repos/owner/repo/issues"
-          ]
+          "args": ["api", "--method", "POST", "repos/owner/repo/issues"]
         }
       },
       {
         "desc": "bash -c without shell features should be denied",
         "expectedAction": "deny",
         "toolName": "exec_command",
-        "input": {
-          "command": "bash",
-          "args": [
-            "-c",
-            "echo hello"
-          ]
-        }
+        "input": { "command": "bash", "args": ["-c", "echo hello"] }
       },
       {
         "desc": "bash -c with pipe should not match deny pattern",
@@ -554,35 +331,20 @@
         "toolName": "exec_command",
         "input": {
           "command": "bash",
-          "args": [
-            "-c",
-            "echo hello | grep hello"
-          ]
+          "args": ["-c", "echo hello | grep hello"]
         }
       },
       {
         "desc": "bash -c with redirect should not match deny pattern",
         "expectedAction": null,
         "toolName": "exec_command",
-        "input": {
-          "command": "bash",
-          "args": [
-            "-c",
-            "echo hello > file.txt"
-          ]
-        }
+        "input": { "command": "bash", "args": ["-c", "echo hello > file.txt"] }
       },
       {
         "desc": "bash -c with ampersand should not match deny pattern",
         "expectedAction": null,
         "toolName": "exec_command",
-        "input": {
-          "command": "bash",
-          "args": [
-            "-c",
-            "cmd1 && cmd2"
-          ]
-        }
+        "input": { "command": "bash", "args": ["-c", "cmd1 && cmd2"] }
       },
       {
         "desc": "bash -c with semicolon should not match deny pattern",
@@ -590,35 +352,20 @@
         "toolName": "exec_command",
         "input": {
           "command": "bash",
-          "args": [
-            "-c",
-            "for i in *.txt; do echo $i; done"
-          ]
+          "args": ["-c", "for i in *.txt; do echo $i; done"]
         }
       },
       {
         "desc": "bash -c with command substitution should not match deny pattern",
         "expectedAction": null,
         "toolName": "exec_command",
-        "input": {
-          "command": "bash",
-          "args": [
-            "-c",
-            "echo $(date)"
-          ]
-        }
+        "input": { "command": "bash", "args": ["-c", "echo $(date)"] }
       },
       {
         "desc": "bash -c with backtick should not match deny pattern",
         "expectedAction": null,
         "toolName": "exec_command",
-        "input": {
-          "command": "bash",
-          "args": [
-            "-c",
-            "echo `date`"
-          ]
-        }
+        "input": { "command": "bash", "args": ["-c", "echo `date`"] }
       }
     ]
   },
@@ -645,10 +392,7 @@
       "config": {
         "model": "claude-haiku-4-5",
         "max_tokens": 32768,
-        "thinking": {
-          "type": "enabled",
-          "budget_tokens": 16384
-        }
+        "thinking": { "type": "enabled", "budget_tokens": 16384 }
       }
     },
     {
@@ -673,10 +417,7 @@
       "config": {
         "model": "claude-haiku-4-5",
         "max_tokens": 64000,
-        "thinking": {
-          "type": "enabled",
-          "budget_tokens": 32768
-        }
+        "thinking": { "type": "enabled", "budget_tokens": 32768 }
       }
     },
     {
@@ -701,12 +442,8 @@
       "config": {
         "model": "claude-sonnet-4-6",
         "max_tokens": 32768,
-        "thinking": {
-          "type": "adaptive"
-        },
-        "output_config": {
-          "effort": "high"
-        }
+        "thinking": { "type": "adaptive" },
+        "output_config": { "effort": "high" }
       }
     },
     {
@@ -731,12 +468,8 @@
       "config": {
         "model": "claude-sonnet-4-6",
         "max_tokens": 64000,
-        "thinking": {
-          "type": "adaptive"
-        },
-        "output_config": {
-          "effort": "max"
-        }
+        "thinking": { "type": "adaptive" },
+        "output_config": { "effort": "max" }
       }
     },
     {
@@ -761,12 +494,8 @@
       "config": {
         "model": "claude-opus-4-8",
         "max_tokens": 32768,
-        "thinking": {
-          "type": "adaptive"
-        },
-        "output_config": {
-          "effort": "high"
-        }
+        "thinking": { "type": "adaptive" },
+        "output_config": { "effort": "high" }
       }
     },
     {
@@ -791,21 +520,14 @@
       "config": {
         "model": "claude-opus-4-8",
         "max_tokens": 64000,
-        "thinking": {
-          "type": "adaptive"
-        },
-        "output_config": {
-          "effort": "max"
-        }
+        "thinking": { "type": "adaptive" },
+        "output_config": { "effort": "max" }
       }
     },
     {
       "name": "claude-haiku-4-5",
       "variant": "thinking-16k-bedrock",
-      "platform": {
-        "name": "bedrock",
-        "variant": "default"
-      },
+      "platform": { "name": "bedrock", "variant": "default" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -820,19 +542,13 @@
       "config": {
         "model": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
         "max_tokens": 32768,
-        "thinking": {
-          "type": "enabled",
-          "budget_tokens": 16384
-        }
+        "thinking": { "type": "enabled", "budget_tokens": 16384 }
       }
     },
     {
       "name": "claude-haiku-4-5",
       "variant": "thinking-32k-bedrock",
-      "platform": {
-        "name": "bedrock",
-        "variant": "default"
-      },
+      "platform": { "name": "bedrock", "variant": "default" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -847,19 +563,13 @@
       "config": {
         "model": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
         "max_tokens": 64000,
-        "thinking": {
-          "type": "enabled",
-          "budget_tokens": 32768
-        }
+        "thinking": { "type": "enabled", "budget_tokens": 32768 }
       }
     },
     {
       "name": "claude-sonnet-4-6",
       "variant": "thinking-high-bedrock",
-      "platform": {
-        "name": "bedrock",
-        "variant": "default"
-      },
+      "platform": { "name": "bedrock", "variant": "default" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -874,21 +584,14 @@
       "config": {
         "model": "global.anthropic.claude-sonnet-4-6",
         "max_tokens": 32768,
-        "thinking": {
-          "type": "adaptive"
-        },
-        "output_config": {
-          "effort": "high"
-        }
+        "thinking": { "type": "adaptive" },
+        "output_config": { "effort": "high" }
       }
     },
     {
       "name": "claude-sonnet-4-6",
       "variant": "thinking-max-bedrock",
-      "platform": {
-        "name": "bedrock",
-        "variant": "default"
-      },
+      "platform": { "name": "bedrock", "variant": "default" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -903,21 +606,14 @@
       "config": {
         "model": "global.anthropic.claude-sonnet-4-6",
         "max_tokens": 64000,
-        "thinking": {
-          "type": "adaptive"
-        },
-        "output_config": {
-          "effort": "max"
-        }
+        "thinking": { "type": "adaptive" },
+        "output_config": { "effort": "max" }
       }
     },
     {
       "name": "claude-opus-4-8",
       "variant": "thinking-high-bedrock",
-      "platform": {
-        "name": "bedrock",
-        "variant": "default"
-      },
+      "platform": { "name": "bedrock", "variant": "default" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -932,21 +628,14 @@
       "config": {
         "model": "global.anthropic.claude-opus-4-8",
         "max_tokens": 32768,
-        "thinking": {
-          "type": "adaptive"
-        },
-        "output_config": {
-          "effort": "high"
-        }
+        "thinking": { "type": "adaptive" },
+        "output_config": { "effort": "high" }
       }
     },
     {
       "name": "claude-opus-4-8",
       "variant": "thinking-max-bedrock",
-      "platform": {
-        "name": "bedrock",
-        "variant": "default"
-      },
+      "platform": { "name": "bedrock", "variant": "default" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -961,12 +650,8 @@
       "config": {
         "model": "global.anthropic.claude-opus-4-8",
         "max_tokens": 64000,
-        "thinking": {
-          "type": "adaptive"
-        },
-        "output_config": {
-          "effort": "max"
-        }
+        "thinking": { "type": "adaptive" },
+        "output_config": { "effort": "max" }
       }
     },
     {
@@ -1096,10 +781,7 @@
     {
       "name": "gemini-3.5-flash",
       "variant": "thinking-medium-vertex-ai",
-      "platform": {
-        "name": "vertex-ai",
-        "variant": "default"
-      },
+      "platform": { "name": "vertex-ai", "variant": "default" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1126,10 +808,7 @@
     {
       "name": "gemini-3.5-flash",
       "variant": "thinking-high-vertex-ai",
-      "platform": {
-        "name": "vertex-ai",
-        "variant": "default"
-      },
+      "platform": { "name": "vertex-ai", "variant": "default" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1156,10 +835,7 @@
     {
       "name": "gemini-3.1-pro-preview",
       "variant": "thinking-medium-vertex-ai",
-      "platform": {
-        "name": "vertex-ai",
-        "variant": "default"
-      },
+      "platform": { "name": "vertex-ai", "variant": "default" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1186,10 +862,7 @@
     {
       "name": "gemini-3.1-pro-preview",
       "variant": "thinking-high-vertex-ai",
-      "platform": {
-        "name": "vertex-ai",
-        "variant": "default"
-      },
+      "platform": { "name": "vertex-ai", "variant": "default" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1233,14 +906,9 @@
       "format": "openai-responses",
       "config": {
         "model": "gpt-5.4-mini",
-        "reasoning": {
-          "effort": "medium",
-          "summary": "auto"
-        },
+        "reasoning": { "effort": "medium", "summary": "auto" },
         "store": false,
-        "include": [
-          "reasoning.encrypted_content"
-        ]
+        "include": ["reasoning.encrypted_content"]
       }
     },
     {
@@ -1263,14 +931,9 @@
       "format": "openai-responses",
       "config": {
         "model": "gpt-5.4-mini",
-        "reasoning": {
-          "effort": "high",
-          "summary": "auto"
-        },
+        "reasoning": { "effort": "high", "summary": "auto" },
         "store": false,
-        "include": [
-          "reasoning.encrypted_content"
-        ]
+        "include": ["reasoning.encrypted_content"]
       }
     },
     {
@@ -1293,14 +956,9 @@
       "format": "openai-responses",
       "config": {
         "model": "gpt-5.4-mini",
-        "reasoning": {
-          "effort": "xhigh",
-          "summary": "auto"
-        },
+        "reasoning": { "effort": "xhigh", "summary": "auto" },
         "store": false,
-        "include": [
-          "reasoning.encrypted_content"
-        ]
+        "include": ["reasoning.encrypted_content"]
       }
     },
     {
@@ -1323,14 +981,9 @@
       "format": "openai-responses",
       "config": {
         "model": "gpt-5.5",
-        "reasoning": {
-          "effort": "medium",
-          "summary": "auto"
-        },
+        "reasoning": { "effort": "medium", "summary": "auto" },
         "store": false,
-        "include": [
-          "reasoning.encrypted_content"
-        ]
+        "include": ["reasoning.encrypted_content"]
       }
     },
     {
@@ -1353,14 +1006,9 @@
       "format": "openai-responses",
       "config": {
         "model": "gpt-5.5",
-        "reasoning": {
-          "effort": "high",
-          "summary": "auto"
-        },
+        "reasoning": { "effort": "high", "summary": "auto" },
         "store": false,
-        "include": [
-          "reasoning.encrypted_content"
-        ]
+        "include": ["reasoning.encrypted_content"]
       }
     },
     {
@@ -1383,23 +1031,15 @@
       "format": "openai-responses",
       "config": {
         "model": "gpt-5.5",
-        "reasoning": {
-          "effort": "xhigh",
-          "summary": "auto"
-        },
+        "reasoning": { "effort": "xhigh", "summary": "auto" },
         "store": false,
-        "include": [
-          "reasoning.encrypted_content"
-        ]
+        "include": ["reasoning.encrypted_content"]
       }
     },
     {
       "name": "gpt-5.4-mini",
       "variant": "thinking-medium-azure",
-      "platform": {
-        "name": "azure",
-        "variant": "openai"
-      },
+      "platform": { "name": "azure", "variant": "openai" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1412,23 +1052,15 @@
       "format": "openai-responses",
       "config": {
         "model": "gpt-5.4-mini",
-        "reasoning": {
-          "effort": "medium",
-          "summary": "auto"
-        },
+        "reasoning": { "effort": "medium", "summary": "auto" },
         "store": false,
-        "include": [
-          "reasoning.encrypted_content"
-        ]
+        "include": ["reasoning.encrypted_content"]
       }
     },
     {
       "name": "gpt-5.4-mini",
       "variant": "thinking-high-azure",
-      "platform": {
-        "name": "azure",
-        "variant": "openai"
-      },
+      "platform": { "name": "azure", "variant": "openai" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1441,23 +1073,15 @@
       "format": "openai-responses",
       "config": {
         "model": "gpt-5.4-mini",
-        "reasoning": {
-          "effort": "high",
-          "summary": "auto"
-        },
+        "reasoning": { "effort": "high", "summary": "auto" },
         "store": false,
-        "include": [
-          "reasoning.encrypted_content"
-        ]
+        "include": ["reasoning.encrypted_content"]
       }
     },
     {
       "name": "gpt-5.4-mini",
       "variant": "thinking-xhigh-azure",
-      "platform": {
-        "name": "azure",
-        "variant": "openai"
-      },
+      "platform": { "name": "azure", "variant": "openai" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1470,23 +1094,15 @@
       "format": "openai-responses",
       "config": {
         "model": "gpt-5.4-mini",
-        "reasoning": {
-          "effort": "xhigh",
-          "summary": "auto"
-        },
+        "reasoning": { "effort": "xhigh", "summary": "auto" },
         "store": false,
-        "include": [
-          "reasoning.encrypted_content"
-        ]
+        "include": ["reasoning.encrypted_content"]
       }
     },
     {
       "name": "gpt-5.5",
       "variant": "thinking-medium-azure",
-      "platform": {
-        "name": "azure",
-        "variant": "openai"
-      },
+      "platform": { "name": "azure", "variant": "openai" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1499,23 +1115,15 @@
       "format": "openai-responses",
       "config": {
         "model": "gpt-5.5",
-        "reasoning": {
-          "effort": "medium",
-          "summary": "auto"
-        },
+        "reasoning": { "effort": "medium", "summary": "auto" },
         "store": false,
-        "include": [
-          "reasoning.encrypted_content"
-        ]
+        "include": ["reasoning.encrypted_content"]
       }
     },
     {
       "name": "gpt-5.5",
       "variant": "thinking-high-azure",
-      "platform": {
-        "name": "azure",
-        "variant": "openai"
-      },
+      "platform": { "name": "azure", "variant": "openai" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1528,23 +1136,15 @@
       "format": "openai-responses",
       "config": {
         "model": "gpt-5.5",
-        "reasoning": {
-          "effort": "high",
-          "summary": "auto"
-        },
+        "reasoning": { "effort": "high", "summary": "auto" },
         "store": false,
-        "include": [
-          "reasoning.encrypted_content"
-        ]
+        "include": ["reasoning.encrypted_content"]
       }
     },
     {
       "name": "gpt-5.5",
       "variant": "thinking-xhigh-azure",
-      "platform": {
-        "name": "azure",
-        "variant": "openai"
-      },
+      "platform": { "name": "azure", "variant": "openai" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1557,23 +1157,15 @@
       "format": "openai-responses",
       "config": {
         "model": "gpt-5.5",
-        "reasoning": {
-          "effort": "xhigh",
-          "summary": "auto"
-        },
+        "reasoning": { "effort": "xhigh", "summary": "auto" },
         "store": false,
-        "include": [
-          "reasoning.encrypted_content"
-        ]
+        "include": ["reasoning.encrypted_content"]
       }
     },
     {
       "name": "gpt-oss-120b",
       "variant": "fireworks",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "fireworks"
-      },
+      "platform": { "name": "openai-compatible", "variant": "fireworks" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1584,17 +1176,12 @@
         }
       },
       "format": "openai-messages",
-      "config": {
-        "model": "accounts/fireworks/models/gpt-oss-120b"
-      }
+      "config": { "model": "accounts/fireworks/models/gpt-oss-120b" }
     },
     {
       "name": "glm-5",
       "variant": "vertex-ai",
-      "platform": {
-        "name": "vertex-ai",
-        "variant": "default"
-      },
+      "platform": { "name": "vertex-ai", "variant": "default" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1605,38 +1192,24 @@
         }
       },
       "format": "openai-messages",
-      "config": {
-        "model": "zai-org/glm-5-maas"
-      }
+      "config": { "model": "zai-org/glm-5-maas" }
     },
     {
       "name": "glm-5",
       "variant": "bedrock",
-      "platform": {
-        "name": "bedrock",
-        "variant": "default"
-      },
+      "platform": { "name": "bedrock", "variant": "default" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
-        "prices": {
-          "prompt_tokens": 1,
-          "completion_tokens": 3.2
-        }
+        "prices": { "prompt_tokens": 1, "completion_tokens": 3.2 }
       },
       "format": "openai-messages",
-      "config": {
-        "model": "zai.glm-5",
-        "reasoning_effort": "high"
-      }
+      "config": { "model": "zai.glm-5", "reasoning_effort": "high" }
     },
     {
       "name": "glm-5.1",
       "variant": "fireworks",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "fireworks"
-      },
+      "platform": { "name": "openai-compatible", "variant": "fireworks" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1647,17 +1220,12 @@
         }
       },
       "format": "openai-messages",
-      "config": {
-        "model": "accounts/fireworks/models/glm-5p1"
-      }
+      "config": { "model": "accounts/fireworks/models/glm-5p1" }
     },
     {
       "name": "glm-5.1",
       "variant": "novita",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "novita"
-      },
+      "platform": { "name": "openai-compatible", "variant": "novita" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1668,17 +1236,12 @@
         }
       },
       "format": "openai-messages",
-      "config": {
-        "model": "zai-org/glm-5.1"
-      }
+      "config": { "model": "zai-org/glm-5.1" }
     },
     {
       "name": "kimi-k2.6",
       "variant": "fireworks",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "fireworks"
-      },
+      "platform": { "name": "openai-compatible", "variant": "fireworks" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1689,17 +1252,12 @@
         }
       },
       "format": "openai-messages",
-      "config": {
-        "model": "accounts/fireworks/models/kimi-k2p6"
-      }
+      "config": { "model": "accounts/fireworks/models/kimi-k2p6" }
     },
     {
       "name": "kimi-k2.6",
       "variant": "novita",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "novita"
-      },
+      "platform": { "name": "openai-compatible", "variant": "novita" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1710,30 +1268,19 @@
         }
       },
       "format": "openai-messages",
-      "config": {
-        "model": "moonshotai/kimi-k2.6"
-      }
+      "config": { "model": "moonshotai/kimi-k2.6" }
     },
     {
       "name": "kimi-k2.6",
       "variant": "azure",
-      "platform": {
-        "name": "azure",
-        "variant": "default"
-      },
+      "platform": { "name": "azure", "variant": "default" },
       "format": "openai-messages",
-      "config": {
-        "model": "Kimi-K2.6",
-        "reasoning_effort": "high"
-      }
+      "config": { "model": "Kimi-K2.6", "reasoning_effort": "high" }
     },
     {
       "name": "deepseek-v4-pro",
       "variant": "novita",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "novita"
-      },
+      "platform": { "name": "openai-compatible", "variant": "novita" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1744,17 +1291,12 @@
         }
       },
       "format": "openai-messages",
-      "config": {
-        "model": "deepseek/deepseek-v4-pro"
-      }
+      "config": { "model": "deepseek/deepseek-v4-pro" }
     },
     {
       "name": "deepseek-v4-pro",
       "variant": "fireworks",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "fireworks"
-      },
+      "platform": { "name": "openai-compatible", "variant": "fireworks" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1765,30 +1307,19 @@
         }
       },
       "format": "openai-messages",
-      "config": {
-        "model": "accounts/fireworks/models/deepseek-v4-pro"
-      }
+      "config": { "model": "accounts/fireworks/models/deepseek-v4-pro" }
     },
     {
       "name": "deepseek-v4-pro",
       "variant": "azure",
-      "platform": {
-        "name": "azure",
-        "variant": "default"
-      },
+      "platform": { "name": "azure", "variant": "default" },
       "format": "openai-messages",
-      "config": {
-        "model": "DeepSeek-V4-Pro",
-        "reasoning_effort": "high"
-      }
+      "config": { "model": "DeepSeek-V4-Pro", "reasoning_effort": "high" }
     },
     {
       "name": "minimax-m2.7",
       "variant": "fireworks",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "fireworks"
-      },
+      "platform": { "name": "openai-compatible", "variant": "fireworks" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1799,17 +1330,12 @@
         }
       },
       "format": "openai-messages",
-      "config": {
-        "model": "accounts/fireworks/models/minimax-m2p7"
-      }
+      "config": { "model": "accounts/fireworks/models/minimax-m2p7" }
     },
     {
       "name": "minimax-m2.7",
       "variant": "novita",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "novita"
-      },
+      "platform": { "name": "openai-compatible", "variant": "novita" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1820,17 +1346,12 @@
         }
       },
       "format": "openai-messages",
-      "config": {
-        "model": "minimax/minimax-m2.7"
-      }
+      "config": { "model": "minimax/minimax-m2.7" }
     },
     {
       "name": "minimax-m3",
       "variant": "novita",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "novita"
-      },
+      "platform": { "name": "openai-compatible", "variant": "novita" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1841,17 +1362,12 @@
         }
       },
       "format": "openai-messages",
-      "config": {
-        "model": "minimax/minimax-m3"
-      }
+      "config": { "model": "minimax/minimax-m3" }
     },
     {
       "name": "qwen3.6-plus",
       "variant": "fireworks",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "fireworks"
-      },
+      "platform": { "name": "openai-compatible", "variant": "fireworks" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1862,37 +1378,24 @@
         }
       },
       "format": "openai-messages",
-      "config": {
-        "model": "accounts/fireworks/models/qwen3p6-plus"
-      }
+      "config": { "model": "accounts/fireworks/models/qwen3p6-plus" }
     },
     {
       "name": "qwen3.6-27b",
       "variant": "novita",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "novita"
-      },
+      "platform": { "name": "openai-compatible", "variant": "novita" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
-        "prices": {
-          "prompt_tokens": 0.6,
-          "completion_tokens": 3.6
-        }
+        "prices": { "prompt_tokens": 0.6, "completion_tokens": 3.6 }
       },
       "format": "openai-messages",
-      "config": {
-        "model": "qwen/qwen3.6-27b"
-      }
+      "config": { "model": "qwen/qwen3.6-27b" }
     },
     {
       "name": "qwen3.7-max",
       "variant": "novita",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "novita"
-      },
+      "platform": { "name": "openai-compatible", "variant": "novita" },
       "cost": {
         "currency": "USD",
         "unit": "1M",
@@ -1903,17 +1406,12 @@
         }
       },
       "format": "openai-messages",
-      "config": {
-        "model": "qwen/qwen3.7-max"
-      }
+      "config": { "model": "qwen/qwen3.7-max" }
     },
     {
       "name": "nova-2-lite",
       "variant": "bedrock",
-      "platform": {
-        "name": "bedrock",
-        "variant": "default"
-      },
+      "platform": { "name": "bedrock", "variant": "default" },
       "format": "bedrock-converse",
       "config": {
         "model": "global.amazon.nova-2-lite-v1:0",
@@ -1929,22 +1427,14 @@
     {
       "name": "claude-haiku-4-5",
       "variant": "thinking-16k-bedrock-converse",
-      "platform": {
-        "name": "bedrock",
-        "variant": "default"
-      },
+      "platform": { "name": "bedrock", "variant": "default" },
       "format": "bedrock-converse",
       "config": {
         "model": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
         "enablePromptCaching": true,
-        "inferenceConfig": {
-          "max_tokens": 32768
-        },
+        "inferenceConfig": { "max_tokens": 32768 },
         "additionalModelRequestFields": {
-          "reasoning_config": {
-            "type": "enabled",
-            "budget_tokens": 16384
-          }
+          "reasoning_config": { "type": "enabled", "budget_tokens": 16384 }
         }
       }
     }
