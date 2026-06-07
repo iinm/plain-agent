@@ -2,10 +2,8 @@
 export type GeminiModelConfig = {
   // https://ai.google.dev/gemini-api/docs/models
   model: string;
-  requestConfig?: {
-    generationConfig: GeminiGenerationConfig;
-    safetySettings?: GeminiSafetySetting[];
-  };
+  generationConfig?: GeminiGenerationConfig;
+  safetySettings?: GeminiSafetySetting[];
 };
 
 // https://ai.google.dev/api/generate-content

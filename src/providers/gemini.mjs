@@ -101,11 +101,10 @@ export function createCacheEnabledGeminiModelCaller(
 
       /** @type {Pick<GeminiGenerateContentInput, "generationConfig" | "safetySettings">} */
       const baseRequest = {
-        // default
-        generationConfig: {
+        generationConfig: config.generationConfig || {
           temperature: 0,
         },
-        safetySettings: [
+        safetySettings: config.safetySettings || [
           {
             category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
             threshold: "BLOCK_NONE",
@@ -117,7 +116,6 @@ export function createCacheEnabledGeminiModelCaller(
             threshold: "BLOCK_NONE",
           },
         ],
-        ...config.requestConfig,
       };
 
       /** @type {GeminiGenerateContentInput} */

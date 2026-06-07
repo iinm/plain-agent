@@ -769,13 +769,11 @@
         "format": "gemini",
         "config": {
           "model": "gemini-3.5-flash",
-          "requestConfig": {
-            "generationConfig": {
-              "maxOutputTokens": 32768,
-              "thinkingConfig": {
-                "includeThoughts": true,
-                "thinkingLevel": "medium"
-              }
+          "generationConfig": {
+            "maxOutputTokens": 32768,
+            "thinkingConfig": {
+              "includeThoughts": true,
+              "thinkingLevel": "medium"
             }
           }
         }
@@ -802,13 +800,11 @@
         "format": "gemini",
         "config": {
           "model": "gemini-3.5-flash",
-          "requestConfig": {
-            "generationConfig": {
-              "maxOutputTokens": 65536,
-              "thinkingConfig": {
-                "includeThoughts": true,
-                "thinkingLevel": "high"
-              }
+          "generationConfig": {
+            "maxOutputTokens": 65536,
+            "thinkingConfig": {
+              "includeThoughts": true,
+              "thinkingLevel": "high"
             }
           }
         }
@@ -835,13 +831,11 @@
         "format": "gemini",
         "config": {
           "model": "gemini-3.1-pro-preview",
-          "requestConfig": {
-            "generationConfig": {
-              "maxOutputTokens": 32768,
-              "thinkingConfig": {
-                "includeThoughts": true,
-                "thinkingLevel": "medium"
-              }
+          "generationConfig": {
+            "maxOutputTokens": 32768,
+            "thinkingConfig": {
+              "includeThoughts": true,
+              "thinkingLevel": "medium"
             }
           }
         }
@@ -868,13 +862,11 @@
         "format": "gemini",
         "config": {
           "model": "gemini-3.1-pro-preview",
-          "requestConfig": {
-            "generationConfig": {
-              "maxOutputTokens": 65536,
-              "thinkingConfig": {
-                "includeThoughts": true,
-                "thinkingLevel": "high"
-              }
+          "generationConfig": {
+            "maxOutputTokens": 65536,
+            "thinkingConfig": {
+              "includeThoughts": true,
+              "thinkingLevel": "high"
             }
           }
         }
@@ -901,13 +893,11 @@
         "format": "gemini",
         "config": {
           "model": "gemini-3.5-flash",
-          "requestConfig": {
-            "generationConfig": {
-              "maxOutputTokens": 32768,
-              "thinkingConfig": {
-                "includeThoughts": true,
-                "thinkingLevel": "medium"
-              }
+          "generationConfig": {
+            "maxOutputTokens": 32768,
+            "thinkingConfig": {
+              "includeThoughts": true,
+              "thinkingLevel": "medium"
             }
           }
         }
@@ -933,13 +923,11 @@
         "format": "gemini",
         "config": {
           "model": "gemini-3.5-flash",
-          "requestConfig": {
-            "generationConfig": {
-              "maxOutputTokens": 65536,
-              "thinkingConfig": {
-                "includeThoughts": true,
-                "thinkingLevel": "high"
-              }
+          "generationConfig": {
+            "maxOutputTokens": 65536,
+            "thinkingConfig": {
+              "includeThoughts": true,
+              "thinkingLevel": "high"
             }
           }
         }
@@ -965,13 +953,11 @@
         "format": "gemini",
         "config": {
           "model": "gemini-3.1-pro-preview",
-          "requestConfig": {
-            "generationConfig": {
-              "maxOutputTokens": 32768,
-              "thinkingConfig": {
-                "includeThoughts": true,
-                "thinkingLevel": "medium"
-              }
+          "generationConfig": {
+            "maxOutputTokens": 32768,
+            "thinkingConfig": {
+              "includeThoughts": true,
+              "thinkingLevel": "medium"
             }
           }
         }
@@ -997,13 +983,11 @@
         "format": "gemini",
         "config": {
           "model": "gemini-3.1-pro-preview",
-          "requestConfig": {
-            "generationConfig": {
-              "maxOutputTokens": 65536,
-              "thinkingConfig": {
-                "includeThoughts": true,
-                "thinkingLevel": "high"
-              }
+          "generationConfig": {
+            "maxOutputTokens": 65536,
+            "thinkingConfig": {
+              "includeThoughts": true,
+              "thinkingLevel": "high"
             }
           }
         }
