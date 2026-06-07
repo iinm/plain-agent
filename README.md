@@ -40,14 +40,40 @@ Because these are separate, the same API format works across different platforms
 ```js
 // Anthropic direct
 {
-  "platform": { "name": "anthropic", "variant": "default" },
-  "model": { "format": "anthropic", "config": { "model": "claude-sonnet-4-6" } }
+  "name": "claude-sonnet-4-6",
+  "variant": "thinking-high",
+  "platform": {
+    "name": "anthropic",
+    "variant": "default"
+  },
+  "model": {
+    "format": "anthropic",
+    "config": {
+      "model": "claude-sonnet-4-6",
+      "max_tokens": 32768,
+      "thinking": { "type": "adaptive" },
+      "output_config": { "effort": "high" }
+    }
+  }
 }
 
 // Bedrock — same format, different platform
 {
-  "platform": { "name": "bedrock", "variant": "jp" },
-  "model": { "format": "anthropic", "config": { "model": "jp.anthropic.claude-sonnet-4-6" } }
+  "name": "claude-sonnet-4-6",
+  "variant": "thinking-high-bedrock-jp",
+  "platform": {
+    "name": "bedrock",
+    "variant": "jp"
+  },
+  "model": {
+    "format": "anthropic",
+    "config": {
+      "model": "jp.anthropic.claude-sonnet-4-6",
+      "max_tokens": 32768,
+      "thinking": { "type": "adaptive" },
+      "output_config": { "effort": "high" }
+    }
+  }
 }
 ```
 
