@@ -37,6 +37,7 @@ async function main() {
 }
 
 async function fetchCamoUrls() {
+  /** @type {Record<string, string>} */
   const headers = { Accept: "application/vnd.github.html+json" };
   if (process.env.GITHUB_TOKEN) {
     headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
@@ -59,6 +60,7 @@ async function fetchCamoUrls() {
   ];
 }
 
+/** @param {string[]} urls */
 async function purgeAll(urls) {
   const results = [];
   for (const url of urls) {
