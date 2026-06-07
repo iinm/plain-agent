@@ -87,7 +87,20 @@ String values in tool inputs are treated as file paths and validated against the
 
 - The path must be under the working directory or a path listed in `autoApproval.allowedPaths`
 - No directory traversal (`..` is not allowed)
+- Symlinks are resolved to their real path before validation — a symlink inside the working directory that points outside is rejected. Broken and circular symlinks are also rejected.
 - The file must be tracked by Git (not ignored)
+
+Compound arguments are decomposed before validation — embedded paths are extracted and checked individually:
+
+| Pattern | Example | Extracted |
+|---|---|---|
+| `@<path>` | `@data.json` | `data.json` |
+| `--opt=<val>` | `--prefix=/tmp/foo` | `/tmp/foo` |
+| `-X<val>` | `-I/usr/include` | `/usr/include` |
+| `VAR=<val>` | `OUTPUT=/etc/passwd` | `/etc/passwd` |
+| `proto://…` | `file:///etc/passwd` | `/etc/passwd` |
+
+`--opt=<val>`, `-X<val>`, and `VAR=<val>` are checked recursively, so chained patterns like `-DINSTALL_DIR=/etc` decompose fully (`-D` → `INSTALL_DIR=/etc` → `/etc`).
 
 **Note**: validation only applies when the agent explicitly passes file paths to tools. It cannot catch file access inside scripts the agent writes — something like `bash -c "rm -rf /"` is beyond its reach. Always use a sandbox when auto-approving script execution.
 
