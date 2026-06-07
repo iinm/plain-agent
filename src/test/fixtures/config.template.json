@@ -1,0 +1,26 @@
+{
+  "model": "fake+default",
+  "models": [
+    {
+      "name": "fake",
+      "variant": "default",
+      "platform": { "name": "openai-compatible", "variant": "default" },
+      "model": {
+        "format": "openai-messages",
+        "config": { "model": "fake-model" }
+      }
+    }
+  ],
+  "platforms": [
+    {
+      "name": "openai-compatible",
+      "variant": "default",
+      "baseURL": "http://localhost:__PORT__",
+      "apiKey": "test-key"
+    }
+  ],
+  "autoApproval": {
+    "defaultAction": "allow",
+    "maxApprovals": 100
+  }
+}
