@@ -321,7 +321,7 @@ describe("isSafeToolInputItem", () => {
       expected: false,
     },
     {
-      desc: "file:// with relative path",
+      desc: "file:// without absolute path (unsafe URI)",
       arg: "file://README.md",
       expected: false,
     },
