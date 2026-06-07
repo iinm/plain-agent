@@ -5,6 +5,25 @@
 
 A lightweight terminal-based coding agent focused on safety and low token cost
 
+## Table of Contents
+
+- [Design](#design)
+  - [Multi-provider support](#multi-provider-support)
+  - [Auto-approval](#auto-approval)
+  - [Path Validation](#path-validation)
+  - [Sandbox](#sandbox)
+  - [Memory file](#memory-file)
+  - [Token Efficiency](#token-efficiency)
+  - [Claude Code Compatibility](#claude-code-compatibility)
+- [Requirements](#requirements)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Available Tools](#available-tools)
+- [Prompts](#prompts)
+- [Subagents](#subagents)
+- [Claude Code Plugin Support](#claude-code-plugin-support)
+- [Voice Input](#voice-input)
+
 ## Design
 
 ### Multi-provider support
