@@ -40,6 +40,7 @@
     "fix": "npx @biomejs/biome check --fix",
     "version": "sed -i \"s|badge.socket.dev/npm/package/@iinm/plain-agent/[0-9][0-9.]*|badge.socket.dev/npm/package/@iinm/plain-agent/${npm_package_version}|g\" README.md && git add README.md"
   },
+  "dependencies": {},
   "devDependencies": {
     "@biomejs/biome": "^2.4.12",
     "@types/node": "^22.19.17",
