@@ -11,10 +11,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const AGENT_ROOT = path.dirname(__dirname);
 const BIN = path.join(AGENT_ROOT, "bin/plain");
 
-// ---------------------------------------------------------------------------
-// SSE response builders
-// ---------------------------------------------------------------------------
-
 /** @param {string} text */
 function sseTextResponse(text) {
   const chunk = JSON.stringify({
@@ -82,10 +78,6 @@ const SSE_HEADERS = {
   "Cache-Control": "no-cache",
   "Transfer-Encoding": "chunked",
 };
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 /**
  * Poll collected output until a pattern matches or timeout expires.
@@ -207,11 +199,7 @@ function closeAndWaitForExit(proc) {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
-describe("main E2E", () => {
+describe("auto-approval E2E", () => {
   /** @type {import("node:http").Server} */
   let server;
   /** @type {number} */
