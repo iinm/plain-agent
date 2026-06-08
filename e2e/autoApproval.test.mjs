@@ -63,15 +63,15 @@ describe("auto-approval", () => {
       },
     });
 
-    // given: user config placed at ~/.config/plain-agent/config.json
-    const userConfigDir = path.join(workDir, ".config", "plain-agent");
-    await fs.mkdir(userConfigDir, { recursive: true });
+    // given: project config placed at .plain-agent/config.json in the working directory
+    const projectConfigDir = path.join(workDir, ".plain-agent");
+    await fs.mkdir(projectConfigDir, { recursive: true });
     const template = await fs.readFile(
       path.join(__dirname, "fixtures/config.template.json"),
       "utf-8",
     );
     await fs.writeFile(
-      path.join(userConfigDir, "config.json"),
+      path.join(projectConfigDir, "config.json"),
       template.replace("__PORT__", String(port)),
     );
 
@@ -103,7 +103,7 @@ describe("auto-approval", () => {
 
     // when:
     await waitForCliReady(proc, output);
-    proc.stdin?.write("list files\n");
+    proc.stdin.write("list files\n");
 
     // then: ls runs and the model continues without asking for approval
     await waitForOutput(output, /ls-done/, 15000);
@@ -127,7 +127,7 @@ describe("auto-approval", () => {
 
     // when:
     await waitForCliReady(proc, output);
-    proc.stdin?.write("remove a file\n");
+    proc.stdin.write("remove a file\n");
 
     // then: approval prompt appears
     await waitForOutput(output, /Approve.*tool call/, 15000);

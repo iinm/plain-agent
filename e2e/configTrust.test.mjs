@@ -13,7 +13,6 @@ import {
   SSE_HEADERS,
   spawnAgent,
   sseTextResponse,
-  waitForCliReady,
   waitForOutput,
 } from "./helpers.mjs";
 
@@ -89,15 +88,15 @@ describe("config trust", () => {
       },
     });
 
-    // given: user config placed at ~/.config/plain-agent/config.json
-    const userConfigDir = path.join(workDir, ".config", "plain-agent");
-    await fs.mkdir(userConfigDir, { recursive: true });
+    // given: project config placed at .plain-agent/config.json in the working directory
+    const projectConfigDir = path.join(workDir, ".plain-agent");
+    await fs.mkdir(projectConfigDir, { recursive: true });
     const template = await fs.readFile(
       path.join(__dirname, "fixtures/config.template.json"),
       "utf-8",
     );
     await fs.writeFile(
-      path.join(userConfigDir, "config.json"),
+      path.join(projectConfigDir, "config.json"),
       template.replace("__PORT__", String(port)),
     );
 
@@ -128,39 +127,22 @@ describe("config trust", () => {
     );
 
     // when: approve predefined config
-    proc.stdin?.write("y\n");
+    proc.stdin.write("y\n");
 
-    // when: second trust prompt appears (user config)
+    // when: second trust prompt appears (project config)
     await waitForNthTrustPrompt(output, 2, 10000);
 
-    // then: prompt mentions the user config
+    // then: prompt mentions the project config
     assert.ok(
-      output.join("").includes("plain-agent/config.json"),
-      `Expected user config in second prompt, got: ${output.join("")}`,
+      output.join("").includes(".plain-agent/config.json"),
+      `Expected project config in second prompt, got: ${output.join("")}`,
     );
 
-    // when: approve user config
-    proc.stdin?.write("y\n");
+    // when: approve project config
+    proc.stdin.write("y\n");
 
-    // then: CLI becomes ready — both configs were loaded
-    await waitForOutput(output, /sandbox: (on|off)/, 10000);
-
-    await closeAndWaitForExit(proc);
-  });
-
-  it("should respond to user input via the fake model", async () => {
-    // given:
-    respondWith = () => sseTextResponse("Hello from fake model!");
-    const { proc, output } = spawnAgent(workDir);
-
-    // when: approve any config trust prompts and wait for CLI
-    await waitForCliReady(proc, output);
-
-    // when: send user input
-    proc.stdin?.write("hello\n");
-
-    // then: fake model responds
-    await waitForOutput(output, /Hello from fake model!/, 10000);
+    // then: CLI becomes ready with the fake model loaded
+    await waitForOutput(output, /model: fake\+default/, 10000);
 
     await closeAndWaitForExit(proc);
   });

@@ -50,12 +50,16 @@ export function waitForOutput(output, pattern, timeoutMs) {
 /**
  * Spawn the agent inside a pseudo-TTY via `script -qfec`.
  * @param {string} workDir
+ * @returns {{ proc: import("node:child_process").ChildProcessWithoutNullStreams, output: string[] }}
  */
 export function spawnAgent(workDir) {
-  const proc = spawn("script", ["-qfec", `${BIN}`, "/dev/null"], {
-    cwd: workDir,
-    env: minimalEnv(workDir),
-  });
+  const proc =
+    /** @type {import("node:child_process").ChildProcessWithoutNullStreams} */ (
+      spawn("script", ["-qfec", `${BIN}`, "/dev/null"], {
+        cwd: workDir,
+        env: minimalEnv(workDir),
+      })
+    );
 
   /** @type {string[]} */
   const output = [];
@@ -72,8 +76,8 @@ export function spawnAgent(workDir) {
 /**
  * Approve all config trust prompts, then wait for the CLI to be ready.
  * Polls output, answering each "Do you want to load this file?" with "y",
- * and stops once the "sandbox:" indicator appears (meaning startup finished).
- * @param {import("node:child_process").ChildProcess} proc
+ * and stops once "model: fake+default" appears (meaning startup finished).
+ * @param {import("node:child_process").ChildProcessWithoutNullStreams} proc
  * @param {string[]} output
  */
 export async function waitForCliReady(proc, output) {
@@ -83,12 +87,12 @@ export async function waitForCliReady(proc, output) {
   while (Date.now() < deadline) {
     const full = output.join("");
 
-    if (/sandbox: (on|off)/.test(full)) return;
+    if (/model: fake\+default/.test(full)) return;
 
     const matches = full.match(/Do you want to load this file\?/g);
     const count = matches ? matches.length : 0;
     while (answered < count) {
-      proc.stdin?.write("y\n");
+      proc.stdin.write("y\n");
       answered++;
     }
 
@@ -102,12 +106,12 @@ export async function waitForCliReady(proc, output) {
 
 /**
  * Close stdin and wait for the process to exit.
- * @param {import("node:child_process").ChildProcess} proc
+ * @param {import("node:child_process").ChildProcessWithoutNullStreams} proc
  */
 export function closeAndWaitForExit(proc) {
   // Double Ctrl-D triggers the interactive exit handler in the pseudo-TTY.
-  proc.stdin?.write("\x04");
-  const ctrlDTimer = setTimeout(() => proc.stdin?.write("\x04"), 200);
+  proc.stdin.write("\x04");
+  const ctrlDTimer = setTimeout(() => proc.stdin.write("\x04"), 200);
   ctrlDTimer.unref();
 
   return new Promise((resolve, reject) => {
@@ -118,9 +122,9 @@ export function closeAndWaitForExit(proc) {
     timer.unref();
     proc.on("close", () => {
       clearTimeout(timer);
-      proc.stdout?.destroy();
-      proc.stderr?.destroy();
-      proc.stdin?.destroy();
+      proc.stdout.destroy();
+      proc.stderr.destroy();
+      proc.stdin.destroy();
       resolve(undefined);
     });
     proc.on("error", (err) => {
