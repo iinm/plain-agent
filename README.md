@@ -1,19 +1,21 @@
 # Plain Agent
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/iinm/plain-agent)
-[![CodeQL](https://github.com/iinm/plain-agent/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/iinm/plain-agent/actions/workflows/github-code-scanning/codeql)
+[![npm version](https://img.shields.io/npm/v/@iinm/plain-agent)](https://www.npmjs.com/package/@iinm/plain-agent)
+[![install size](https://packagephobia.com/badge?p=@iinm/plain-agent)](https://packagephobia.com/result?p=@iinm/plain-agent)
 [![Socket Badge](https://badge.socket.dev/npm/package/@iinm/plain-agent/1.11.0)](https://socket.dev/npm/package/@iinm/plain-agent)
+[![CodeQL](https://github.com/iinm/plain-agent/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/iinm/plain-agent/actions/workflows/github-code-scanning/codeql)
 
 A lightweight terminal-based coding agent focused on safety and low token cost
 
 ## Table of Contents
 
 - [Design](#design)
-  - [Multi-provider support](#multi-provider-support)
-  - [Auto-approval](#auto-approval)
+  - [Multi-Provider Support](#multi-provider-support)
+  - [Auto-Approval](#auto-approval)
   - [Path Validation](#path-validation)
   - [Sandbox](#sandbox)
-  - [Memory file](#memory-file)
+  - [Memory File](#memory-file)
   - [Token Efficiency](#token-efficiency)
   - [Claude Code Compatibility](#claude-code-compatibility)
 - [Requirements](#requirements)
@@ -29,7 +31,7 @@ A lightweight terminal-based coding agent focused on safety and low token cost
 
 ## Design
 
-### Multi-provider support
+### Multi-Provider Support
 
 Supports Claude, OpenAI, Gemini, and any OpenAI-compatible provider. Bedrock, Vertex AI, and Azure are also supported for teams working in environments restricted to managed cloud providers.
 
@@ -84,9 +86,11 @@ Models are identified by `name+variant` (e.g., `claude-sonnet-4-6+thinking-high`
 
 You can also add entries to `platforms` and `models` to use any OpenAI-compatible endpoint, such as Ollama or Fireworks. See the Quick Start section for examples.
 
-### Auto-approval
+### Auto-Approval
 
 Configure what the agent can do automatically using a small DSL with regex matching. Below is an excerpt from the [default config](https://github.com/iinm/plain-agent/blob/main/config/config.predefined.json).
+
+**Note**: Commands are executed without a shell — shell operators like `&&`, `|`, `;`, and redirects are not interpreted unless the agent explicitly uses `bash -c`. This makes each argument a discrete token that can be validated individually.
 
 ```js
 {
@@ -163,8 +167,6 @@ String values in tool inputs are treated as file paths and validated against the
 - Symlinks are resolved to their real path before validation — a symlink inside the working directory that points outside is rejected. Broken and circular symlinks are also rejected.
 - The file must be tracked by Git (not ignored)
 
-Commands are executed without a shell — shell operators like `&&`, `|`, `;`, and redirects are not interpreted unless the agent explicitly uses `bash -c`. This makes each argument a discrete token that can be validated individually.
-
 Compound arguments are decomposed before validation — embedded paths are extracted and checked individually:
 
 | Pattern | Example | Extracted |
@@ -177,7 +179,7 @@ Compound arguments are decomposed before validation — embedded paths are extra
 
 `--opt=<val>`, `-X<val>`, and `VAR=<val>` are checked recursively, so chained patterns like `-DINSTALL_DIR=/etc` decompose fully (`-D` → `INSTALL_DIR=/etc` → `/etc`).
 
-**Note**: validation only applies when the agent explicitly passes file paths to tools. It cannot catch file access inside scripts the agent writes — something like `bash -c "rm -rf /"` is beyond its reach. Always use a sandbox when auto-approving script execution.
+**Note**: Validation only applies when the agent explicitly passes file paths to tools. It cannot catch file access inside scripts the agent writes — something like `bash -c "rm -rf /"` is beyond its reach. Always use a sandbox when auto-approving script execution.
 
 ### Sandbox
 
@@ -217,7 +219,7 @@ A Docker-based wrapper called `plain-sandbox` is included, but the interface is 
 }
 ```
 
-### Memory file
+### Memory File
 
 The agent maintains a memory file (`.plain-agent/memory/`) for each session to:
 
