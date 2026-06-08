@@ -18,9 +18,5 @@
       "baseURL": "http://localhost:__PORT__",
       "apiKey": "test-key"
     }
-  ],
-  "autoApproval": {
-    "defaultAction": "ask",
-    "maxApprovals": 100
-  }
+  ]
 }
