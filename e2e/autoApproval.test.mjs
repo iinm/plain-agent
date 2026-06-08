@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { after, before, describe, it } from "node:test";
+import { after, afterEach, before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -21,6 +21,16 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 describe("auto-approval", () => {
+  /** @type {(() => Promise<void>)[]} */
+  const cleanups = [];
+
+  afterEach(async () => {
+    for (const cleanup of [...cleanups].reverse()) {
+      await cleanup();
+    }
+    cleanups.length = 0;
+  });
+
   /** @type {import("node:http").Server} */
   let server;
   /** @type {number} */
@@ -57,9 +67,9 @@ describe("auto-approval", () => {
       env: {
         ...minimalEnv(workDir),
         GIT_AUTHOR_NAME: "test",
-        GIT_AUTHOR_EMAIL: "t@t",
+        GIT_AUTHOR_EMAIL: "test@localhost",
         GIT_COMMITTER_NAME: "test",
-        GIT_COMMITTER_EMAIL: "t@t",
+        GIT_COMMITTER_EMAIL: "test@localhost",
       },
     });
 
@@ -74,9 +84,6 @@ describe("auto-approval", () => {
       path.join(projectConfigDir, "config.json"),
       template.replace("__PORT__", String(port)),
     );
-
-    // given: default handler
-    respondWith = () => sseTextResponse("Hello from fake model!");
   });
 
   after(async () => {
@@ -100,20 +107,19 @@ describe("auto-approval", () => {
       return sseTextResponse("ls-done");
     };
     const { proc, output } = spawnAgent(workDir);
+    cleanups.push(() => closeAndWaitForExit(proc));
 
     // when:
     await waitForCliReady(proc, output);
     proc.stdin.write("list files\n");
 
     // then: ls runs and the model continues without asking for approval
-    await waitForOutput(output, /ls-done/, 15000);
+    await waitForOutput(output, /ls-done/, 2000);
     const full = output.join("");
     assert.ok(
       !full.includes("Approve"),
       `Expected no approval prompt for ls, got: ${full}`,
     );
-
-    await closeAndWaitForExit(proc);
   });
 
   it("should require confirmation for rm command", async () => {
@@ -124,14 +130,13 @@ describe("auto-approval", () => {
         args: ["file.txt"],
       });
     const { proc, output } = spawnAgent(workDir);
+    cleanups.push(() => closeAndWaitForExit(proc));
 
     // when:
     await waitForCliReady(proc, output);
     proc.stdin.write("remove a file\n");
 
     // then: approval prompt appears
-    await waitForOutput(output, /Approve.*tool call/, 15000);
-
-    await closeAndWaitForExit(proc);
+    await waitForOutput(output, /Approve 1 tool call\?/, 2000);
   });
 });
