@@ -121,15 +121,13 @@ function minimalEnv(home) {
 
 /**
  * Spawn the agent inside a pseudo-TTY via `script -qfec`.
- * @param {string} configPath
  * @param {string} workDir
  */
-function spawnAgent(configPath, workDir) {
-  const proc = spawn(
-    "script",
-    ["-qfec", `${BIN} --config ${configPath}`, "/dev/null"],
-    { cwd: workDir, env: minimalEnv(workDir) },
-  );
+function spawnAgent(workDir) {
+  const proc = spawn("script", ["-qfec", `${BIN}`, "/dev/null"], {
+    cwd: workDir,
+    env: minimalEnv(workDir),
+  });
 
   /** @type {string[]} */
   const output = [];
@@ -205,8 +203,6 @@ describe("auto-approval E2E", () => {
   /** @type {number} */
   let port;
   /** @type {string} */
-  let configPath;
-  /** @type {string} */
   let workDir;
   /** @type {(body: string) => string} */
   let respondWith;
@@ -244,13 +240,17 @@ describe("auto-approval E2E", () => {
       },
     });
 
-    // given: config file derived from template
+    // given: user config placed at ~/.config/plain-agent/config.json
+    const userConfigDir = path.join(workDir, ".config", "plain-agent");
+    await fs.mkdir(userConfigDir, { recursive: true });
     const template = await fs.readFile(
       path.join(__dirname, "fixtures/config.template.json"),
       "utf-8",
     );
-    configPath = path.join(workDir, "config.json");
-    await fs.writeFile(configPath, template.replace("__PORT__", String(port)));
+    await fs.writeFile(
+      path.join(userConfigDir, "config.json"),
+      template.replace("__PORT__", String(port)),
+    );
 
     // given: default handler
     respondWith = () => sseTextResponse("Hello from fake model!");
@@ -264,7 +264,7 @@ describe("auto-approval E2E", () => {
   it("should load predefined config and user project config", async () => {
     // given:
     respondWith = () => sseTextResponse("config-check-ok");
-    const { proc, output } = spawnAgent(configPath, workDir);
+    const { proc, output } = spawnAgent(workDir);
 
     // when: approve TOFU prompts and wait for CLI
     await waitForCliReady(proc, output);
@@ -286,7 +286,7 @@ describe("auto-approval E2E", () => {
   it("should respond to user input via the fake model", async () => {
     // given:
     respondWith = () => sseTextResponse("Hello from fake model!");
-    const { proc, output } = spawnAgent(configPath, workDir);
+    const { proc, output } = spawnAgent(workDir);
 
     // when:
     await waitForCliReady(proc, output);
@@ -310,7 +310,7 @@ describe("auto-approval E2E", () => {
       }
       return sseTextResponse("ls-done");
     };
-    const { proc, output } = spawnAgent(configPath, workDir);
+    const { proc, output } = spawnAgent(workDir);
 
     // when:
     await waitForCliReady(proc, output);
@@ -334,7 +334,7 @@ describe("auto-approval E2E", () => {
         command: "rm",
         args: ["file.txt"],
       });
-    const { proc, output } = spawnAgent(configPath, workDir);
+    const { proc, output } = spawnAgent(workDir);
 
     // when:
     await waitForCliReady(proc, output);
