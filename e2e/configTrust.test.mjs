@@ -19,7 +19,7 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-describe("config trust E2E", () => {
+describe("config trust", () => {
   /** @type {import("node:http").Server} */
   let server;
   /** @type {number} */

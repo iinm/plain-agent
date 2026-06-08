@@ -20,7 +20,7 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-describe("auto-approval E2E", () => {
+describe("auto-approval", () => {
   /** @type {import("node:http").Server} */
   let server;
   /** @type {number} */
