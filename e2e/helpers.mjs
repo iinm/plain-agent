@@ -107,15 +107,20 @@ export async function waitForCliReady(proc, output) {
 export function closeAndWaitForExit(proc) {
   // Double Ctrl-D triggers the interactive exit handler in the pseudo-TTY.
   proc.stdin?.write("\x04");
-  setTimeout(() => proc.stdin?.write("\x04"), 200);
+  const ctrlDTimer = setTimeout(() => proc.stdin?.write("\x04"), 200);
+  ctrlDTimer.unref();
 
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       proc.kill("SIGKILL");
       reject(new Error("Process did not exit in time"));
     }, 10000);
+    timer.unref();
     proc.on("close", () => {
       clearTimeout(timer);
+      proc.stdout?.destroy();
+      proc.stderr?.destroy();
+      proc.stdin?.destroy();
       resolve(undefined);
     });
     proc.on("error", (err) => {

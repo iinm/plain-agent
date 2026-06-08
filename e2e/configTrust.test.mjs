@@ -79,7 +79,10 @@ describe("config trust E2E", () => {
   });
 
   after(async () => {
-    server?.close();
+    if (server) {
+      server.closeAllConnections();
+      await new Promise((resolve) => server.close(resolve));
+    }
     if (workDir) await fs.rm(workDir, { recursive: true, force: true });
   });
 
