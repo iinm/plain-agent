@@ -24,25 +24,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * @param {number} n
  * @param {number} timeoutMs
  */
-function waitForNthTrustPrompt(output, n, timeoutMs) {
+async function waitForNthTrustPrompt(output, n, timeoutMs) {
   const pattern = /Do you want to load this file\?/g;
-  return new Promise((resolve, reject) => {
-    const interval = setInterval(() => {
-      const matches = output.join("").match(pattern);
-      if (matches && matches.length >= n) {
-        clearInterval(interval);
-        resolve(undefined);
-      }
-    }, 100);
-    setTimeout(() => {
-      clearInterval(interval);
-      reject(
-        new Error(
-          `Timed out waiting for trust prompt #${n}, got: ${output.join("")}`,
-        ),
-      );
-    }, timeoutMs);
-  });
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const matches = output.join("").match(pattern);
+    if (matches && matches.length >= n) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(
+    `Timed out waiting for trust prompt #${n}, got: ${output.join("")}`,
+  );
 }
 
 describe("config trust", () => {

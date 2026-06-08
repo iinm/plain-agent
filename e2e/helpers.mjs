@@ -30,21 +30,13 @@ export function minimalEnv(home) {
  * @param {RegExp} pattern
  * @param {number} timeoutMs
  */
-export function waitForOutput(output, pattern, timeoutMs) {
-  return new Promise((resolve, reject) => {
-    const interval = setInterval(() => {
-      if (pattern.test(output.join(""))) {
-        clearInterval(interval);
-        resolve(undefined);
-      }
-    }, 100);
-    setTimeout(() => {
-      clearInterval(interval);
-      reject(
-        new Error(`Timed out waiting for ${pattern}, got: ${output.join("")}`),
-      );
-    }, timeoutMs);
-  });
+export async function waitForOutput(output, pattern, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (pattern.test(output.join(""))) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`Timed out waiting for ${pattern}, got: ${output.join("")}`);
 }
 
 /**
