@@ -142,7 +142,7 @@ function spawnAgent(workDir) {
 }
 
 /**
- * Approve all TOFU config trust prompts, then wait for the CLI to be ready.
+ * Approve all config trust prompts, then wait for the CLI to be ready.
  * Polls output, answering each "Do you want to load this file?" with "y",
  * and stops once the "sandbox:" indicator appears (meaning startup finished).
  * @param {import("node:child_process").ChildProcess} proc
@@ -266,7 +266,7 @@ describe("auto-approval E2E", () => {
     respondWith = () => sseTextResponse("config-check-ok");
     const { proc, output } = spawnAgent(workDir);
 
-    // when: approve TOFU prompts and wait for CLI
+    // when: approve config trust prompts and wait for CLI
     await waitForCliReady(proc, output);
 
     // then: both configs appear in the startup output
