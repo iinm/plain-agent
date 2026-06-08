@@ -13,14 +13,13 @@ import {
   SSE_HEADERS,
   spawnAgent,
   sseTextResponse,
-  sseToolCallResponse,
   waitForCliReady,
   waitForOutput,
 } from "./helpers.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-describe("auto-approval E2E", () => {
+describe("config trust E2E", () => {
   /** @type {import("node:http").Server} */
   let server;
   /** @type {number} */
@@ -84,50 +83,39 @@ describe("auto-approval E2E", () => {
     if (workDir) await fs.rm(workDir, { recursive: true, force: true });
   });
 
-  it("should auto-approve ls command from predefined config", async () => {
-    // given: first call returns tool_call for ls, second returns text
-    let callCount = 0;
-    respondWith = () => {
-      callCount++;
-      if (callCount === 1) {
-        return sseToolCallResponse("call_ls", "exec_command", {
-          command: "ls",
-        });
-      }
-      return sseTextResponse("ls-done");
-    };
+  it("should load predefined config and user project config", async () => {
+    // given:
+    respondWith = () => sseTextResponse("config-check-ok");
     const { proc, output } = spawnAgent(workDir);
 
-    // when:
+    // when: approve config trust prompts and wait for CLI
     await waitForCliReady(proc, output);
-    proc.stdin?.write("list files\n");
 
-    // then: ls runs and the model continues without asking for approval
-    await waitForOutput(output, /ls-done/, 15000);
+    // then: both configs appear in the startup output
     const full = output.join("");
     assert.ok(
-      !full.includes("Approve"),
-      `Expected no approval prompt for ls, got: ${full}`,
+      full.includes("config.predefined.json"),
+      `Expected predefined config in startup output, got: ${full}`,
+    );
+    assert.ok(
+      full.includes("config.json"),
+      `Expected user config in startup output, got: ${full}`,
     );
 
     await closeAndWaitForExit(proc);
   });
 
-  it("should require confirmation for rm command", async () => {
-    // given: model returns tool_call for rm
-    respondWith = () =>
-      sseToolCallResponse("call_rm", "exec_command", {
-        command: "rm",
-        args: ["file.txt"],
-      });
+  it("should respond to user input via the fake model", async () => {
+    // given:
+    respondWith = () => sseTextResponse("Hello from fake model!");
     const { proc, output } = spawnAgent(workDir);
 
     // when:
     await waitForCliReady(proc, output);
-    proc.stdin?.write("remove a file\n");
+    proc.stdin?.write("hello\n");
 
-    // then: approval prompt appears
-    await waitForOutput(output, /Approve.*tool call/, 15000);
+    // then:
+    await waitForOutput(output, /Hello from fake model!/, 10000);
 
     await closeAndWaitForExit(proc);
   });
