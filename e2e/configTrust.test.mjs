@@ -19,6 +19,33 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+/**
+ * Wait until the trust prompt appears n times in the accumulated output.
+ * @param {string[]} output
+ * @param {number} n
+ * @param {number} timeoutMs
+ */
+function waitForNthTrustPrompt(output, n, timeoutMs) {
+  const pattern = /Do you want to load this file\?/g;
+  return new Promise((resolve, reject) => {
+    const interval = setInterval(() => {
+      const matches = output.join("").match(pattern);
+      if (matches && matches.length >= n) {
+        clearInterval(interval);
+        resolve(undefined);
+      }
+    }, 100);
+    setTimeout(() => {
+      clearInterval(interval);
+      reject(
+        new Error(
+          `Timed out waiting for trust prompt #${n}, got: ${output.join("")}`,
+        ),
+      );
+    }, timeoutMs);
+  });
+}
+
 describe("config trust", () => {
   /** @type {import("node:http").Server} */
   let server;
@@ -86,24 +113,37 @@ describe("config trust", () => {
     if (workDir) await fs.rm(workDir, { recursive: true, force: true });
   });
 
-  it("should load predefined config and user project config", async () => {
+  it("should prompt for each config file and load them when approved", async () => {
     // given:
-    respondWith = () => sseTextResponse("config-check-ok");
+    respondWith = () => sseTextResponse("config-loaded-ok");
     const { proc, output } = spawnAgent(workDir);
 
-    // when: approve config trust prompts and wait for CLI
-    await waitForCliReady(proc, output);
+    // when: first trust prompt appears (predefined config)
+    await waitForNthTrustPrompt(output, 1, 10000);
 
-    // then: both configs appear in the startup output
-    const full = output.join("");
+    // then: prompt mentions the predefined config
     assert.ok(
-      full.includes("config.predefined.json"),
-      `Expected predefined config in startup output, got: ${full}`,
+      output.join("").includes("config.predefined.json"),
+      `Expected predefined config in first prompt, got: ${output.join("")}`,
     );
+
+    // when: approve predefined config
+    proc.stdin?.write("y\n");
+
+    // when: second trust prompt appears (user config)
+    await waitForNthTrustPrompt(output, 2, 10000);
+
+    // then: prompt mentions the user config
     assert.ok(
-      full.includes("config.json"),
-      `Expected user config in startup output, got: ${full}`,
+      output.join("").includes("plain-agent/config.json"),
+      `Expected user config in second prompt, got: ${output.join("")}`,
     );
+
+    // when: approve user config
+    proc.stdin?.write("y\n");
+
+    // then: CLI becomes ready — both configs were loaded
+    await waitForOutput(output, /sandbox: (on|off)/, 10000);
 
     await closeAndWaitForExit(proc);
   });
@@ -113,11 +153,13 @@ describe("config trust", () => {
     respondWith = () => sseTextResponse("Hello from fake model!");
     const { proc, output } = spawnAgent(workDir);
 
-    // when:
+    // when: approve any config trust prompts and wait for CLI
     await waitForCliReady(proc, output);
+
+    // when: send user input
     proc.stdin?.write("hello\n");
 
-    // then:
+    // then: fake model responds
     await waitForOutput(output, /Hello from fake model!/, 10000);
 
     await closeAndWaitForExit(proc);
