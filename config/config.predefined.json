@@ -595,6 +595,62 @@
         }
       }
     },
+    {
+      "name": "claude-fable-5",
+      "variant": "thinking-high",
+      "platform": {
+        "name": "anthropic",
+        "variant": "default",
+        "baseURL": "https://api.anthropic.com"
+      },
+      "model": {
+        "format": "anthropic",
+        "config": {
+          "model": "claude-fable-5",
+          "max_tokens": 32768,
+          "thinking": { "type": "adaptive" },
+          "output_config": { "effort": "high" }
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "input_tokens": 10,
+          "output_tokens": 50,
+          "cache_read_input_tokens": 1,
+          "cache_creation_input_tokens": 12.50
+        }
+      }
+    },
+    {
+      "name": "claude-fable-5",
+      "variant": "thinking-max",
+      "platform": {
+        "name": "anthropic",
+        "variant": "default",
+        "baseURL": "https://api.anthropic.com"
+      },
+      "model": {
+        "format": "anthropic",
+        "config": {
+          "model": "claude-fable-5",
+          "max_tokens": 64000,
+          "thinking": { "type": "adaptive" },
+          "output_config": { "effort": "max" }
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "input_tokens": 10,
+          "output_tokens": 50,
+          "cache_read_input_tokens": 1,
+          "cache_creation_input_tokens": 12.50
+        }
+      }
+    },
 
     {
       "name": "claude-haiku-4-5",
@@ -753,6 +809,60 @@
           "output_tokens": 25,
           "cache_read_input_tokens": 0.5,
           "cache_creation_input_tokens": 6.25
+        }
+      }
+    },
+    {
+      "name": "claude-fable-5",
+      "variant": "thinking-high-bedrock",
+      "platform": {
+        "name": "bedrock",
+        "variant": "default"
+      },
+      "model": {
+        "format": "anthropic",
+        "config": {
+          "model": "global.anthropic.claude-fable-5",
+          "max_tokens": 32768,
+          "thinking": { "type": "adaptive" },
+          "output_config": { "effort": "high" }
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "input_tokens": 10,
+          "output_tokens": 50,
+          "cache_read_input_tokens": 1,
+          "cache_creation_input_tokens": 12.50
+        }
+      }
+    },
+    {
+      "name": "claude-fable-5",
+      "variant": "thinking-max-bedrock",
+      "platform": {
+        "name": "bedrock",
+        "variant": "default"
+      },
+      "model": {
+        "format": "anthropic",
+        "config": {
+          "model": "global.anthropic.claude-fable-5",
+          "max_tokens": 64000,
+          "thinking": { "type": "adaptive" },
+          "output_config": { "effort": "max" }
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "input_tokens": 10,
+          "output_tokens": 50,
+          "cache_read_input_tokens": 1,
+          "cache_creation_input_tokens": 12.50
         }
       }
     },
