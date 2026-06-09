@@ -325,6 +325,16 @@ describe("isSafeToolInputItem", () => {
       arg: "file://README.md",
       expected: false,
     },
+    {
+      desc: "http:// URL is not a local path",
+      arg: "http://example.com/path",
+      expected: true,
+    },
+    {
+      desc: "https:// URL is not a local path",
+      arg: "https://example.com:8080/some/path?query=1",
+      expected: true,
+    },
   ];
 
   for (const { desc, arg, expected } of testCases) {
