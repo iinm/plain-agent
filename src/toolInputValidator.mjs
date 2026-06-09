@@ -108,19 +108,18 @@ export function isSafeToolInputItem(
     );
   }
 
-  // proto://path pattern (e.g., file:///etc/passwd)
-  const protoMatch = arg.match(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/(.+)$/);
-  if (protoMatch) {
+  // file:// pattern — references the local filesystem
+  const fileMatch = arg.match(/^file:\/\/(.+)$/i);
+  if (fileMatch) {
     return (
       isSafeToolInputItemRaw(arg, allowedPaths, allowGitUnmanagedFiles) &&
       isSafeToolInputItemRaw(
-        `/${protoMatch[1]}`,
+        `/${fileMatch[1]}`,
         allowedPaths,
         allowGitUnmanagedFiles,
       )
     );
   }
-
   return isSafeToolInputItemRaw(arg, allowedPaths, allowGitUnmanagedFiles);
 }
 

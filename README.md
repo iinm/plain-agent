@@ -175,7 +175,7 @@ Compound arguments are decomposed before validation — embedded paths are extra
 | `--opt=<val>` | `--prefix=/tmp/foo` | `/tmp/foo` |
 | `-X<val>` | `-I/usr/include` | `/usr/include` |
 | `VAR=<val>` | `OUTPUT=/etc/passwd` | `/etc/passwd` |
-| `proto://…` | `file:///etc/passwd` | `/etc/passwd` |
+| `proto://…` | `file:///etc/passwd` | `/etc/passwd` (only `file:` is treated as a local path; `http(s)://` URLs are always allowed) |
 
 `--opt=<val>`, `-X<val>`, and `VAR=<val>` are checked recursively, so chained patterns like `-DINSTALL_DIR=/etc` decompose fully (`-D` → `INSTALL_DIR=/etc` → `/etc`).
 
