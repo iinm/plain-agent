@@ -5,7 +5,7 @@ import { afterEach, describe, it } from "node:test";
 import { styleText } from "node:util";
 import { lineHash } from "../utils/lineHash.mjs";
 import {
-  formatArgs,
+  formatCommandArgs,
   formatMarkdownTable,
   formatToolResult,
   formatToolUse,
@@ -17,28 +17,31 @@ const ANSI_PATTERN = new RegExp(`${ESC}\\[[0-9;]*m`, "g");
 /** @param {string} s */
 const stripAnsi = (s) => s.replace(ANSI_PATTERN, "");
 
-describe("formatArgs", () => {
+describe("formatCommandArgs", () => {
   it("renders an empty array inline", () => {
-    assert.equal(formatArgs([]), "args: []");
+    assert.equal(formatCommandArgs([]), "args: []");
   });
 
   it("falls back to JSON for undefined input", () => {
-    assert.equal(formatArgs(undefined), "args: []");
+    assert.equal(formatCommandArgs(undefined), "args: []");
   });
 
   it("keeps short single-line args compact", () => {
-    assert.equal(formatArgs(["-la", "src"]), 'args: ["-la","src"]');
+    assert.equal(
+      formatCommandArgs(["-la", "src"]),
+      `args: ["${styleText("cyan", "-la")}","src"]`,
+    );
   });
 
   it("switches to block form when any arg contains a newline", () => {
     const script = 'set -e\nfor f in *.mjs; do\n  echo "$f"\ndone';
     assert.equal(
-      formatArgs(["-c", script]),
+      formatCommandArgs(["-c", script]),
       [
         "args:",
-        '  - "-c"',
+        `  - "${styleText("cyan", "-c")}"`,
         "  - |",
-        "      set -e",
+        `      set ${styleText("cyan", "-e")}`,
         "      for f in *.mjs; do",
         '        echo "$f"',
         "      done",
@@ -48,8 +51,14 @@ describe("formatArgs", () => {
 
   it("handles trailing newlines inside a multi-line arg", () => {
     assert.equal(
-      formatArgs(["-c", "echo hi\n"]),
-      ["args:", '  - "-c"', "  - |", "      echo hi", "      "].join("\n"),
+      formatCommandArgs(["-c", "echo hi\n"]),
+      [
+        "args:",
+        `  - "${styleText("cyan", "-c")}"`,
+        "  - |",
+        "      echo hi",
+        "      ",
+      ].join("\n"),
     );
   });
 
@@ -57,15 +66,20 @@ describe("formatArgs", () => {
     const script =
       "total=0; for i in {1..1000}; do ((total += i)); done; echo $total";
     assert.equal(
-      formatArgs(["-c", script]),
-      ["args:", '  - "-c"', "  - |", `      ${script}`].join("\n"),
+      formatCommandArgs(["-c", script]),
+      [
+        "args:",
+        `  - "${styleText("cyan", "-c")}"`,
+        "  - |",
+        `      ${script}`,
+      ].join("\n"),
     );
   });
 
   it("keeps short single-line args compact even when many are present", () => {
     assert.equal(
-      formatArgs(["-n", "5", "-A", "2", "pattern", "src"]),
-      'args: ["-n","5","-A","2","pattern","src"]',
+      formatCommandArgs(["-n", "5", "-A", "2", "pattern", "src"]),
+      `args: ["${styleText("cyan", "-n")}","5","${styleText("cyan", "-A")}","2","pattern","src"]`,
     );
   });
 });
@@ -88,7 +102,7 @@ describe("formatToolUse", () => {
         "exec_command",
         'command: "bash"',
         "args:",
-        '  - "-c"',
+        `  - "${styleText("cyan", "-c")}"`,
         "  - |",
         "      echo one",
         '      echo "two"',
