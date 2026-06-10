@@ -138,10 +138,11 @@ export function createCommandHandler({
       return "prompt";
     }
 
-    // /compact
-    if (inputTrimmed.toLowerCase() === "/compact") {
+    // /compact [reason]
+    if (/^\/compact( |$)/i.test(inputTrimmed)) {
+      const invocation = inputTrimmed;
       const message = [
-        'System: This prompt was invoked as "/compact".',
+        `System: This prompt was invoked as "${invocation}".`,
         "",
         "Compact the conversation context:",
         "1. Update the memory file for the current task so it fully captures the task overview, progress, decisions, and next steps in a self-contained way.",
