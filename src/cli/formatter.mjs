@@ -27,7 +27,7 @@ const ARG_BLOCK_LENGTH_THRESHOLD = 60;
  * @param {unknown} args
  * @returns {string}
  */
-export function formatArgs(args) {
+export function formatCommandArgs(args) {
   if (!Array.isArray(args) || args.length === 0) {
     return `args: ${JSON.stringify(args ?? [])}`;
   }
@@ -38,7 +38,7 @@ export function formatArgs(args) {
       (a.includes("\n") || a.length > ARG_BLOCK_LENGTH_THRESHOLD),
   );
   if (!needsBlock) {
-    return `args: ${JSON.stringify(args)}`;
+    return `args: ${highlightCommandArgs(JSON.stringify(args))}`;
   }
 
   const lines = ["args:"];
@@ -49,13 +49,33 @@ export function formatArgs(args) {
     ) {
       lines.push("  - |");
       for (const line of arg.split("\n")) {
-        lines.push(`      ${line}`);
+        lines.push(`      ${highlightCommandArgs(line)}`);
       }
     } else {
-      lines.push(`  - ${JSON.stringify(arg)}`);
+      lines.push(`  - ${highlightCommandArgs(JSON.stringify(arg))}`);
     }
   }
   return lines.join("\n");
+}
+
+/**
+ * @param {string} args
+ * @returns {string}
+ */
+function highlightCommandArgs(args) {
+  return (
+    args
+      // --foo
+      .replace(
+        /(^|\s|")(--[a-zA-Z0-9-]+)(\s|"|$)/gm,
+        (_, p1, p2, p3) => p1 + styleText("cyan", p2) + p3,
+      )
+      // -f
+      .replace(
+        /(^|\s|")(-[a-zA-Z]+)(\s|"|$)/gm,
+        (_, p1, p2, p3) => p1 + styleText("cyan", p2) + p3,
+      )
+  );
 }
 
 /**
@@ -72,7 +92,7 @@ export async function formatToolUse(toolUse) {
     return [
       `${toolName}`,
       `command: ${JSON.stringify(execCommandInput.command)}`,
-      formatArgs(execCommandInput.args),
+      formatCommandArgs(execCommandInput.args),
     ].join("\n");
   }
 
@@ -117,7 +137,7 @@ export async function formatToolUse(toolUse) {
     return [
       `${toolName}`,
       `command: ${tmuxCommandInput.command}`,
-      formatArgs(tmuxCommandInput.args),
+      formatCommandArgs(tmuxCommandInput.args),
     ].join("\n");
   }
 
