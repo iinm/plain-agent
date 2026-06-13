@@ -1,5 +1,5 @@
 /**
- * @import { Tool } from '../tool'
+ * @import { Tool, SandboxModeProvider } from '../tool'
  * @import { ExecCommandConfig, ExecCommandInput, ExecCommandSanboxConfig } from './execCommand'
  */
 
@@ -13,10 +13,10 @@ const OUTPUT_TRUNCATED_LENGTH = 1024 * 2;
 
 /**
  * @param {ExecCommandConfig=} config
- * @returns {Tool}
+ * @returns {Tool & SandboxModeProvider}
  */
 export function createExecCommandTool(config) {
-  /** @type {Tool} */
+  /** @type {Tool & SandboxModeProvider} */
   return {
     def: {
       name: "exec_command",
@@ -190,6 +190,21 @@ Examples:
           child.stdin?.end();
         });
       }),
+
+    /**
+     * Report the sandbox mode for a given tool input. Mirrors
+     * `rewriteInputForSandbox`'s rule-matching logic so the CLI can preview
+     * the mode before execution.
+     * @param {unknown} input
+     * @returns {"sandbox" | "unsandboxed" | null}
+     */
+    getSandboxMode: (input) => {
+      if (!config?.sandbox) return null;
+      const matchedRule = (config.sandbox.rules || []).find((rule) =>
+        matchValue(/** @type {ExecCommandInput} */ (input), rule.pattern),
+      );
+      return matchedRule?.mode === "unsandboxed" ? "unsandboxed" : "sandbox";
+    },
   };
 }
 

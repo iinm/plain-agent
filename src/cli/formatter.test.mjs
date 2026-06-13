@@ -82,6 +82,31 @@ describe("formatCommandArgs", () => {
       `args: ["${styleText("cyan", "-n")}","5","${styleText("cyan", "-A")}","2","pattern","src"]`,
     );
   });
+
+  it("switches to block form at the boundary (JSON length = 161)", () => {
+    // Boundary: 161 is the smallest integer length that strictly exceeds
+    // ARGS_TOTAL_BLOCK_LENGTH_THRESHOLD (160), so the total-length branch
+    // must trigger block form. Each arg (29 chars, no newlines) is well
+    // below ARG_BLOCK_LENGTH_THRESHOLD, so the per-arg check alone would
+    // keep the compact form.
+    const args = Array.from({ length: 5 }, () => "x".repeat(29));
+    assert.equal(JSON.stringify(args).length, 161);
+    assert.equal(
+      formatCommandArgs(args),
+      ["args:", ...args.map((a) => `  - "${a}"`)].join("\n"),
+    );
+  });
+
+  it("stays compact at the boundary (JSON length = 160)", () => {
+    // Boundary: 160 is the largest integer length that does NOT strictly
+    // exceed ARGS_TOTAL_BLOCK_LENGTH_THRESHOLD (160), so the total-length
+    // branch must not trigger block form. Each arg (50 chars, no newlines)
+    // is also below ARG_BLOCK_LENGTH_THRESHOLD.
+    const args = Array.from({ length: 3 }, () => "x".repeat(50));
+    assert.equal(JSON.stringify(args).length, 160);
+    const x50 = "x".repeat(50);
+    assert.equal(formatCommandArgs(args), `args: ["${x50}","${x50}","${x50}"]`);
+  });
 });
 
 describe("formatToolUse", () => {
@@ -150,6 +175,69 @@ describe("formatToolUse", () => {
       output,
       ["exec_command", 'command: "rg"', 'args: ["foo","src"]'].join("\n"),
     );
+  });
+
+  it("appends [unsandboxed] badge when execCommandTool.getSandboxMode returns 'unsandboxed'", async () => {
+    // given: a mock execCommandTool whose getSandboxMode reports "unsandboxed"
+    const execCommandTool = {
+      getSandboxMode: () => /** @type {const} */ ("unsandboxed"),
+    };
+
+    // when:
+    const output = await formatToolUse(
+      {
+        type: "tool_use",
+        toolUseId: "t6",
+        toolName: "exec_command",
+        input: { command: "rm", args: ["-rf", "tmp"] },
+      },
+      { execCommandTool },
+    );
+
+    // then: the tool-name line carries a yellow " [unsandboxed]" suffix
+    const lines = output.split("\n");
+    assert.equal(
+      lines[0],
+      `exec_command${styleText("yellow", " [unsandboxed]")}`,
+    );
+  });
+
+  it("omits the [unsandboxed] badge when execCommandTool is not provided", async () => {
+    // given: formatToolUse is called without an execCommandTool option
+
+    // when:
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "t7",
+      toolName: "exec_command",
+      input: { command: "ls", args: ["-la"] },
+    });
+
+    // then: the tool-name line is rendered plain
+    assert.ok(!output.includes("[unsandboxed]"));
+    assert.equal(output.split("\n")[0], "exec_command");
+  });
+
+  it("omits the [unsandboxed] badge when getSandboxMode returns 'sandbox'", async () => {
+    // given: a mock execCommandTool whose getSandboxMode reports "sandbox"
+    const execCommandTool = {
+      getSandboxMode: () => /** @type {const} */ ("sandbox"),
+    };
+
+    // when:
+    const output = await formatToolUse(
+      {
+        type: "tool_use",
+        toolUseId: "t8",
+        toolName: "exec_command",
+        input: { command: "rg", args: ["foo", "src"] },
+      },
+      { execCommandTool },
+    );
+
+    // then: the tool-name line is rendered plain (no [unsandboxed])
+    assert.ok(!output.includes("[unsandboxed]"));
+    assert.equal(output.split("\n")[0], "exec_command");
   });
 });
 

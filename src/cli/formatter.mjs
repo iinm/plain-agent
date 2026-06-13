@@ -18,6 +18,9 @@ import { noThrow } from "../utils/noThrow.mjs";
 /** Length above which a single-line arg forces block-form rendering. */
 const ARG_BLOCK_LENGTH_THRESHOLD = 60;
 
+/** Total JSON length above which args are rendered in block form even if each individual arg is short. */
+const ARGS_TOTAL_BLOCK_LENGTH_THRESHOLD = 160;
+
 /**
  * Format an args array for display.
  * Uses compact JSON for short single-line args; switches to a YAML-style
@@ -32,11 +35,13 @@ export function formatCommandArgs(args) {
     return `args: ${JSON.stringify(args ?? [])}`;
   }
 
-  const needsBlock = args.some(
-    (a) =>
-      typeof a === "string" &&
-      (a.includes("\n") || a.length > ARG_BLOCK_LENGTH_THRESHOLD),
-  );
+  const needsBlock =
+    JSON.stringify(args).length > ARGS_TOTAL_BLOCK_LENGTH_THRESHOLD ||
+    args.some(
+      (a) =>
+        typeof a === "string" &&
+        (a.includes("\n") || a.length > ARG_BLOCK_LENGTH_THRESHOLD),
+    );
   if (!needsBlock) {
     return `args: ${highlightCommandArgs(JSON.stringify(args))}`;
   }
@@ -79,18 +84,28 @@ function highlightCommandArgs(args) {
 }
 
 /**
+ * @import { SandboxModeProvider } from "../tool"
+ */
+
+/**
  * Format tool use for display.
  * @param {MessageContentToolUse} toolUse
+ * @param {{ execCommandTool?: SandboxModeProvider }} [options]
  * @returns {Promise<string>}
  */
-export async function formatToolUse(toolUse) {
+export async function formatToolUse(toolUse, options = {}) {
   const { toolName, input } = toolUse;
 
   if (toolName === "exec_command") {
     /** @type {Partial<ExecCommandInput>} */
     const execCommandInput = input;
+    const mode = options.execCommandTool?.getSandboxMode?.(input);
+    const toolNameLine =
+      mode === "unsandboxed"
+        ? `${toolName}${styleText("yellow", " [unsandboxed]")}`
+        : toolName;
     return [
-      `${toolName}`,
+      toolNameLine,
       `command: ${JSON.stringify(execCommandInput.command)}`,
       formatCommandArgs(execCommandInput.args),
     ].join("\n");
@@ -375,9 +390,10 @@ export function formatCostForBatch(summary) {
 /**
  * Print a message to the console.
  * @param {Message} message
+ * @param {{ execCommandTool?: SandboxModeProvider }} [options]
  * @returns {Promise<void>}
  */
-export async function printMessage(message) {
+export async function printMessage(message, options = {}) {
   switch (message.role) {
     case "assistant": {
       // console.log(styleText("bold", "\nAgent:"));
@@ -386,7 +402,7 @@ export async function printMessage(message) {
         (part) => part.type === "tool_use",
       );
       const formattedToolUses = await Promise.all(
-        toolUseParts.map((part) => formatToolUse(part)),
+        toolUseParts.map((part) => formatToolUse(part, options)),
       );
       let toolUseIndex = 0;
       for (const part of message.content) {
@@ -405,7 +421,7 @@ export async function printMessage(message) {
           //   console.log(part.text);
           //   break;
           case "tool_use":
-            console.log(styleText("bold", "\nTool call:"));
+            console.log(styleText("bold", "\nTool use:"));
             console.log(formattedToolUses[toolUseIndex++]);
             break;
         }

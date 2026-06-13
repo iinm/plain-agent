@@ -145,7 +145,7 @@ export async function callAnthropicModel(
 
     const response = await runFetch();
 
-    if (response.status === 429 || response.status >= 500) {
+    if ((response.status === 429 || response.status >= 500) && retryCount < 5) {
       const interval = Math.min(2 * 2 ** retryCount, 16);
       console.error(
         styleText(

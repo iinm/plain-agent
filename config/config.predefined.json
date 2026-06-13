@@ -1676,7 +1676,7 @@
     },
 
     {
-      "name": "minimax-m2.7",
+      "name": "minimax-m3",
       "variant": "fireworks",
       "platform": {
         "name": "openai-compatible",
@@ -1685,30 +1685,7 @@
       "model": {
         "format": "openai-messages",
         "config": {
-          "model": "accounts/fireworks/models/minimax-m2p7"
-        }
-      },
-      "cost": {
-        "currency": "USD",
-        "unit": "1M",
-        "prices": {
-          "prompt_tokens": 0.3,
-          "prompt_tokens_details.cached_tokens": -0.24,
-          "completion_tokens": 1.2
-        }
-      }
-    },
-    {
-      "name": "minimax-m2.7",
-      "variant": "novita",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "novita"
-      },
-      "model": {
-        "format": "openai-messages",
-        "config": {
-          "model": "minimax/minimax-m2.7"
+          "model": "accounts/fireworks/models/minimax-m3"
         }
       },
       "cost": {

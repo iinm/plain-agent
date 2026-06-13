@@ -308,8 +308,9 @@ export async function main(argv = process.argv) {
     skills: Array.from(prompts.values()).filter((p) => p.isSkill),
   });
 
+  const execCommandTool = createExecCommandTool({ sandbox: appConfig.sandbox });
   const builtinTools = [
-    createExecCommandTool({ sandbox: appConfig.sandbox }),
+    execCommandTool,
     readFileTool,
     writeFileTool,
     createPatchFileTool(),
@@ -443,6 +444,7 @@ export async function main(argv = process.argv) {
   } else {
     startInteractiveSession({
       ...sessionOptions,
+      execCommandTool,
       notifyCmd: appConfig.notifyCmd,
       claudeCodePlugins: resolvePluginPaths(appConfig.claudeCodePlugins ?? []),
       voiceInput: appConfig.voiceInput,

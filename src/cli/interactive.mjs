@@ -1,6 +1,7 @@
 /**
  * @import { UserEventEmitter, AgentEventEmitter, AgentCommands } from "../agent"
  * @import { ClaudeCodePlugin } from "../claudeCodePlugin.mjs"
+ * @import { Tool, SandboxModeProvider } from "../tool"
  * @import { VoiceInputConfig } from "../voice/input.mjs"
  * @import { VoiceSession } from "../voice/session.mjs"
  */
@@ -67,6 +68,7 @@ const HELP_MESSAGE = [
  * @property {() => Promise<void>} onStop
  * @property {ClaudeCodePlugin[]} [claudeCodePlugins]
  * @property {VoiceInputConfig} [voiceInput]
+ * @property {Tool & SandboxModeProvider} [execCommandTool]
  */
 
 /**
@@ -111,6 +113,7 @@ export function startInteractiveSession({
   onStop,
   claudeCodePlugins,
   voiceInput,
+  execCommandTool,
 }) {
   /** @type {{ turn: boolean, multiLineBuffer: string[] | null, subagentName: string, toolSpinnerIndex: number, toolSpinnerLastTime: number }} */
   const state = {
@@ -517,7 +520,7 @@ export function startInteractiveSession({
 
   agentEventEmitter.on("message", (message) => {
     enqueueOutput(() =>
-      printMessage(message).catch((err) => {
+      printMessage(message, { execCommandTool }).catch((err) => {
         console.error(
           styleText("red", `Error rendering message: ${err.message}`),
         );
