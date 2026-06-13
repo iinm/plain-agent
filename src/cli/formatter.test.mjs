@@ -176,6 +176,69 @@ describe("formatToolUse", () => {
       ["exec_command", 'command: "rg"', 'args: ["foo","src"]'].join("\n"),
     );
   });
+
+  it("appends [unsandboxed] badge when execCommandTool.getSandboxMode returns 'unsandboxed'", async () => {
+    // given: a mock execCommandTool whose getSandboxMode reports "unsandboxed"
+    const execCommandTool = {
+      getSandboxMode: () => /** @type {const} */ ("unsandboxed"),
+    };
+
+    // when:
+    const output = await formatToolUse(
+      {
+        type: "tool_use",
+        toolUseId: "t6",
+        toolName: "exec_command",
+        input: { command: "rm", args: ["-rf", "tmp"] },
+      },
+      { execCommandTool },
+    );
+
+    // then: the tool-name line carries a yellow " [unsandboxed]" suffix
+    const lines = output.split("\n");
+    assert.equal(
+      lines[0],
+      `exec_command${styleText("yellow", " [unsandboxed]")}`,
+    );
+  });
+
+  it("omits the [unsandboxed] badge when execCommandTool is not provided", async () => {
+    // given: formatToolUse is called without an execCommandTool option
+
+    // when:
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "t7",
+      toolName: "exec_command",
+      input: { command: "ls", args: ["-la"] },
+    });
+
+    // then: the tool-name line is rendered plain
+    assert.ok(!output.includes("[unsandboxed]"));
+    assert.equal(output.split("\n")[0], "exec_command");
+  });
+
+  it("omits the [unsandboxed] badge when getSandboxMode returns 'sandbox'", async () => {
+    // given: a mock execCommandTool whose getSandboxMode reports "sandbox"
+    const execCommandTool = {
+      getSandboxMode: () => /** @type {const} */ ("sandbox"),
+    };
+
+    // when:
+    const output = await formatToolUse(
+      {
+        type: "tool_use",
+        toolUseId: "t8",
+        toolName: "exec_command",
+        input: { command: "rg", args: ["foo", "src"] },
+      },
+      { execCommandTool },
+    );
+
+    // then: the tool-name line is rendered plain (no [unsandboxed])
+    assert.ok(!output.includes("[unsandboxed]"));
+    assert.equal(output.split("\n")[0], "exec_command");
+  });
 });
 
 describe("formatToolUse (patch_file)", () => {

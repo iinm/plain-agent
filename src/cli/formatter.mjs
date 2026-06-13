@@ -84,18 +84,28 @@ function highlightCommandArgs(args) {
 }
 
 /**
+ * @import { SandboxModeProvider } from "../tool"
+ */
+
+/**
  * Format tool use for display.
  * @param {MessageContentToolUse} toolUse
+ * @param {{ execCommandTool?: SandboxModeProvider }} [options]
  * @returns {Promise<string>}
  */
-export async function formatToolUse(toolUse) {
+export async function formatToolUse(toolUse, options = {}) {
   const { toolName, input } = toolUse;
 
   if (toolName === "exec_command") {
     /** @type {Partial<ExecCommandInput>} */
     const execCommandInput = input;
+    const mode = options.execCommandTool?.getSandboxMode?.(input);
+    const toolNameLine =
+      mode === "unsandboxed"
+        ? `${toolName}${styleText("yellow", " [unsandboxed]")}`
+        : toolName;
     return [
-      `${toolName}`,
+      toolNameLine,
       `command: ${JSON.stringify(execCommandInput.command)}`,
       formatCommandArgs(execCommandInput.args),
     ].join("\n");
@@ -380,9 +390,10 @@ export function formatCostForBatch(summary) {
 /**
  * Print a message to the console.
  * @param {Message} message
+ * @param {{ execCommandTool?: SandboxModeProvider }} [options]
  * @returns {Promise<void>}
  */
-export async function printMessage(message) {
+export async function printMessage(message, options = {}) {
   switch (message.role) {
     case "assistant": {
       // console.log(styleText("bold", "\nAgent:"));
@@ -391,7 +402,7 @@ export async function printMessage(message) {
         (part) => part.type === "tool_use",
       );
       const formattedToolUses = await Promise.all(
-        toolUseParts.map((part) => formatToolUse(part)),
+        toolUseParts.map((part) => formatToolUse(part, options)),
       );
       let toolUseIndex = 0;
       for (const part of message.content) {
