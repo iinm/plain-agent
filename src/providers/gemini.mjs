@@ -145,7 +145,10 @@ export function createCacheEnabledGeminiModelCaller(
         signal: AbortSignal.timeout(8 * 60 * 1000),
       });
 
-      if (response.status === 429 || response.status >= 500) {
+      if (
+        (response.status === 429 || response.status >= 500) &&
+        retryCount < 5
+      ) {
         const interval = Math.min(2 * 2 ** retryCount, 16);
         console.error(
           styleText(
@@ -219,15 +222,20 @@ export function createCacheEnabledGeminiModelCaller(
         message instanceof GeminiNoCandidateError ||
         message instanceof GeminiMalformedFunctionCallError
       ) {
-        const interval = Math.min(2 * 2 ** retryCount, 16);
-        console.error(
-          styleText(
-            "yellow",
-            `${message.name}: Retrying in ${interval} seconds...`,
-          ),
+        if (retryCount < 5) {
+          const interval = Math.min(2 * 2 ** retryCount, 16);
+          console.error(
+            styleText(
+              "yellow",
+              `${message.name}: Retrying in ${interval} seconds...`,
+            ),
+          );
+          await new Promise((resolve) => setTimeout(resolve, interval * 1000));
+          return modelCaller(config, input, retryCount + 1);
+        }
+        return new Error(
+          `${message.name}: Retry limit (${retryCount}) exceeded: ${message.message}`,
         );
-        await new Promise((resolve) => setTimeout(resolve, interval * 1000));
-        return modelCaller(config, input, retryCount + 1);
       }
 
       // Create context cache for next request

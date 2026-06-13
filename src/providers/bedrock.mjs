@@ -107,7 +107,7 @@ export async function callBedrockConverseModel(
         (response.status === 429 ||
           response.status === 502 ||
           response.status === 503) &&
-        retryCount < 3
+        retryCount < 5
       ) {
         const retryInterval = Math.min(2 * 2 ** retryCount, 16);
         console.error(

@@ -179,7 +179,7 @@ export async function callOpenAICompatibleModel(
       maxAttempt: 5,
     });
 
-    if (response.status === 429 || response.status >= 500) {
+    if ((response.status === 429 || response.status >= 500) && retryCount < 5) {
       console.error(
         styleText(
           "yellow",
@@ -236,18 +236,25 @@ export async function callOpenAICompatibleModel(
 
     const chatCompletion = convertOpenAIStreamDataToChatCompletion(dataList);
     if (chatCompletion instanceof Error) {
-      console.error(
-        styleText(
-          "yellow",
-          `Failed to process stream: ${chatCompletion.message}; Retry in ${retryInterval} seconds...`,
-        ),
-      );
-      await new Promise((resolve) => setTimeout(resolve, retryInterval * 1000));
-      return callOpenAICompatibleModel(
-        platformConfig,
-        modelConfig,
-        input,
-        retryCount + 1,
+      if (retryCount < 5) {
+        console.error(
+          styleText(
+            "yellow",
+            `Failed to process stream: ${chatCompletion.message}; Retry in ${retryInterval} seconds...`,
+          ),
+        );
+        await new Promise((resolve) =>
+          setTimeout(resolve, retryInterval * 1000),
+        );
+        return callOpenAICompatibleModel(
+          platformConfig,
+          modelConfig,
+          input,
+          retryCount + 1,
+        );
+      }
+      throw new Error(
+        `Failed to process OpenAI compatible stream after ${retryCount} retries: ${chatCompletion.message}`,
       );
     }
 
