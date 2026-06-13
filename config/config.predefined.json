@@ -1612,6 +1612,29 @@
         }
       }
     },
+    {
+      "name": "kimi-k2.7-code",
+      "variant": "fireworks",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "fireworks"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "accounts/fireworks/models/kimi-k2p7-code"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "prompt_tokens": 0.95,
+          "prompt_tokens_details.cached_tokens": -0.76,
+          "completion_tokens": 4
+        }
+      }
+    },
 
     {
       "name": "deepseek-v4-pro",
@@ -1787,6 +1810,29 @@
           "prompt_tokens": 1.5625,
           "prompt_tokens_details.cached_tokens": -1.4375,
           "completion_tokens": 3.75
+        }
+      }
+    },
+    {
+      "name": "qwen3.7-plus",
+      "variant": "fireworks",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "fireworks"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "accounts/fireworks/models/qwen3p7-plus"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "prompt_tokens": 0.4,
+          "prompt_tokens_details.cached_tokens": -0.32,
+          "completion_tokens": 1.6
         }
       }
     },
