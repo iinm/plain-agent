@@ -421,7 +421,7 @@ export async function printMessage(message, options = {}) {
           //   console.log(part.text);
           //   break;
           case "tool_use":
-            console.log(styleText("bold", "\nTool call:"));
+            console.log(styleText("bold", "\nTool use:"));
             console.log(formattedToolUses[toolUseIndex++]);
             break;
         }
