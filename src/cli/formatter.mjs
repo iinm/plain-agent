@@ -18,6 +18,9 @@ import { noThrow } from "../utils/noThrow.mjs";
 /** Length above which a single-line arg forces block-form rendering. */
 const ARG_BLOCK_LENGTH_THRESHOLD = 60;
 
+/** Total JSON length above which args are rendered in block form even if each individual arg is short. */
+const ARGS_TOTAL_BLOCK_LENGTH_THRESHOLD = 160;
+
 /**
  * Format an args array for display.
  * Uses compact JSON for short single-line args; switches to a YAML-style
@@ -32,11 +35,13 @@ export function formatCommandArgs(args) {
     return `args: ${JSON.stringify(args ?? [])}`;
   }
 
-  const needsBlock = args.some(
-    (a) =>
-      typeof a === "string" &&
-      (a.includes("\n") || a.length > ARG_BLOCK_LENGTH_THRESHOLD),
-  );
+  const needsBlock =
+    JSON.stringify(args).length > ARGS_TOTAL_BLOCK_LENGTH_THRESHOLD ||
+    args.some(
+      (a) =>
+        typeof a === "string" &&
+        (a.includes("\n") || a.length > ARG_BLOCK_LENGTH_THRESHOLD),
+    );
   if (!needsBlock) {
     return `args: ${highlightCommandArgs(JSON.stringify(args))}`;
   }

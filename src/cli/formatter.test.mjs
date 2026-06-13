@@ -82,6 +82,31 @@ describe("formatCommandArgs", () => {
       `args: ["${styleText("cyan", "-n")}","5","${styleText("cyan", "-A")}","2","pattern","src"]`,
     );
   });
+
+  it("switches to block form at the boundary (JSON length = 161)", () => {
+    // Boundary: 161 is the smallest integer length that strictly exceeds
+    // ARGS_TOTAL_BLOCK_LENGTH_THRESHOLD (160), so the total-length branch
+    // must trigger block form. Each arg (29 chars, no newlines) is well
+    // below ARG_BLOCK_LENGTH_THRESHOLD, so the per-arg check alone would
+    // keep the compact form.
+    const args = Array.from({ length: 5 }, () => "x".repeat(29));
+    assert.equal(JSON.stringify(args).length, 161);
+    assert.equal(
+      formatCommandArgs(args),
+      ["args:", ...args.map((a) => `  - "${a}"`)].join("\n"),
+    );
+  });
+
+  it("stays compact at the boundary (JSON length = 160)", () => {
+    // Boundary: 160 is the largest integer length that does NOT strictly
+    // exceed ARGS_TOTAL_BLOCK_LENGTH_THRESHOLD (160), so the total-length
+    // branch must not trigger block form. Each arg (50 chars, no newlines)
+    // is also below ARG_BLOCK_LENGTH_THRESHOLD.
+    const args = Array.from({ length: 3 }, () => "x".repeat(50));
+    assert.equal(JSON.stringify(args).length, 160);
+    const x50 = "x".repeat(50);
+    assert.equal(formatCommandArgs(args), `args: ["${x50}","${x50}","${x50}"]`);
+  });
 });
 
 describe("formatToolUse", () => {
