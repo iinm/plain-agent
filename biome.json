@@ -12,7 +12,8 @@
       "bin/**",
       "scripts/**",
       "*.json",
-      ".config/config.predefined.json"
+      ".config/config.predefined.json",
+      ".plain-agent/config.json"
     ],
     "ignoreUnknown": false
   },

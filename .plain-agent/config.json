@@ -10,11 +10,16 @@
       },
       {
         "toolName": "exec_command",
-        "input": { "command": "git", "args": { "$has": "commit" } },
+        "input": {
+          "command": "git",
+          "args": { "$has": { "$regex": "^(commit|push)$" } }
+        },
         "action": "ask"
       },
       {
-        "toolName": { "$regex": "^(write_file|patch_file|exec_command|web_search|web_fetch)$" },
+        "toolName": {
+          "$regex": "^(write_file|patch_file|exec_command|web_search|web_fetch)$"
+        },
         "action": "allow"
       }
     ],
@@ -26,12 +31,26 @@
       },
       {
         "desc": "docker should require approval",
-        "toolUse": { "toolName": "exec_command", "input": { "command": "docker" } },
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "docker" }
+        },
         "expectedAction": "ask"
       },
       {
         "desc": "git commit should require approval",
-        "toolUse": { "toolName": "exec_command", "input": { "command": "git", "args": ["-C", "/anywhere", "commit"] } },
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "git", "args": ["-C", "/anywhere", "commit"] }
+        },
+        "expectedAction": "ask"
+      },
+      {
+        "desc": "git push should require approval",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "git", "args": ["-C", "/anywhere", "push"] }
+        },
         "expectedAction": "ask"
       }
     ]
@@ -42,16 +61,18 @@
     "separator": "--",
     "rules": [
       {
-        "pattern": {
-          "command": { "$regex": "^(gh|docker)$" }
-        },
+        "pattern": { "command": { "$regex": "^(gh|docker)$" } },
         "mode": "unsandboxed"
       },
       {
         "pattern": {
-          "command": "npm",
-          "args": ["ci"]
+          "command": "git",
+          "args": [{ "$regex": "^(fetch|pull|push)$" }]
         },
+        "mode": "unsandboxed"
+      },
+      {
+        "pattern": { "command": "npm", "args": ["ci"] },
         "mode": "sandbox",
         "additionalArgs": ["--allow-net", "0.0.0.0/0"]
       }
