@@ -19,6 +19,8 @@ export function createTmuxCommandTool(config) {
     def: {
       name: "tmux_command",
       description: [
+        "Use this for long-running foreground processes (e.g., web servers, vim, REPL). Use exec_command otherwise.",
+        "",
         "Run a tmux command.",
         "The tmux session id is plain-agent-<session-id>.",
         "",
