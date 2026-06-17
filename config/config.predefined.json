@@ -5,9 +5,15 @@
     "patterns": [
       {
         "toolName": "exec_command",
-        "input": { "command": { "$regex": "^(find|grep)$" } },
+        "input": { "command": "find" },
         "action": "deny",
-        "reason": "Use rg or fd instead"
+        "reason": "Use fd instead; fd respects .gitignore by default"
+      },
+      {
+        "toolName": "exec_command",
+        "input": { "command": "grep" },
+        "action": "deny",
+        "reason": "Use rg instead; rg respects .gitignore by default"
       },
       {
         "toolName": "exec_command",
@@ -146,6 +152,16 @@
       }
     ],
     "tests": [
+      {
+        "desc": "find should be denied",
+        "toolUse": { "toolName": "exec_command", "input": { "command": "find" } },
+        "expectedAction": "deny"
+      },
+      {
+        "desc": "grep should be denied",
+        "toolUse": { "toolName": "exec_command", "input": { "command": "grep" } },
+        "expectedAction": "deny"
+      },
       {
         "desc": "ls should be allowed",
         "toolUse": { "toolName": "exec_command", "input": { "command": "ls" } },
