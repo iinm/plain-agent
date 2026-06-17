@@ -1505,7 +1505,7 @@
     },
 
     {
-      "name": "glm-5.1",
+      "name": "glm-5.2",
       "variant": "fireworks",
       "platform": {
         "name": "openai-compatible",
@@ -1514,30 +1514,7 @@
       "model": {
         "format": "openai-messages",
         "config": {
-          "model": "accounts/fireworks/models/glm-5p1"
-        }
-      },
-      "cost": {
-        "currency": "USD",
-        "unit": "1M",
-        "prices": {
-          "prompt_tokens": 1.4,
-          "prompt_tokens_details.cached_tokens": -1.14,
-          "completion_tokens": 4.4
-        }
-      }
-    },
-    {
-      "name": "glm-5.1",
-      "variant": "novita",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "novita"
-      },
-      "model": {
-        "format": "openai-messages",
-        "config": {
-          "model": "zai-org/glm-5.1"
+          "model": "accounts/fireworks/models/glm-5p2"
         }
       },
       "cost": {
@@ -1552,15 +1529,15 @@
     },
     {
       "name": "glm-5.2",
-      "variant": "fireworks",
+      "variant": "novita",
       "platform": {
         "name": "openai-compatible",
-        "variant": "fireworks"
+        "variant": "novita"
       },
       "model": {
         "format": "openai-messages",
         "config": {
-          "model": "accounts/fireworks/models/glm-5p2"
+          "model": "zai-org/glm-5.2"
         }
       },
       "cost": {
