@@ -106,7 +106,7 @@ Examples:
 Preset Configuration:
 
   When --dockerfile is not specified, a preset Debian stable image is used with:
-  - System packages: busybox, bash, zsh (with grml config), ripgrep, fd, dig, curl, git
+  - System packages: busybox, bash, zsh (with grml config), ripgrep, fd, dig, curl, git, unzip
   - mise package manager for additional runtime installations
   - Persistent storage for shell history, git config
   - Default editor: busybox vi
@@ -889,6 +889,7 @@ RUN apt update \
       fd-find ripgrep jq \
       iptables ipset dnsmasq dnsutils curl \
       build-essential git tmux \
+      unzip \
     && bash -c 'ln -s $(which fdfind) /usr/local/bin/fd' \
     && echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen \
     && echo 'ja_JP.UTF-8 UTF-8' >> /etc/locale.gen \
