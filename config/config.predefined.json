@@ -1550,6 +1550,29 @@
         }
       }
     },
+    {
+      "name": "glm-5.2",
+      "variant": "fireworks",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "fireworks"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "accounts/fireworks/models/glm-5p2"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "prompt_tokens": 1.4,
+          "prompt_tokens_details.cached_tokens": -1.14,
+          "completion_tokens": 4.4
+        }
+      }
+    },
 
     {
       "name": "kimi-k2.6",
