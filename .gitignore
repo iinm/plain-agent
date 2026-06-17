@@ -1,13 +1,6 @@
 node_modules/
 tmp/
 
-.config/*
-!.config/prompts.predefined/
-!.config/prompts.library/
-!.config/agents.predefined/
-!.config/agents.library/
-!.config/config.predefined.json
-
 .plain-agent/*
 !.plain-agent/config.json
 !.plain-agent/setup.sh

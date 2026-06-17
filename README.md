@@ -545,16 +545,6 @@ plain resume --list
 plain resume 2026-05-10-0803-a7k
 ```
 
-Set up Plain Agent for your project.
-
-```
-/configure Auto-approve file writes and patches
-```
-
-```
-/configure Set up a sandbox for this project
-```
-
 ## Configuration
 
 Files are loaded in the following order. Settings in later files override earlier ones.

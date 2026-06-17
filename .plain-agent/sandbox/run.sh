@@ -18,5 +18,4 @@ plain-sandbox --dockerfile .plain-agent/sandbox/Dockerfile \
   --mount-writable "$metadata_dir/memory:$metadata_dir/memory" \
   --mount-writable "$metadata_dir/tmp:$metadata_dir/tmp" \
   --mount-readonly ~/.gitconfig:/home/node/.gitconfig \
-  --allow-net bedrock-runtime.ap-northeast-1.amazonaws.com \
   "$@"
