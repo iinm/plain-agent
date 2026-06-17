@@ -2,8 +2,6 @@
  * @import { UserEventEmitter, AgentEventEmitter, AgentCommands } from "../agent"
  * @import { ClaudeCodePlugin } from "../claudeCodePlugin.mjs"
  * @import { Tool, SandboxModeProvider } from "../tool"
- * @import { VoiceInputConfig } from "../voice/input.mjs"
- * @import { VoiceSession } from "../voice/session.mjs"
  */
 
 import readline from "node:readline";
@@ -11,8 +9,6 @@ import { styleText } from "node:util";
 import { appendUsageRecord, buildUsageRecord } from "../usageStore.mjs";
 import { createSequentialExecutor } from "../utils/createSequentialExecutor.mjs";
 import { notify } from "../utils/notify.mjs";
-import { startVoiceSession } from "../voice/input.mjs";
-import { parseVoiceToggleKey } from "../voice/toggleKey.mjs";
 import { createCommandHandler } from "./commands.mjs";
 import { createCompleter, SLASH_COMMANDS } from "./completer.mjs";
 import {
@@ -21,7 +17,6 @@ import {
   printMessage,
 } from "./formatter.mjs";
 import { createInterruptTransform } from "./interruptTransform.mjs";
-import { createMuteTransform } from "./muteTransform.mjs";
 import { createPasteHandler } from "./pasteTransform.mjs";
 import { createStreamFormatter } from "./streamFormatter.mjs";
 
@@ -67,7 +62,6 @@ const HELP_MESSAGE = [
  * @property {boolean} sandbox
  * @property {() => Promise<void>} onStop
  * @property {ClaudeCodePlugin[]} [claudeCodePlugins]
- * @property {VoiceInputConfig} [voiceInput]
  * @property {Tool & SandboxModeProvider} [execCommandTool]
  */
 
@@ -112,7 +106,6 @@ export function startInteractiveSession({
   sandbox,
   onStop,
   claudeCodePlugins,
-  voiceInput,
   execCommandTool,
 }) {
   /** @type {{ turn: boolean, multiLineBuffer: string[] | null, subagentName: string, toolSpinnerIndex: number, toolSpinnerLastTime: number }} */
@@ -127,18 +120,8 @@ export function startInteractiveSession({
   const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
   const SPINNER_INTERVAL_MS = 80;
 
-  /**
-   * Active voice input session, or null when not recording.
-   * @type {{ session: VoiceSession, startCursor: number, transcriptLength: number } | null}
-   */
-  let voice = null;
-
   // Create the stream buffer instance for this session
   const streamBuffer = createStreamBuffer();
-
-  // Parse the voice toggle key once at startup so misconfiguration fails
-  // loudly instead of silently falling back.
-  const voiceToggle = parseVoiceToggleKey(voiceInput?.toggleKey);
 
   const getCliPrompt = (subagentName = "", flashMessage = "") =>
     [
@@ -198,100 +181,7 @@ export function startInteractiveSession({
     cli.prompt();
   };
 
-  const stopVoiceSession = async () => {
-    if (!voice) return;
-    const current = voice;
-    voice = null;
-    await current.session.stop();
-    cli.setPrompt(currentCliPrompt);
-    // @ts-expect-error - internal property
-    cli._refreshLine?.();
-  };
-
-  const handleVoiceToggle = () => {
-    // Ignore while the agent is working.
-    if (!state.turn) return;
-
-    if (voice) {
-      stopVoiceSession();
-      return;
-    }
-
-    if (!voiceInput) {
-      cli.setPrompt(
-        getCliPrompt(
-          state.subagentName,
-          styleText(
-            "yellow",
-            `Voice input not configured. Set \`voiceInput\` in your config to enable ${voiceToggle.label}.`,
-          ),
-        ),
-      );
-      cli.prompt(true);
-      return;
-    }
-
-    const startCursor = cli.cursor;
-    const session = startVoiceSession({
-      config: voiceInput,
-      callbacks: {
-        onTranscript: (delta) => {
-          if (!voice) return;
-          const insertAt = voice.startCursor + voice.transcriptLength;
-          // Insert delta at the recording's insertion point. User input is
-          // swallowed while recording, so the buffer around `insertAt` is
-          // stable.
-          const before = cli.line.slice(0, insertAt);
-          const after = cli.line.slice(insertAt);
-          // `line` and `cursor` are declared readonly in the Node typings but
-          // are writable at runtime — the existing code already patches
-          // `_refreshLine` in the same way.
-          const mutableCli = /** @type {{ line: string, cursor: number }} */ (
-            /** @type {unknown} */ (cli)
-          );
-          mutableCli.line = before + delta + after;
-          mutableCli.cursor = insertAt + delta.length;
-          voice.transcriptLength += delta.length;
-          // @ts-expect-error - internal property
-          cli._refreshLine?.();
-        },
-        onError: (err) => {
-          voice = null;
-          cli.setPrompt(
-            getCliPrompt(
-              state.subagentName,
-              styleText("red", `Voice input error: ${err.message}`),
-            ),
-          );
-          cli.prompt(true);
-        },
-        onClose: () => {
-          if (!voice) return;
-          voice = null;
-          cli.setPrompt(currentCliPrompt);
-          // @ts-expect-error - internal property
-          cli._refreshLine?.();
-        },
-      },
-    });
-    voice = { session, startCursor, transcriptLength: 0 };
-    cli.setPrompt(
-      getCliPrompt(
-        state.subagentName,
-        styleText(["red", "bold"], `● REC  (${voiceToggle.label} to stop)`),
-      ),
-    );
-    // @ts-expect-error - internal property
-    cli._refreshLine?.();
-  };
-
   const handleCtrlC = () => {
-    // Stop voice recording first if active.
-    if (voice) {
-      stopVoiceSession();
-      return;
-    }
-
     // Agent turn: pause auto-approve; do not clear input.
     if (!state.turn) {
       agentCommands.pauseAutoApprove();
@@ -347,20 +237,14 @@ export function startInteractiveSession({
   };
 
   // Pre-readline pipeline:
-  //   stdin -> interrupt (Ctrl-C / Ctrl-D) -> mute (voice recording) -> paste (bracketed paste) -> readline
+  //   stdin -> interrupt (Ctrl-C / Ctrl-D) -> paste (bracketed paste) -> readline
   const interrupt = createInterruptTransform({
     onCtrlC: handleCtrlC,
     onCtrlD: handleCtrlD,
-    onVoiceToggle: handleVoiceToggle,
-    voiceToggleByte: voiceToggle.byte,
   });
-  // While a voice session is recording, swallow all stdin bytes other than
-  // Ctrl-C / Ctrl-D / the voice toggle key so transcript insertion stays
-  // consistent.
-  const mute = createMuteTransform({ isMuted: () => voice !== null });
   const paste = createPasteHandler();
 
-  process.stdin.pipe(interrupt).pipe(mute).pipe(paste.transform);
+  process.stdin.pipe(interrupt).pipe(paste.transform);
 
   // Enable bracketed paste mode
   if (process.stdout.isTTY) {

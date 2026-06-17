@@ -129,9 +129,6 @@ export async function loadAppConfig(options = {}) {
         ...(merged.claudeCodePlugins ?? []),
         ...(config.claudeCodePlugins ?? []),
       ],
-      voiceInput: config.voiceInput
-        ? { ...(merged.voiceInput ?? {}), ...config.voiceInput }
-        : merged.voiceInput,
     };
   }
 

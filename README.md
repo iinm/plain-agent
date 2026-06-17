@@ -25,7 +25,6 @@ A lightweight terminal-based coding agent focused on safety and low token cost
 - [Prompts](#prompts)
 - [Subagents](#subagents)
 - [Claude Code Plugin Support](#claude-code-plugin-support)
-- [Voice Input](#voice-input)
 - [Appendix: Creating Least-Privilege Users for Cloud Providers](#appendix-creating-least-privilege-users-for-cloud-providers)
 - [Developer Notes](#developer-notes)
 
@@ -847,52 +846,6 @@ Example:
 ```sh
 plain install-claude-code-plugins
 ```
-
-## Voice Input
-
-Press **Ctrl-O** to start recording, then press it again to stop. Partial transcripts are inserted into the prompt as you speak, so you can edit and send them like regular text.
-
-### Requirements
-
-- A recording command on `PATH`: `arecord`, `sox`, or `ffmpeg`.
-- An API key for the chosen provider.
-- Your host must have microphone access.
-
-### Providers
-
-**OpenAI Realtime**
-
-```js
-// ~/.config/plain-agent/config.local.json
-{
-  "voiceInput": {
-    "provider": "openai",
-    "apiKey": "<OPENAI_API_KEY>"
-    // "model": "gpt-4o-transcribe",  // or "gpt-4o-mini-transcribe", "whisper-1"
-    // "language": "ja"               // ISO-639-1 code. Improves accuracy and latency.
-  }
-}
-```
-
-**Gemini Live**
-
-```js
-// ~/.config/plain-agent/config.local.json
-{
-  "voiceInput": {
-    "provider": "gemini",
-    "apiKey": "<GEMINI_API_KEY>"
-    // "model": "gemini-3.1-flash-live-preview",
-    // "language": "ja"
-  }
-}
-```
-
-### Options
-
-- `toggleKey` — Rebind the toggle key. Accepts `"ctrl-<char>"` where `<char>`
-  is a letter (a-z) or one of `[ \ ] ^ _`. Defaults to `"ctrl-o"`.
-- `recorder` — Override automatic recorder detection, e.g. `{ "command": "sox", "args": ["-q", "-d", "-b", "16", "-c", "1", "-r", "24000", "-e", "signed-integer", "-t", "raw", "-"] }`. It must write raw 16-bit little-endian mono PCM to stdout at 24 kHz (OpenAI) or 16 kHz (Gemini).
 
 ## Appendix: Creating Least-Privilege Users for Cloud Providers
 

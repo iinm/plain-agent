@@ -447,7 +447,6 @@ export async function main(argv = process.argv) {
       execCommandTool,
       notifyCmd: appConfig.notifyCmd,
       claudeCodePlugins: resolvePluginPaths(appConfig.claudeCodePlugins ?? []),
-      voiceInput: appConfig.voiceInput,
     });
   }
 }

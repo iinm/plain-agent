@@ -10,7 +10,6 @@ import {
   WebSearchToolGeminiOptions,
   WebSearchToolGeminiVertexAIOptions,
 } from "./tools/webSearch.mjs";
-import { VoiceInputConfig } from "./voice/input.mjs";
 
 /**
  * JSON-serializable webFetch configuration.
@@ -88,7 +87,6 @@ export type AppConfig = {
   };
   mcpServers?: Record<string, MCPServerConfig>;
   notifyCmd?: { command: string; args?: string[] };
-  voiceInput?: VoiceInputConfig;
   claudeCodePlugins?: ClaudeCodePluginRepo[];
 };
 
