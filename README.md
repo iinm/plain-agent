@@ -3,7 +3,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/iinm/plain-agent)
 [![npm version](https://img.shields.io/npm/v/@iinm/plain-agent)](https://www.npmjs.com/package/@iinm/plain-agent)
 [![install size](https://packagephobia.com/badge?p=@iinm/plain-agent)](https://packagephobia.com/result?p=@iinm/plain-agent)
-[![Socket Badge](https://badge.socket.dev/npm/package/@iinm/plain-agent/1.11.9)](https://socket.dev/npm/package/@iinm/plain-agent)
+[![Socket Badge](https://badge.socket.dev/npm/package/@iinm/plain-agent/1.12.0)](https://socket.dev/npm/package/@iinm/plain-agent)
 [![CodeQL](https://github.com/iinm/plain-agent/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/iinm/plain-agent/actions/workflows/github-code-scanning/codeql)
 
 A lightweight terminal-based coding agent focused on safety and low token cost
