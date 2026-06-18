@@ -1543,29 +1543,6 @@
         }
       }
     },
-    {
-      "name": "glm-5.2",
-      "variant": "novita",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "novita"
-      },
-      "model": {
-        "format": "openai-messages",
-        "config": {
-          "model": "zai-org/glm-5.2"
-        }
-      },
-      "cost": {
-        "currency": "USD",
-        "unit": "1M",
-        "prices": {
-          "prompt_tokens": 1.4,
-          "prompt_tokens_details.cached_tokens": -1.14,
-          "completion_tokens": 4.4
-        }
-      }
-    },
 
     {
       "name": "kimi-k2.6",
@@ -1605,53 +1582,7 @@
         }
       }
     },
-    {
-      "name": "kimi-k2.7-code",
-      "variant": "novita",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "novita"
-      },
-      "model": {
-        "format": "openai-messages",
-        "config": {
-          "model": "moonshotai/kimi-k2.7-code"
-        }
-      },
-      "cost": {
-        "currency": "USD",
-        "unit": "1M",
-        "prices": {
-          "prompt_tokens": 0.95,
-          "prompt_tokens_details.cached_tokens": -0.76,
-          "completion_tokens": 4
-        }
-      }
-    },
 
-    {
-      "name": "deepseek-v4-pro",
-      "variant": "novita",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "novita"
-      },
-      "model": {
-        "format": "openai-messages",
-        "config": {
-          "model": "deepseek/deepseek-v4-pro"
-        }
-      },
-      "cost": {
-        "currency": "USD",
-        "unit": "1M",
-        "prices": {
-          "prompt_tokens": 1.74,
-          "prompt_tokens_details.cached_tokens": -1.595,
-          "completion_tokens": 3.48
-        }
-      }
-    },
     {
       "name": "deepseek-v4-pro",
       "variant": "fireworks",
@@ -1714,29 +1645,6 @@
         }
       }
     },
-    {
-      "name": "minimax-m3",
-      "variant": "novita",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "novita"
-      },
-      "model": {
-        "format": "openai-messages",
-        "config": {
-          "model": "minimax/minimax-m3"
-        }
-      },
-      "cost": {
-        "currency": "USD",
-        "unit": "1M",
-        "prices": {
-          "prompt_tokens": 0.3,
-          "prompt_tokens_details.cached_tokens": -0.24,
-          "completion_tokens": 1.2
-        }
-      }
-    },
 
     {
       "name": "qwen3.7-plus",
@@ -1758,29 +1666,6 @@
           "prompt_tokens": 0.4,
           "prompt_tokens_details.cached_tokens": -0.32,
           "completion_tokens": 1.6
-        }
-      }
-    },
-    {
-      "name": "qwen3.7-max",
-      "variant": "novita",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "novita"
-      },
-      "model": {
-        "format": "openai-messages",
-        "config": {
-          "model": "qwen/qwen3.7-max"
-        }
-      },
-      "cost": {
-        "currency": "USD",
-        "unit": "1M",
-        "prices": {
-          "prompt_tokens": 1.5625,
-          "prompt_tokens_details.cached_tokens": -1.4375,
-          "completion_tokens": 3.75
         }
       }
     },
