@@ -1,5 +1,6 @@
 /**
  * @import { ClaudeCodePlugin } from "../claudeCodePlugin.mjs"
+ * @import { TabContext } from "./lineEditor.mjs"
  */
 
 import { styleText } from "node:util";
@@ -47,6 +48,80 @@ export const SLASH_COMMANDS = [
  */
 
 /**
+ * Create a completer that receives editor state via {@link TabContext}.
+ *
+ * @param {ClaudeCodePlugin[] | undefined} claudeCodePlugins
+ * @returns {(ctx: TabContext) => void}
+ */
+export function createCompleter(claudeCodePlugins) {
+  return (ctx) => {
+    (async () => {
+      try {
+        const prompts = await loadPrompts(claudeCodePlugins);
+        const agentRoles = await loadAgentRoles(claudeCodePlugins);
+
+        if (ctx.line.startsWith("/agents:")) {
+          const prefix = "/agents:";
+          const candidates = Array.from(agentRoles.values()).map((a) => ({
+            name: `${prefix}${a.id}`,
+            description: a.description,
+          }));
+          const hits = findMatches(candidates, ctx.line, prefix.length);
+
+          showCompletions(ctx, hits);
+          return;
+        }
+
+        if (ctx.line.startsWith("/prompts:")) {
+          const prefix = "/prompts:";
+          const candidates = Array.from(prompts.values()).map((p) => ({
+            name: `${prefix}${p.id}`,
+            description: p.description,
+          }));
+          const hits = findMatches(candidates, ctx.line, prefix.length);
+
+          showCompletions(ctx, hits);
+          return;
+        }
+
+        if (ctx.line.startsWith("/")) {
+          const shortcuts = Array.from(prompts.values())
+            .filter((p) => p.isShortcut)
+            .map((p) => ({
+              name: `/${p.id}`,
+              description: p.description,
+            }));
+
+          const allCommands = [...SLASH_COMMANDS, ...shortcuts].filter(
+            (cmd) => {
+              const name = typeof cmd === "string" ? cmd : cmd.name;
+              return (
+                name !== "/<id>" &&
+                (name === "/agents:" || !name.startsWith("/agents:")) &&
+                (name === "/prompts:" || !name.startsWith("/prompts:"))
+              );
+            },
+          );
+
+          const hits = findMatches(allCommands, ctx.line, 1);
+
+          showCompletions(ctx, hits);
+          return;
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(styleText("red", `\nCompletion error: ${message}`));
+        ctx.render();
+      }
+    })();
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+/**
  * Find candidates that match the line, prioritizing prefix matches.
  * @param {(string | CompletionCandidate)[]} candidates
  * @param {string} line
@@ -90,37 +165,32 @@ function commonPrefix(strings) {
 }
 
 /**
- * Display completion candidates and invoke the readline callback.
+ * Display completion candidates and update the editor line.
  *
- * Node.js readline normally requires two consecutive Tab presses to show the
- * candidate list. This helper lets readline handle the common-prefix
- * auto-completion first, then prints the candidate list on the next tick and
- * redraws the prompt so the display stays clean.
+ * For a single match the line is replaced immediately.  For multiple matches
+ * the longest common prefix is inserted (if longer than the current line) and
+ * the full candidate list is printed below.
  *
- * @param {import("node:readline").Interface} rl
+ * @param {TabContext} ctx
  * @param {(string | CompletionCandidate)[]} candidates
- * @param {string} line
- * @param {(err: Error | null, result: [string[], string]) => void} callback
  */
-function showCompletions(rl, candidates, line, callback) {
+function showCompletions(ctx, candidates) {
   const names = candidates.map((c) => (typeof c === "string" ? c : c.name));
-  if (candidates.length <= 1) {
-    callback(null, [names, line]);
+
+  if (candidates.length === 0) return;
+
+  if (candidates.length === 1) {
+    ctx.updateLine(names[0]);
+    ctx.render();
     return;
   }
+
   const prefix = commonPrefix(names);
-  if (prefix.length > line.length) {
-    // Let readline insert the common prefix.
-    callback(null, [[prefix], line]);
-  } else {
-    // Nothing new to insert.
-    callback(null, [[], line]);
+  if (prefix.length > ctx.line.length) {
+    ctx.updateLine(prefix);
+    ctx.render();
   }
-  // After readline finishes its own refresh, print the candidate list and
-  // redraw the prompt line.  We cannot use rl.prompt(true) because its
-  // internal _refreshLine clears everything below the prompt start, which
-  // erases the candidate list we just wrote.  Instead we manually re-output
-  // the prompt and current line content.
+
   setTimeout(() => {
     const maxLength = process.stdout.columns ?? 100;
     const list = candidates
@@ -130,7 +200,6 @@ function showCompletions(rl, candidates, line, callback) {
         const separator = " - ";
         const descText = toOneLine(c.description);
 
-        // 画面幅に合わせて説明文をカット（色を付ける前に計算）
         const availableWidth =
           maxLength - nameText.length - separator.length - 3;
         const displayDesc =
@@ -144,83 +213,6 @@ function showCompletions(rl, candidates, line, callback) {
       })
       .join("\r\n");
     process.stdout.write(`\r\n${list}\r\n`);
-    process.stdout.write(`${rl.getPrompt()}${rl.line}`);
+    ctx.render();
   }, 0);
-}
-
-/**
- * Create a completer function for readline.
- *
- * Because the readline.Interface instance (`cli`) is not available until after
- * `readline.createInterface` returns, we accept a getter function so the
- * completer can resolve the reference lazily at call time.
- *
- * @param {() => import("node:readline").Interface} getCliRef - A function that returns the readline Interface
- * @param {ClaudeCodePlugin[] | undefined} claudeCodePlugins
- * @returns {(line: string, callback: (err?: Error | null, result?: [string[], string]) => void) => void}
- */
-export function createCompleter(getCliRef, claudeCodePlugins) {
-  return (line, callback) => {
-    (async () => {
-      try {
-        const cli = getCliRef();
-        const prompts = await loadPrompts(claudeCodePlugins);
-        const agentRoles = await loadAgentRoles(claudeCodePlugins);
-
-        if (line.startsWith("/agents:")) {
-          const prefix = "/agents:";
-          const candidates = Array.from(agentRoles.values()).map((a) => ({
-            name: `${prefix}${a.id}`,
-            description: a.description,
-          }));
-          const hits = findMatches(candidates, line, prefix.length);
-
-          showCompletions(cli, hits, line, callback);
-          return;
-        }
-
-        if (line.startsWith("/prompts:")) {
-          const prefix = "/prompts:";
-          const candidates = Array.from(prompts.values()).map((p) => ({
-            name: `${prefix}${p.id}`,
-            description: p.description,
-          }));
-          const hits = findMatches(candidates, line, prefix.length);
-
-          showCompletions(cli, hits, line, callback);
-          return;
-        }
-
-        if (line.startsWith("/")) {
-          const shortcuts = Array.from(prompts.values())
-            .filter((p) => p.isShortcut)
-            .map((p) => ({
-              name: `/${p.id}`,
-              description: p.description,
-            }));
-
-          const allCommands = [...SLASH_COMMANDS, ...shortcuts].filter(
-            (cmd) => {
-              const name = typeof cmd === "string" ? cmd : cmd.name;
-              return (
-                name !== "/<id>" &&
-                (name === "/agents:" || !name.startsWith("/agents:")) &&
-                (name === "/prompts:" || !name.startsWith("/prompts:"))
-              );
-            },
-          );
-
-          const hits = findMatches(allCommands, line, 1);
-
-          showCompletions(cli, hits, line, callback);
-          return;
-        }
-
-        callback(null, [[], line]);
-      } catch (err) {
-        const error = err instanceof Error ? err : new Error(String(err));
-        callback(error, [[], line]);
-      }
-    })();
-  };
 }

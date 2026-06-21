@@ -4,7 +4,6 @@
  * @import { Tool, SandboxModeProvider } from "../tool"
  */
 
-import readline from "node:readline";
 import { styleText } from "node:util";
 import { appendUsageRecord, buildUsageRecord } from "../usageStore.mjs";
 import { createSequentialExecutor } from "../utils/createSequentialExecutor.mjs";
@@ -17,6 +16,7 @@ import {
   printMessage,
 } from "./formatter.mjs";
 import { createInterruptTransform } from "./interruptTransform.mjs";
+import { createLineEditor } from "./lineEditor.mjs";
 import { createPasteHandler } from "./pasteTransform.mjs";
 import { createStreamFormatter } from "./streamFormatter.mjs";
 
@@ -164,21 +164,20 @@ export function startInteractiveSession({
   let lastCtrlDAttempt = 0;
   const EXIT_CONFIRM_TIMEOUT = 1500;
 
-  /** @type {import("node:readline").Interface} */
-  let cli;
+  /** @type {import("./lineEditor.mjs").LineEditor} */
+  let editor;
 
   /**
-   * Clear the current readline input line and redraw the prompt.
+   * Clear the current input line and redraw the prompt.
    * Also aborts multi-line input mode if active.
    */
   const resetInput = () => {
     if (state.multiLineBuffer !== null) {
       state.multiLineBuffer = null;
-      cli.setPrompt(currentCliPrompt);
+      editor.setPrompt(currentCliPrompt);
     }
-    cli.write(null, { ctrl: true, name: "a" }); // move to line start
-    cli.write(null, { ctrl: true, name: "k" }); // delete to line end
-    cli.prompt();
+    editor.clearLine();
+    editor.render();
   };
 
   const handleCtrlC = () => {
@@ -195,17 +194,18 @@ export function startInteractiveSession({
     }
 
     // User turn: clear current input. On empty input, show exit hint.
-    const hasInput = cli.line.length > 0 || state.multiLineBuffer !== null;
+    const hasInput =
+      editor.getLine().length > 0 || state.multiLineBuffer !== null;
     if (hasInput) {
       resetInput();
     } else {
-      cli.setPrompt(
+      editor.setPrompt(
         getCliPrompt(
           state.subagentName,
           styleText("yellow", "Press Ctrl-D twice to exit"),
         ),
       );
-      cli.prompt();
+      editor.render();
     }
     // Reset Ctrl-D confirmation when Ctrl-C is pressed
     lastCtrlDAttempt = 0;
@@ -213,7 +213,10 @@ export function startInteractiveSession({
 
   const handleCtrlD = () => {
     // User turn with non-empty input: ignore Ctrl-D entirely.
-    if (state.turn && (cli.line.length > 0 || state.multiLineBuffer !== null)) {
+    if (
+      state.turn &&
+      (editor.getLine().length > 0 || state.multiLineBuffer !== null)
+    ) {
       return;
     }
 
@@ -224,20 +227,20 @@ export function startInteractiveSession({
     }
     lastCtrlDAttempt = now;
     if (state.turn) {
-      cli.setPrompt(
+      editor.setPrompt(
         getCliPrompt(
           state.subagentName,
           styleText("yellow", "Press Ctrl-D again to exit."),
         ),
       );
-      cli.prompt();
+      editor.render();
     } else {
       console.error(styleText("yellow", "\n\n⚠️ Press Ctrl-D again to exit.\n"));
     }
   };
 
-  // Pre-readline pipeline:
-  //   stdin -> interrupt (Ctrl-C / Ctrl-D) -> paste (bracketed paste) -> readline
+  // Pre-editor pipeline:
+  //   stdin -> interrupt (Ctrl-C / Ctrl-D) -> paste (bracketed paste) -> editor
   const interrupt = createInterruptTransform({
     onCtrlC: handleCtrlC,
     onCtrlD: handleCtrlD,
@@ -251,35 +254,11 @@ export function startInteractiveSession({
     process.stdout.write("\x1b[?2004h");
   }
 
-  let currentCliPrompt = getCliPrompt(state.subagentName);
-  cli = readline.createInterface({
-    input: paste.transform,
-    output: process.stdout,
-    prompt: currentCliPrompt,
-    completer: createCompleter(() => cli, claudeCodePlugins),
-  });
-
-  // Disable automatic prompt redraw on resize during agent turn
-  // @ts-expect-error - internal property
-  const originalRefreshLine = cli._refreshLine?.bind(cli);
-  if (originalRefreshLine) {
-    // @ts-expect-error - internal property
-    cli._refreshLine = (...args) => {
-      if (state.turn) {
-        originalRefreshLine(...args);
-      }
-    };
-  }
-
-  readline.emitKeypressEvents(process.stdin);
   if (process.stdin.isTTY) {
     process.stdin.setRawMode(true);
   }
 
-  // Handle readline close (e.g., stdin closed externally)
-  cli.on("close", handleExit);
-  process.on("SIGTERM", handleExit);
-  process.on("SIGHUP", handleExit);
+  let currentCliPrompt = getCliPrompt(state.subagentName);
 
   const handleCommand = createCommandHandler({
     agentCommands,
@@ -296,6 +275,7 @@ export function startInteractiveSession({
   async function processInput(input) {
     // Prevent concurrent input processing from multi-line paste
     state.turn = false;
+    editor.setSuppressRefresh(true);
 
     // Resolve paste placeholders to original content
     const resolvedInput = paste.resolvePlaceholders(input);
@@ -303,56 +283,68 @@ export function startInteractiveSession({
 
     if (inputTrimmed.length === 0) {
       state.turn = true;
-      cli.prompt();
+      editor.setSuppressRefresh(false);
+      editor.render();
       return;
     }
 
-    cli.setPrompt(currentCliPrompt);
+    editor.setPrompt(currentCliPrompt);
 
     const result = await handleCommand(inputTrimmed);
     if (result === "prompt") {
       state.turn = true;
-      cli.prompt();
+      editor.setSuppressRefresh(false);
+      editor.render();
     }
   }
 
-  cli.on("line", async (lineInput) => {
-    if (!state.turn) {
-      console.error(
-        styleText(
-          "yellow",
-          `\nAgent is working. Ignore input: ${lineInput.trim()}`,
-        ),
-      );
-      return;
-    }
-
-    // Check for multi-line delimiter
-    if (lineInput.trim() === '"""') {
-      if (state.multiLineBuffer === null) {
-        state.multiLineBuffer = [];
-        cli.setPrompt(styleText("gray", "... "));
-        cli.prompt();
+  editor = createLineEditor({
+    input: paste.transform,
+    output: process.stdout,
+    prompt: currentCliPrompt,
+    onLine: async (lineInput) => {
+      if (!state.turn) {
+        console.error(
+          styleText(
+            "yellow",
+            `\nAgent is working. Ignore input: ${lineInput.trim()}`,
+          ),
+        );
         return;
       }
 
-      const combined = state.multiLineBuffer.join("\n");
-      state.multiLineBuffer = null;
-      cli.setPrompt(currentCliPrompt);
+      // Check for multi-line delimiter
+      if (lineInput.trim() === '"""') {
+        if (state.multiLineBuffer === null) {
+          state.multiLineBuffer = [];
+          editor.setPrompt(styleText("gray", "... "));
+          editor.render();
+          return;
+        }
 
-      await processInput(combined);
-      return;
-    }
+        const combined = state.multiLineBuffer.join("\n");
+        state.multiLineBuffer = null;
+        editor.setPrompt(currentCliPrompt);
 
-    // Accumulate lines if in multi-line mode
-    if (state.multiLineBuffer !== null) {
-      state.multiLineBuffer.push(lineInput);
-      cli.prompt();
-      return;
-    }
+        await processInput(combined);
+        return;
+      }
 
-    await processInput(lineInput);
+      // Accumulate lines if in multi-line mode
+      if (state.multiLineBuffer !== null) {
+        state.multiLineBuffer.push(lineInput);
+        editor.render();
+        return;
+      }
+
+      await processInput(lineInput);
+    },
+    onClose: handleExit,
+    onTab: createCompleter(claudeCodePlugins),
   });
+
+  process.on("SIGTERM", handleExit);
+  process.on("SIGHUP", handleExit);
 
   agentEventEmitter.on("partialMessageContent", (partialContent) => {
     if (partialContent.position === "start") {
@@ -414,7 +406,7 @@ export function startInteractiveSession({
 
   agentEventEmitter.on("toolUseRequest", (toolCount) => {
     const toolText = toolCount === 1 ? "tool call" : "tool calls";
-    cli.setPrompt(
+    editor.setPrompt(
       getCliPrompt(
         state.subagentName,
         styleText(
@@ -428,7 +420,7 @@ export function startInteractiveSession({
   agentEventEmitter.on("subagentSwitched", (subagent) => {
     state.subagentName = subagent?.name ?? "";
     currentCliPrompt = getCliPrompt(state.subagentName);
-    cli.setPrompt(currentCliPrompt);
+    editor.setPrompt(currentCliPrompt);
   });
 
   agentEventEmitter.on("providerTokenUsage", (usage) => {
@@ -464,10 +456,11 @@ export function startInteractiveSession({
     await new Promise((resolve) => setImmediate(resolve));
 
     state.turn = true;
-    cli.prompt();
+    editor.setSuppressRefresh(false);
+    editor.render();
   });
 
-  cli.prompt();
+  editor.render();
 
   // Register cleanup handlers
   process.on("exit", cleanup);
