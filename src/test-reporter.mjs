@@ -2,7 +2,10 @@
  * Minimal test reporter – shows only failures and a final summary.
  * Usage: node --test --test-reporter=./src/test-reporter.mjs
  */
-import { diffLines } from "./utils/diffLines.mjs";
+import { execFileSync } from "node:child_process";
+import { writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 /**
  * @param {string} expected
@@ -10,14 +13,31 @@ import { diffLines } from "./utils/diffLines.mjs";
  * @returns {string}
  */
 function formatDiff(expected, actual) {
-  const ops = diffLines(expected.split("\n"), actual.split("\n"));
-  const lines = [];
-  for (const op of ops) {
-    if (op.type === " ") lines.push(`  ${op.line}`);
-    else if (op.type === "-") lines.push(`- ${op.line}`);
-    else lines.push(`+ ${op.line}`);
+  const dir = mkdtempSync(join(tmpdir(), "test-diff-"));
+  try {
+    const expectedPath = join(dir, "expected");
+    const actualPath = join(dir, "actual");
+    writeFileSync(expectedPath, expected);
+    writeFileSync(actualPath, actual);
+    const result = execFileSync(
+      "git",
+      ["diff", "--no-index", "--no-color", "-U3", "--", expectedPath, actualPath],
+      { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
+    );
+    return result;
+  } catch (/** @type {any} */ e) {
+    if (e.stdout) {
+      const lines = e.stdout.split("\n");
+      // Skip the git diff header (diff --git, index, ---, +++ lines)
+      const bodyStart = lines.findIndex(
+        /** @param {string} l */ (l) => l.startsWith("@@"),
+      );
+      return bodyStart >= 0 ? lines.slice(bodyStart).join("\n") : e.stdout;
+    }
+    return `  expected: ${JSON.stringify(expected)}\n  actual:   ${JSON.stringify(actual)}`;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
-  return lines.join("\n");
 }
 
 /**
