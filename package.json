@@ -36,7 +36,7 @@
     "check": "npm run lint && tsc && npm run test && npm run test:e2e && npm run test:predefined-approval",
     "test": "node --test --test-reporter=./src/test-reporter.mjs 'src/**/*.test.mjs'",
     "test:e2e": "node --test --test-reporter=./src/test-reporter.mjs --test-timeout=30000 'e2e/**/*.test.mjs'",
-    "coverage": "c8 --exclude='src/**/*.test.mjs' --exclude='e2e/**' node --test --test-force-exit 'src/**/*.test.mjs' 'e2e/**/*.test.mjs'",
+    "coverage": "c8 --exclude='src/**/*.test.mjs' --exclude='e2e/**' node --test --test-reporter=./src/test-reporter.mjs --test-force-exit 'src/**/*.test.mjs' 'e2e/**/*.test.mjs'",
     "test:predefined-approval": "bash -c 'set -e; mkdir -p tmp; cd tmp; env HOME=. ../bin/plain test-approval'",
     "lint": "npx @biomejs/biome check",
     "fix": "npx @biomejs/biome check --fix",
