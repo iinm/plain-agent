@@ -3,7 +3,7 @@
  * Usage: node --test --test-reporter=./src/test-reporter.mjs
  */
 import { execFileSync } from "node:child_process";
-import { writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
