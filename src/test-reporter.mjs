@@ -2,12 +2,35 @@
  * Minimal test reporter – shows only failures and a final summary.
  * Usage: node --test --test-reporter=./src/test-reporter.mjs
  */
-/** @param {AsyncIterable<{type: string, data: {nesting?: number, details?: {type?: string, error?: {message?: string, expected?: unknown, actual?: unknown}}, name?: string, file?: string}}>} source */
+import { diffLines } from "./utils/diffLines.mjs";
+
+/**
+ * @param {string} expected
+ * @param {string} actual
+ * @returns {string}
+ */
+function formatDiff(expected, actual) {
+  const ops = diffLines(expected.split("\n"), actual.split("\n"));
+  const lines = [];
+  for (const op of ops) {
+    if (op.type === " ") lines.push(`  ${op.line}`);
+    else if (op.type === "-") lines.push(`- ${op.line}`);
+    else lines.push(`+ ${op.line}`);
+  }
+  return lines.join("\n");
+}
+
+/**
+ * @typedef {{message?: string, cause?: {expected?: unknown, actual?: unknown, message?: string}}} TestError
+ * @typedef {{nesting?: number, details?: {type?: string, error?: TestError}, name?: string, file?: string}} TestData
+ */
+
+/** @param {AsyncIterable<{type: string, data: TestData}>} source */
 export default async function* reporter(source) {
   let passed = 0;
   let failed = 0;
   const startMs = Date.now();
-  /** @type {{name?: string, file?: string, details?: {error?: {message?: string, expected?: unknown, actual?: unknown}}}[]} */
+  /** @type {TestData[]} */
   const failures = [];
 
   for await (const event of source) {
@@ -33,13 +56,25 @@ export default async function* reporter(source) {
       const name = f.name;
       const file = f.file ? ` (${f.file})` : "";
       yield `FAIL: ${name}${file}\n`;
-      const err = f.details?.error;
-      if (err) {
-        if (err.message) yield `  ${err.message}\n`;
-        if (err.expected !== undefined && err.actual !== undefined) {
-          yield `  expected: ${JSON.stringify(err.expected)}\n`;
-          yield `  actual:   ${JSON.stringify(err.actual)}\n`;
-        }
+      const cause = f.details?.error?.cause;
+      if (
+        cause &&
+        typeof cause.expected === "string" &&
+        typeof cause.actual === "string" &&
+        (cause.expected.includes("\n") || cause.actual.includes("\n"))
+      ) {
+        yield `${formatDiff(cause.expected, cause.actual)}\n`;
+      } else if (
+        cause &&
+        cause.expected !== undefined &&
+        cause.actual !== undefined
+      ) {
+        yield `  expected: ${JSON.stringify(cause.expected)}\n`;
+        yield `  actual:   ${JSON.stringify(cause.actual)}\n`;
+      } else if (cause?.message) {
+        yield `  ${cause.message}\n`;
+      } else if (f.details?.error?.message) {
+        yield `  ${f.details.error.message}\n`;
       }
       yield "\n";
     }
