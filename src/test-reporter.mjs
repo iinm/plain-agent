@@ -4,8 +4,8 @@
  */
 import { execFileSync } from "node:child_process";
 import { writeFileSync, mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 /**
  * @param {string} expected
@@ -21,7 +21,15 @@ function formatDiff(expected, actual) {
     writeFileSync(actualPath, actual);
     const result = execFileSync(
       "git",
-      ["diff", "--no-index", "--no-color", "-U3", "--", expectedPath, actualPath],
+      [
+        "diff",
+        "--no-index",
+        "--no-color",
+        "-U3",
+        "--",
+        expectedPath,
+        actualPath,
+      ],
       { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
     );
     return result;
