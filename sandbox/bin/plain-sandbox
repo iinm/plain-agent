@@ -524,7 +524,7 @@ EOF
     fi
   fi
 
-  if test "$(docker inspect --type container "$container_name" --format "{{ .State.Running }}" 2> /dev/null)" = "true"; then
+  if test "$DRY_RUN" = "no" && test "$(docker inspect --type container "$container_name" --format "{{ .State.Running }}" 2> /dev/null)" = "true"; then
     log "Container is already running. Reusing $container_name"
   else
     log "Stopping any existing container: $container_name"

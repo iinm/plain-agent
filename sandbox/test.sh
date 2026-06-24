@@ -81,9 +81,9 @@ grep -qE "DRY_RUN: docker build .+ --no-cache" <<< "$out"
 
 echo "case: host timezone is applied to the container"
 # when:
-out=$(env TZ="Asia/Tokyo" plain-sandbox --verbose --dry-run --dockerfile Dockerfile.minimum --no-cache true 2>&1)
+out=$(env TZ="Asia/Tokyo" plain-sandbox --dry-run --dockerfile Dockerfile.minimum --no-cache true)
 # then:
-grep -qE "TZ=Asia/Tokyo" <<< "$out"
+grep -qE "DRY_RUN: docker run .+ --env TZ=Asia/Tokyo" <<< "$out"
 
 
 echo "case: --env-file option pass env file to docker run"
