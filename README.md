@@ -543,9 +543,9 @@ plain resume --list
 plain resume 2026-05-10-0803-a7k
 ```
 
-Launch plain-sandbox interactively using the app config's sandbox settings.
+Launch the sandbox command interactively using the app config's sandbox settings.
 Arguments before `--` are flags for the `plain` CLI itself (e.g. `-c` to load a
-config file). Arguments after `--` are passed through to plain-sandbox as-is.
+config file). Arguments after `--` are passed through to the sandbox command as-is.
 
 ```sh
 plain sandbox -- --tty zsh

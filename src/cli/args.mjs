@@ -38,8 +38,8 @@
  */
 
 /**
- * Launch plain-sandbox interactively using the app config's sandbox settings.
- * Arguments after `--` are passed through to plain-sandbox as-is.
+ * Launch the sandbox command interactively using the app config's sandbox settings.
+ * Arguments after `--` are passed through to the sandbox command as-is.
  * @typedef {{ type: 'sandbox', config: string[], passthroughArgs: string[] }} SandboxSubcommand
  */
 
@@ -239,7 +239,7 @@ export function printHelp(exitCode = 0) {
 Usage: plain [options]
        plain batch [options] <task>
        plain resume [<sessionId>] [--list]
-       plain sandbox [-c <file>...] -- <plain-sandbox args>
+       plain sandbox [-c <file>...] -- [sandbox args...]
        plain cost [--from YYYY-MM-DD] [--to YYYY-MM-DD]
        plain list-models
        plain install-claude-code-plugins
@@ -259,9 +259,10 @@ Subcommands:
                                see resumable sessions. Switching models is
                                not supported (-m is rejected).
   test-approval                Run auto-approval rule tests defined in config.
-  sandbox                      Launch plain-sandbox interactively using the app
-                               config's sandbox settings. Arguments after -- are
-                               passed through to plain-sandbox as-is.
+  sandbox                      Launch the sandbox command interactively using
+                               the app config's sandbox settings. Arguments
+                               after -- are passed through to the sandbox
+                               command as-is.
   cost                         Show aggregated token cost per day for a period.
                                Defaults to the first day of the current month
                                through today.
