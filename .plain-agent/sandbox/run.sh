@@ -10,7 +10,7 @@ mkdir -p \
   "$metadata_dir/memory" \
   "$metadata_dir/tmp"
 
-plain-sandbox --dockerfile .plain-agent/sandbox/Dockerfile \
+./sandbox/bin/plain-sandbox --dockerfile .plain-agent/sandbox/Dockerfile \
   --volume plain-sandbox--global--home-npm:/home/node/.npm \
   --volume node_modules \
   --allow-write \
