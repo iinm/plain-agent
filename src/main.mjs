@@ -3,6 +3,7 @@
  * @import { SessionState } from "./sessionStore.mjs";
  */
 
+import { spawn } from "node:child_process";
 import { randomInt } from "node:crypto";
 import { styleText } from "node:util";
 import { createAgent } from "./agent.mjs";
@@ -88,6 +89,32 @@ export async function main(argv = process.argv) {
     });
     const exitCode = runTestApprovalCommand(appConfig);
     process.exit(exitCode);
+  }
+
+  if (cliArgs.subcommand.type === "sandbox") {
+    const { appConfig } = await loadAppConfig({
+      configFiles: cliArgs.subcommand.config,
+    });
+    if (!appConfig.sandbox) {
+      console.error(
+        "sandbox setting not found in config. Define a sandbox section in your config or specify one with -c.",
+      );
+      process.exit(1);
+    }
+    const sandbox = appConfig.sandbox;
+    const argsToRun = [
+      ...(sandbox.args || []),
+      ...cliArgs.subcommand.passthroughArgs,
+    ];
+    const child = spawn(sandbox.command, argsToRun, { stdio: "inherit" });
+    child.on("error", (err) => {
+      console.error(`Failed to start sandbox: ${err.message}`);
+      process.exit(1);
+    });
+    child.on("exit", (code) => {
+      process.exit(code ?? 0);
+    });
+    return;
   }
 
   if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {

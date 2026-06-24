@@ -1,10 +1,8 @@
 # Plain Agent
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/iinm/plain-agent)
-[![npm version](https://img.shields.io/npm/v/@iinm/plain-agent)](https://www.npmjs.com/package/@iinm/plain-agent)
-[![install size](https://packagephobia.com/badge?p=@iinm/plain-agent)](https://packagephobia.com/result?p=@iinm/plain-agent)
-[![Socket Badge](https://badge.socket.dev/npm/package/@iinm/plain-agent/1.12.1)](https://socket.dev/npm/package/@iinm/plain-agent)
 [![CodeQL](https://github.com/iinm/plain-agent/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/iinm/plain-agent/actions/workflows/github-code-scanning/codeql)
+[![Socket Badge](https://badge.socket.dev/npm/package/@iinm/plain-agent/1.12.1)](https://socket.dev/npm/package/@iinm/plain-agent)
+[![install size](https://packagephobia.com/badge?p=@iinm/plain-agent)](https://packagephobia.com/result?p=@iinm/plain-agent)
 
 A lightweight terminal-based coding agent focused on safety and low token cost
 
@@ -541,6 +539,17 @@ plain resume
 # Or
 plain resume --list
 plain resume 2026-05-10-0803-a7k
+```
+
+Launch the sandbox command using the app config's sandbox settings.
+Arguments before `--` are flags for the `plain` CLI itself (e.g. `-c` to load a
+config file). Arguments after `--` are passed through to the sandbox command as-is.
+
+```sh
+plain sandbox -- --tty zsh
+
+# Or specify a config file explicitly
+plain sandbox -c .plain-agent/config.sandbox.json -- --tty zsh
 ```
 
 ## Configuration
