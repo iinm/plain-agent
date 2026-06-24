@@ -40,12 +40,12 @@ grep -qE "^Error: Unknown option: --no-such-option" <<< "$out"
 
 echo "case: run basic command with minimum Dockerfile"
 # when/then:
-plain-sandbox --dockerfile Dockerfile.minimum echo hello | grep -qE "^hello$"
+plain-sandbox --dockerfile Dockerfile.minimum --rebuild echo hello | grep -qE "^hello$"
 
 
 echo "case: receive stdin"
 # when/then:
-echo hello | plain-sandbox --dockerfile Dockerfile.minimum cat | grep -qE "^hello$"
+echo hello | plain-sandbox --dockerfile Dockerfile.minimum --rebuild cat | grep -qE "^hello$"
 
 
 echo "case: --dry-run option displays the command that would be executed"
@@ -133,17 +133,17 @@ grep -qE "DRY_RUN: docker run .+ --publish 127.0.0.1:8000:8000" <<< "$out"
 
 echo "case: container user/group id matches host user/group id"
 # shellcheck disable=SC2016
-plain-sandbox --dockerfile Dockerfile.minimum bash -c 'echo $(id -u):$(id -g)' | grep -qE "$(id -u):$(id -g)"
+plain-sandbox --dockerfile Dockerfile.minimum --rebuild bash -c 'echo $(id -u):$(id -g)' | grep -qE "$(id -u):$(id -g)"
 
 
 echo "case: working directory is mounted and readable"
 # when/then:
-plain-sandbox --dockerfile Dockerfile.minimum cat Dockerfile.minimum | grep -qE "FROM debian"
+plain-sandbox --dockerfile Dockerfile.minimum --rebuild cat Dockerfile.minimum | grep -qE "FROM debian"
 
 
 echo "case: working directory owner is sandbox user"
 # when/then:
-plain-sandbox --dockerfile Dockerfile.minimum ls -ld . | grep -qE sandbox
+plain-sandbox --dockerfile Dockerfile.minimum --rebuild ls -ld . | grep -qE sandbox
 
 
 echo "case: working directory is read-only by default"
@@ -156,7 +156,7 @@ grep -qE "Read-only file system" <<< "$out"
 
 echo "case: --allow-write makes working directory writable"
 # when/then:
-plain-sandbox --allow-write --dockerfile Dockerfile.minimum touch test && test -e test
+plain-sandbox --allow-write --dockerfile Dockerfile.minimum --rebuild touch test && test -e test
 rm -f test
 
 
@@ -169,7 +169,7 @@ else
 fi
 nc_pid=$!
 # when:
-out=$(plain-sandbox --dockerfile Dockerfile.minimum busybox nc -w 2 host.docker.internal 8000 < /dev/null 2>&1) || status=$?
+out=$(plain-sandbox --dockerfile Dockerfile.minimum --rebuild busybox nc -w 2 host.docker.internal 8000 < /dev/null 2>&1) || status=$?
 # then:
 test "$status" -ne 0
 grep -qE "nc: bad address" <<< "$out"
@@ -188,7 +188,7 @@ else
 fi
 nc_pid=$!
 # when:
-out=$(plain-sandbox --dockerfile Dockerfile.minimum --allow-net host.docker.internal busybox nc -w 2 host.docker.internal 8000 < /dev/null 2>&1) || status=$?
+out=$(plain-sandbox --dockerfile Dockerfile.minimum --rebuild --allow-net host.docker.internal busybox nc -w 2 host.docker.internal 8000 < /dev/null 2>&1) || status=$?
 # then:
 grep -qE "Connection refused" <<< "$out"
 # cleanup:
@@ -206,7 +206,7 @@ else
 fi
 nc_pid=$!
 # when:
-plain-sandbox --dockerfile Dockerfile.minimum --allow-net host.docker.internal:8000 busybox nc -w 2 host.docker.internal 8000 < /dev/null
+plain-sandbox --dockerfile Dockerfile.minimum --rebuild --allow-net host.docker.internal:8000 busybox nc -w 2 host.docker.internal 8000 < /dev/null
 # cleanup:
 if lsof -i:8000 | grep -q "$nc_pid"; then
   kill "$nc_pid"
@@ -222,7 +222,7 @@ else
 fi
 nc_pid=$!
 # when:
-plain-sandbox --dockerfile Dockerfile.minimum --allow-net 0.0.0.0/0 busybox nc -w 2 8.8.8.8 443 < /dev/null
+plain-sandbox --dockerfile Dockerfile.minimum --rebuild --allow-net 0.0.0.0/0 busybox nc -w 2 8.8.8.8 443 < /dev/null
 # cleanup:
 if lsof -i:8000 | grep -q "$nc_pid"; then
   kill "$nc_pid"
@@ -231,7 +231,7 @@ fi
 
 echo "case: reuse existing container (image and container reuse on second run)"
 # given:
-plain-sandbox --dockerfile Dockerfile.minimum --keep-alive 5 --verbose true &> /dev/null
+plain-sandbox --dockerfile Dockerfile.minimum --rebuild --keep-alive 5 --verbose true &> /dev/null
 # when:
 out=$(plain-sandbox --dockerfile Dockerfile.minimum --keep-alive 5 --verbose true 2>&1)
 # then:
@@ -268,7 +268,7 @@ grep -qE "DRY_RUN: docker build .+ --no-cache" <<< "$out"
 
 echo "case: remove network if it fails to start container"
 # when:
-out=$(plain-sandbox --dockerfile Dockerfile.minimum --env-file no-such-file --allow-net --verbose true 2>&1) || status=$?
+out=$(plain-sandbox --dockerfile Dockerfile.minimum --rebuild --env-file no-such-file --allow-net --verbose true 2>&1) || status=$?
 # then:
 test "$status" -ne 0
 grep -qE "Removing network" <<< "$out"
@@ -276,4 +276,4 @@ grep -qE "Removing network" <<< "$out"
 
 echo "case: run basic command with preset configuration"
 # when/then:
-plain-sandbox echo hello | grep -qE "^hello$"
+plain-sandbox --rebuild echo hello | grep -qE "^hello$"
