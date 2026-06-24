@@ -61,7 +61,7 @@
   },
   "sandbox": {
     "command": ".plain-agent/sandbox/run.sh",
-    "args": ["--skip-build", "--keep-alive", "30"],
+    "args": ["--keep-alive", "30"],
     "separator": "--",
     "rules": [
       {

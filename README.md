@@ -189,9 +189,11 @@ A Docker-based wrapper called `plain-sandbox` is included, but the interface is 
 {
   "sandbox": {
     // Commands are wrapped and executed with this command
-    // Build the image before first use: plain-sandbox --verbose echo done
+    // The image is built automatically on first use and reused thereafter.
+    // To force a rebuild: plain-sandbox --rebuild --verbose echo done
+    // To rebuild without cache: plain-sandbox --no-cache --verbose echo done
     "command": "plain-sandbox",
-    "args": ["--allow-write", "--mount-readonly", ".plain-agent/config.json", "--skip-build", "--keep-alive", "30"],
+    "args": ["--allow-write", "--mount-readonly", ".plain-agent/config.json", "--keep-alive", "30"],
     // ↑ --mount-readonly: prevents the agent from overwriting its own config
     // separator is inserted between sandbox flags and the user command to prevent bypasses
     "separator": "--",
@@ -618,9 +620,11 @@ Files are loaded in the following order. Settings in later files override earlie
     ]
   },
   "sandbox": {
-    // Build the image before first use: plain-sandbox --verbose echo done
+    // The image is built automatically on first use and reused thereafter.
+    // To force a rebuild: plain-sandbox --rebuild --verbose echo done
+    // To rebuild without cache: plain-sandbox --no-cache --verbose echo done
     "command": "plain-sandbox",
-    "args": ["--allow-write", "--mount-readonly", ".plain-agent/config.json", "--skip-build", "--keep-alive", "30"],
+    "args": ["--allow-write", "--mount-readonly", ".plain-agent/config.json", "--keep-alive", "30"],
     // ↑ --mount-readonly: prevents the agent from overwriting its own config
     "separator": "--"
   }
@@ -691,9 +695,11 @@ Files are loaded in the following order. Settings in later files override earlie
   // Sandbox environment for the exec_command and tmux_command tools
   "sandbox": {
     // Commands are wrapped and executed with this command
-    // Build the image before first use: plain-sandbox --verbose echo done
+    // The image is built automatically on first use and reused thereafter.
+    // To force a rebuild: plain-sandbox --rebuild --verbose echo done
+    // To rebuild without cache: plain-sandbox --no-cache --verbose echo done
     "command": "plain-sandbox",
-    "args": ["--allow-write", "--mount-readonly", ".plain-agent/config.json", "--skip-build", "--keep-alive", "30"],
+    "args": ["--allow-write", "--mount-readonly", ".plain-agent/config.json", "--keep-alive", "30"],
     // ↑ --mount-readonly: prevents the agent from overwriting its own config
     // separator is inserted between sandbox flags and the user command to prevent bypasses
     "separator": "--",

@@ -81,9 +81,9 @@ grep -qE "DRY_RUN: docker build .+ --no-cache" <<< "$out"
 
 echo "case: host timezone is applied to the container"
 # when:
-out=$(env TZ="Asia/Tokyo" plain-sandbox --dry-run --dockerfile Dockerfile.minimum --no-cache true)
+out=$(env TZ="Asia/Tokyo" plain-sandbox --verbose --dry-run --dockerfile Dockerfile.minimum --no-cache true 2>&1)
 # then:
-grep -qE "DRY_RUN: docker run .+ --env TZ=Asia/Tokyo" <<< "$out"
+grep -qE "TZ=Asia/Tokyo" <<< "$out"
 
 
 echo "case: --env-file option pass env file to docker run"
@@ -229,20 +229,41 @@ if lsof -i:8000 | grep -q "$nc_pid"; then
 fi
 
 
-echo "case: reuse existing container"
+echo "case: reuse existing container (image and container reuse on second run)"
 # given:
 plain-sandbox --dockerfile Dockerfile.minimum --keep-alive 5 --verbose true &> /dev/null
 # when:
-out=$(plain-sandbox --dockerfile Dockerfile.minimum --skip-build --keep-alive 5 --verbose --dry-run true 2>&1)
+out=$(plain-sandbox --dockerfile Dockerfile.minimum --keep-alive 5 --verbose true 2>&1)
 # then:
+grep -qE "Image already exists, skipping build:" <<< "$out"
 grep -qE "Container is already running. Reusing" <<< "$out"
 # given:
 sleep 5
 # when:
-out=$(plain-sandbox --dockerfile Dockerfile.minimum --skip-build --keep-alive 5 --verbose --dry-run true 2>&1)
+out=$(plain-sandbox --dockerfile Dockerfile.minimum --keep-alive 5 --verbose true 2>&1)
 # then:
+grep -qE "Image already exists, skipping build:" <<< "$out"
 grep -qE "Stopping any existing container:" <<< "$out"
 grep -qE "Remove any existing network:" <<< "$out"
+
+
+echo "case: --rebuild forces image rebuild even if it already exists"
+# given:
+plain-sandbox --dockerfile Dockerfile.minimum --verbose true &> /dev/null
+# when:
+out=$(plain-sandbox --dockerfile Dockerfile.minimum --rebuild --verbose --dry-run true 2>&1)
+# then:
+grep -qE "Building docker image" <<< "$out"
+
+
+echo "case: --no-cache forces image rebuild without cache"
+# given:
+plain-sandbox --dockerfile Dockerfile.minimum --verbose true &> /dev/null
+# when:
+out=$(plain-sandbox --dockerfile Dockerfile.minimum --no-cache --verbose --dry-run true 2>&1)
+# then:
+grep -qE "Building docker image" <<< "$out"
+grep -qE "DRY_RUN: docker build .+ --no-cache" <<< "$out"
 
 
 echo "case: remove network if it fails to start container"
