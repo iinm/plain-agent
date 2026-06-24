@@ -38,7 +38,7 @@
  */
 
 /**
- * Launch the sandbox command interactively using the app config's sandbox settings.
+ * Launch the sandbox command using the app config's sandbox settings.
  * Arguments after `--` are passed through to the sandbox command as-is.
  * @typedef {{ type: 'sandbox', config: string[], passthroughArgs: string[] }} SandboxSubcommand
  */
@@ -259,10 +259,9 @@ Subcommands:
                                see resumable sessions. Switching models is
                                not supported (-m is rejected).
   test-approval                Run auto-approval rule tests defined in config.
-  sandbox                      Launch the sandbox command interactively using
-                               the app config's sandbox settings. Arguments
-                               after -- are passed through to the sandbox
-                               command as-is.
+  sandbox                      Launch the sandbox command using the app
+                               config's sandbox settings. Arguments after --
+                               are passed through to the sandbox command as-is.
   cost                         Show aggregated token cost per day for a period.
                                Defaults to the first day of the current month
                                through today.
