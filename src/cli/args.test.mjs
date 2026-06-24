@@ -67,3 +67,82 @@ describe("parseCliArgs (resume subcommand)", () => {
     assert.deepEqual(sub, { type: "help" });
   });
 });
+
+describe("parseCliArgs (sandbox subcommand)", () => {
+  it("parses `sandbox -- --tty zsh`", () => {
+    // when:
+    const sub = parse(["sandbox", "--", "--tty", "zsh"]);
+
+    // then:
+    assert.deepEqual(sub, {
+      type: "sandbox",
+      config: [],
+      passthroughArgs: ["--tty", "zsh"],
+    });
+  });
+
+  it("parses `sandbox -c foo.json -- --tty zsh`", () => {
+    // when:
+    const sub = parse(["sandbox", "-c", "foo.json", "--", "--tty", "zsh"]);
+
+    // then:
+    assert.deepEqual(sub, {
+      type: "sandbox",
+      config: ["foo.json"],
+      passthroughArgs: ["--tty", "zsh"],
+    });
+  });
+
+  it("supports multiple -c flags before --", () => {
+    // when:
+    const sub = parse([
+      "sandbox",
+      "-c",
+      "a.json",
+      "--config",
+      "b.json",
+      "--",
+      "--tty",
+      "zsh",
+    ]);
+
+    // then:
+    assert.deepEqual(sub, {
+      type: "sandbox",
+      config: ["a.json", "b.json"],
+      passthroughArgs: ["--tty", "zsh"],
+    });
+  });
+
+  it("passes dash-prefixed args after -- as passthroughArgs", () => {
+    // when:
+    const sub = parse([
+      "sandbox",
+      "--",
+      "--allow-write",
+      "--tty",
+      "bash",
+      "-c",
+      "echo hi",
+    ]);
+
+    // then:
+    assert.deepEqual(sub, {
+      type: "sandbox",
+      config: [],
+      passthroughArgs: ["--allow-write", "--tty", "bash", "-c", "echo hi"],
+    });
+  });
+
+  it("returns empty passthroughArgs when no -- is given", () => {
+    // when:
+    const sub = parse(["sandbox", "-c", "foo.json"]);
+
+    // then:
+    assert.deepEqual(sub, {
+      type: "sandbox",
+      config: ["foo.json"],
+      passthroughArgs: [],
+    });
+  });
+});

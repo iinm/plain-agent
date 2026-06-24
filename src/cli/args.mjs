@@ -1,5 +1,5 @@
 /**
- * @typedef {HelpSubcommand | InteractiveSubcommand | BatchSubcommand | ListModelsSubcommand | InstallClaudeCodePluginsSubcommand | CostSubcommand | ResumeSubcommand | TestApprovalSubcommand} Subcommand
+ * @typedef {HelpSubcommand | InteractiveSubcommand | BatchSubcommand | ListModelsSubcommand | InstallClaudeCodePluginsSubcommand | CostSubcommand | ResumeSubcommand | TestApprovalSubcommand | SandboxSubcommand} Subcommand
  */
 
 /**
@@ -35,6 +35,12 @@
  * - `sessionId === null` and `list === false`: resume the most recently updated session.
  * - `list === true`: print the resumable sessions and exit.
  * @typedef {{ type: 'resume', sessionId: string | null, list: boolean, config: string[] }} ResumeSubcommand
+ */
+
+/**
+ * Launch plain-sandbox interactively using the app config's sandbox settings.
+ * Arguments after `--` are passed through to plain-sandbox as-is.
+ * @typedef {{ type: 'sandbox', config: string[], passthroughArgs: string[] }} SandboxSubcommand
  */
 
 /**
@@ -172,6 +178,31 @@ export function parseCliArgs(argv) {
     };
   }
 
+  if (subcommandName === "sandbox") {
+    const sandboxArgs = args.slice(1);
+    /** @type {string[]} */
+    const config = [];
+    /** @type {string[]} */
+    const passthroughArgs = [];
+
+    for (let i = 0; i < sandboxArgs.length; i++) {
+      if (sandboxArgs[i] === "--") {
+        passthroughArgs.push(...sandboxArgs.slice(i + 1));
+        break;
+      }
+      if (sandboxArgs[i] === "-c" || sandboxArgs[i] === "--config") {
+        if (sandboxArgs[i + 1]) {
+          config.push(sandboxArgs[i + 1]);
+          i++;
+        }
+      }
+    }
+
+    return {
+      subcommand: { type: "sandbox", config, passthroughArgs },
+    };
+  }
+
   if (subcommandName === "cost") {
     const costArgs = args.slice(1);
     let from = null;
@@ -208,6 +239,7 @@ export function printHelp(exitCode = 0) {
 Usage: plain [options]
        plain batch [options] <task>
        plain resume [<sessionId>] [--list]
+       plain sandbox [-c <file>...] -- <plain-sandbox args>
        plain cost [--from YYYY-MM-DD] [--to YYYY-MM-DD]
        plain list-models
        plain install-claude-code-plugins
@@ -227,6 +259,9 @@ Subcommands:
                                see resumable sessions. Switching models is
                                not supported (-m is rejected).
   test-approval                Run auto-approval rule tests defined in config.
+  sandbox                      Launch plain-sandbox interactively using the app
+                               config's sandbox settings. Arguments after -- are
+                               passed through to plain-sandbox as-is.
   cost                         Show aggregated token cost per day for a period.
                                Defaults to the first day of the current month
                                through today.
