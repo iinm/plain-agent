@@ -504,17 +504,14 @@ EOF
  
   trap 'on_exit' EXIT
 
+  local should_build="yes"
   if test "$no_cache" = "yes" -o "$rebuild" = "yes"; then
-    log "Building docker image: $IMAGE_NAME"
-    if test -n "$dockerfile"; then
-      run docker build "${docker_build_opts[@]}" "$docker_build_context"
-    else
-      run docker build "${docker_build_opts[@]}" - \
-        < <("$SCRIPT_PATH" print_preset_dockerfile)
-    fi
+    should_build="yes"
   elif test "$DRY_RUN" = "no" && docker image inspect "${IMAGE_NAME}:${image_tag}" &> /dev/null; then
-    log "Image already exists, skipping build: $IMAGE_NAME"
-  else
+    should_build="no"
+  fi
+
+  if test "$should_build" = "yes"; then
     log "Building docker image: $IMAGE_NAME"
     if test -n "$dockerfile"; then
       run docker build "${docker_build_opts[@]}" "$docker_build_context"
@@ -522,6 +519,8 @@ EOF
       run docker build "${docker_build_opts[@]}" - \
         < <("$SCRIPT_PATH" print_preset_dockerfile)
     fi
+  else
+    log "Image already exists, skipping build: $IMAGE_NAME"
   fi
 
   if test "$DRY_RUN" = "no" && test "$(docker inspect --type container "$container_name" --format "{{ .State.Running }}" 2> /dev/null)" = "true"; then
