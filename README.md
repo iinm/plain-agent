@@ -556,6 +556,10 @@ plain sandbox -c .plain-agent/config.sandbox.json -- --tty zsh
 
 Files are loaded in the following order. Settings in later files override earlier ones.
 
+Real-world examples:
+- [This project's config](https://github.com/iinm/plain-agent/tree/main/.plain-agent)
+- [Sandbox config for a dotfiles repo](https://github.com/iinm/dotfiles/blob/main/.plain-agent/config.sandbox.json)
+
 ```
 ~/.config/plain-agent/
   ├── (1) config.json        # User configuration
