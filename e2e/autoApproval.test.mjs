@@ -37,7 +37,7 @@ describe("auto-approval", () => {
   let port;
   /** @type {string} */
   let workDir;
-  /** @type {(body: string) => string} */
+  /** @type {(body: string) => string | Promise<string>} */
   let respondWith;
 
   before(async () => {
@@ -46,10 +46,10 @@ describe("auto-approval", () => {
       /** @type {string[]} */
       const chunks = [];
       req.on("data", (/** @type {Buffer} */ d) => chunks.push(d.toString()));
-      req.on("end", () => {
+      req.on("end", async () => {
         const body = chunks.join("");
         res.writeHead(200, SSE_HEADERS);
-        res.end(respondWith(body));
+        res.end(await respondWith(body));
       });
     });
     await /** @type {Promise<void>} */ (
@@ -138,5 +138,28 @@ describe("auto-approval", () => {
 
     // then: approval prompt appears
     await waitForOutput(output, /Approve 1 tool call\?/, 2000);
+  });
+
+  it("should show approval prompt when Ctrl-C is pressed before auto-approved tool execution", async () => {
+    // given: model returns auto-approvable ls command after a delay
+    respondWith = () =>
+      new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(
+            sseToolCallResponse("call_ls", "exec_command", { command: "ls" }),
+          );
+        }, 500);
+      });
+    const { proc, output } = spawnAgent(workDir);
+    cleanups.push(() => closeAndWaitForExit(proc));
+
+    // when: send input, then Ctrl-C while model is responding
+    await waitForCliReady(proc, output);
+    proc.stdin.write("list files\n");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    proc.stdin.write("\x03");
+
+    // then: approval prompt appears instead of auto-executing
+    await waitForOutput(output, /Approve 1 tool call\?/, 3000);
   });
 });
