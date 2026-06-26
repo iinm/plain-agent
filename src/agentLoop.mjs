@@ -206,6 +206,13 @@ export function createAgentLoop({
         break;
       }
 
+      // Ctrl-C during model call: skip execution and ask for approval
+      if (pauseSignal.isPaused()) {
+        pauseSignal.reset();
+        agentEventEmitter.emit("toolUseRequest", toolUseParts.length);
+        break;
+      }
+
       const executionResult = await toolExecutor.executeBatch(toolUseParts);
 
       if (!executionResult.success) {
