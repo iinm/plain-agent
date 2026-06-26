@@ -188,7 +188,7 @@ export function startInteractiveSession({
       console.error(
         styleText(
           "yellow",
-          "\n\n⚠️ Ctrl-C: Auto-approve paused. Finishing current tool...\nPress Ctrl-D twice to exit.\n",
+          "\n\n⚠️ Ctrl-C: Auto-approve paused.\nPress Ctrl-D twice to exit.\n",
         ),
       );
       return;
