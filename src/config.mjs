@@ -124,6 +124,16 @@ export async function loadAppConfig(options = {}) {
         ...(merged.mcpServers ?? {}),
         ...(config.mcpServers ?? {}),
       },
+      autoCompact: config.autoCompact
+        ? {
+            softLimit:
+              config.autoCompact.softLimit ?? merged.autoCompact?.softLimit,
+            softLimitPerModel: {
+              ...(merged.autoCompact?.softLimitPerModel ?? {}),
+              ...(config.autoCompact.softLimitPerModel ?? {}),
+            },
+          }
+        : merged.autoCompact,
       notifyCmd: config.notifyCmd ?? merged.notifyCmd,
       claudeCodePlugins: [
         ...(merged.claudeCodePlugins ?? []),

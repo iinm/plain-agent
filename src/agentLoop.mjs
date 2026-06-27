@@ -7,6 +7,8 @@
  */
 
 import { styleText } from "node:util";
+import { buildCompactPrompt } from "./compactPrompt.mjs";
+import { extractInputTokenCount } from "./tokenUsage.mjs";
 import { compactContextToolName } from "./tools/compactContext.mjs";
 
 /**
@@ -55,6 +57,7 @@ function applyCompactContextIfCalled(stateManager, toolUseParts, toolResults) {
  * @property {ToolUseApprover} toolUseApprover - Tool use approval checker
  * @property {SubagentManager} subagentManager - Subagent manager instance
  * @property {PauseSignal} pauseSignal - Signal to pause auto-approve after current tool completes
+ * @property {number} [contextSoftLimit] - Soft limit on input tokens for auto-compact
  */
 
 /**
@@ -74,6 +77,7 @@ export function createAgentLoop({
   toolUseApprover,
   subagentManager,
   pauseSignal,
+  contextSoftLimit,
 }) {
   const inputHandler = createInputHandler({
     stateManager,
@@ -102,6 +106,8 @@ export function createAgentLoop({
   async function runTurnLoop() {
     let thinkingLoops = 0;
     const maxThinkingLoops = 5;
+    const compactPromptCooldownTurns = 3;
+    let compactPromptCooldown = 0;
 
     while (true) {
       // Check if auto-approve was paused by Ctrl-C during tool execution
@@ -130,6 +136,30 @@ export function createAgentLoop({
       stateManager.appendMessages([assistantMessage]);
       if (providerTokenUsage) {
         agentEventEmitter.emit("providerTokenUsage", providerTokenUsage);
+      }
+
+      // Auto-compact: prompt the model when context exceeds soft limit
+      if (contextSoftLimit && providerTokenUsage) {
+        const inputTokens = extractInputTokenCount(providerTokenUsage);
+        if (inputTokens !== undefined && inputTokens > contextSoftLimit) {
+          if (compactPromptCooldown === 0) {
+            stateManager.appendMessages([
+              {
+                role: "user",
+                content: [{ type: "text", text: buildCompactPrompt() }],
+              },
+            ]);
+            compactPromptCooldown = compactPromptCooldownTurns;
+            console.error(
+              styleText(
+                "yellow",
+                `\nContext exceeded soft limit (${inputTokens.toLocaleString()} / ${contextSoftLimit.toLocaleString()} tokens). Auto-compact prompt inserted.`,
+              ),
+            );
+          } else {
+            compactPromptCooldown -= 1;
+          }
+        }
       }
 
       // Gemini may stop with "thinking" -> continue
@@ -240,6 +270,7 @@ export function createAgentLoop({
       if (
         applyCompactContextIfCalled(stateManager, toolUseParts, toolResults)
       ) {
+        compactPromptCooldown = 0;
         continue;
       }
 

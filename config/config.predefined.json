@@ -1715,5 +1715,8 @@
         }
       }
     }
-  ]
+  ],
+  "autoCompact": {
+    "softLimit": 120000
+  }
 }

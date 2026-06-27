@@ -87,6 +87,10 @@ export type AppConfig = {
   };
   mcpServers?: Record<string, MCPServerConfig>;
   notifyCmd?: { command: string; args?: string[] };
+  autoCompact?: {
+    softLimit?: number;
+    softLimitPerModel?: Record<string, number>;
+  };
   claudeCodePlugins?: ClaudeCodePluginRepo[];
 };
 

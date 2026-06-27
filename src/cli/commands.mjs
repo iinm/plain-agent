@@ -5,6 +5,7 @@
 
 import { execFileSync } from "node:child_process";
 import { styleText } from "node:util";
+import { buildCompactPrompt } from "../compactPrompt.mjs";
 import { loadAgentRoles } from "../context/loadAgentRoles.mjs";
 import { loadPrompts } from "../context/loadPrompts.mjs";
 import { loadUserMessageContext } from "../context/loadUserMessageContext.mjs";
@@ -140,14 +141,7 @@ export function createCommandHandler({
 
     // /compact [reason]
     if (/^\/compact( |$)/i.test(inputTrimmed)) {
-      const invocation = inputTrimmed;
-      const message = [
-        `System: This prompt was invoked as "${invocation}".`,
-        "",
-        "Compact the conversation context:",
-        "1. Update the memory file for the current task so it fully captures the task overview, progress, decisions, and next steps in a self-contained way.",
-        '2. Then call the "compact_context" tool alone with that memory file path and a brief reason.',
-      ].join("\n");
+      const message = buildCompactPrompt(inputTrimmed);
       userEventEmitter.emit("userInput", [{ type: "text", text: message }]);
       return "continue";
     }

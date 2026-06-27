@@ -428,6 +428,12 @@ export async function main(argv = process.argv) {
     },
   });
 
+  // Resolve context soft limit from autoCompact config
+  const contextSoftLimit =
+    appConfig.autoCompact?.softLimitPerModel?.[modelNameWithVariant] ??
+    appConfig.autoCompact?.softLimit ??
+    undefined;
+
   const { userEventEmitter, agentEventEmitter, agentCommands } = createAgent({
     callModel: agentCallModel,
     prompt,
@@ -442,6 +448,7 @@ export async function main(argv = process.argv) {
       startTime,
     },
     initialState: resumedState,
+    contextSoftLimit,
   });
 
   const sessionOptions = {
