@@ -5,13 +5,17 @@
     "patterns": [
       {
         "toolName": "exec_command",
-        "input": { "command": "find" },
+        "input": {
+          "command": "find"
+        },
         "action": "deny",
         "reason": "Use fd instead; fd respects .gitignore by default"
       },
       {
         "toolName": "exec_command",
-        "input": { "command": "grep" },
+        "input": {
+          "command": "grep"
+        },
         "action": "deny",
         "reason": "Use rg instead; rg respects .gitignore by default"
       },
@@ -19,7 +23,14 @@
         "toolName": "exec_command",
         "input": {
           "command": "bash",
-          "args": ["-c", { "$not": { "$regex": "[|><&;$`]" } }]
+          "args": [
+            "-c",
+            {
+              "$not": {
+                "$regex": "[|><&;$`]"
+              }
+            }
+          ]
         },
         "action": "deny",
         "reason": "Use bash -c only when shell features (|, >, <, &, ;, $, `) are required"
@@ -53,7 +64,9 @@
         "action": "allow"
       },
       {
-        "toolName": { "$regex": "^(switch_to_subagent|switch_to_main_agent)$" },
+        "toolName": {
+          "$regex": "^(switch_to_subagent|switch_to_main_agent)$"
+        },
         "action": "allow"
       },
       {
@@ -69,7 +82,12 @@
         "toolName": "exec_command",
         "input": {
           "command": "sed",
-          "args": ["-n", { "$regex": "^\\d+(,\\d+)?(p|l)$" }]
+          "args": [
+            "-n",
+            {
+              "$regex": "^\\d+(,\\d+)?(p|l)$"
+            }
+          ]
         },
         "action": "allow"
       },
@@ -77,38 +95,56 @@
         "toolName": "exec_command",
         "input": {
           "command": "git",
-          "args": [{ "$regex": "^(status|diff|log|show|ls-remote|rev-parse)$" }]
+          "args": [
+            {
+              "$regex": "^(status|diff|log|show|ls-remote|rev-parse)$"
+            }
+          ]
         },
         "action": "allow"
       },
       {
         "toolName": "exec_command",
-        "input": { "command": "git", "args": ["branch", "--show-current"] },
-        "action": "allow"
-      },
-      {
-        "toolName": "exec_command",
-        "input": { "command": "docker", "args": [{ "$regex": "^(ps|logs)$" }] },
+        "input": {
+          "command": "git",
+          "args": [
+            "branch",
+            "--show-current"
+          ]
+        },
         "action": "allow"
       },
       {
         "toolName": "exec_command",
         "input": {
           "command": "docker",
-          "args": ["compose", { "$regex": "^(ps|logs)$" }]
+          "args": [
+            {
+              "$regex": "^(ps|logs)$"
+            }
+          ]
+        },
+        "action": "allow"
+      },
+      {
+        "toolName": "exec_command",
+        "input": {
+          "command": "docker",
+          "args": [
+            "compose",
+            {
+              "$regex": "^(ps|logs)$"
+            }
+          ]
         },
         "action": "allow"
       },
       {
         "toolName": "tmux_command",
-        "input": { "command": { "$regex": "^(list-sessions|list-windows)$" } },
-        "action": "allow"
-      },
-      {
-        "toolName": "exec_command",
         "input": {
-          "command": "gh",
-          "args": ["pr", { "$regex": "^(list|view|diff)$" }]
+          "command": {
+            "$regex": "^(list-sessions|list-windows)$"
+          }
         },
         "action": "allow"
       },
@@ -116,7 +152,12 @@
         "toolName": "exec_command",
         "input": {
           "command": "gh",
-          "args": ["issue", { "$regex": "^(list|view)$" }]
+          "args": [
+            "pr",
+            {
+              "$regex": "^(list|view|diff)$"
+            }
+          ]
         },
         "action": "allow"
       },
@@ -124,7 +165,22 @@
         "toolName": "exec_command",
         "input": {
           "command": "gh",
-          "args": ["search"]
+          "args": [
+            "issue",
+            {
+              "$regex": "^(list|view)$"
+            }
+          ]
+        },
+        "action": "allow"
+      },
+      {
+        "toolName": "exec_command",
+        "input": {
+          "command": "gh",
+          "args": [
+            "search"
+          ]
         },
         "action": "allow"
       },
@@ -136,7 +192,9 @@
             "api",
             "--method",
             "GET",
-            { "$regex": "^repos/[^/]+/[^/]+/(pulls|issues)/" }
+            {
+              "$regex": "^repos/[^/]+/[^/]+/(pulls|issues)/"
+            }
           ]
         },
         "action": "allow"
@@ -145,7 +203,14 @@
         "toolName": "exec_command",
         "input": {
           "command": "gh",
-          "args": ["api", { "$not": { "$regex": "^--(method|help)" } }]
+          "args": [
+            "api",
+            {
+              "$not": {
+                "$regex": "^--(method|help)"
+              }
+            }
+          ]
         },
         "action": "deny",
         "reason": "--method must be specified right after 'api'"
@@ -154,29 +219,55 @@
     "tests": [
       {
         "desc": "find should be denied",
-        "toolUse": { "toolName": "exec_command", "input": { "command": "find" } },
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": {
+            "command": "find"
+          }
+        },
         "expectedAction": "deny"
       },
       {
         "desc": "grep should be denied",
-        "toolUse": { "toolName": "exec_command", "input": { "command": "grep" } },
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": {
+            "command": "grep"
+          }
+        },
         "expectedAction": "deny"
       },
       {
         "desc": "ls should be allowed",
-        "toolUse": { "toolName": "exec_command", "input": { "command": "ls" } },
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": {
+            "command": "ls"
+          }
+        },
         "expectedAction": "allow"
       },
       {
         "desc": "rm should not match any pattern",
-        "toolUse": { "toolName": "exec_command", "input": { "command": "rm" } },
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": {
+            "command": "rm"
+          }
+        },
         "expectedAction": null
       },
       {
         "desc": "fd with safe args should be allowed",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "fd", "args": ["--max-depth", "3"] }
+          "input": {
+            "command": "fd",
+            "args": [
+              "--max-depth",
+              "3"
+            ]
+          }
         },
         "expectedAction": "allow"
       },
@@ -184,7 +275,13 @@
         "desc": "fd with -H only should be allowed",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "fd", "args": ["-H", "pattern"] }
+          "input": {
+            "command": "fd",
+            "args": [
+              "-H",
+              "pattern"
+            ]
+          }
         },
         "expectedAction": "allow"
       },
@@ -192,7 +289,12 @@
         "desc": "fd with unsafe args should require approval",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "fd", "args": ["--unrestricted"] }
+          "input": {
+            "command": "fd",
+            "args": [
+              "--unrestricted"
+            ]
+          }
         },
         "expectedAction": "ask"
       },
@@ -200,7 +302,13 @@
         "desc": "fd with -I option should require approval",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "fd", "args": ["-I", "pattern"] }
+          "input": {
+            "command": "fd",
+            "args": [
+              "-I",
+              "pattern"
+            ]
+          }
         },
         "expectedAction": "ask"
       },
@@ -208,7 +316,13 @@
         "desc": "fd with -HI combined options should require approval",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "fd", "args": ["-HI", "pattern"] }
+          "input": {
+            "command": "fd",
+            "args": [
+              "-HI",
+              "pattern"
+            ]
+          }
         },
         "expectedAction": "ask"
       },
@@ -216,7 +330,13 @@
         "desc": "fd with -IH combined options should require approval",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "fd", "args": ["-IH", "pattern"] }
+          "input": {
+            "command": "fd",
+            "args": [
+              "-IH",
+              "pattern"
+            ]
+          }
         },
         "expectedAction": "ask"
       },
@@ -224,7 +344,13 @@
         "desc": "fd with -Hx=command combined options with value should require approval",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "fd", "args": ["-Hx=cat", "pattern"] }
+          "input": {
+            "command": "fd",
+            "args": [
+              "-Hx=cat",
+              "pattern"
+            ]
+          }
         },
         "expectedAction": "ask"
       },
@@ -232,7 +358,13 @@
         "desc": "rg with safe args should be allowed",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "rg", "args": ["--ignore-case", "pattern"] }
+          "input": {
+            "command": "rg",
+            "args": [
+              "--ignore-case",
+              "pattern"
+            ]
+          }
         },
         "expectedAction": "allow"
       },
@@ -240,7 +372,13 @@
         "desc": "rg with -H only should be allowed",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "rg", "args": ["-H", "pattern"] }
+          "input": {
+            "command": "rg",
+            "args": [
+              "-H",
+              "pattern"
+            ]
+          }
         },
         "expectedAction": "allow"
       },
@@ -248,7 +386,12 @@
         "desc": "rg with unsafe args should require approval",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "rg", "args": ["--unrestricted"] }
+          "input": {
+            "command": "rg",
+            "args": [
+              "--unrestricted"
+            ]
+          }
         },
         "expectedAction": "ask"
       },
@@ -256,7 +399,13 @@
         "desc": "rg with -u option should require approval",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "rg", "args": ["-u", "pattern"] }
+          "input": {
+            "command": "rg",
+            "args": [
+              "-u",
+              "pattern"
+            ]
+          }
         },
         "expectedAction": "ask"
       },
@@ -264,7 +413,13 @@
         "desc": "rg with -Hu combined options should require approval",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "rg", "args": ["-Hu", "pattern"] }
+          "input": {
+            "command": "rg",
+            "args": [
+              "-Hu",
+              "pattern"
+            ]
+          }
         },
         "expectedAction": "ask"
       },
@@ -272,7 +427,13 @@
         "desc": "rg with -uH combined options should require approval",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "rg", "args": ["-uH", "pattern"] }
+          "input": {
+            "command": "rg",
+            "args": [
+              "-uH",
+              "pattern"
+            ]
+          }
         },
         "expectedAction": "ask"
       },
@@ -280,7 +441,14 @@
         "desc": "sed with known pattern should be allowed",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "sed", "args": ["-n", "10,20p", "file.txt"] }
+          "input": {
+            "command": "sed",
+            "args": [
+              "-n",
+              "10,20p",
+              "file.txt"
+            ]
+          }
         },
         "expectedAction": "allow"
       },
@@ -288,7 +456,14 @@
         "desc": "sed with single line pattern should be allowed",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "sed", "args": ["-n", "42p", "file.txt"] }
+          "input": {
+            "command": "sed",
+            "args": [
+              "-n",
+              "42p",
+              "file.txt"
+            ]
+          }
         },
         "expectedAction": "allow"
       },
@@ -296,7 +471,12 @@
         "desc": "git status should be allowed",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "git", "args": ["status"] }
+          "input": {
+            "command": "git",
+            "args": [
+              "status"
+            ]
+          }
         },
         "expectedAction": "allow"
       },
@@ -304,7 +484,13 @@
         "desc": "git branch --show-current should be allowed",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "git", "args": ["branch", "--show-current"] }
+          "input": {
+            "command": "git",
+            "args": [
+              "branch",
+              "--show-current"
+            ]
+          }
         },
         "expectedAction": "allow"
       },
@@ -312,7 +498,12 @@
         "desc": "git commit should not match any pattern",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "git", "args": ["commit"] }
+          "input": {
+            "command": "git",
+            "args": [
+              "commit"
+            ]
+          }
         },
         "expectedAction": null
       },
@@ -320,7 +511,12 @@
         "desc": "docker ps should be allowed",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "docker", "args": ["ps"] }
+          "input": {
+            "command": "docker",
+            "args": [
+              "ps"
+            ]
+          }
         },
         "expectedAction": "allow"
       },
@@ -328,7 +524,13 @@
         "desc": "docker compose ps should be allowed",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "docker", "args": ["compose", "ps"] }
+          "input": {
+            "command": "docker",
+            "args": [
+              "compose",
+              "ps"
+            ]
+          }
         },
         "expectedAction": "allow"
       },
@@ -336,7 +538,13 @@
         "desc": "docker compose logs should be allowed",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "docker", "args": ["compose", "logs"] }
+          "input": {
+            "command": "docker",
+            "args": [
+              "compose",
+              "logs"
+            ]
+          }
         },
         "expectedAction": "allow"
       },
@@ -344,7 +552,9 @@
         "desc": "tmux list-sessions should be allowed",
         "toolUse": {
           "toolName": "tmux_command",
-          "input": { "command": "list-sessions" }
+          "input": {
+            "command": "list-sessions"
+          }
         },
         "expectedAction": "allow"
       },
@@ -352,7 +562,13 @@
         "desc": "gh pr view should be allowed",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "gh", "args": ["pr", "view"] }
+          "input": {
+            "command": "gh",
+            "args": [
+              "pr",
+              "view"
+            ]
+          }
         },
         "expectedAction": "allow"
       },
@@ -362,7 +578,12 @@
           "toolName": "exec_command",
           "input": {
             "command": "gh",
-            "args": ["api", "--method", "GET", "repos/owner/repo/pulls/123/comments"]
+            "args": [
+              "api",
+              "--method",
+              "GET",
+              "repos/owner/repo/pulls/123/comments"
+            ]
           }
         },
         "expectedAction": "allow"
@@ -371,7 +592,13 @@
         "desc": "gh api without --method should be denied",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "gh", "args": ["api", "repos/owner/repo/pulls"] }
+          "input": {
+            "command": "gh",
+            "args": [
+              "api",
+              "repos/owner/repo/pulls"
+            ]
+          }
         },
         "expectedAction": "deny"
       },
@@ -381,7 +608,12 @@
           "toolName": "exec_command",
           "input": {
             "command": "gh",
-            "args": ["api", "--method", "POST", "repos/owner/repo/issues"]
+            "args": [
+              "api",
+              "--method",
+              "POST",
+              "repos/owner/repo/issues"
+            ]
           }
         },
         "expectedAction": null
@@ -390,7 +622,13 @@
         "desc": "bash -c without shell features should be denied",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "bash", "args": ["-c", "echo hello"] }
+          "input": {
+            "command": "bash",
+            "args": [
+              "-c",
+              "echo hello"
+            ]
+          }
         },
         "expectedAction": "deny"
       },
@@ -398,7 +636,13 @@
         "desc": "bash -c with pipe should not match deny pattern",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "bash", "args": ["-c", "echo hello | grep hello"] }
+          "input": {
+            "command": "bash",
+            "args": [
+              "-c",
+              "echo hello | grep hello"
+            ]
+          }
         },
         "expectedAction": null
       },
@@ -406,7 +650,13 @@
         "desc": "bash -c with redirect should not match deny pattern",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "bash", "args": ["-c", "echo hello > file.txt"] }
+          "input": {
+            "command": "bash",
+            "args": [
+              "-c",
+              "echo hello > file.txt"
+            ]
+          }
         },
         "expectedAction": null
       },
@@ -414,7 +664,13 @@
         "desc": "bash -c with ampersand should not match deny pattern",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "bash", "args": ["-c", "cmd1 && cmd2"] }
+          "input": {
+            "command": "bash",
+            "args": [
+              "-c",
+              "cmd1 && cmd2"
+            ]
+          }
         },
         "expectedAction": null
       },
@@ -422,7 +678,13 @@
         "desc": "bash -c with semicolon should not match deny pattern",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "bash", "args": ["-c", "for i in *.txt; do echo $i; done"] }
+          "input": {
+            "command": "bash",
+            "args": [
+              "-c",
+              "for i in *.txt; do echo $i; done"
+            ]
+          }
         },
         "expectedAction": null
       },
@@ -430,7 +692,13 @@
         "desc": "bash -c with command substitution should not match deny pattern",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "bash", "args": ["-c", "echo $(date)"] }
+          "input": {
+            "command": "bash",
+            "args": [
+              "-c",
+              "echo $(date)"
+            ]
+          }
         },
         "expectedAction": null
       },
@@ -438,7 +706,13 @@
         "desc": "bash -c with backtick should not match deny pattern",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "bash", "args": ["-c", "echo `date`"] }
+          "input": {
+            "command": "bash",
+            "args": [
+              "-c",
+              "echo `date`"
+            ]
+          }
         },
         "expectedAction": null
       }
@@ -458,7 +732,10 @@
         "config": {
           "model": "claude-haiku-4-5",
           "max_tokens": 32768,
-          "thinking": { "type": "enabled", "budget_tokens": 16384 }
+          "thinking": {
+            "type": "enabled",
+            "budget_tokens": 16384
+          }
         }
       },
       "cost": {
@@ -470,6 +747,12 @@
           "cache_read_input_tokens": 0.1,
           "cache_creation_input_tokens": 1.25
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens",
+          "cache_read_input_tokens"
+        ]
       }
     },
     {
@@ -485,7 +768,10 @@
         "config": {
           "model": "claude-haiku-4-5",
           "max_tokens": 64000,
-          "thinking": { "type": "enabled", "budget_tokens": 32768 }
+          "thinking": {
+            "type": "enabled",
+            "budget_tokens": 32768
+          }
         }
       },
       "cost": {
@@ -497,6 +783,12 @@
           "cache_read_input_tokens": 0.1,
           "cache_creation_input_tokens": 1.25
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens",
+          "cache_read_input_tokens"
+        ]
       }
     },
     {
@@ -512,8 +804,12 @@
         "config": {
           "model": "claude-sonnet-4-6",
           "max_tokens": 32768,
-          "thinking": { "type": "adaptive" },
-          "output_config": { "effort": "high" }
+          "thinking": {
+            "type": "adaptive"
+          },
+          "output_config": {
+            "effort": "high"
+          }
         }
       },
       "cost": {
@@ -525,6 +821,12 @@
           "cache_read_input_tokens": 0.3,
           "cache_creation_input_tokens": 3.75
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens",
+          "cache_read_input_tokens"
+        ]
       }
     },
     {
@@ -540,8 +842,12 @@
         "config": {
           "model": "claude-sonnet-4-6",
           "max_tokens": 64000,
-          "thinking": { "type": "adaptive" },
-          "output_config": { "effort": "max" }
+          "thinking": {
+            "type": "adaptive"
+          },
+          "output_config": {
+            "effort": "max"
+          }
         }
       },
       "cost": {
@@ -553,6 +859,12 @@
           "cache_read_input_tokens": 0.3,
           "cache_creation_input_tokens": 3.75
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens",
+          "cache_read_input_tokens"
+        ]
       }
     },
     {
@@ -568,8 +880,12 @@
         "config": {
           "model": "claude-opus-4-8",
           "max_tokens": 32768,
-          "thinking": { "type": "adaptive" },
-          "output_config": { "effort": "high" }
+          "thinking": {
+            "type": "adaptive"
+          },
+          "output_config": {
+            "effort": "high"
+          }
         }
       },
       "cost": {
@@ -581,6 +897,12 @@
           "cache_read_input_tokens": 0.5,
           "cache_creation_input_tokens": 6.25
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens",
+          "cache_read_input_tokens"
+        ]
       }
     },
     {
@@ -596,8 +918,12 @@
         "config": {
           "model": "claude-opus-4-8",
           "max_tokens": 64000,
-          "thinking": { "type": "adaptive" },
-          "output_config": { "effort": "max" }
+          "thinking": {
+            "type": "adaptive"
+          },
+          "output_config": {
+            "effort": "max"
+          }
         }
       },
       "cost": {
@@ -609,6 +935,12 @@
           "cache_read_input_tokens": 0.5,
           "cache_creation_input_tokens": 6.25
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens",
+          "cache_read_input_tokens"
+        ]
       }
     },
     {
@@ -624,8 +956,12 @@
         "config": {
           "model": "claude-fable-5",
           "max_tokens": 32768,
-          "thinking": { "type": "adaptive" },
-          "output_config": { "effort": "high" }
+          "thinking": {
+            "type": "adaptive"
+          },
+          "output_config": {
+            "effort": "high"
+          }
         }
       },
       "cost": {
@@ -635,8 +971,14 @@
           "input_tokens": 10,
           "output_tokens": 50,
           "cache_read_input_tokens": 1,
-          "cache_creation_input_tokens": 12.50
+          "cache_creation_input_tokens": 12.5
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens",
+          "cache_read_input_tokens"
+        ]
       }
     },
     {
@@ -652,8 +994,12 @@
         "config": {
           "model": "claude-fable-5",
           "max_tokens": 64000,
-          "thinking": { "type": "adaptive" },
-          "output_config": { "effort": "max" }
+          "thinking": {
+            "type": "adaptive"
+          },
+          "output_config": {
+            "effort": "max"
+          }
         }
       },
       "cost": {
@@ -663,11 +1009,16 @@
           "input_tokens": 10,
           "output_tokens": 50,
           "cache_read_input_tokens": 1,
-          "cache_creation_input_tokens": 12.50
+          "cache_creation_input_tokens": 12.5
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens",
+          "cache_read_input_tokens"
+        ]
       }
     },
-
     {
       "name": "claude-haiku-4-5",
       "variant": "thinking-16k-bedrock",
@@ -680,7 +1031,10 @@
         "config": {
           "model": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
           "max_tokens": 32768,
-          "thinking": { "type": "enabled", "budget_tokens": 16384 }
+          "thinking": {
+            "type": "enabled",
+            "budget_tokens": 16384
+          }
         }
       },
       "cost": {
@@ -692,6 +1046,12 @@
           "cache_read_input_tokens": 0.1,
           "cache_creation_input_tokens": 1.25
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens",
+          "cache_read_input_tokens"
+        ]
       }
     },
     {
@@ -706,7 +1066,10 @@
         "config": {
           "model": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
           "max_tokens": 64000,
-          "thinking": { "type": "enabled", "budget_tokens": 32768 }
+          "thinking": {
+            "type": "enabled",
+            "budget_tokens": 32768
+          }
         }
       },
       "cost": {
@@ -718,6 +1081,12 @@
           "cache_read_input_tokens": 0.1,
           "cache_creation_input_tokens": 1.25
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens",
+          "cache_read_input_tokens"
+        ]
       }
     },
     {
@@ -732,8 +1101,12 @@
         "config": {
           "model": "global.anthropic.claude-sonnet-4-6",
           "max_tokens": 32768,
-          "thinking": { "type": "adaptive" },
-          "output_config": { "effort": "high" }
+          "thinking": {
+            "type": "adaptive"
+          },
+          "output_config": {
+            "effort": "high"
+          }
         }
       },
       "cost": {
@@ -745,6 +1118,12 @@
           "cache_read_input_tokens": 0.3,
           "cache_creation_input_tokens": 3.75
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens",
+          "cache_read_input_tokens"
+        ]
       }
     },
     {
@@ -759,8 +1138,12 @@
         "config": {
           "model": "global.anthropic.claude-sonnet-4-6",
           "max_tokens": 64000,
-          "thinking": { "type": "adaptive" },
-          "output_config": { "effort": "max" }
+          "thinking": {
+            "type": "adaptive"
+          },
+          "output_config": {
+            "effort": "max"
+          }
         }
       },
       "cost": {
@@ -772,6 +1155,12 @@
           "cache_read_input_tokens": 0.3,
           "cache_creation_input_tokens": 3.75
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens",
+          "cache_read_input_tokens"
+        ]
       }
     },
     {
@@ -786,8 +1175,12 @@
         "config": {
           "model": "global.anthropic.claude-opus-4-8",
           "max_tokens": 32768,
-          "thinking": { "type": "adaptive" },
-          "output_config": { "effort": "high" }
+          "thinking": {
+            "type": "adaptive"
+          },
+          "output_config": {
+            "effort": "high"
+          }
         }
       },
       "cost": {
@@ -799,6 +1192,12 @@
           "cache_read_input_tokens": 0.5,
           "cache_creation_input_tokens": 6.25
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens",
+          "cache_read_input_tokens"
+        ]
       }
     },
     {
@@ -813,8 +1212,12 @@
         "config": {
           "model": "global.anthropic.claude-opus-4-8",
           "max_tokens": 64000,
-          "thinking": { "type": "adaptive" },
-          "output_config": { "effort": "max" }
+          "thinking": {
+            "type": "adaptive"
+          },
+          "output_config": {
+            "effort": "max"
+          }
         }
       },
       "cost": {
@@ -826,6 +1229,12 @@
           "cache_read_input_tokens": 0.5,
           "cache_creation_input_tokens": 6.25
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens",
+          "cache_read_input_tokens"
+        ]
       }
     },
     {
@@ -840,8 +1249,12 @@
         "config": {
           "model": "global.anthropic.claude-fable-5",
           "max_tokens": 32768,
-          "thinking": { "type": "adaptive" },
-          "output_config": { "effort": "high" }
+          "thinking": {
+            "type": "adaptive"
+          },
+          "output_config": {
+            "effort": "high"
+          }
         }
       },
       "cost": {
@@ -851,8 +1264,14 @@
           "input_tokens": 10,
           "output_tokens": 50,
           "cache_read_input_tokens": 1,
-          "cache_creation_input_tokens": 12.50
+          "cache_creation_input_tokens": 12.5
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens",
+          "cache_read_input_tokens"
+        ]
       }
     },
     {
@@ -867,8 +1286,12 @@
         "config": {
           "model": "global.anthropic.claude-fable-5",
           "max_tokens": 64000,
-          "thinking": { "type": "adaptive" },
-          "output_config": { "effort": "max" }
+          "thinking": {
+            "type": "adaptive"
+          },
+          "output_config": {
+            "effort": "max"
+          }
         }
       },
       "cost": {
@@ -878,11 +1301,16 @@
           "input_tokens": 10,
           "output_tokens": 50,
           "cache_read_input_tokens": 1,
-          "cache_creation_input_tokens": 12.50
+          "cache_creation_input_tokens": 12.5
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens",
+          "cache_read_input_tokens"
+        ]
       }
     },
-
     {
       "name": "gemini-3.5-flash",
       "variant": "thinking-medium",
@@ -912,6 +1340,11 @@
           "cachedContentTokenCount": -1.35,
           "candidatesTokenCount": 9
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "promptTokenCount"
+        ]
       }
     },
     {
@@ -943,6 +1376,11 @@
           "cachedContentTokenCount": -1.35,
           "candidatesTokenCount": 9
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "promptTokenCount"
+        ]
       }
     },
     {
@@ -974,6 +1412,11 @@
           "cachedContentTokenCount": -1.8,
           "candidatesTokenCount": 12
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "promptTokenCount"
+        ]
       }
     },
     {
@@ -1005,9 +1448,13 @@
           "cachedContentTokenCount": -1.8,
           "candidatesTokenCount": 12
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "promptTokenCount"
+        ]
       }
     },
-
     {
       "name": "gemini-3.5-flash",
       "variant": "thinking-medium-vertex-ai",
@@ -1036,6 +1483,11 @@
           "cachedContentTokenCount": -1.35,
           "candidatesTokenCount": 9
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "promptTokenCount"
+        ]
       }
     },
     {
@@ -1066,6 +1518,11 @@
           "cachedContentTokenCount": -1.35,
           "candidatesTokenCount": 9
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "promptTokenCount"
+        ]
       }
     },
     {
@@ -1096,6 +1553,11 @@
           "cachedContentTokenCount": -1.8,
           "candidatesTokenCount": 12
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "promptTokenCount"
+        ]
       }
     },
     {
@@ -1126,9 +1588,13 @@
           "cachedContentTokenCount": -1.8,
           "candidatesTokenCount": 12
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "promptTokenCount"
+        ]
       }
     },
-
     {
       "name": "gpt-5.4-mini",
       "variant": "thinking-medium",
@@ -1141,9 +1607,14 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.4-mini",
-          "reasoning": { "effort": "medium", "summary": "auto" },
+          "reasoning": {
+            "effort": "medium",
+            "summary": "auto"
+          },
           "store": false,
-          "include": ["reasoning.encrypted_content"]
+          "include": [
+            "reasoning.encrypted_content"
+          ]
         }
       },
       "cost": {
@@ -1154,6 +1625,11 @@
           "input_tokens_details.cached_tokens": -0.675,
           "output_tokens": 4.5
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens"
+        ]
       }
     },
     {
@@ -1168,9 +1644,14 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.4-mini",
-          "reasoning": { "effort": "high", "summary": "auto" },
+          "reasoning": {
+            "effort": "high",
+            "summary": "auto"
+          },
           "store": false,
-          "include": ["reasoning.encrypted_content"]
+          "include": [
+            "reasoning.encrypted_content"
+          ]
         }
       },
       "cost": {
@@ -1181,6 +1662,11 @@
           "input_tokens_details.cached_tokens": -0.675,
           "output_tokens": 4.5
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens"
+        ]
       }
     },
     {
@@ -1195,9 +1681,14 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.4-mini",
-          "reasoning": { "effort": "xhigh", "summary": "auto" },
+          "reasoning": {
+            "effort": "xhigh",
+            "summary": "auto"
+          },
           "store": false,
-          "include": ["reasoning.encrypted_content"]
+          "include": [
+            "reasoning.encrypted_content"
+          ]
         }
       },
       "cost": {
@@ -1208,6 +1699,11 @@
           "input_tokens_details.cached_tokens": -0.675,
           "output_tokens": 4.5
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens"
+        ]
       }
     },
     {
@@ -1222,9 +1718,14 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.5",
-          "reasoning": { "effort": "medium", "summary": "auto" },
+          "reasoning": {
+            "effort": "medium",
+            "summary": "auto"
+          },
           "store": false,
-          "include": ["reasoning.encrypted_content"]
+          "include": [
+            "reasoning.encrypted_content"
+          ]
         }
       },
       "cost": {
@@ -1235,6 +1736,11 @@
           "input_tokens_details.cached_tokens": -4.5,
           "output_tokens": 30
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens"
+        ]
       }
     },
     {
@@ -1249,9 +1755,14 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.5",
-          "reasoning": { "effort": "high", "summary": "auto" },
+          "reasoning": {
+            "effort": "high",
+            "summary": "auto"
+          },
           "store": false,
-          "include": ["reasoning.encrypted_content"]
+          "include": [
+            "reasoning.encrypted_content"
+          ]
         }
       },
       "cost": {
@@ -1262,6 +1773,11 @@
           "input_tokens_details.cached_tokens": -4.5,
           "output_tokens": 30
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens"
+        ]
       }
     },
     {
@@ -1276,9 +1792,14 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.5",
-          "reasoning": { "effort": "xhigh", "summary": "auto" },
+          "reasoning": {
+            "effort": "xhigh",
+            "summary": "auto"
+          },
           "store": false,
-          "include": ["reasoning.encrypted_content"]
+          "include": [
+            "reasoning.encrypted_content"
+          ]
         }
       },
       "cost": {
@@ -1289,9 +1810,13 @@
           "input_tokens_details.cached_tokens": -4.5,
           "output_tokens": 30
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens"
+        ]
       }
     },
-
     {
       "name": "gpt-5.4-mini",
       "variant": "thinking-medium-azure",
@@ -1303,9 +1828,14 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.4-mini",
-          "reasoning": { "effort": "medium", "summary": "auto" },
+          "reasoning": {
+            "effort": "medium",
+            "summary": "auto"
+          },
           "store": false,
-          "include": ["reasoning.encrypted_content"]
+          "include": [
+            "reasoning.encrypted_content"
+          ]
         }
       },
       "cost": {
@@ -1316,6 +1846,11 @@
           "input_tokens_details.cached_tokens": -0.675,
           "output_tokens": 4.5
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens"
+        ]
       }
     },
     {
@@ -1329,9 +1864,14 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.4-mini",
-          "reasoning": { "effort": "high", "summary": "auto" },
+          "reasoning": {
+            "effort": "high",
+            "summary": "auto"
+          },
           "store": false,
-          "include": ["reasoning.encrypted_content"]
+          "include": [
+            "reasoning.encrypted_content"
+          ]
         }
       },
       "cost": {
@@ -1342,6 +1882,11 @@
           "input_tokens_details.cached_tokens": -0.675,
           "output_tokens": 4.5
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens"
+        ]
       }
     },
     {
@@ -1355,9 +1900,14 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.4-mini",
-          "reasoning": { "effort": "xhigh", "summary": "auto" },
+          "reasoning": {
+            "effort": "xhigh",
+            "summary": "auto"
+          },
           "store": false,
-          "include": ["reasoning.encrypted_content"]
+          "include": [
+            "reasoning.encrypted_content"
+          ]
         }
       },
       "cost": {
@@ -1368,6 +1918,11 @@
           "input_tokens_details.cached_tokens": -0.675,
           "output_tokens": 4.5
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens"
+        ]
       }
     },
     {
@@ -1381,9 +1936,14 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.5",
-          "reasoning": { "effort": "medium", "summary": "auto" },
+          "reasoning": {
+            "effort": "medium",
+            "summary": "auto"
+          },
           "store": false,
-          "include": ["reasoning.encrypted_content"]
+          "include": [
+            "reasoning.encrypted_content"
+          ]
         }
       },
       "cost": {
@@ -1394,6 +1954,11 @@
           "input_tokens_details.cached_tokens": -4.5,
           "output_tokens": 30
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens"
+        ]
       }
     },
     {
@@ -1407,9 +1972,14 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.5",
-          "reasoning": { "effort": "high", "summary": "auto" },
+          "reasoning": {
+            "effort": "high",
+            "summary": "auto"
+          },
           "store": false,
-          "include": ["reasoning.encrypted_content"]
+          "include": [
+            "reasoning.encrypted_content"
+          ]
         }
       },
       "cost": {
@@ -1420,6 +1990,11 @@
           "input_tokens_details.cached_tokens": -4.5,
           "output_tokens": 30
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens"
+        ]
       }
     },
     {
@@ -1433,9 +2008,14 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.5",
-          "reasoning": { "effort": "xhigh", "summary": "auto" },
+          "reasoning": {
+            "effort": "xhigh",
+            "summary": "auto"
+          },
           "store": false,
-          "include": ["reasoning.encrypted_content"]
+          "include": [
+            "reasoning.encrypted_content"
+          ]
         }
       },
       "cost": {
@@ -1446,9 +2026,13 @@
           "input_tokens_details.cached_tokens": -4.5,
           "output_tokens": 30
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens"
+        ]
       }
     },
-
     {
       "name": "gpt-oss-120b",
       "variant": "fireworks",
@@ -1468,11 +2052,15 @@
         "prices": {
           "prompt_tokens": 0.15,
           "prompt_tokens_details.cached_tokens": -0.14,
-          "completion_tokens": 0.6 
+          "completion_tokens": 0.6
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "prompt_tokens"
+        ]
       }
     },
-
     {
       "name": "glm-5",
       "variant": "vertex-ai",
@@ -1494,6 +2082,11 @@
           "completion_tokens": 3.2,
           "prompt_tokens_details.cached_tokens": -0.9
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "prompt_tokens"
+        ]
       }
     },
     {
@@ -1517,9 +2110,13 @@
           "prompt_tokens": 1,
           "completion_tokens": 3.2
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "prompt_tokens"
+        ]
       }
     },
-
     {
       "name": "glm-5.2",
       "variant": "fireworks",
@@ -1541,9 +2138,13 @@
           "prompt_tokens_details.cached_tokens": -1.14,
           "completion_tokens": 4.4
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "prompt_tokens"
+        ]
       }
     },
-
     {
       "name": "kimi-k2.6",
       "variant": "azure",
@@ -1557,6 +2158,11 @@
           "model": "Kimi-K2.6",
           "reasoning_effort": "high"
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "prompt_tokens"
+        ]
       }
     },
     {
@@ -1580,9 +2186,13 @@
           "prompt_tokens_details.cached_tokens": -0.76,
           "completion_tokens": 4
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "prompt_tokens"
+        ]
       }
     },
-
     {
       "name": "deepseek-v4-pro",
       "variant": "fireworks",
@@ -1604,6 +2214,11 @@
           "prompt_tokens_details.cached_tokens": -1.6,
           "completion_tokens": 3.48
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "prompt_tokens"
+        ]
       }
     },
     {
@@ -1619,9 +2234,13 @@
           "model": "DeepSeek-V4-Pro",
           "reasoning_effort": "high"
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "prompt_tokens"
+        ]
       }
     },
-
     {
       "name": "minimax-m3",
       "variant": "fireworks",
@@ -1643,9 +2262,13 @@
           "prompt_tokens_details.cached_tokens": -0.24,
           "completion_tokens": 1.2
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "prompt_tokens"
+        ]
       }
     },
-
     {
       "name": "qwen3.7-plus",
       "variant": "fireworks",
@@ -1667,9 +2290,13 @@
           "prompt_tokens_details.cached_tokens": -0.32,
           "completion_tokens": 1.6
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "prompt_tokens"
+        ]
       }
     },
-
     {
       "name": "nova-2-lite",
       "variant": "bedrock",
@@ -1689,6 +2316,12 @@
             }
           }
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "inputTokens",
+          "cacheReadInputTokens"
+        ]
       }
     },
     {
@@ -1713,6 +2346,12 @@
             }
           }
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": [
+          "inputTokens",
+          "cacheReadInputTokens"
+        ]
       }
     }
   ],

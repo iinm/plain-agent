@@ -10,6 +10,12 @@ export type ModelDefinition = {
   platform: PlatformConfig;
   model: ModelConfig;
   cost?: CostConfig;
+  autoCompact?: ModelAutoCompactConfig;
+};
+
+export type ModelAutoCompactConfig = {
+  /** Keys in providerTokenUsage whose values are summed to get the input token count. */
+  inputTokensKeys: string[];
 };
 
 export type PlatformConfig =

@@ -449,6 +449,7 @@ export async function main(argv = process.argv) {
     },
     initialState: resumedState,
     contextSoftLimit,
+    inputTokensKeys: modelDef.autoCompact?.inputTokensKeys,
   });
 
   const sessionOptions = {

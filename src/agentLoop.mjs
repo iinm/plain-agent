@@ -58,6 +58,7 @@ function applyCompactContextIfCalled(stateManager, toolUseParts, toolResults) {
  * @property {SubagentManager} subagentManager - Subagent manager instance
  * @property {PauseSignal} pauseSignal - Signal to pause auto-approve after current tool completes
  * @property {number} [contextSoftLimit] - Soft limit on input tokens for auto-compact
+ * @property {string[]} [inputTokensKeys] - Keys in providerTokenUsage to sum for input token count
  */
 
 /**
@@ -78,6 +79,7 @@ export function createAgentLoop({
   subagentManager,
   pauseSignal,
   contextSoftLimit,
+  inputTokensKeys,
 }) {
   const inputHandler = createInputHandler({
     stateManager,
@@ -140,7 +142,9 @@ export function createAgentLoop({
 
       // Auto-compact: prompt the model when context exceeds soft limit
       if (contextSoftLimit && providerTokenUsage) {
-        const inputTokens = extractInputTokenCount(providerTokenUsage);
+        const inputTokens = inputTokensKeys
+          ? extractInputTokenCount(providerTokenUsage, inputTokensKeys)
+          : undefined;
         if (inputTokens !== undefined && inputTokens > contextSoftLimit) {
           if (compactPromptCooldown === 0) {
             const promptText = buildCompactPrompt({
