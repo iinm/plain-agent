@@ -143,10 +143,13 @@ export function createAgentLoop({
         const inputTokens = extractInputTokenCount(providerTokenUsage);
         if (inputTokens !== undefined && inputTokens > contextSoftLimit) {
           if (compactPromptCooldown === 0) {
+            const promptText = buildCompactPrompt({
+              isSubagent: subagentManager.isSubagentActive(),
+            });
             stateManager.appendMessages([
               {
                 role: "user",
-                content: [{ type: "text", text: buildCompactPrompt() }],
+                content: [{ type: "text", text: promptText }],
               },
             ]);
             compactPromptCooldown = compactPromptCooldownTurns;
