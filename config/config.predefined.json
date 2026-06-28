@@ -1,4 +1,5 @@
 {
+  "autoCompact": { "softLimit": 120000 },
   "autoApproval": {
     "defaultAction": "ask",
     "maxApprovals": 50,
@@ -1822,6 +1823,5 @@
         "inputTokensKeys": ["inputTokens", "cacheReadInputTokens"]
       }
     }
-  ],
-  "autoCompact": { "softLimit": 120000 }
+  ]
 }
