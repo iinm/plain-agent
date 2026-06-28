@@ -108,7 +108,7 @@ export function createAgentLoop({
   async function runTurnLoop() {
     let thinkingLoops = 0;
     const maxThinkingLoops = 5;
-    let turnsAfterCompactPrompt = 0;
+    let turnsAfterCompactPrompt = -1;
     while (true) {
       // Check if auto-approve was paused by Ctrl-C during tool execution
       if (pauseSignal.isPaused()) {
@@ -246,7 +246,7 @@ export function createAgentLoop({
       if (
         applyCompactContextIfCalled(stateManager, toolUseParts, toolResults)
       ) {
-        turnsAfterCompactPrompt = 0;
+        turnsAfterCompactPrompt = -1;
         continue;
       }
 
@@ -269,7 +269,7 @@ export function createAgentLoop({
           inputTokensKeys,
         );
         if (inputTokens !== undefined && inputTokens > contextSoftLimit) {
-          if (turnsAfterCompactPrompt > 0 && turnsAfterCompactPrompt <= 3) {
+          if (turnsAfterCompactPrompt >= 0 && turnsAfterCompactPrompt < 3) {
             turnsAfterCompactPrompt += 1;
           } else {
             stateManager.appendMessages([
@@ -285,7 +285,7 @@ export function createAgentLoop({
                 ],
               },
             ]);
-            turnsAfterCompactPrompt = 1;
+            turnsAfterCompactPrompt = 0;
             console.error(
               styleText(
                 "yellow",
