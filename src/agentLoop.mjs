@@ -112,10 +112,11 @@ export function createAgentLoop({
     let compactPromptCooldown = 0;
 
     /**
-     * Check if context exceeds soft limit and insert compact prompt if needed.
-     * @returns {boolean} true if a compact prompt was inserted (caller should continue the loop).
+     * If input tokens exceed the soft limit and cooldown has elapsed,
+     * append a compact-context prompt to the conversation.
+     * @returns {boolean} true if a prompt was inserted.
      */
-    function checkAutoCompact() {
+    function insertCompactPromptIfOverLimit() {
       if (!contextSoftLimit || !inputTokensKeys || !providerTokenUsage) {
         return false;
       }
@@ -212,7 +213,7 @@ export function createAgentLoop({
 
       // No tool use -> check auto-compact, then turn end
       if (toolUseParts.length === 0) {
-        if (checkAutoCompact()) continue;
+        if (insertCompactPromptIfOverLimit()) continue;
         break;
       }
 
@@ -309,7 +310,7 @@ export function createAgentLoop({
       }
 
       // Check auto-compact after tool results are appended
-      if (checkAutoCompact()) continue;
+      if (insertCompactPromptIfOverLimit()) continue;
     }
   }
 
