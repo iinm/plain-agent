@@ -825,7 +825,7 @@ You are a web content reader and analyzer. Given a URL and a question, you:
 
 ## Auto-Compact
 
-When the context grows too large, response quality degrades. Auto-compact monitors input token usage and automatically prompts the agent to compact the context before that happens.
+As the context grows, noise accumulates and token costs increase. Auto-compact monitors input token usage and automatically prompts the agent to compact the context before hitting the model's hard limit.
 
 ### Configuration
 
