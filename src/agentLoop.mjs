@@ -109,9 +109,6 @@ export function createAgentLoop({
     let thinkingLoops = 0;
     const maxThinkingLoops = 5;
     let turnsAfterCompactPrompt = 0;
-    /** @type {import('./model.d.ts').ProviderTokenUsage | undefined} */
-    let providerTokenUsage;
-
     while (true) {
       // Check if auto-approve was paused by Ctrl-C during tool execution
       if (pauseSignal.isPaused()) {
@@ -135,9 +132,7 @@ export function createAgentLoop({
         break;
       }
 
-      const { message: assistantMessage, providerTokenUsage: usage } =
-        modelOutput;
-      providerTokenUsage = usage;
+      const { message: assistantMessage, providerTokenUsage } = modelOutput;
       stateManager.appendMessages([assistantMessage]);
       if (providerTokenUsage) {
         agentEventEmitter.emit("providerTokenUsage", providerTokenUsage);
