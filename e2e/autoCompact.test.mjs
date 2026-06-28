@@ -111,12 +111,9 @@ describe("auto-compact", () => {
   });
 
   it("should insert auto-compact prompt after tool results when input tokens exceed soft limit", async () => {
-    // given: model returns a tool call (ls) with high token usage, then text
-    const usage = {
-      prompt_tokens: 100,
-      completion_tokens: 5,
-      total_tokens: 105,
-    };
+    // given: first call returns tool_use (ls, auto-approved), second returns text.
+    // softLimit is 1, and sseToolCallResponse returns prompt_tokens: 10 by default,
+    // so the check after tool results triggers on the first call's usage.
     let callCount = 0;
     respondWith = () => {
       callCount++;
@@ -125,7 +122,7 @@ describe("auto-compact", () => {
           command: "ls",
         });
       }
-      return sseTextResponse("done", { usage });
+      return sseTextResponse("done");
     };
     const { proc, output } = spawnAgent(workDir);
     cleanups.push(() => closeAndWaitForExit(proc));
