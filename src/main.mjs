@@ -16,7 +16,7 @@ import { startBatchSession } from "./cli/batch.mjs";
 import { runCostCommand } from "./cli/cost.mjs";
 import { startInteractiveSession } from "./cli/interactive.mjs";
 import { runTestApprovalCommand } from "./cli/testApproval.mjs";
-import { loadAppConfig } from "./config.mjs";
+import { loadAppConfig, resolveContextSoftLimit } from "./config.mjs";
 import { loadAgentRoles } from "./context/loadAgentRoles.mjs";
 import { loadPrompts } from "./context/loadPrompts.mjs";
 import { AGENT_PROJECT_METADATA_DIR, USER_NAME } from "./env.mjs";
@@ -429,15 +429,10 @@ export async function main(argv = process.argv) {
   });
 
   // Resolve context soft limit from autoCompact config
-  const softLimitPerModelPrefix =
-    appConfig.autoCompact?.softLimitPerModelPrefix;
-  const matchedPrefixLimit = softLimitPerModelPrefix
-    ? Object.entries(softLimitPerModelPrefix).find(([prefix]) =>
-        modelNameWithVariant.startsWith(prefix),
-      )?.[1]
-    : undefined;
-  const contextSoftLimit =
-    matchedPrefixLimit ?? appConfig.autoCompact?.softLimit ?? undefined;
+  const contextSoftLimit = resolveContextSoftLimit(
+    appConfig.autoCompact,
+    modelNameWithVariant,
+  );
 
   const { userEventEmitter, agentEventEmitter, agentCommands } = createAgent({
     callModel: agentCallModel,

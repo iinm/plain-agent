@@ -233,3 +233,21 @@ async function trustConfigHash(hash) {
   await fs.mkdir(TRUSTED_CONFIG_HASHES_DIR, { recursive: true });
   await fs.writeFile(path.join(TRUSTED_CONFIG_HASHES_DIR, hash), "");
 }
+
+/**
+ * Resolve the effective context soft limit for the given model.
+ *
+ * @param {AppConfig["autoCompact"]} autoCompact
+ * @param {string} modelNameWithVariant - e.g. "claude-sonnet-4-6+thinking-high"
+ * @returns {number | undefined}
+ */
+export function resolveContextSoftLimit(autoCompact, modelNameWithVariant) {
+  if (!autoCompact) return undefined;
+  const perPrefix = autoCompact.softLimitPerModelPrefix;
+  const matched = perPrefix
+    ? Object.entries(perPrefix).find(([prefix]) =>
+        modelNameWithVariant.startsWith(prefix),
+      )?.[1]
+    : undefined;
+  return matched ?? autoCompact.softLimit ?? undefined;
+}

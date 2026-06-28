@@ -139,4 +139,38 @@ describe("auto-compact", () => {
       `Expected auto-compact diagnostic message, got: ${full}`,
     );
   });
+
+  it("should suppress compact prompt during cooldown and re-insert after 3 turns", async () => {
+    // given: model always returns tool_use (ls) for 5 calls, then text.
+    // Cooldown is 3 turns, so compact prompt is inserted on calls 1 and 5.
+    let callCount = 0;
+    respondWith = () => {
+      callCount++;
+      if (callCount <= 5) {
+        return sseToolCallResponse(`call_${callCount}`, "exec_command", {
+          command: "ls",
+        });
+      }
+      return sseTextResponse("done");
+    };
+    const { proc, output } = spawnAgent(workDir);
+    cleanups.push(() => closeAndWaitForExit(proc));
+
+    // when:
+    await waitForCliReady(proc, output);
+    proc.stdin.write("go\n");
+
+    // then: wait for the second insertion (after cooldown expires)
+    await waitForOutput(
+      output,
+      /Auto-compact prompt inserted[\s\S]*Auto-compact prompt inserted/,
+      10000,
+    );
+    const insertions = output.join("").match(/Auto-compact prompt inserted/g);
+    assert.strictEqual(
+      insertions?.length,
+      2,
+      `Expected exactly 2 compact prompt insertions, got ${insertions?.length}`,
+    );
+  });
 });
