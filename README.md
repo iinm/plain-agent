@@ -229,7 +229,7 @@ A few design choices keep token usage low:
 
 - Minimal system prompt — the [system prompt](https://github.com/iinm/plain-agent/blob/main/src/prompt.mjs) contains only what the agent needs to function. 
 - Output truncation — when a command or MCP tool produces large output, it is truncated and saved to a file. The agent can then read only the relevant parts.
-- Context compaction — run `/compact` to discard old messages and reload task state from a memory file. This also happens automatically when input tokens exceed a configurable soft limit (see [Auto-Compact](#auto-compact)).
+- Context compaction — run `/compact` to discard old messages and reload task state from a memory file. This also happens automatically when input tokens exceed a configurable soft limit.
 - MCP tool filtering — MCP servers often expose many tools. Use `enabledTools` in the server config to enable only the ones you need, which reduces the number of tool definitions sent to the model.
 
 ### Claude Code Compatibility
