@@ -843,21 +843,6 @@ Set a soft limit in `autoCompact`. When input tokens exceed this limit after a t
 }
 ```
 
-The default configuration sets `softLimit` to `120000`. If the agent ignores the prompt, it is re-inserted after a short cooldown.
-
-Each model definition also declares which keys in the provider's token usage response to sum for the input token count:
-
-```js
-{
-  "name": "claude-sonnet-4-6",
-  "autoCompact": {
-    "inputTokensKeys": ["input_tokens", "cache_read_input_tokens"]
-  }
-}
-```
-
-The predefined models already have this configured.
-
 ## Claude Code Plugin Support
 
 Plugins are installed under `.plain-agent/claude-code-plugins/` and must be installed per project by running `plain install-claude-code-plugins` from the project root. Global installation (e.g., under `~/.plain-agent`) is not supported because plugins may include skills the agent invokes autonomously. Keeping them scoped to the project keeps approval rules and permission management straightforward.
