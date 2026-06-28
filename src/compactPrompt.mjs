@@ -22,9 +22,9 @@ export function buildCompactPrompt(options) {
     return [
       preamble,
       "",
-      "You are currently running as a subagent. To compact the context:",
-      '1. Call "switch_to_main_agent" to return to the main agent first, writing your current progress to the memory file.',
-      "2. Once back as the main agent, the context will be compacted automatically.",
+      "The context is growing large. Wrap up your current work:",
+      "1. Summarize your progress and findings so far in the memory file.",
+      '2. Call "switch_to_main_agent" to hand back control, so the main agent can compact the context.',
     ].join("\n");
   }
 
