@@ -22,6 +22,7 @@ A lightweight terminal-based coding agent focused on safety and low token cost
 - [Available Tools](#available-tools)
 - [Prompts](#prompts)
 - [Subagents](#subagents)
+- [Auto-Compact](#auto-compact)
 - [Claude Code Plugin Support](#claude-code-plugin-support)
 - [Appendix: Creating Least-Privilege Users for Cloud Providers](#appendix-creating-least-privilege-users-for-cloud-providers)
 - [Developer Notes](#developer-notes)
@@ -821,6 +822,41 @@ You are a web content reader and analyzer. Given a URL and a question, you:
 2. Read and understand the fetched content.
 3. Answer the user's question based on the content.
 ```
+
+## Auto-Compact
+
+When the context grows too large, response quality degrades. Auto-compact monitors input token usage and automatically prompts the agent to compact the context before that happens.
+
+### Configuration
+
+Set a soft limit in `autoCompact`. When input tokens exceed this limit after a tool execution, the agent is prompted to update the memory file and call `compact_context`.
+
+```js
+{
+  "autoCompact": {
+    "softLimit": 120000,
+    // Optional: override per model (prefix match on name+variant)
+    "softLimitPerModelPrefix": {
+      "gemini-2.5-pro": 500000
+    }
+  }
+}
+```
+
+The default configuration sets `softLimit` to `120000`. If the agent ignores the prompt, it is re-inserted after a short cooldown.
+
+Each model definition also declares which keys in the provider's token usage response to sum for the input token count:
+
+```js
+{
+  "name": "claude-sonnet-4-6",
+  "autoCompact": {
+    "inputTokensKeys": ["input_tokens", "cache_read_input_tokens"]
+  }
+}
+```
+
+The predefined models already have this configured.
 
 ## Claude Code Plugin Support
 
