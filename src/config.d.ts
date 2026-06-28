@@ -89,7 +89,7 @@ export type AppConfig = {
   notifyCmd?: { command: string; args?: string[] };
   autoCompact?: {
     softLimit?: number;
-    softLimitPerModel?: Record<string, number>;
+    softLimitPerModelPrefix?: Record<string, number>;
   };
   claudeCodePlugins?: ClaudeCodePluginRepo[];
 };

@@ -429,10 +429,15 @@ export async function main(argv = process.argv) {
   });
 
   // Resolve context soft limit from autoCompact config
+  const softLimitPerModelPrefix =
+    appConfig.autoCompact?.softLimitPerModelPrefix;
+  const matchedPrefixLimit = softLimitPerModelPrefix
+    ? Object.entries(softLimitPerModelPrefix).find(([prefix]) =>
+        modelNameWithVariant.startsWith(prefix),
+      )?.[1]
+    : undefined;
   const contextSoftLimit =
-    appConfig.autoCompact?.softLimitPerModel?.[modelNameWithVariant] ??
-    appConfig.autoCompact?.softLimit ??
-    undefined;
+    matchedPrefixLimit ?? appConfig.autoCompact?.softLimit ?? undefined;
 
   const { userEventEmitter, agentEventEmitter, agentCommands } = createAgent({
     callModel: agentCallModel,

@@ -128,9 +128,9 @@ export async function loadAppConfig(options = {}) {
         ? {
             softLimit:
               config.autoCompact.softLimit ?? merged.autoCompact?.softLimit,
-            softLimitPerModel: {
-              ...(merged.autoCompact?.softLimitPerModel ?? {}),
-              ...(config.autoCompact.softLimitPerModel ?? {}),
+            softLimitPerModelPrefix: {
+              ...(merged.autoCompact?.softLimitPerModelPrefix ?? {}),
+              ...(config.autoCompact.softLimitPerModelPrefix ?? {}),
             },
           }
         : merged.autoCompact,
