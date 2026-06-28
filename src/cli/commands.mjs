@@ -5,11 +5,13 @@
 
 import { execFileSync } from "node:child_process";
 import { styleText } from "node:util";
-import { buildCompactPrompt } from "../compactPrompt.mjs";
 import { loadAgentRoles } from "../context/loadAgentRoles.mjs";
 import { loadPrompts } from "../context/loadPrompts.mjs";
 import { loadUserMessageContext } from "../context/loadUserMessageContext.mjs";
-import { CLAUDE_CODE_COMPATIBILITY_NOTES } from "../prompt.mjs";
+import {
+  buildCompactPrompt,
+  CLAUDE_CODE_COMPATIBILITY_NOTES,
+} from "../prompt.mjs";
 import { parseFileRange } from "../utils/parseFileRange.mjs";
 import { readFileRange } from "../utils/readFileRange.mjs";
 import { toOneLine } from "../utils/toOneLine.mjs";

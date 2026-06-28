@@ -7,7 +7,7 @@
  */
 
 import { styleText } from "node:util";
-import { buildCompactPrompt } from "./compactPrompt.mjs";
+import { buildCompactPrompt } from "./prompt.mjs";
 import { extractInputTokenCount } from "./tokenUsage.mjs";
 import { compactContextToolName } from "./tools/compactContext.mjs";
 
