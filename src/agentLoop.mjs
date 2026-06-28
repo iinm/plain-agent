@@ -109,46 +109,6 @@ export function createAgentLoop({
     let thinkingLoops = 0;
     const maxThinkingLoops = 5;
     let turnsAfterCompactPrompt = 0;
-
-    /**
-     * If input tokens exceed the soft limit and cooldown has elapsed,
-     * append a compact-context prompt to the conversation.
-     * @returns {boolean} true if a prompt was inserted.
-     */
-    function insertCompactPromptIfOverLimit() {
-      if (!contextSoftLimit || !inputTokensKeys || !providerTokenUsage) {
-        return false;
-      }
-      const inputTokens = extractInputTokenCount(
-        providerTokenUsage,
-        inputTokensKeys,
-      );
-      if (inputTokens === undefined || inputTokens <= contextSoftLimit) {
-        return false;
-      }
-      if (turnsAfterCompactPrompt > 0 && turnsAfterCompactPrompt <= 3) {
-        turnsAfterCompactPrompt += 1;
-        return false;
-      }
-      const promptText = buildCompactPrompt({
-        isSubagent: subagentManager.isSubagentActive(),
-      });
-      stateManager.appendMessages([
-        {
-          role: "user",
-          content: [{ type: "text", text: promptText }],
-        },
-      ]);
-      turnsAfterCompactPrompt = 1;
-      console.error(
-        styleText(
-          "yellow",
-          `\nContext exceeded soft limit (${inputTokens.toLocaleString()} / ${contextSoftLimit.toLocaleString()} tokens). Auto-compact prompt inserted.`,
-        ),
-      );
-      return true;
-    }
-
     /** @type {import('./model.d.ts').ProviderTokenUsage | undefined} */
     let providerTokenUsage;
 
@@ -307,8 +267,39 @@ export function createAgentLoop({
         stateManager.appendMessages([{ role: "user", content: toolResults }]);
       }
 
-      // Check auto-compact after tool results are appended
-      if (insertCompactPromptIfOverLimit()) continue;
+      // Auto-compact: insert prompt if context exceeds soft limit
+      if (contextSoftLimit && inputTokensKeys && providerTokenUsage) {
+        const inputTokens = extractInputTokenCount(
+          providerTokenUsage,
+          inputTokensKeys,
+        );
+        if (inputTokens !== undefined && inputTokens > contextSoftLimit) {
+          if (turnsAfterCompactPrompt > 0 && turnsAfterCompactPrompt <= 3) {
+            turnsAfterCompactPrompt += 1;
+          } else {
+            stateManager.appendMessages([
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: buildCompactPrompt({
+                      isSubagent: subagentManager.isSubagentActive(),
+                    }),
+                  },
+                ],
+              },
+            ]);
+            turnsAfterCompactPrompt = 1;
+            console.error(
+              styleText(
+                "yellow",
+                `\nContext exceeded soft limit (${inputTokens.toLocaleString()} / ${contextSoftLimit.toLocaleString()} tokens). Auto-compact prompt inserted.`,
+              ),
+            );
+          }
+        }
+      }
     }
   }
 
