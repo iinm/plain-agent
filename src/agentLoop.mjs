@@ -108,8 +108,7 @@ export function createAgentLoop({
   async function runTurnLoop() {
     let thinkingLoops = 0;
     const maxThinkingLoops = 5;
-    const compactPromptCooldownTurns = 3;
-    let compactPromptCooldown = 0;
+    let turnsAfterCompactPrompt = 0;
 
     /**
      * If input tokens exceed the soft limit and cooldown has elapsed,
@@ -127,8 +126,8 @@ export function createAgentLoop({
       if (inputTokens === undefined || inputTokens <= contextSoftLimit) {
         return false;
       }
-      if (compactPromptCooldown > 0) {
-        compactPromptCooldown -= 1;
+      if (turnsAfterCompactPrompt > 0 && turnsAfterCompactPrompt <= 3) {
+        turnsAfterCompactPrompt += 1;
         return false;
       }
       const promptText = buildCompactPrompt({
@@ -140,7 +139,7 @@ export function createAgentLoop({
           content: [{ type: "text", text: promptText }],
         },
       ]);
-      compactPromptCooldown = compactPromptCooldownTurns;
+      turnsAfterCompactPrompt = 1;
       console.error(
         styleText(
           "yellow",
@@ -292,7 +291,7 @@ export function createAgentLoop({
       if (
         applyCompactContextIfCalled(stateManager, toolUseParts, toolResults)
       ) {
-        compactPromptCooldown = 0;
+        turnsAfterCompactPrompt = 0;
         continue;
       }
 
