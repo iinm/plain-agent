@@ -141,7 +141,10 @@ export function createCommandHandler({
 
     // /compact [reason]
     if (/^\/compact( |$)/i.test(inputTrimmed)) {
-      const message = buildCompactPrompt({ invocation: inputTrimmed });
+      const message = buildCompactPrompt({
+        invocation: inputTrimmed,
+        isSubagent: agentCommands.getActiveSubagent() !== null,
+      });
       userEventEmitter.emit("userInput", [{ type: "text", text: message }]);
       return "continue";
     }

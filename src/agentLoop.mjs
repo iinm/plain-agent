@@ -140,35 +140,6 @@ export function createAgentLoop({
         agentEventEmitter.emit("providerTokenUsage", providerTokenUsage);
       }
 
-      // Auto-compact: prompt the model when context exceeds soft limit
-      if (contextSoftLimit && providerTokenUsage) {
-        const inputTokens = inputTokensKeys
-          ? extractInputTokenCount(providerTokenUsage, inputTokensKeys)
-          : undefined;
-        if (inputTokens !== undefined && inputTokens > contextSoftLimit) {
-          if (compactPromptCooldown === 0) {
-            const promptText = buildCompactPrompt({
-              isSubagent: subagentManager.isSubagentActive(),
-            });
-            stateManager.appendMessages([
-              {
-                role: "user",
-                content: [{ type: "text", text: promptText }],
-              },
-            ]);
-            compactPromptCooldown = compactPromptCooldownTurns;
-            console.error(
-              styleText(
-                "yellow",
-                `\nContext exceeded soft limit (${inputTokens.toLocaleString()} / ${contextSoftLimit.toLocaleString()} tokens). Auto-compact prompt inserted.`,
-              ),
-            );
-          } else {
-            compactPromptCooldown -= 1;
-          }
-        }
-      }
-
       // Gemini may stop with "thinking" -> continue
       const lastContent = assistantMessage.content.at(-1);
       if (lastContent?.type === "thinking") {
@@ -196,8 +167,36 @@ export function createAgentLoop({
         (part) => part.type === "tool_use",
       );
 
-      // No tool use -> turn end
+      // No tool use -> check auto-compact, then turn end
       if (toolUseParts.length === 0) {
+        if (contextSoftLimit && inputTokensKeys && providerTokenUsage) {
+          const inputTokens = extractInputTokenCount(
+            providerTokenUsage,
+            inputTokensKeys,
+          );
+          if (inputTokens !== undefined && inputTokens > contextSoftLimit) {
+            if (compactPromptCooldown === 0) {
+              const promptText = buildCompactPrompt({
+                isSubagent: subagentManager.isSubagentActive(),
+              });
+              stateManager.appendMessages([
+                {
+                  role: "user",
+                  content: [{ type: "text", text: promptText }],
+                },
+              ]);
+              compactPromptCooldown = compactPromptCooldownTurns;
+              console.error(
+                styleText(
+                  "yellow",
+                  `\nContext exceeded soft limit (${inputTokens.toLocaleString()} / ${contextSoftLimit.toLocaleString()} tokens). Auto-compact prompt inserted.`,
+                ),
+              );
+              continue;
+            }
+            compactPromptCooldown -= 1;
+          }
+        }
         break;
       }
 
