@@ -24,7 +24,7 @@ export function buildCompactPrompt(options) {
       "",
       "The context is growing large. Wrap up your current work:",
       "1. Summarize your progress and findings so far in the memory file.",
-      '2. Call "switch_to_main_agent" to hand back control, so the main agent can compact the context.',
+      '2. Call "switch_to_main_agent" to hand back control to the main agent.',
     ].join("\n");
   }
 
