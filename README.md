@@ -22,7 +22,6 @@ A lightweight terminal-based coding agent focused on safety and low token cost
 - [Available Tools](#available-tools)
 - [Prompts](#prompts)
 - [Subagents](#subagents)
-- [Auto-Compact](#auto-compact)
 - [Claude Code Plugin Support](#claude-code-plugin-support)
 - [Appendix: Creating Least-Privilege Users for Cloud Providers](#appendix-creating-least-privilege-users-for-cloud-providers)
 - [Developer Notes](#developer-notes)
@@ -746,6 +745,17 @@ Files are loaded in the following order. Settings in later files override earlie
     }
   },
 
+  // Auto-compact: when input tokens exceed the soft limit after a tool execution,
+  // the agent is prompted to update the memory file and call compact_context.
+  // Reduces noise and token costs before hitting the model's hard limit.
+  "autoCompact": {
+    "softLimit": 120000,
+    // Optional: override per model (prefix match on name+variant)
+    "softLimitPerModelPrefix": {
+      "gemini-2.5-pro": 500000
+    }
+  },
+
   // Override the default notification command
   "notifyCmd": { "command": "plain-notify-desktop", "args": [] }
 }
@@ -821,26 +831,6 @@ You are a web content reader and analyzer. Given a URL and a question, you:
 1. Fetch the page content using `w3m -dump <URL>`.
 2. Read and understand the fetched content.
 3. Answer the user's question based on the content.
-```
-
-## Auto-Compact
-
-As the context grows, noise accumulates and token costs increase. Auto-compact monitors input token usage and automatically prompts the agent to compact the context before hitting the model's hard limit.
-
-### Configuration
-
-Set a soft limit in `autoCompact`. When input tokens exceed this limit after a tool execution, the agent is prompted to update the memory file and call `compact_context`.
-
-```js
-{
-  "autoCompact": {
-    "softLimit": 120000,
-    // Optional: override per model (prefix match on name+variant)
-    "softLimitPerModelPrefix": {
-      "gemini-2.5-pro": 500000
-    }
-  }
-}
 ```
 
 ## Claude Code Plugin Support
