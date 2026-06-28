@@ -12,6 +12,7 @@ import {
   SSE_HEADERS,
   spawnAgent,
   sseTextResponse,
+  sseToolCallResponse,
   waitForCliReady,
   waitForOutput,
 } from "./helpers.mjs";
@@ -109,20 +110,31 @@ describe("auto-compact", () => {
     if (workDir) await fs.rm(workDir, { recursive: true, force: true });
   });
 
-  it("should insert auto-compact prompt when input tokens exceed soft limit", async () => {
-    // given: model returns text with prompt_tokens exceeding softLimit (1)
-    respondWith = () =>
-      sseTextResponse("hello", {
-        usage: { prompt_tokens: 100, completion_tokens: 5, total_tokens: 105 },
-      });
+  it("should insert auto-compact prompt after tool results when input tokens exceed soft limit", async () => {
+    // given: model returns a tool call (ls) with high token usage, then text
+    const usage = {
+      prompt_tokens: 100,
+      completion_tokens: 5,
+      total_tokens: 105,
+    };
+    let callCount = 0;
+    respondWith = () => {
+      callCount++;
+      if (callCount === 1) {
+        return sseToolCallResponse("call_ls", "exec_command", {
+          command: "ls",
+        });
+      }
+      return sseTextResponse("done", { usage });
+    };
     const { proc, output } = spawnAgent(workDir);
     cleanups.push(() => closeAndWaitForExit(proc));
 
     // when:
     await waitForCliReady(proc, output);
-    proc.stdin.write("hi\n");
+    proc.stdin.write("list files\n");
 
-    // then: auto-compact prompt is inserted and the diagnostic message appears
+    // then: auto-compact prompt is inserted after tool results
     await waitForOutput(output, /Context exceeded soft limit/, 5000);
     const full = output.join("");
     assert.ok(

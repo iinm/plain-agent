@@ -211,9 +211,8 @@ export function createAgentLoop({
         (part) => part.type === "tool_use",
       );
 
-      // No tool use -> check auto-compact, then turn end
+      // No tool use -> turn end
       if (toolUseParts.length === 0) {
-        if (insertCompactPromptIfOverLimit()) continue;
         break;
       }
 
