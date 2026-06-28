@@ -126,8 +126,17 @@ export function closeAndWaitForExit(proc) {
   });
 }
 
-/** @param {string} text */
-export function sseTextResponse(text) {
+/**
+ * @param {string} text
+ * @param {object} [options]
+ * @param {Record<string, number>} [options.usage]
+ */
+export function sseTextResponse(text, options) {
+  const usage = options?.usage ?? {
+    prompt_tokens: 10,
+    completion_tokens: 5,
+    total_tokens: 15,
+  };
   const chunk = JSON.stringify({
     id: "test-id",
     object: "chat.completion.chunk",
@@ -143,7 +152,7 @@ export function sseTextResponse(text) {
     id: "test-id",
     object: "chat.completion.chunk",
     choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
-    usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+    usage,
   });
   return `data: ${chunk}\n\ndata: ${done}\n\ndata: [DONE]\n\n`;
 }

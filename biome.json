@@ -12,6 +12,7 @@
       "bin/**",
       "scripts/**",
       "*.json",
+      "config/**",
       ".config/config.predefined.json",
       ".plain-agent/config.json"
     ],

@@ -229,7 +229,7 @@ A few design choices keep token usage low:
 
 - Minimal system prompt — the [system prompt](https://github.com/iinm/plain-agent/blob/main/src/prompt.mjs) contains only what the agent needs to function. 
 - Output truncation — when a command or MCP tool produces large output, it is truncated and saved to a file. The agent can then read only the relevant parts.
-- Context compaction — when the context grows large, you can run `/compact` to discard old messages and reload task state from a memory file.
+- Context compaction — run `/compact` to discard old messages and reload task state from a memory file. This also happens automatically when input tokens exceed a configurable soft limit.
 - MCP tool filtering — MCP servers often expose many tools. Use `enabledTools` in the server config to enable only the ones you need, which reduces the number of tool definitions sent to the model.
 
 ### Claude Code Compatibility
@@ -742,6 +742,17 @@ Files are loaded in the following order. Settings in later files override earlie
         // Enable only specific tools. If not specified, all tools are enabled.
         "enabledTools": ["notion-search", "notion-fetch"]
       }
+    }
+  },
+
+  // Auto-compact: when input tokens exceed the soft limit after a tool execution,
+  // the agent is prompted to update the memory file and call compact_context.
+  // Reduces noise and token costs before hitting the model's hard limit.
+  "autoCompact": {
+    "softLimit": 120000,
+    // Optional: override per model (prefix match on name+variant)
+    "softLimitPerModelPrefix": {
+      "gemini-2.5-pro": 500000
     }
   },
 

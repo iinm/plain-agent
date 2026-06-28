@@ -61,4 +61,8 @@ export type AgentConfig = {
   };
   /** When provided, the agent restores its state from this snapshot. */
   initialState?: SessionState | null;
+  /** Soft limit on input tokens; triggers auto-compact prompt when exceeded. */
+  contextSoftLimit?: number;
+  /** Keys in providerTokenUsage to sum for input token count. */
+  inputTokensKeys?: string[];
 };

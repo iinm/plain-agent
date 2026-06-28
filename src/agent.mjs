@@ -34,6 +34,8 @@ export function createAgent({
   modelCostConfig,
   sessionMetadata,
   initialState,
+  contextSoftLimit,
+  inputTokensKeys,
 }) {
   /** @type {UserEventEmitter} */
   const userEventEmitter = new EventEmitter();
@@ -195,6 +197,8 @@ export function createAgent({
     toolUseApprover,
     subagentManager,
     pauseSignal,
+    contextSoftLimit,
+    inputTokensKeys,
   });
 
   userEventEmitter.on("userInput", agentLoop.handleUserInput);

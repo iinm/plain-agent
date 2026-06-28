@@ -1,4 +1,5 @@
 {
+  "autoCompact": { "softLimit": 120000 },
   "autoApproval": {
     "defaultAction": "ask",
     "maxApprovals": 50,
@@ -154,12 +155,18 @@
     "tests": [
       {
         "desc": "find should be denied",
-        "toolUse": { "toolName": "exec_command", "input": { "command": "find" } },
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "find" }
+        },
         "expectedAction": "deny"
       },
       {
         "desc": "grep should be denied",
-        "toolUse": { "toolName": "exec_command", "input": { "command": "grep" } },
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "grep" }
+        },
         "expectedAction": "deny"
       },
       {
@@ -362,7 +369,12 @@
           "toolName": "exec_command",
           "input": {
             "command": "gh",
-            "args": ["api", "--method", "GET", "repos/owner/repo/pulls/123/comments"]
+            "args": [
+              "api",
+              "--method",
+              "GET",
+              "repos/owner/repo/pulls/123/comments"
+            ]
           }
         },
         "expectedAction": "allow"
@@ -371,7 +383,10 @@
         "desc": "gh api without --method should be denied",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "gh", "args": ["api", "repos/owner/repo/pulls"] }
+          "input": {
+            "command": "gh",
+            "args": ["api", "repos/owner/repo/pulls"]
+          }
         },
         "expectedAction": "deny"
       },
@@ -398,7 +413,10 @@
         "desc": "bash -c with pipe should not match deny pattern",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "bash", "args": ["-c", "echo hello | grep hello"] }
+          "input": {
+            "command": "bash",
+            "args": ["-c", "echo hello | grep hello"]
+          }
         },
         "expectedAction": null
       },
@@ -406,7 +424,10 @@
         "desc": "bash -c with redirect should not match deny pattern",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "bash", "args": ["-c", "echo hello > file.txt"] }
+          "input": {
+            "command": "bash",
+            "args": ["-c", "echo hello > file.txt"]
+          }
         },
         "expectedAction": null
       },
@@ -422,7 +443,10 @@
         "desc": "bash -c with semicolon should not match deny pattern",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "bash", "args": ["-c", "for i in *.txt; do echo $i; done"] }
+          "input": {
+            "command": "bash",
+            "args": ["-c", "for i in *.txt; do echo $i; done"]
+          }
         },
         "expectedAction": null
       },
@@ -470,6 +494,9 @@
           "cache_read_input_tokens": 0.1,
           "cache_creation_input_tokens": 1.25
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": ["input_tokens", "cache_read_input_tokens"]
       }
     },
     {
@@ -497,6 +524,9 @@
           "cache_read_input_tokens": 0.1,
           "cache_creation_input_tokens": 1.25
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": ["input_tokens", "cache_read_input_tokens"]
       }
     },
     {
@@ -525,6 +555,9 @@
           "cache_read_input_tokens": 0.3,
           "cache_creation_input_tokens": 3.75
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": ["input_tokens", "cache_read_input_tokens"]
       }
     },
     {
@@ -553,6 +586,9 @@
           "cache_read_input_tokens": 0.3,
           "cache_creation_input_tokens": 3.75
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": ["input_tokens", "cache_read_input_tokens"]
       }
     },
     {
@@ -581,6 +617,9 @@
           "cache_read_input_tokens": 0.5,
           "cache_creation_input_tokens": 6.25
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": ["input_tokens", "cache_read_input_tokens"]
       }
     },
     {
@@ -609,6 +648,9 @@
           "cache_read_input_tokens": 0.5,
           "cache_creation_input_tokens": 6.25
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": ["input_tokens", "cache_read_input_tokens"]
       }
     },
     {
@@ -635,8 +677,11 @@
           "input_tokens": 10,
           "output_tokens": 50,
           "cache_read_input_tokens": 1,
-          "cache_creation_input_tokens": 12.50
+          "cache_creation_input_tokens": 12.5
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": ["input_tokens", "cache_read_input_tokens"]
       }
     },
     {
@@ -663,8 +708,11 @@
           "input_tokens": 10,
           "output_tokens": 50,
           "cache_read_input_tokens": 1,
-          "cache_creation_input_tokens": 12.50
+          "cache_creation_input_tokens": 12.5
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": ["input_tokens", "cache_read_input_tokens"]
       }
     },
 
@@ -692,6 +740,9 @@
           "cache_read_input_tokens": 0.1,
           "cache_creation_input_tokens": 1.25
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": ["input_tokens", "cache_read_input_tokens"]
       }
     },
     {
@@ -718,6 +769,9 @@
           "cache_read_input_tokens": 0.1,
           "cache_creation_input_tokens": 1.25
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": ["input_tokens", "cache_read_input_tokens"]
       }
     },
     {
@@ -745,6 +799,9 @@
           "cache_read_input_tokens": 0.3,
           "cache_creation_input_tokens": 3.75
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": ["input_tokens", "cache_read_input_tokens"]
       }
     },
     {
@@ -772,6 +829,9 @@
           "cache_read_input_tokens": 0.3,
           "cache_creation_input_tokens": 3.75
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": ["input_tokens", "cache_read_input_tokens"]
       }
     },
     {
@@ -799,6 +859,9 @@
           "cache_read_input_tokens": 0.5,
           "cache_creation_input_tokens": 6.25
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": ["input_tokens", "cache_read_input_tokens"]
       }
     },
     {
@@ -826,6 +889,9 @@
           "cache_read_input_tokens": 0.5,
           "cache_creation_input_tokens": 6.25
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": ["input_tokens", "cache_read_input_tokens"]
       }
     },
     {
@@ -851,8 +917,11 @@
           "input_tokens": 10,
           "output_tokens": 50,
           "cache_read_input_tokens": 1,
-          "cache_creation_input_tokens": 12.50
+          "cache_creation_input_tokens": 12.5
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": ["input_tokens", "cache_read_input_tokens"]
       }
     },
     {
@@ -878,8 +947,11 @@
           "input_tokens": 10,
           "output_tokens": 50,
           "cache_read_input_tokens": 1,
-          "cache_creation_input_tokens": 12.50
+          "cache_creation_input_tokens": 12.5
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": ["input_tokens", "cache_read_input_tokens"]
       }
     },
 
@@ -912,7 +984,8 @@
           "cachedContentTokenCount": -1.35,
           "candidatesTokenCount": 9
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["promptTokenCount"] }
     },
     {
       "name": "gemini-3.5-flash",
@@ -943,7 +1016,8 @@
           "cachedContentTokenCount": -1.35,
           "candidatesTokenCount": 9
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["promptTokenCount"] }
     },
     {
       "name": "gemini-3.1-pro-preview",
@@ -974,7 +1048,8 @@
           "cachedContentTokenCount": -1.8,
           "candidatesTokenCount": 12
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["promptTokenCount"] }
     },
     {
       "name": "gemini-3.1-pro-preview",
@@ -1005,7 +1080,8 @@
           "cachedContentTokenCount": -1.8,
           "candidatesTokenCount": 12
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["promptTokenCount"] }
     },
 
     {
@@ -1036,7 +1112,8 @@
           "cachedContentTokenCount": -1.35,
           "candidatesTokenCount": 9
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["promptTokenCount"] }
     },
     {
       "name": "gemini-3.5-flash",
@@ -1066,7 +1143,8 @@
           "cachedContentTokenCount": -1.35,
           "candidatesTokenCount": 9
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["promptTokenCount"] }
     },
     {
       "name": "gemini-3.1-pro-preview",
@@ -1096,7 +1174,8 @@
           "cachedContentTokenCount": -1.8,
           "candidatesTokenCount": 12
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["promptTokenCount"] }
     },
     {
       "name": "gemini-3.1-pro-preview",
@@ -1126,7 +1205,8 @@
           "cachedContentTokenCount": -1.8,
           "candidatesTokenCount": 12
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["promptTokenCount"] }
     },
 
     {
@@ -1154,7 +1234,8 @@
           "input_tokens_details.cached_tokens": -0.675,
           "output_tokens": 4.5
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
       "name": "gpt-5.4-mini",
@@ -1181,7 +1262,8 @@
           "input_tokens_details.cached_tokens": -0.675,
           "output_tokens": 4.5
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
       "name": "gpt-5.4-mini",
@@ -1208,7 +1290,8 @@
           "input_tokens_details.cached_tokens": -0.675,
           "output_tokens": 4.5
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
       "name": "gpt-5.5",
@@ -1235,7 +1318,8 @@
           "input_tokens_details.cached_tokens": -4.5,
           "output_tokens": 30
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
       "name": "gpt-5.5",
@@ -1262,7 +1346,8 @@
           "input_tokens_details.cached_tokens": -4.5,
           "output_tokens": 30
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
       "name": "gpt-5.5",
@@ -1289,7 +1374,8 @@
           "input_tokens_details.cached_tokens": -4.5,
           "output_tokens": 30
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
 
     {
@@ -1316,7 +1402,8 @@
           "input_tokens_details.cached_tokens": -0.675,
           "output_tokens": 4.5
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
       "name": "gpt-5.4-mini",
@@ -1342,7 +1429,8 @@
           "input_tokens_details.cached_tokens": -0.675,
           "output_tokens": 4.5
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
       "name": "gpt-5.4-mini",
@@ -1368,7 +1456,8 @@
           "input_tokens_details.cached_tokens": -0.675,
           "output_tokens": 4.5
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
       "name": "gpt-5.5",
@@ -1394,7 +1483,8 @@
           "input_tokens_details.cached_tokens": -4.5,
           "output_tokens": 30
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
       "name": "gpt-5.5",
@@ -1420,7 +1510,8 @@
           "input_tokens_details.cached_tokens": -4.5,
           "output_tokens": 30
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
       "name": "gpt-5.5",
@@ -1446,7 +1537,8 @@
           "input_tokens_details.cached_tokens": -4.5,
           "output_tokens": 30
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
 
     {
@@ -1468,9 +1560,10 @@
         "prices": {
           "prompt_tokens": 0.15,
           "prompt_tokens_details.cached_tokens": -0.14,
-          "completion_tokens": 0.6 
+          "completion_tokens": 0.6
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
     },
 
     {
@@ -1494,7 +1587,8 @@
           "completion_tokens": 3.2,
           "prompt_tokens_details.cached_tokens": -0.9
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
     },
     {
       "name": "glm-5",
@@ -1517,7 +1611,8 @@
           "prompt_tokens": 1,
           "completion_tokens": 3.2
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
     },
 
     {
@@ -1541,7 +1636,8 @@
           "prompt_tokens_details.cached_tokens": -1.14,
           "completion_tokens": 4.4
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
     },
 
     {
@@ -1557,7 +1653,8 @@
           "model": "Kimi-K2.6",
           "reasoning_effort": "high"
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
     },
     {
       "name": "kimi-k2.7-code",
@@ -1580,7 +1677,8 @@
           "prompt_tokens_details.cached_tokens": -0.76,
           "completion_tokens": 4
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
     },
 
     {
@@ -1604,7 +1702,8 @@
           "prompt_tokens_details.cached_tokens": -1.6,
           "completion_tokens": 3.48
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
     },
     {
       "name": "deepseek-v4-pro",
@@ -1619,7 +1718,8 @@
           "model": "DeepSeek-V4-Pro",
           "reasoning_effort": "high"
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
     },
 
     {
@@ -1643,7 +1743,8 @@
           "prompt_tokens_details.cached_tokens": -0.24,
           "completion_tokens": 1.2
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
     },
 
     {
@@ -1667,7 +1768,8 @@
           "prompt_tokens_details.cached_tokens": -0.32,
           "completion_tokens": 1.6
         }
-      }
+      },
+      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
     },
 
     {
@@ -1689,6 +1791,9 @@
             }
           }
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": ["inputTokens", "cacheReadInputTokens"]
       }
     },
     {
@@ -1713,6 +1818,9 @@
             }
           }
         }
+      },
+      "autoCompact": {
+        "inputTokensKeys": ["inputTokens", "cacheReadInputTokens"]
       }
     }
   ]

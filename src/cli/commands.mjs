@@ -8,7 +8,10 @@ import { styleText } from "node:util";
 import { loadAgentRoles } from "../context/loadAgentRoles.mjs";
 import { loadPrompts } from "../context/loadPrompts.mjs";
 import { loadUserMessageContext } from "../context/loadUserMessageContext.mjs";
-import { CLAUDE_CODE_COMPATIBILITY_NOTES } from "../prompt.mjs";
+import {
+  buildCompactPrompt,
+  CLAUDE_CODE_COMPATIBILITY_NOTES,
+} from "../prompt.mjs";
 import { parseFileRange } from "../utils/parseFileRange.mjs";
 import { readFileRange } from "../utils/readFileRange.mjs";
 import { toOneLine } from "../utils/toOneLine.mjs";
@@ -140,14 +143,10 @@ export function createCommandHandler({
 
     // /compact [reason]
     if (/^\/compact( |$)/i.test(inputTrimmed)) {
-      const invocation = inputTrimmed;
-      const message = [
-        `System: This prompt was invoked as "${invocation}".`,
-        "",
-        "Compact the conversation context:",
-        "1. Update the memory file for the current task so it fully captures the task overview, progress, decisions, and next steps in a self-contained way.",
-        '2. Then call the "compact_context" tool alone with that memory file path and a brief reason.',
-      ].join("\n");
+      const message = buildCompactPrompt({
+        invocation: inputTrimmed,
+        isSubagent: agentCommands.getActiveSubagent() !== null,
+      });
       userEventEmitter.emit("userInput", [{ type: "text", text: message }]);
       return "continue";
     }
