@@ -269,7 +269,7 @@ export function createAgentLoop({
           inputTokensKeys,
         );
         if (inputTokens !== undefined && inputTokens > contextSoftLimit) {
-          if (turnsAfterCompactPrompt >= 0 && turnsAfterCompactPrompt < 3) {
+          if (0 <= turnsAfterCompactPrompt && turnsAfterCompactPrompt < 3) {
             turnsAfterCompactPrompt += 1;
           } else {
             stateManager.appendMessages([
