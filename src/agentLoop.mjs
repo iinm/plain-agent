@@ -111,6 +111,47 @@ export function createAgentLoop({
     const compactPromptCooldownTurns = 3;
     let compactPromptCooldown = 0;
 
+    /**
+     * Check if context exceeds soft limit and insert compact prompt if needed.
+     * @returns {boolean} true if a compact prompt was inserted (caller should continue the loop).
+     */
+    function checkAutoCompact() {
+      if (!contextSoftLimit || !inputTokensKeys || !providerTokenUsage) {
+        return false;
+      }
+      const inputTokens = extractInputTokenCount(
+        providerTokenUsage,
+        inputTokensKeys,
+      );
+      if (inputTokens === undefined || inputTokens <= contextSoftLimit) {
+        return false;
+      }
+      if (compactPromptCooldown > 0) {
+        compactPromptCooldown -= 1;
+        return false;
+      }
+      const promptText = buildCompactPrompt({
+        isSubagent: subagentManager.isSubagentActive(),
+      });
+      stateManager.appendMessages([
+        {
+          role: "user",
+          content: [{ type: "text", text: promptText }],
+        },
+      ]);
+      compactPromptCooldown = compactPromptCooldownTurns;
+      console.error(
+        styleText(
+          "yellow",
+          `\nContext exceeded soft limit (${inputTokens.toLocaleString()} / ${contextSoftLimit.toLocaleString()} tokens). Auto-compact prompt inserted.`,
+        ),
+      );
+      return true;
+    }
+
+    /** @type {import('./model.d.ts').ProviderTokenUsage | undefined} */
+    let providerTokenUsage;
+
     while (true) {
       // Check if auto-approve was paused by Ctrl-C during tool execution
       if (pauseSignal.isPaused()) {
@@ -134,7 +175,9 @@ export function createAgentLoop({
         break;
       }
 
-      const { message: assistantMessage, providerTokenUsage } = modelOutput;
+      const { message: assistantMessage, providerTokenUsage: usage } =
+        modelOutput;
+      providerTokenUsage = usage;
       stateManager.appendMessages([assistantMessage]);
       if (providerTokenUsage) {
         agentEventEmitter.emit("providerTokenUsage", providerTokenUsage);
@@ -169,34 +212,7 @@ export function createAgentLoop({
 
       // No tool use -> check auto-compact, then turn end
       if (toolUseParts.length === 0) {
-        if (contextSoftLimit && inputTokensKeys && providerTokenUsage) {
-          const inputTokens = extractInputTokenCount(
-            providerTokenUsage,
-            inputTokensKeys,
-          );
-          if (inputTokens !== undefined && inputTokens > contextSoftLimit) {
-            if (compactPromptCooldown === 0) {
-              const promptText = buildCompactPrompt({
-                isSubagent: subagentManager.isSubagentActive(),
-              });
-              stateManager.appendMessages([
-                {
-                  role: "user",
-                  content: [{ type: "text", text: promptText }],
-                },
-              ]);
-              compactPromptCooldown = compactPromptCooldownTurns;
-              console.error(
-                styleText(
-                  "yellow",
-                  `\nContext exceeded soft limit (${inputTokens.toLocaleString()} / ${contextSoftLimit.toLocaleString()} tokens). Auto-compact prompt inserted.`,
-                ),
-              );
-              continue;
-            }
-            compactPromptCooldown -= 1;
-          }
-        }
+        if (checkAutoCompact()) continue;
         break;
       }
 
@@ -291,6 +307,9 @@ export function createAgentLoop({
       } else {
         stateManager.appendMessages([{ role: "user", content: toolResults }]);
       }
+
+      // Check auto-compact after tool results are appended
+      if (checkAutoCompact()) continue;
     }
   }
 
