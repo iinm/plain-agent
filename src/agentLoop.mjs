@@ -109,6 +109,7 @@ export function createAgentLoop({
     let thinkingLoops = 0;
     const maxThinkingLoops = 5;
     let turnsAfterCompactPrompt = -1;
+    let turnsSinceSubagentReminder = 0;
     while (true) {
       // Check if auto-approve was paused by Ctrl-C during tool execution
       if (pauseSignal.isPaused()) {
@@ -262,6 +263,9 @@ export function createAgentLoop({
         stateManager.appendMessages([{ role: "user", content: toolResults }]);
       }
 
+      // Subagent reminder: every 5 turns, remind the model of its subagent role
+      let autoCompactFired = false;
+
       // Auto-compact: insert prompt if context exceeds soft limit
       if (contextSoftLimit && inputTokensKeys && providerTokenUsage) {
         const inputTokens = extractInputTokenCount(
@@ -286,6 +290,7 @@ export function createAgentLoop({
               },
             ]);
             turnsAfterCompactPrompt = 0;
+            autoCompactFired = true;
             console.error(
               styleText(
                 "yellow",
@@ -293,6 +298,27 @@ export function createAgentLoop({
               ),
             );
           }
+        }
+      }
+
+      if (!subagentManager.isSubagentActive()) {
+        turnsSinceSubagentReminder = 0;
+      } else if (!autoCompactFired) {
+        turnsSinceSubagentReminder += 1;
+        // Inject reminder every 5 turns (fires when counter reaches 5, 10, 15, ...)
+        if (turnsSinceSubagentReminder % 5 === 0) {
+          const activeSubagent = subagentManager.getActiveSubagent();
+          stateManager.appendMessages([
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: `System: You are subagent "${activeSubagent?.name}". Call "switch_to_main_agent" when your goal is done.`,
+                },
+              ],
+            },
+          ]);
         }
       }
     }
