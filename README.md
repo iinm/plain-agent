@@ -34,8 +34,8 @@ Supports Claude, OpenAI, Gemini, and any OpenAI-compatible provider. Bedrock, Ve
 
 Each model definition has two independent parts:
 
-- **`platform`** — where to send the request and how to authenticate (Anthropic, Bedrock, Vertex AI, Azure, etc.)
-- **`model.format`** — which API format to use (`anthropic`, `gemini`, `openai-responses`, `openai-messages`, `bedrock-converse`)
+- **`platform`**: where to send the request and how to authenticate (Anthropic, Bedrock, Vertex AI, Azure, etc.)
+- **`model.format`**: which API format to use (`anthropic`, `gemini`, `openai-responses`, `openai-messages`, `bedrock-converse`)
 
 Because these are separate, the same API format works across different platforms. For example, Claude models use the `anthropic` format whether you call Anthropic directly or through Bedrock.
 
@@ -59,7 +59,7 @@ Because these are separate, the same API format works across different platforms
   }
 }
 
-// Bedrock — same format, different platform
+// Bedrock: same format, different platform
 {
   "name": "claude-sonnet-5",
   "variant": "thinking-high-bedrock-jp",
@@ -79,7 +79,7 @@ Because these are separate, the same API format works across different platforms
 }
 ```
 
-Models are identified by `name+variant` (e.g., `claude-sonnet-5+thinking-high`). You can define multiple variants of the same model with different settings — such as thinking budget or region — and switch between them as needed.
+Models are identified by `name+variant` (e.g., `claude-sonnet-5+thinking-high`). You can define multiple variants of the same model with different settings, such as thinking budget or region.
 
 You can also add entries to `platforms` and `models` to use any OpenAI-compatible endpoint, such as Ollama or Fireworks. See the Quick Start section for examples.
 
@@ -87,7 +87,7 @@ You can also add entries to `platforms` and `models` to use any OpenAI-compatibl
 
 Configure what the agent can do automatically using a small DSL with regex matching. Below is an excerpt from the [default config](https://github.com/iinm/plain-agent/blob/main/config/config.predefined.json).
 
-**Note**: Commands are executed without a shell — shell operators like `&&`, `|`, `;`, and redirects are not interpreted unless the agent explicitly uses `bash -c`. This makes each argument a discrete token that can be validated individually.
+**Note**: Commands are executed without a shell. Shell operators like `|`, `>`, `;`, and `&&` are not interpreted unless the agent explicitly uses `bash -c`. This makes each argument a discrete token that can be validated individually.
 
 ```js
 {
@@ -98,7 +98,7 @@ Configure what the agent can do automatically using a small DSL with regex match
     // Patterns are evaluated top-to-bottom; first match wins
     "patterns": [
       // fd example:
-      // Ask for approval when risky flags like --exec or --no-ignore are present
+      // Ask for approval when risky flag like --exec is present
       {
         "toolName": "exec_command",
         "input": {
@@ -157,14 +157,14 @@ Configure what the agent can do automatically using a small DSL with regex match
 
 ### Path Validation
 
-String values in tool inputs are treated as file paths and validated against these rules. This takes precedence over `autoApproval` — even if a pattern marks an action as `allow`, a validation failure falls back to `defaultAction`.
+String values in tool inputs are treated as file paths and validated against these rules. This takes precedence over `autoApproval`: even if a pattern marks an action as `allow`, a validation failure falls back to `defaultAction`.
 
 - The path must be under the working directory or a path listed in `autoApproval.allowedPaths`
 - No directory traversal (`..` is not allowed)
-- Symlinks are resolved to their real path before validation — a symlink inside the working directory that points outside is rejected. Broken and circular symlinks are also rejected.
+- Symlinks are resolved to their real path before validation: a symlink inside the working directory that points outside is rejected. Broken and circular symlinks are also rejected.
 - The file must be tracked by Git (not ignored)
 
-Compound arguments are decomposed before validation — embedded paths are extracted and checked individually:
+Compound arguments are decomposed before validation; embedded paths are extracted and checked individually:
 
 | Pattern | Example | Extracted |
 |---|---|---|
@@ -174,9 +174,7 @@ Compound arguments are decomposed before validation — embedded paths are extra
 | `VAR=<val>` | `OUTPUT=/etc/passwd` | `/etc/passwd` |
 | `proto://…` | `file:///etc/passwd` | `/etc/passwd` (only `file:` is treated as a local path; `http(s)://` URLs are always allowed) |
 
-`--opt=<val>`, `-X<val>`, and `VAR=<val>` are checked recursively, so chained patterns like `-DINSTALL_DIR=/etc` decompose fully (`-D` → `INSTALL_DIR=/etc` → `/etc`).
-
-**Note**: Validation only applies when the agent explicitly passes file paths to tools. It cannot catch file access inside scripts the agent writes — something like `bash -c "rm -rf /"` is beyond its reach. Always use a sandbox when auto-approving script execution.
+**Note**: Validation only applies when the agent explicitly passes file paths to tools. It cannot catch file access inside scripts the agent writes: something like `bash -c "rm -rf /"` is beyond its reach. Always use a sandbox when auto-approving script execution.
 
 ### Sandbox
 
@@ -219,24 +217,24 @@ A Docker-based wrapper called `plain-sandbox` is included, but the interface is 
 
 The agent maintains a memory file (`.plain-agent/memory/`) for each session to:
 
-- Keep task state human-readable — you can open the file to see exactly where things stand.
-- Resume cleanly — the agent can restart a task from the memory file with a clean context.
-- Pass information between dependent tasks — subagents write their results to the memory file, which the main agent or a follow-up session reads to continue.
+- Keep task state human-readable: you can open the file to see exactly where things stand.
+- Resume cleanly: the agent can restart a task from the memory file with a clean context.
+- Pass information between dependent tasks: subagents write their results to the memory file, which the main agent or a follow-up session reads to continue.
 
 ### Token Efficiency
 
 A few design choices keep token usage low:
 
-- Minimal system prompt — the [system prompt](https://github.com/iinm/plain-agent/blob/main/src/prompt.mjs) contains only what the agent needs to function. 
-- Output truncation — when a command or MCP tool produces large output, it is truncated and saved to a file. The agent can then read only the relevant parts.
-- Context compaction — run `/compact` to discard old messages and reload task state from a memory file. This also happens automatically when input tokens exceed a configurable soft limit.
-- MCP tool filtering — MCP servers often expose many tools. Use `enabledTools` in the server config to enable only the ones you need, which reduces the number of tool definitions sent to the model.
+- Minimal system prompt: the [system prompt](https://github.com/iinm/plain-agent/blob/main/src/prompt.mjs) contains only what the agent needs to function. 
+- Output truncation: when a command or MCP tool produces large output, it is truncated and saved to a file. The agent can then read only the relevant parts.
+- Context compaction: run `/compact` to discard old messages and reload task state from a memory file. This also happens automatically when input tokens exceed a configurable soft limit.
+- MCP tool filtering: MCP servers often expose many tools. Use `enabledTools` in the server config to enable only the ones you need, which reduces the number of tool definitions sent to the model.
 
 ### Claude Code Compatibility
 
 Claude Code has a plugin ecosystem and is widely used across teams. plain-agent supports `.claude/` commands, subagents, and skills so you can share project skills with Claude Code users. Plugins can also be installed.
 
-**Limitation:** Subagents run sequentially, not in parallel. The upside is that their activity is fully observable and they don't spike token usage. They also inherit the main context rather than starting fresh — a simplification chosen for ease of implementation, which also avoids redundant file reads and reduces the chance of losing context between handoffs.
+**Limitation:** Subagents run sequentially, not in parallel. The upside is that their activity is fully observable and they don't spike token usage. They also inherit the main context rather than starting fresh, a simplification chosen for ease of implementation, which also avoids redundant file reads and reduces the chance of losing context between handoffs.
 
 ## Requirements
 
@@ -562,10 +560,10 @@ Arguments before `--` are flags for the `plain` CLI itself (e.g. `-c` to load a
 config file). Arguments after `--` are passed through to the sandbox command as-is.
 
 ```sh
-plain sandbox -- --tty zsh
+plain sandbox -- --allow-net 0.0.0.0/0 --tty --verbose zsh
 
 # Or specify a config file explicitly
-plain sandbox -c .plain-agent/config.sandbox.json -- --tty zsh
+plain sandbox -c .plain-agent/config.sandbox.json -- --allow-net 0.0.0.0/0 --tty --verbose zsh
 ```
 
 ## Configuration
@@ -589,7 +587,7 @@ Files are loaded in the following order. Settings in later files override earlie
 
 
 <details>
-<summary><b>Minimal example (file editing and web search only — no script execution, no sandbox required)</b></summary>
+<summary><b>Minimal example (file editing and web search only, no script execution, no sandbox required)</b></summary>
 
 ```js
 {
