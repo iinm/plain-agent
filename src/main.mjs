@@ -16,7 +16,11 @@ import { startBatchSession } from "./cli/batch.mjs";
 import { runCostCommand } from "./cli/cost.mjs";
 import { startInteractiveSession } from "./cli/interactive.mjs";
 import { runTestApprovalCommand } from "./cli/testApproval.mjs";
-import { loadAppConfig, resolveContextSoftLimit } from "./config.mjs";
+import {
+  isAutoCompactMisconfigured,
+  loadAppConfig,
+  resolveContextSoftLimit,
+} from "./config.mjs";
 import { loadAgentRoles } from "./context/loadAgentRoles.mjs";
 import { loadPrompts } from "./context/loadPrompts.mjs";
 import { AGENT_PROJECT_METADATA_DIR, USER_NAME } from "./env.mjs";
@@ -434,6 +438,16 @@ export async function main(argv = process.argv) {
     modelNameWithVariant,
   );
 
+  const inputTokensKeys = modelDef.autoCompact?.inputTokensKeys;
+  if (isAutoCompactMisconfigured(contextSoftLimit, inputTokensKeys)) {
+    console.error(
+      styleText(
+        "yellow",
+        `⚠️ autoCompact.softLimit is set but model "${modelNameWithVariant}" has no autoCompact.inputTokensKeys.`,
+      ),
+    );
+  }
+
   const { userEventEmitter, agentEventEmitter, agentCommands } = createAgent({
     callModel: agentCallModel,
     prompt,
@@ -449,7 +463,7 @@ export async function main(argv = process.argv) {
     },
     initialState: resumedState,
     contextSoftLimit,
-    inputTokensKeys: modelDef.autoCompact?.inputTokensKeys,
+    inputTokensKeys,
   });
 
   const sessionOptions = {

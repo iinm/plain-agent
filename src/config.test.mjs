@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { resolveContextSoftLimit } from "./config.mjs";
+import {
+  isAutoCompactMisconfigured,
+  resolveContextSoftLimit,
+} from "./config.mjs";
 
 describe("resolveContextSoftLimit", () => {
   it("returns softLimit when no prefix matches", () => {
@@ -73,4 +76,19 @@ describe("resolveContextSoftLimit", () => {
     // then:
     assert.strictEqual(result, undefined);
   });
+});
+
+describe("isAutoCompactMisconfigured", () => {
+  /** @type {Array<[string, number | undefined, string[] | undefined, boolean]>} */
+  const cases = [
+    ["softLimit set, inputTokensKeys undefined", 120000, undefined, true],
+    ["softLimit set, inputTokensKeys empty", 120000, [], true],
+    ["softLimit set, inputTokensKeys present", 120000, ["input_tokens"], false],
+    ["softLimit undefined", undefined, undefined, false],
+  ];
+  for (const [desc, softLimit, keys, expected] of cases) {
+    it(desc, () => {
+      assert.strictEqual(isAutoCompactMisconfigured(softLimit, keys), expected);
+    });
+  }
 });
