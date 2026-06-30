@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { resolveContextSoftLimit } from "./config.mjs";
+import {
+  isAutoCompactMisconfigured,
+  resolveContextSoftLimit,
+} from "./config.mjs";
 
 describe("resolveContextSoftLimit", () => {
   it("returns softLimit when no prefix matches", () => {
@@ -72,5 +75,68 @@ describe("resolveContextSoftLimit", () => {
 
     // then:
     assert.strictEqual(result, undefined);
+  });
+});
+
+describe("isAutoCompactMisconfigured", () => {
+  it("returns true when softLimit is set but inputTokensKeys is undefined", () => {
+    // given:
+    const contextSoftLimit = 120000;
+    const inputTokensKeys = undefined;
+
+    // when:
+    const result = isAutoCompactMisconfigured(
+      contextSoftLimit,
+      inputTokensKeys,
+    );
+
+    // then:
+    assert.strictEqual(result, true);
+  });
+
+  it("returns true when softLimit is set but inputTokensKeys is empty", () => {
+    // given:
+    const contextSoftLimit = 120000;
+    /** @type {string[]} */
+    const inputTokensKeys = [];
+
+    // when:
+    const result = isAutoCompactMisconfigured(
+      contextSoftLimit,
+      inputTokensKeys,
+    );
+
+    // then:
+    assert.strictEqual(result, true);
+  });
+
+  it("returns false when softLimit is set and inputTokensKeys has values", () => {
+    // given:
+    const contextSoftLimit = 120000;
+    const inputTokensKeys = ["input_tokens", "cache_read_input_tokens"];
+
+    // when:
+    const result = isAutoCompactMisconfigured(
+      contextSoftLimit,
+      inputTokensKeys,
+    );
+
+    // then:
+    assert.strictEqual(result, false);
+  });
+
+  it("returns false when softLimit is undefined", () => {
+    // given:
+    const contextSoftLimit = undefined;
+    const inputTokensKeys = undefined;
+
+    // when:
+    const result = isAutoCompactMisconfigured(
+      contextSoftLimit,
+      inputTokensKeys,
+    );
+
+    // then:
+    assert.strictEqual(result, false);
   });
 });

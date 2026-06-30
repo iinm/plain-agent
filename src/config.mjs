@@ -235,6 +235,20 @@ async function trustConfigHash(hash) {
 }
 
 /**
+ * Check whether auto-compact is effectively disabled because the model
+ * definition lacks `autoCompact.inputTokensKeys`.
+ *
+ * @param {number | undefined} contextSoftLimit
+ * @param {string[] | undefined} inputTokensKeys
+ * @returns {boolean}
+ */
+export function isAutoCompactMisconfigured(contextSoftLimit, inputTokensKeys) {
+  return Boolean(
+    contextSoftLimit && (!inputTokensKeys || inputTokensKeys.length === 0),
+  );
+}
+
+/**
  * Resolve the effective context soft limit for the given model.
  *
  * @param {AppConfig["autoCompact"]} autoCompact

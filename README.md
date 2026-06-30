@@ -455,6 +455,14 @@ Create a configuration file.
           "cache_read_input_tokens": 0.11,
           "cache_creation_input_tokens": 1.375
         }
+      },
+      // Required for soft limit (auto-compact) to work
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens",
+          "cache_read_input_tokens",
+          "cache_creation_input_tokens"
+        ]
       }
     },
     {
@@ -482,6 +490,14 @@ Create a configuration file.
           "cache_read_input_tokens": 0.33,
           "cache_creation_input_tokens": 4.125
         }
+      },
+      // Required for soft limit (auto-compact) to work
+      "autoCompact": {
+        "inputTokensKeys": [
+          "input_tokens",
+          "cache_read_input_tokens",
+          "cache_creation_input_tokens"
+        ]
       }
     }
   ]
