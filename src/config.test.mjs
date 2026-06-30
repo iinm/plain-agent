@@ -79,64 +79,16 @@ describe("resolveContextSoftLimit", () => {
 });
 
 describe("isAutoCompactMisconfigured", () => {
-  it("returns true when softLimit is set but inputTokensKeys is undefined", () => {
-    // given:
-    const contextSoftLimit = 120000;
-    const inputTokensKeys = undefined;
-
-    // when:
-    const result = isAutoCompactMisconfigured(
-      contextSoftLimit,
-      inputTokensKeys,
-    );
-
-    // then:
-    assert.strictEqual(result, true);
-  });
-
-  it("returns true when softLimit is set but inputTokensKeys is empty", () => {
-    // given:
-    const contextSoftLimit = 120000;
-    /** @type {string[]} */
-    const inputTokensKeys = [];
-
-    // when:
-    const result = isAutoCompactMisconfigured(
-      contextSoftLimit,
-      inputTokensKeys,
-    );
-
-    // then:
-    assert.strictEqual(result, true);
-  });
-
-  it("returns false when softLimit is set and inputTokensKeys has values", () => {
-    // given:
-    const contextSoftLimit = 120000;
-    const inputTokensKeys = ["input_tokens", "cache_read_input_tokens"];
-
-    // when:
-    const result = isAutoCompactMisconfigured(
-      contextSoftLimit,
-      inputTokensKeys,
-    );
-
-    // then:
-    assert.strictEqual(result, false);
-  });
-
-  it("returns false when softLimit is undefined", () => {
-    // given:
-    const contextSoftLimit = undefined;
-    const inputTokensKeys = undefined;
-
-    // when:
-    const result = isAutoCompactMisconfigured(
-      contextSoftLimit,
-      inputTokensKeys,
-    );
-
-    // then:
-    assert.strictEqual(result, false);
-  });
+  /** @type {Array<[string, number | undefined, string[] | undefined, boolean]>} */
+  const cases = [
+    ["softLimit set, inputTokensKeys undefined", 120000, undefined, true],
+    ["softLimit set, inputTokensKeys empty", 120000, [], true],
+    ["softLimit set, inputTokensKeys present", 120000, ["input_tokens"], false],
+    ["softLimit undefined", undefined, undefined, false],
+  ];
+  for (const [desc, softLimit, keys, expected] of cases) {
+    it(desc, () => {
+      assert.strictEqual(isAutoCompactMisconfigured(softLimit, keys), expected);
+    });
+  }
 });

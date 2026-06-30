@@ -443,7 +443,7 @@ export async function main(argv = process.argv) {
     console.error(
       styleText(
         "yellow",
-        `⚠️ autoCompact.softLimit is set but model "${modelNameWithVariant}" has no autoCompact.inputTokensKeys — auto-compact will not work.`,
+        `⚠️ autoCompact.softLimit is set but model "${modelNameWithVariant}" has no autoCompact.inputTokensKeys.`,
       ),
     );
   }
