@@ -610,7 +610,7 @@ describe("patchFileTool", () => {
     );
   });
 
-  // --- 差分出力 (4 tests) ---
+  // --- 差分出力 (3 tests) ---
 
   it("includes a line-numbered diff of the applied changes", async () => {
     // given:
@@ -643,8 +643,8 @@ describe("patchFileTool", () => {
     assert.match(diff, /\(no changes\)/);
   });
 
-  it("collapses distant unchanged context around a change", async () => {
-    // given: a change near the top, far from the file's end.
+  it("renders the full diff without omitting distant context", async () => {
+    // given: a change near the top of a longer file.
     const lines = Array.from({ length: 30 }, (_, i) => `line ${i + 1}`);
     const tmpFilePath = await writeTmp(lines);
 
@@ -656,27 +656,9 @@ describe("patchFileTool", () => {
     const diff = assertPatched(result, tmpFilePath);
     assert.match(diff, /^- 1 \| line 1$/m);
     assert.match(diff, /^\+ 1 \| LINE 1$/m);
-    // distant context is collapsed rather than dumped in full.
-    assert.match(diff, /^ {2}\.\.\.$/m);
-    assert.ok(!diff.includes("line 30"), `unexpected result: ${diff}`);
-  });
-
-  it("caps very large diffs with an omission notice", async () => {
-    // given: a file where every line changes, producing a large diff.
-    const original = Array.from({ length: 200 }, (_, i) => `old ${i + 1}`);
-    const tmpFilePath = await writeTmp(original);
-
-    // when: replace the whole file with entirely new content.
-    const replacement = Array.from({ length: 200 }, (_, i) => `new ${i + 1}`);
-    const patch = [
-      `REPLACE 012 1:${lineHash("old 1")}-200:${lineHash("old 200")}`,
-      ...replacement,
-    ].join("\n");
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
-
-    // then:
-    const diff = assertPatched(result, tmpFilePath);
-    assert.match(diff, /more diff lines omitted/);
+    // every unchanged line is shown in full — no "..." omission marker.
+    assert.match(diff, /^ {2}30 \| line 30$/m);
+    assert.ok(!diff.includes("..."), `unexpected result: ${diff}`);
   });
 });
 

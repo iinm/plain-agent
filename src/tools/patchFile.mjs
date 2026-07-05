@@ -380,11 +380,6 @@ function detectConflicts(blocks) {
   }
 }
 
-// Number of unchanged context lines kept around each change hunk.
-const DIFF_CONTEXT_LINES = 3;
-// Upper bound on rendered diff lines to keep tool results compact.
-const DIFF_MAX_LINES = 80;
-
 /**
  * Split file content into lines the same way applyBlocks does: drop the
  * trailing empty element produced by split() when the content ends with a
@@ -401,10 +396,9 @@ function splitLines(content) {
 }
 
 /**
- * Format a line-diff into a compact, unified-diff-like string with line
- * numbers. Only lines within DIFF_CONTEXT_LINES of a change are shown; longer
- * runs of unchanged context are collapsed to a "..." marker, and the total
- * number of rendered lines is capped at DIFF_MAX_LINES.
+ * Format a line-diff into a unified-diff-like string with line numbers.
+ * Every op is rendered: "- {oldNo}" for removals, "+ {newNo}" for additions,
+ * and "  {newNo}" for unchanged context lines.
  * @param {ReturnType<typeof diffLines>} ops
  * @returns {string}
  */
@@ -413,25 +407,11 @@ function formatDiff(ops) {
     return "(no changes)";
   }
 
-  // Mark each change plus DIFF_CONTEXT_LINES of context on either side.
-  const keep = new Array(ops.length).fill(false);
-  for (let i = 0; i < ops.length; i++) {
-    if (ops[i].type !== " ") {
-      const from = Math.max(0, i - DIFF_CONTEXT_LINES);
-      const to = Math.min(ops.length - 1, i + DIFF_CONTEXT_LINES);
-      for (let j = from; j <= to; j++) {
-        keep[j] = true;
-      }
-    }
-  }
-
   /** @type {string[]} */
   const out = [];
   let oldNo = 0;
   let newNo = 0;
-  let collapsed = false;
-  for (let i = 0; i < ops.length; i++) {
-    const op = ops[i];
+  for (const op of ops) {
     if (op.type === "-") {
       oldNo += 1;
     } else if (op.type === "+") {
@@ -441,23 +421,8 @@ function formatDiff(ops) {
       newNo += 1;
     }
 
-    if (!keep[i]) {
-      if (!collapsed) {
-        out.push("  ...");
-        collapsed = true;
-      }
-      continue;
-    }
-    collapsed = false;
-
     const lineNo = op.type === "-" ? oldNo : newNo;
     out.push(`${op.type} ${lineNo} | ${op.line}`);
-  }
-
-  if (out.length > DIFF_MAX_LINES) {
-    const omitted = out.length - DIFF_MAX_LINES;
-    out.length = DIFF_MAX_LINES;
-    out.push(`  ... (${omitted} more diff lines omitted)`);
   }
 
   return out.join("\n");
