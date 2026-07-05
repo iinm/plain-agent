@@ -11,8 +11,7 @@
 
 import fs from "node:fs/promises";
 import { styleText } from "node:util";
-import { parseBlocks } from "../tools/patchFile.mjs";
-import { diffLines } from "../utils/diffLines.mjs";
+import { parseBlocks, renderPatchBlock } from "../tools/patchFile.mjs";
 import { noThrow } from "../utils/noThrow.mjs";
 
 /** Length above which a single-line arg forces block-form rendering. */
@@ -863,59 +862,14 @@ async function renderPatch(filePath, patch) {
   }
 
   return blocks
-    .map((block) => renderPatchBlock(block, originalLines, nonce))
+    .map((block) =>
+      renderPatchBlock(block, originalLines, nonce, {
+        header: (text) => styleText("cyan", text),
+        del: (text) => styleText("magenta", text),
+        add: (text) => styleText("green", text),
+      }),
+    )
     .join("\n\n");
-}
-
-/**
- * @param {PatchBlock} block
- * @param {string[] | null} originalLines
- * @param {string} nonce
- * @returns {string}
- */
-function renderPatchBlock(block, originalLines, nonce) {
-  /** @type {string[]} */
-  const out = [];
-  if (block.op === "replace") {
-    out.push(
-      styleText(
-        "cyan",
-        `REPLACE ${nonce} ${block.start}:${block.startHash}-${block.end}:${block.endHash}`,
-      ),
-    );
-    if (originalLines) {
-      const safeStart = Math.max(1, block.start);
-      const safeEnd = Math.min(originalLines.length, block.end);
-      const oldSlice = originalLines.slice(safeStart - 1, safeEnd);
-      // Use a real line diff so unchanged lines render as context
-      // (no color, "  " prefix) instead of being shown as both "- " and
-      // "+ ".
-      for (const op of diffLines(oldSlice, block.body)) {
-        if (op.type === "-") {
-          out.push(styleText("magenta", `- ${op.line}`));
-        } else if (op.type === "+") {
-          out.push(styleText("green", `+ ${op.line}`));
-        } else {
-          out.push(`  ${op.line}`);
-        }
-      }
-    } else {
-      // No file context available — fall back to listing the body as
-      // additions so the user can still see the new content.
-      for (const line of block.body) {
-        out.push(styleText("green", `+ ${line}`));
-      }
-    }
-  } else {
-    const afterSuffix = block.afterHash ? `:${block.afterHash}` : "";
-    out.push(
-      styleText("cyan", `INSERT_AFTER ${nonce} ${block.after}${afterSuffix}`),
-    );
-    for (const line of block.body) {
-      out.push(styleText("green", `+ ${line}`));
-    }
-  }
-  return out.join("\n");
 }
 
 /**
