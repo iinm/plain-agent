@@ -31,6 +31,26 @@ describe("patchFileTool", () => {
     cleanups.length = 0;
   });
 
+  /**
+   * The result now starts with the "Patched file: <path>" line followed by a
+   * diff, so assert on the prefix rather than exact equality. Returns the
+   * narrowed string result so callers can make further assertions on the diff.
+   * @param {unknown} result
+   * @param {string} filePath
+   * @returns {string}
+   */
+  const assertPatched = (result, filePath) => {
+    assert.ok(
+      typeof result === "string",
+      `expected string result, got: ${result}`,
+    );
+    assert.ok(
+      result.startsWith(`Patched file: ${filePath}`),
+      `unexpected result: ${result}`,
+    );
+    return result;
+  };
+
   // --- 操作成功 (6 tests) ---
 
   it("replaces line ranges across multiple blocks", async () => {
@@ -53,7 +73,7 @@ describe("patchFileTool", () => {
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
-    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    assertPatched(result, tmpFilePath);
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
     assert.equal(
       patchedContent,
@@ -84,7 +104,7 @@ describe("patchFileTool", () => {
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
-    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    assertPatched(result, tmpFilePath);
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
     assert.equal(patchedContent, ["Hello World", "keep me"].join("\n"));
   });
@@ -100,7 +120,7 @@ describe("patchFileTool", () => {
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
-    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    assertPatched(result, tmpFilePath);
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
     assert.equal(
       patchedContent,
@@ -126,7 +146,7 @@ describe("patchFileTool", () => {
     });
 
     // then:
-    assert.equal(result1, `Patched file: ${tmpFilePath1}`);
+    assertPatched(result1, tmpFilePath1);
     const patchedContent1 = await fs.readFile(tmpFilePath1, "utf8");
     assert.equal(patchedContent1, ["top", "middle", "bottom"].join("\n"));
 
@@ -145,7 +165,7 @@ describe("patchFileTool", () => {
     });
 
     // then:
-    assert.equal(result2, `Patched file: ${tmpFilePath2}`);
+    assertPatched(result2, tmpFilePath2);
     const patchedContent2 = await fs.readFile(tmpFilePath2, "utf8");
     assert.equal(patchedContent2, "new content");
   });
@@ -159,7 +179,7 @@ describe("patchFileTool", () => {
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
-    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    assertPatched(result, tmpFilePath);
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
     assert.equal(patchedContent, ["one", "TWO", "three"].join("\n"));
   });
@@ -246,7 +266,7 @@ describe("patchFileTool", () => {
     });
 
     // then:
-    assert.equal(result1, `Patched file: ${tmpFilePath1}`);
+    assertPatched(result1, tmpFilePath1);
     const patchedContent1 = await fs.readFile(tmpFilePath1, "utf8");
     assert.equal(
       patchedContent1,
@@ -263,7 +283,7 @@ describe("patchFileTool", () => {
       ].join("\n");
       const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
-      assert.equal(result, `Patched file: ${tmpFilePath}`);
+      assertPatched(result, tmpFilePath);
       const patchedContent = await fs.readFile(tmpFilePath, "utf8");
       assert.equal(patchedContent, ["alpha", "bravo", "charlie"].join("\n"));
     }
@@ -366,7 +386,7 @@ describe("patchFileTool", () => {
       filePath: tmpFilePath2,
       patch: patch2,
     });
-    assert.equal(result2, `Patched file: ${tmpFilePath2}`);
+    assertPatched(result2, tmpFilePath2);
     const patchedContent2 = await fs.readFile(tmpFilePath2, "utf8");
     assert.equal(patchedContent2, ["X", "Y"].join("\n"));
 
@@ -381,7 +401,7 @@ describe("patchFileTool", () => {
       filePath: tmpFilePath3,
       patch: patch3,
     });
-    assert.equal(result3, `Patched file: ${tmpFilePath3}`);
+    assertPatched(result3, tmpFilePath3);
     const patchedContent3 = await fs.readFile(tmpFilePath3, "utf8");
     assert.equal(patchedContent3, ["Y", "X"].join("\n"));
   });
@@ -537,7 +557,7 @@ describe("patchFileTool", () => {
     });
 
     // then:
-    assert.equal(result1, `Patched file: ${tmpFilePath1}`);
+    assertPatched(result1, tmpFilePath1);
     const patchedContent1 = await fs.readFile(tmpFilePath1, "utf8");
     assert.equal(
       patchedContent1,
@@ -563,7 +583,7 @@ describe("patchFileTool", () => {
     });
 
     // then:
-    assert.equal(result2, `Patched file: ${tmpFilePath2}`);
+    assertPatched(result2, tmpFilePath2);
     const patchedContent2 = await fs.readFile(tmpFilePath2, "utf8");
     assert.equal(patchedContent2, ["X", "", "Z", "Y"].join("\n"));
   });
@@ -582,12 +602,81 @@ describe("patchFileTool", () => {
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
-    assert.equal(result, `Patched file: ${tmpFilePath}`);
+    assertPatched(result, tmpFilePath);
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
     assert.equal(
       patchedContent,
       ["alpha", "bravo", "charlie", "delta"].join("\n"),
     );
+  });
+
+  // --- 差分出力 (4 tests) ---
+
+  it("includes a line-numbered diff of the applied changes", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["one", "two", "three"]);
+
+    // when:
+    const patch = [`REPLACE 012 2:${lineHash("two")}`, "TWO"].join("\n");
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    const diff = assertPatched(result, tmpFilePath);
+    // removed line uses its original number, added line its new number,
+    // and surrounding unchanged lines appear as context.
+    assert.match(diff, /^- 2 \| two$/m);
+    assert.match(diff, /^\+ 2 \| TWO$/m);
+    assert.match(diff, /^ {2}1 \| one$/m);
+    assert.match(diff, /^ {2}3 \| three$/m);
+  });
+
+  it("reports no changes when the patch does not alter content", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["one", "two", "three"]);
+
+    // when: replace a line with an identical value
+    const patch = [`REPLACE 012 2:${lineHash("two")}`, "two"].join("\n");
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    const diff = assertPatched(result, tmpFilePath);
+    assert.match(diff, /\(no changes\)/);
+  });
+
+  it("collapses distant unchanged context around a change", async () => {
+    // given: a change near the top, far from the file's end.
+    const lines = Array.from({ length: 30 }, (_, i) => `line ${i + 1}`);
+    const tmpFilePath = await writeTmp(lines);
+
+    // when:
+    const patch = [`REPLACE 012 1:${lineHash("line 1")}`, "LINE 1"].join("\n");
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    const diff = assertPatched(result, tmpFilePath);
+    assert.match(diff, /^- 1 \| line 1$/m);
+    assert.match(diff, /^\+ 1 \| LINE 1$/m);
+    // distant context is collapsed rather than dumped in full.
+    assert.match(diff, /^ {2}\.\.\.$/m);
+    assert.ok(!diff.includes("line 30"), `unexpected result: ${diff}`);
+  });
+
+  it("caps very large diffs with an omission notice", async () => {
+    // given: a file where every line changes, producing a large diff.
+    const original = Array.from({ length: 200 }, (_, i) => `old ${i + 1}`);
+    const tmpFilePath = await writeTmp(original);
+
+    // when: replace the whole file with entirely new content.
+    const replacement = Array.from({ length: 200 }, (_, i) => `new ${i + 1}`);
+    const patch = [
+      `REPLACE 012 1:${lineHash("old 1")}-200:${lineHash("old 200")}`,
+      ...replacement,
+    ].join("\n");
+    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
+
+    // then:
+    const diff = assertPatched(result, tmpFilePath);
+    assert.match(diff, /more diff lines omitted/);
   });
 });
 
