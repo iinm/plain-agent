@@ -172,6 +172,85 @@ describe("listSessions", () => {
     );
   });
 
+  it("extracts firstUserMessage from the first user message", async () => {
+    // given:
+    await saveSession(
+      buildState({
+        sessionId: "with-user-msg",
+        messages: [
+          { role: "system", content: [{ type: "text", text: "system" }] },
+          {
+            role: "user",
+            content: [{ type: "text", text: "Hello, world!" }],
+          },
+          { role: "assistant", content: [{ type: "text", text: "Hi!" }] },
+        ],
+      }),
+      { dir: tmpDir },
+    );
+
+    // when:
+    const sessions = await listSessions({ dir: tmpDir });
+
+    // then:
+    assert.equal(sessions.length, 1);
+    assert.equal(sessions[0].firstUserMessage, "Hello, world!");
+  });
+
+  it("replaces newlines and truncates long firstUserMessage", async () => {
+    // given:
+    const longText = `Line1\nLine2 ${"a".repeat(100)}`;
+    await saveSession(
+      buildState({
+        sessionId: "long-msg",
+        messages: [
+          {
+            role: "user",
+            content: [{ type: "text", text: longText }],
+          },
+        ],
+      }),
+      { dir: tmpDir },
+    );
+
+    // when:
+    const sessions = await listSessions({ dir: tmpDir });
+
+    // then:
+    assert.equal(sessions.length, 1);
+    const preview = sessions[0].firstUserMessage;
+    assert.ok(
+      preview.length <= 81,
+      `Expected length <= 81, got ${preview.length}`,
+    );
+    assert.ok(preview.endsWith("…"), "Expected truncated string to end with …");
+    assert.ok(
+      !preview.includes("\n"),
+      "Expected newlines to be replaced by spaces",
+    );
+  });
+
+  it("returns empty firstUserMessage when no user message exists", async () => {
+    // given:
+    await saveSession(
+      buildState({
+        sessionId: "no-user-msg",
+        messages: [
+          { role: "system", content: [{ type: "text", text: "system" }] },
+          { role: "assistant", content: [{ type: "text", text: "Hi!" }] },
+        ],
+      }),
+      { dir: tmpDir },
+    );
+
+    // when:
+    const sessions = await listSessions({ dir: tmpDir });
+
+    // then:
+    assert.equal(sessions.length, 1);
+    assert.equal(sessions[0].firstUserMessage, "");
+  });
+
   it("skips temp files and malformed entries", async () => {
     // given:
     await saveSession(buildState({ sessionId: "good" }), { dir: tmpDir });

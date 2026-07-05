@@ -38,6 +38,7 @@ export const SESSION_FILE_VERSION = 1;
  * @property {string} startTime
  * @property {string} lastUpdatedAt
  * @property {number} messageCount
+ * @property {string} firstUserMessage
  */
 
 /**
@@ -152,6 +153,7 @@ export async function listSessions(options = {}) {
         startTime: state.startTime,
         lastUpdatedAt: state.lastUpdatedAt,
         messageCount: state.messages.length,
+        firstUserMessage: extractFirstUserMessage(state.messages),
       });
     } catch {
       // Skip malformed or version-mismatched files so a single bad file
@@ -161,4 +163,25 @@ export async function listSessions(options = {}) {
 
   summaries.sort((a, b) => b.lastUpdatedAt.localeCompare(a.lastUpdatedAt));
   return summaries;
+}
+
+const FIRST_USER_MESSAGE_MAX_LENGTH = 80;
+
+/**
+ * Extract the first user message text from a message list.
+ * Returns the first `type === "text"` content from the first `role === "user"`
+ * message, with newlines replaced by spaces and truncated to
+ * {@link FIRST_USER_MESSAGE_MAX_LENGTH} characters.
+ *
+ * @param {Message[]} messages
+ * @returns {string}
+ */
+function extractFirstUserMessage(messages) {
+  const userMsg = messages.find((m) => m.role === "user");
+  if (!userMsg) return "";
+  const textPart = userMsg.content.find((c) => c.type === "text");
+  if (textPart?.type !== "text") return "";
+  const normalized = textPart.text.replace(/\n/g, " ");
+  if (normalized.length <= FIRST_USER_MESSAGE_MAX_LENGTH) return normalized;
+  return `${normalized.slice(0, FIRST_USER_MESSAGE_MAX_LENGTH)}…`;
 }

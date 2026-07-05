@@ -132,6 +132,9 @@ export async function main(argv = process.argv) {
       console.log(
         `  ${s.sessionId}  ${s.modelName}  (updated ${formatLocalDateTime(s.lastUpdatedAt)}, ${s.messageCount} messages)`,
       );
+      if (s.firstUserMessage) {
+        console.log(`    "${s.firstUserMessage}"`);
+      }
       if (s.workingDir !== process.cwd()) {
         console.log(`    workingDir: ${s.workingDir}`);
       }
