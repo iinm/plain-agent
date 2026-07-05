@@ -133,14 +133,7 @@ export async function main(argv = process.argv) {
         `  ${s.sessionId}  ${s.modelName}  (updated ${formatLocalDateTime(s.lastUpdatedAt)}, ${s.messageCount} messages)`,
       );
       if (s.firstUserMessage) {
-        const cols = process.stdout.columns || 80;
-        // 4 (indent) + 2 (quotes)
-        const maxLen = Math.max(cols - 6, 20);
-        const preview =
-          s.firstUserMessage.length > maxLen
-            ? `${s.firstUserMessage.slice(0, maxLen)}…`
-            : s.firstUserMessage;
-        console.log(`    "${preview}"`);
+        console.log(`    "${s.firstUserMessage}"`);
       }
       if (s.workingDir !== process.cwd()) {
         console.log(`    workingDir: ${s.workingDir}`);
