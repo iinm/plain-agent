@@ -67,12 +67,13 @@ content at beginning of file
         }
 
         const original = await fs.readFile(filePath, "utf8");
+        const originalLines = splitLines(original);
         const newContent = applyBlocks(original, blocks);
         await fs.writeFile(filePath, newContent);
 
-        const diff = formatDiff(
-          diffLines(splitLines(original), splitLines(newContent)),
-        );
+        const diff = blocks
+          .map((block) => renderPatchBlock(block, originalLines, nonce))
+          .join("\n\n");
         return `Patched file: ${filePath}\n${diff}`;
       }),
 
@@ -240,6 +241,71 @@ export function applyBlocks(original, blocks) {
 }
 
 /**
+ * @typedef {(text: string) => string} DiffStyler
+ */
+
+/**
+ * Render a single patch block as a unified-style diff of the change against
+ * the original file: the block header, then removed lines ("- "), added lines
+ * ("+ "), and unchanged context ("  ") for its range only.
+ *
+ * The optional `style` callbacks colorize the header and change lines; they
+ * default to identity so the output is plain text suitable for tool results,
+ * while the CLI passes styleText-based stylers for colored display.
+ *
+ * @param {PatchBlock} block
+ * @param {string[] | null} originalLines
+ * @param {string} nonce
+ * @param {{ header?: DiffStyler, del?: DiffStyler, add?: DiffStyler }} [style]
+ * @returns {string}
+ */
+export function renderPatchBlock(block, originalLines, nonce, style = {}) {
+  const header = style.header ?? ((text) => text);
+  const del = style.del ?? ((text) => text);
+  const add = style.add ?? ((text) => text);
+
+  /** @type {string[]} */
+  const out = [];
+  if (block.op === "replace") {
+    out.push(
+      header(
+        `REPLACE ${nonce} ${block.start}:${block.startHash}-${block.end}:${block.endHash}`,
+      ),
+    );
+    if (originalLines) {
+      const safeStart = Math.max(1, block.start);
+      const safeEnd = Math.min(originalLines.length, block.end);
+      const oldSlice = originalLines.slice(safeStart - 1, safeEnd);
+      // Use a real line diff so unchanged lines render as context
+      // (no color, "  " prefix) instead of being shown as both "- " and
+      // "+ ".
+      for (const op of diffLines(oldSlice, block.body)) {
+        if (op.type === "-") {
+          out.push(del(`- ${op.line}`));
+        } else if (op.type === "+") {
+          out.push(add(`+ ${op.line}`));
+        } else {
+          out.push(`  ${op.line}`);
+        }
+      }
+    } else {
+      // No file context available — fall back to listing the body as
+      // additions so the new content is still visible.
+      for (const line of block.body) {
+        out.push(add(`+ ${line}`));
+      }
+    }
+  } else {
+    const afterSuffix = block.afterHash ? `:${block.afterHash}` : "";
+    out.push(header(`INSERT_AFTER ${nonce} ${block.after}${afterSuffix}`));
+    for (const line of block.body) {
+      out.push(add(`+ ${line}`));
+    }
+  }
+  return out.join("\n");
+}
+
+/**
  * @param {string} headerArgs
  * @param {"replace" | "insert"} op
  * @returns {{ op: "replace"; start: number; end: number; startHash: string; endHash: string } | { op: "insert"; after: number; afterHash: string }}
@@ -393,37 +459,4 @@ function splitLines(content) {
     lines.pop();
   }
   return lines;
-}
-
-/**
- * Format a line-diff into a unified-diff-like string with line numbers.
- * Every op is rendered: "- {oldNo}" for removals, "+ {newNo}" for additions,
- * and "  {newNo}" for unchanged context lines.
- * @param {ReturnType<typeof diffLines>} ops
- * @returns {string}
- */
-function formatDiff(ops) {
-  if (!ops.some((op) => op.type !== " ")) {
-    return "(no changes)";
-  }
-
-  /** @type {string[]} */
-  const out = [];
-  let oldNo = 0;
-  let newNo = 0;
-  for (const op of ops) {
-    if (op.type === "-") {
-      oldNo += 1;
-    } else if (op.type === "+") {
-      newNo += 1;
-    } else {
-      oldNo += 1;
-      newNo += 1;
-    }
-
-    const lineNo = op.type === "-" ? oldNo : newNo;
-    out.push(`${op.type} ${lineNo} | ${op.line}`);
-  }
-
-  return out.join("\n");
 }

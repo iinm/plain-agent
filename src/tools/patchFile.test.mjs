@@ -644,7 +644,7 @@ describe("patchFileTool", () => {
 
   // --- 差分出力 (3 tests) ---
 
-  it("includes a line-numbered diff of the applied changes", async () => {
+  it("includes a per-block diff of the applied changes", async () => {
     // given:
     const tmpFilePath = await writeTmp(["one", "two", "three"]);
 
@@ -652,48 +652,59 @@ describe("patchFileTool", () => {
     const patch = [`REPLACE 012 2:${lineHash("two")}`, "TWO"].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
-    // then:
+    // then: the block header plus a "- old" / "+ new" diff of the change.
     assert.ok(typeof result === "string", `unexpected result: ${result}`);
     assert.ok(result.startsWith(`Patched file: ${tmpFilePath}`));
-    // removed line uses its original number, added line its new number,
-    // and surrounding unchanged lines appear as context.
-    assert.match(result, /^- 2 \| two$/m);
-    assert.match(result, /^\+ 2 \| TWO$/m);
-    assert.match(result, /^ {2}1 \| one$/m);
-    assert.match(result, /^ {2}3 \| three$/m);
+    assert.match(
+      result,
+      new RegExp(
+        `^REPLACE 012 2:${lineHash("two")}-2:${lineHash("two")}$`,
+        "m",
+      ),
+    );
+    assert.match(result, /^- two$/m);
+    assert.match(result, /^\+ TWO$/m);
   });
 
-  it("reports no changes when the patch does not alter content", async () => {
+  it("renders unchanged lines within a block's range as context", async () => {
     // given:
-    const tmpFilePath = await writeTmp(["one", "two", "three"]);
+    const tmpFilePath = await writeTmp(["a", "b", "c"]);
 
-    // when: replace a line with an identical value
-    const patch = [`REPLACE 012 2:${lineHash("two")}`, "two"].join("\n");
+    // when: replace lines 1-3 but keep "b" unchanged
+    const patch = [
+      `REPLACE 012 1:${lineHash("a")}-3:${lineHash("c")}`,
+      "A",
+      "b",
+      "C",
+    ].join("\n");
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
-    // then:
+    // then: only the changed lines get -/+, the unchanged "b" is context.
     assert.ok(typeof result === "string", `unexpected result: ${result}`);
-    assert.ok(result.startsWith(`Patched file: ${tmpFilePath}`));
-    assert.match(result, /\(no changes\)/);
+    assert.match(result, /^- a$/m);
+    assert.match(result, /^\+ A$/m);
+    assert.match(result, /^ {2}b$/m);
+    assert.match(result, /^- c$/m);
+    assert.match(result, /^\+ C$/m);
   });
 
-  it("renders the full diff without omitting distant context", async () => {
-    // given: a change near the top of a longer file.
-    const lines = Array.from({ length: 30 }, (_, i) => `line ${i + 1}`);
-    const tmpFilePath = await writeTmp(lines);
+  it("renders an insert block's added lines in the diff", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["alpha", "delta"]);
 
     // when:
-    const patch = [`REPLACE 012 1:${lineHash("line 1")}`, "LINE 1"].join("\n");
+    const patch = [`INSERT_AFTER 012 1:${lineHash("alpha")}`, "bravo"].join(
+      "\n",
+    );
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
     assert.ok(typeof result === "string", `unexpected result: ${result}`);
-    assert.ok(result.startsWith(`Patched file: ${tmpFilePath}`));
-    assert.match(result, /^- 1 \| line 1$/m);
-    assert.match(result, /^\+ 1 \| LINE 1$/m);
-    // every unchanged line is shown in full — no "..." omission marker.
-    assert.match(result, /^ {2}30 \| line 30$/m);
-    assert.ok(!result.includes("..."), `unexpected result: ${result}`);
+    assert.match(
+      result,
+      new RegExp(`^INSERT_AFTER 012 1:${lineHash("alpha")}$`, "m"),
+    );
+    assert.match(result, /^\+ bravo$/m);
   });
 });
 
