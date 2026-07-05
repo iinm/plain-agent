@@ -653,17 +653,15 @@ describe("patchFileTool", () => {
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then: the block header plus a "- old" / "+ new" diff of the change.
-    assert.ok(typeof result === "string", `unexpected result: ${result}`);
-    assert.ok(result.startsWith(`Patched file: ${tmpFilePath}`));
-    assert.match(
+    assert.equal(
       result,
-      new RegExp(
-        `^REPLACE 012 2:${lineHash("two")}-2:${lineHash("two")}$`,
-        "m",
-      ),
+      [
+        `Patched file: ${tmpFilePath}`,
+        `REPLACE 012 2:${lineHash("two")}-2:${lineHash("two")}`,
+        "- two",
+        "+ TWO",
+      ].join("\n"),
     );
-    assert.match(result, /^- two$/m);
-    assert.match(result, /^\+ TWO$/m);
   });
 
   it("renders unchanged lines within a block's range as context", async () => {
@@ -680,12 +678,18 @@ describe("patchFileTool", () => {
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then: only the changed lines get -/+, the unchanged "b" is context.
-    assert.ok(typeof result === "string", `unexpected result: ${result}`);
-    assert.match(result, /^- a$/m);
-    assert.match(result, /^\+ A$/m);
-    assert.match(result, /^ {2}b$/m);
-    assert.match(result, /^- c$/m);
-    assert.match(result, /^\+ C$/m);
+    assert.equal(
+      result,
+      [
+        `Patched file: ${tmpFilePath}`,
+        `REPLACE 012 1:${lineHash("a")}-3:${lineHash("c")}`,
+        "- a",
+        "+ A",
+        "  b",
+        "- c",
+        "+ C",
+      ].join("\n"),
+    );
   });
 
   it("renders an insert block's added lines in the diff", async () => {
@@ -699,12 +703,14 @@ describe("patchFileTool", () => {
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
-    assert.ok(typeof result === "string", `unexpected result: ${result}`);
-    assert.match(
+    assert.equal(
       result,
-      new RegExp(`^INSERT_AFTER 012 1:${lineHash("alpha")}$`, "m"),
+      [
+        `Patched file: ${tmpFilePath}`,
+        `INSERT_AFTER 012 1:${lineHash("alpha")}`,
+        "+ bravo",
+      ].join("\n"),
     );
-    assert.match(result, /^\+ bravo$/m);
   });
 });
 
