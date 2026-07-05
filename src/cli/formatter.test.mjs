@@ -1,7 +1,7 @@
 /** @import { MessageContentToolResult } from "../model" */
 import assert from "node:assert";
 import fs from "node:fs/promises";
-import { afterEach, describe, it } from "node:test";
+import { after, afterEach, before, describe, it } from "node:test";
 import { styleText } from "node:util";
 import { lineHash } from "../utils/lineHash.mjs";
 import {
@@ -18,6 +18,20 @@ const ANSI_PATTERN = new RegExp(`${ESC}\\[[0-9;]*m`, "g");
 const stripAnsi = (s) => s.replace(ANSI_PATTERN, "");
 
 describe("formatCommandArgs", () => {
+  /** @type {string | undefined} */
+  let prevForceColor;
+  before(() => {
+    prevForceColor = process.env.FORCE_COLOR;
+    process.env.FORCE_COLOR = "1";
+  });
+  after(() => {
+    if (prevForceColor === undefined) {
+      delete process.env.FORCE_COLOR;
+    } else {
+      process.env.FORCE_COLOR = prevForceColor;
+    }
+  });
+
   it("renders an empty array inline", () => {
     assert.equal(formatCommandArgs([]), "args: []");
   });
@@ -110,6 +124,20 @@ describe("formatCommandArgs", () => {
 });
 
 describe("formatToolUse", () => {
+  /** @type {string | undefined} */
+  let prevForceColor;
+  before(() => {
+    prevForceColor = process.env.FORCE_COLOR;
+    process.env.FORCE_COLOR = "1";
+  });
+  after(() => {
+    if (prevForceColor === undefined) {
+      delete process.env.FORCE_COLOR;
+    } else {
+      process.env.FORCE_COLOR = prevForceColor;
+    }
+  });
+
   it("formats exec_command with a multi-line script readably", async () => {
     const output = await formatToolUse({
       type: "tool_use",
@@ -242,6 +270,20 @@ describe("formatToolUse", () => {
 });
 
 describe("formatToolUse (patch_file)", () => {
+  /** @type {string | undefined} */
+  let prevForceColor;
+  before(() => {
+    prevForceColor = process.env.FORCE_COLOR;
+    process.env.FORCE_COLOR = "1";
+  });
+  after(() => {
+    if (prevForceColor === undefined) {
+      delete process.env.FORCE_COLOR;
+    } else {
+      process.env.FORCE_COLOR = prevForceColor;
+    }
+  });
+
   /** @type {(() => Promise<void>)[]} */
   const cleanups = [];
 
@@ -636,6 +678,20 @@ describe("formatToolUse (read_file)", () => {
 });
 
 describe("formatToolResult (read_file)", () => {
+  /** @type {string | undefined} */
+  let prevForceColor;
+  before(() => {
+    prevForceColor = process.env.FORCE_COLOR;
+    process.env.FORCE_COLOR = "1";
+  });
+  after(() => {
+    if (prevForceColor === undefined) {
+      delete process.env.FORCE_COLOR;
+    } else {
+      process.env.FORCE_COLOR = prevForceColor;
+    }
+  });
+
   it("colors line number and hash prefix in gray", async () => {
     // given:
     const toolResult = /** @type {MessageContentToolResult} */ ({
@@ -662,15 +718,20 @@ describe("formatToolResult (read_file)", () => {
   });
 });
 describe("formatMarkdownTable", () => {
-  /** @type {(() => void)[]} */
-  const cleanups = [];
-
-  afterEach(() => {
-    for (const cleanup of [...cleanups].reverse()) {
-      cleanup();
-    }
-    cleanups.length = 0;
+  /** @type {string | undefined} */
+  let prevForceColor;
+  before(() => {
+    prevForceColor = process.env.FORCE_COLOR;
+    process.env.FORCE_COLOR = "1";
   });
+  after(() => {
+    if (prevForceColor === undefined) {
+      delete process.env.FORCE_COLOR;
+    } else {
+      process.env.FORCE_COLOR = prevForceColor;
+    }
+  });
+
   it("aligns a simple two-column table", () => {
     // given:
     const lines = [
@@ -924,11 +985,6 @@ describe("formatMarkdownTable", () => {
 
   it("preserves ANSI codes across wrapped lines", () => {
     // given:
-    const prev = process.env.FORCE_COLOR;
-    process.env.FORCE_COLOR = "1";
-    cleanups.push(() => {
-      process.env.FORCE_COLOR = prev;
-    });
     const styled = styleText("red", "abcdefghijklmnopqrst");
     const lines = [`| ${styled} |`, "|--------------------|"];
 
