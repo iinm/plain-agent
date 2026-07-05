@@ -165,13 +165,14 @@ export async function listSessions(options = {}) {
   return summaries;
 }
 
-const FIRST_USER_MESSAGE_MAX_LENGTH = 80;
+const FIRST_USER_MESSAGE_MAX_LENGTH = 200;
 
 /**
  * Extract the first user message text from a message list.
  * Returns the first `type === "text"` content from the first `role === "user"`
  * message, with newlines replaced by spaces and truncated to
- * {@link FIRST_USER_MESSAGE_MAX_LENGTH} characters.
+ * {@link FIRST_USER_MESSAGE_MAX_LENGTH} characters. Display-time truncation
+ * (e.g. to terminal width) is handled by the caller.
  *
  * @param {Message[]} messages
  * @returns {string}

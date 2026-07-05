@@ -199,7 +199,7 @@ describe("listSessions", () => {
 
   it("replaces newlines and truncates long firstUserMessage", async () => {
     // given:
-    const longText = `Line1\nLine2 ${"a".repeat(100)}`;
+    const longText = `Line1\nLine2 ${"a".repeat(300)}`;
     await saveSession(
       buildState({
         sessionId: "long-msg",
@@ -220,8 +220,8 @@ describe("listSessions", () => {
     assert.equal(sessions.length, 1);
     const preview = sessions[0].firstUserMessage;
     assert.ok(
-      preview.length <= 81,
-      `Expected length <= 81, got ${preview.length}`,
+      preview.length <= 201,
+      `Expected length <= 201, got ${preview.length}`,
     );
     assert.ok(preview.endsWith("…"), "Expected truncated string to end with …");
     assert.ok(
