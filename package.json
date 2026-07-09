@@ -44,9 +44,9 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@biomejs/biome": "^2.4.12",
+    "@biomejs/biome": "^2.5.2",
     "@types/node": "^22.19.17",
     "c8": "^11.0.0",
-    "typescript": "^6.0.2"
+    "typescript": "^7.0.2"
   }
 }
