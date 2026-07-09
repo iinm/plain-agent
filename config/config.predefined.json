@@ -1468,34 +1468,6 @@
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
-      "name": "gpt-5.4-mini",
-      "variant": "thinking-xhigh",
-      "platform": {
-        "name": "openai",
-        "variant": "default",
-        "baseURL": "https://api.openai.com"
-      },
-      "model": {
-        "format": "openai-responses",
-        "config": {
-          "model": "gpt-5.4-mini",
-          "reasoning": { "effort": "xhigh", "summary": "auto" },
-          "store": false,
-          "include": ["reasoning.encrypted_content"]
-        }
-      },
-      "cost": {
-        "currency": "USD",
-        "unit": "1M",
-        "prices": {
-          "input_tokens": 0.75,
-          "input_tokens_details.cached_tokens": -0.675,
-          "output_tokens": 4.5
-        }
-      },
-      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
-    },
-    {
       "name": "gpt-5.5",
       "variant": "thinking-medium",
       "platform": {
@@ -1759,33 +1731,6 @@
         "config": {
           "model": "gpt-5.4-mini",
           "reasoning": { "effort": "high", "summary": "auto" },
-          "store": false,
-          "include": ["reasoning.encrypted_content"]
-        }
-      },
-      "cost": {
-        "currency": "USD",
-        "unit": "1M",
-        "prices": {
-          "input_tokens": 0.75,
-          "input_tokens_details.cached_tokens": -0.675,
-          "output_tokens": 4.5
-        }
-      },
-      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
-    },
-    {
-      "name": "gpt-5.4-mini",
-      "variant": "thinking-xhigh-azure",
-      "platform": {
-        "name": "azure",
-        "variant": "openai"
-      },
-      "model": {
-        "format": "openai-responses",
-        "config": {
-          "model": "gpt-5.4-mini",
-          "reasoning": { "effort": "xhigh", "summary": "auto" },
           "store": false,
           "include": ["reasoning.encrypted_content"]
         }
