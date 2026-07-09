@@ -379,6 +379,12 @@ Create a configuration file.
       "variant": "novita",
       "baseURL": "https://api.novita.ai/openai",
       "apiKey": "<NOVITA_API_KEY>"
+    },
+    {
+      "name": "openai-compatible",
+      "variant": "xai",
+      "baseURL": "https://api.x.ai",
+      "apiKey": "<XAI_API_KEY>"
     }
   ]
 }

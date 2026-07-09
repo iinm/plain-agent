@@ -1975,6 +1975,32 @@
     },
 
     {
+      "name": "grok-4.5",
+      "variant": "xai",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "xai"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "grok-4.5",
+          "reasoning_effort": "high"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "prompt_tokens": 2,
+          "prompt_tokens_details.cached_tokens": -1.5,
+          "completion_tokens": 6
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
+    },
+
+    {
       "name": "nova-2-lite",
       "variant": "bedrock",
       "platform": {
