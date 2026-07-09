@@ -89,7 +89,7 @@ export async function callAnthropicModel(
     /** @type {AnthropicRequestInput} */
     const request = {
       ...platformRequest,
-      system: messages
+      system: cacheEnabledMessages
         .filter((m) => m.role === "system")
         .flatMap((m) => m.content),
       messages: cacheEnabledMessages.filter((m) => m.role !== "system"),
