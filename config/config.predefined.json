@@ -1910,6 +1910,168 @@
       },
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
+    {
+      "name": "gpt-5.6-sol",
+      "variant": "thinking-medium-azure",
+      "platform": {
+        "name": "azure",
+        "variant": "openai"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-5.6-sol",
+          "reasoning": { "effort": "medium", "summary": "auto" },
+          "store": false,
+          "include": ["reasoning.encrypted_content"]
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "input_tokens": 5,
+          "input_tokens_details.cached_tokens": -4.5,
+          "output_tokens": 30
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
+    },
+    {
+      "name": "gpt-5.6-sol",
+      "variant": "thinking-high-azure",
+      "platform": {
+        "name": "azure",
+        "variant": "openai"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-5.6-sol",
+          "reasoning": { "effort": "high", "summary": "auto" },
+          "store": false,
+          "include": ["reasoning.encrypted_content"]
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "input_tokens": 5,
+          "input_tokens_details.cached_tokens": -4.5,
+          "output_tokens": 30
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
+    },
+    {
+      "name": "gpt-5.6-terra",
+      "variant": "thinking-medium-azure",
+      "platform": {
+        "name": "azure",
+        "variant": "openai"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-5.6-terra",
+          "reasoning": { "effort": "medium", "summary": "auto" },
+          "store": false,
+          "include": ["reasoning.encrypted_content"]
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "input_tokens": 2.5,
+          "input_tokens_details.cached_tokens": -2.25,
+          "output_tokens": 15
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
+    },
+    {
+      "name": "gpt-5.6-terra",
+      "variant": "thinking-high-azure",
+      "platform": {
+        "name": "azure",
+        "variant": "openai"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-5.6-terra",
+          "reasoning": { "effort": "high", "summary": "auto" },
+          "store": false,
+          "include": ["reasoning.encrypted_content"]
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "input_tokens": 2.5,
+          "input_tokens_details.cached_tokens": -2.25,
+          "output_tokens": 15
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
+    },
+    {
+      "name": "gpt-5.6-luna",
+      "variant": "thinking-medium-azure",
+      "platform": {
+        "name": "azure",
+        "variant": "openai"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-5.6-luna",
+          "reasoning": { "effort": "medium", "summary": "auto" },
+          "store": false,
+          "include": ["reasoning.encrypted_content"]
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "input_tokens": 1,
+          "input_tokens_details.cached_tokens": -0.9,
+          "output_tokens": 6
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
+    },
+    {
+      "name": "gpt-5.6-luna",
+      "variant": "thinking-high-azure",
+      "platform": {
+        "name": "azure",
+        "variant": "openai"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-5.6-luna",
+          "reasoning": { "effort": "high", "summary": "auto" },
+          "store": false,
+          "include": ["reasoning.encrypted_content"]
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "input_tokens": 1,
+          "input_tokens_details.cached_tokens": -0.9,
+          "output_tokens": 6
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
+    },
 
     {
       "name": "gpt-oss-120b",
