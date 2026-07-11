@@ -770,8 +770,8 @@ Files are loaded in the following order. Settings in later files override earlie
     }
   },
 
-  // Override the default notification command
-  "notifyCmd": { "command": "plain-notify-desktop", "args": [] }
+  // Command to run when the agent is waiting for input
+  "notifyCmd": { "command": "/path/to/your/notify-script", "args": [] }
 }
 ```
 </details>
