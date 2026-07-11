@@ -770,8 +770,10 @@ Files are loaded in the following order. Settings in later files override earlie
     }
   },
 
-  // Override the default notification command
-  "notifyCmd": { "command": "plain-notify-desktop", "args": [] }
+  // Notify you when the agent is waiting for input by running an arbitrary
+  // command or script of your choice (e.g. a desktop notification, a Slack
+  // webhook, or a terminal bell). Specify any command and its arguments.
+  "notifyCmd": { "command": "/path/to/your/notify-script", "args": [] }
 }
 ```
 </details>
