@@ -770,9 +770,7 @@ Files are loaded in the following order. Settings in later files override earlie
     }
   },
 
-  // Notify you when the agent is waiting for input by running an arbitrary
-  // command or script of your choice (e.g. a desktop notification, a Slack
-  // webhook, or a terminal bell). Specify any command and its arguments.
+  // Command to run when the agent is waiting for input
   "notifyCmd": { "command": "/path/to/your/notify-script", "args": [] }
 }
 ```
