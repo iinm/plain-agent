@@ -53,11 +53,7 @@ describe("patchFileTool", () => {
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
-    assert.ok(
-      typeof result === "string" &&
-        result.startsWith(`Patched file: ${tmpFilePath}`),
-      `unexpected result: ${result}`,
-    );
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
     assert.equal(
       patchedContent,
@@ -88,11 +84,7 @@ describe("patchFileTool", () => {
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
-    assert.ok(
-      typeof result === "string" &&
-        result.startsWith(`Patched file: ${tmpFilePath}`),
-      `unexpected result: ${result}`,
-    );
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
     assert.equal(patchedContent, ["Hello World", "keep me"].join("\n"));
   });
@@ -108,11 +100,7 @@ describe("patchFileTool", () => {
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
-    assert.ok(
-      typeof result === "string" &&
-        result.startsWith(`Patched file: ${tmpFilePath}`),
-      `unexpected result: ${result}`,
-    );
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
     assert.equal(
       patchedContent,
@@ -138,11 +126,7 @@ describe("patchFileTool", () => {
     });
 
     // then:
-    assert.ok(
-      typeof result1 === "string" &&
-        result1.startsWith(`Patched file: ${tmpFilePath1}`),
-      `unexpected result: ${result1}`,
-    );
+    assert.equal(result1, `Patched file: ${tmpFilePath1}`);
     const patchedContent1 = await fs.readFile(tmpFilePath1, "utf8");
     assert.equal(patchedContent1, ["top", "middle", "bottom"].join("\n"));
 
@@ -161,11 +145,7 @@ describe("patchFileTool", () => {
     });
 
     // then:
-    assert.ok(
-      typeof result2 === "string" &&
-        result2.startsWith(`Patched file: ${tmpFilePath2}`),
-      `unexpected result: ${result2}`,
-    );
+    assert.equal(result2, `Patched file: ${tmpFilePath2}`);
     const patchedContent2 = await fs.readFile(tmpFilePath2, "utf8");
     assert.equal(patchedContent2, "new content");
   });
@@ -179,11 +159,7 @@ describe("patchFileTool", () => {
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
-    assert.ok(
-      typeof result === "string" &&
-        result.startsWith(`Patched file: ${tmpFilePath}`),
-      `unexpected result: ${result}`,
-    );
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
     assert.equal(patchedContent, ["one", "TWO", "three"].join("\n"));
   });
@@ -270,11 +246,7 @@ describe("patchFileTool", () => {
     });
 
     // then:
-    assert.ok(
-      typeof result1 === "string" &&
-        result1.startsWith(`Patched file: ${tmpFilePath1}`),
-      `unexpected result: ${result1}`,
-    );
+    assert.equal(result1, `Patched file: ${tmpFilePath1}`);
     const patchedContent1 = await fs.readFile(tmpFilePath1, "utf8");
     assert.equal(
       patchedContent1,
@@ -291,11 +263,7 @@ describe("patchFileTool", () => {
       ].join("\n");
       const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
-      assert.ok(
-        typeof result === "string" &&
-          result.startsWith(`Patched file: ${tmpFilePath}`),
-        `unexpected result: ${result}`,
-      );
+      assert.equal(result, `Patched file: ${tmpFilePath}`);
       const patchedContent = await fs.readFile(tmpFilePath, "utf8");
       assert.equal(patchedContent, ["alpha", "bravo", "charlie"].join("\n"));
     }
@@ -398,11 +366,7 @@ describe("patchFileTool", () => {
       filePath: tmpFilePath2,
       patch: patch2,
     });
-    assert.ok(
-      typeof result2 === "string" &&
-        result2.startsWith(`Patched file: ${tmpFilePath2}`),
-      `unexpected result: ${result2}`,
-    );
+    assert.equal(result2, `Patched file: ${tmpFilePath2}`);
     const patchedContent2 = await fs.readFile(tmpFilePath2, "utf8");
     assert.equal(patchedContent2, ["X", "Y"].join("\n"));
 
@@ -417,11 +381,7 @@ describe("patchFileTool", () => {
       filePath: tmpFilePath3,
       patch: patch3,
     });
-    assert.ok(
-      typeof result3 === "string" &&
-        result3.startsWith(`Patched file: ${tmpFilePath3}`),
-      `unexpected result: ${result3}`,
-    );
+    assert.equal(result3, `Patched file: ${tmpFilePath3}`);
     const patchedContent3 = await fs.readFile(tmpFilePath3, "utf8");
     assert.equal(patchedContent3, ["Y", "X"].join("\n"));
   });
@@ -577,11 +537,7 @@ describe("patchFileTool", () => {
     });
 
     // then:
-    assert.ok(
-      typeof result1 === "string" &&
-        result1.startsWith(`Patched file: ${tmpFilePath1}`),
-      `unexpected result: ${result1}`,
-    );
+    assert.equal(result1, `Patched file: ${tmpFilePath1}`);
     const patchedContent1 = await fs.readFile(tmpFilePath1, "utf8");
     assert.equal(
       patchedContent1,
@@ -607,11 +563,7 @@ describe("patchFileTool", () => {
     });
 
     // then:
-    assert.ok(
-      typeof result2 === "string" &&
-        result2.startsWith(`Patched file: ${tmpFilePath2}`),
-      `unexpected result: ${result2}`,
-    );
+    assert.equal(result2, `Patched file: ${tmpFilePath2}`);
     const patchedContent2 = await fs.readFile(tmpFilePath2, "utf8");
     assert.equal(patchedContent2, ["X", "", "Z", "Y"].join("\n"));
   });
@@ -630,86 +582,11 @@ describe("patchFileTool", () => {
     const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
 
     // then:
-    assert.ok(
-      typeof result === "string" &&
-        result.startsWith(`Patched file: ${tmpFilePath}`),
-      `unexpected result: ${result}`,
-    );
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
     const patchedContent = await fs.readFile(tmpFilePath, "utf8");
     assert.equal(
       patchedContent,
       ["alpha", "bravo", "charlie", "delta"].join("\n"),
-    );
-  });
-
-  // --- 差分出力 (3 tests) ---
-
-  it("includes a per-block diff of the applied changes", async () => {
-    // given:
-    const tmpFilePath = await writeTmp(["one", "two", "three"]);
-
-    // when:
-    const patch = [`REPLACE 012 2:${lineHash("two")}`, "TWO"].join("\n");
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
-
-    // then: the block header plus a "- old" / "+ new" diff of the change.
-    assert.equal(
-      result,
-      [
-        `Patched file: ${tmpFilePath}`,
-        `REPLACE 012 2:${lineHash("two")}-2:${lineHash("two")}`,
-        "- two",
-        "+ TWO",
-      ].join("\n"),
-    );
-  });
-
-  it("renders unchanged lines within a block's range as context", async () => {
-    // given:
-    const tmpFilePath = await writeTmp(["a", "b", "c"]);
-
-    // when: replace lines 1-3 but keep "b" unchanged
-    const patch = [
-      `REPLACE 012 1:${lineHash("a")}-3:${lineHash("c")}`,
-      "A",
-      "b",
-      "C",
-    ].join("\n");
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
-
-    // then: only the changed lines get -/+, the unchanged "b" is context.
-    assert.equal(
-      result,
-      [
-        `Patched file: ${tmpFilePath}`,
-        `REPLACE 012 1:${lineHash("a")}-3:${lineHash("c")}`,
-        "- a",
-        "+ A",
-        "  b",
-        "- c",
-        "+ C",
-      ].join("\n"),
-    );
-  });
-
-  it("renders an insert block's added lines in the diff", async () => {
-    // given:
-    const tmpFilePath = await writeTmp(["alpha", "delta"]);
-
-    // when:
-    const patch = [`INSERT_AFTER 012 1:${lineHash("alpha")}`, "bravo"].join(
-      "\n",
-    );
-    const result = await patchFileTool.impl({ filePath: tmpFilePath, patch });
-
-    // then:
-    assert.equal(
-      result,
-      [
-        `Patched file: ${tmpFilePath}`,
-        `INSERT_AFTER 012 1:${lineHash("alpha")}`,
-        "+ bravo",
-      ].join("\n"),
     );
   });
 });

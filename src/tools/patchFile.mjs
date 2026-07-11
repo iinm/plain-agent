@@ -67,14 +67,10 @@ content at beginning of file
         }
 
         const original = await fs.readFile(filePath, "utf8");
-        const originalLines = splitLines(original);
         const newContent = applyBlocks(original, blocks);
         await fs.writeFile(filePath, newContent);
 
-        const diff = blocks
-          .map((block) => renderPatchBlock(block, originalLines, nonce))
-          .join("\n\n");
-        return `Patched file: ${filePath}\n${diff}`;
+        return `Patched file: ${filePath}`;
       }),
 
     /**
@@ -444,19 +440,4 @@ function detectConflicts(blocks) {
       }
     }
   }
-}
-
-/**
- * Split file content into lines the same way applyBlocks does: drop the
- * trailing empty element produced by split() when the content ends with a
- * newline (or is empty), so line numbers match read_file.
- * @param {string} content
- * @returns {string[]}
- */
-function splitLines(content) {
-  const lines = content.split("\n");
-  if (lines.length > 0 && lines[lines.length - 1] === "") {
-    lines.pop();
-  }
-  return lines;
 }
