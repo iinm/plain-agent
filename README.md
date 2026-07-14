@@ -332,18 +332,18 @@ Create a configuration file.
       "awsProfile": "<AWS_PROFILE>"
     },
 
-    // Bedrock mantle: OpenAI models on Bedrock (SigV4 auth via the AWS CLI)
-    {
-      "name": "bedrock-mantle",
-      "variant": "openai",
-      "baseURL": "https://bedrock-mantle.<region>.api.aws/openai",
-      "awsProfile": "<AWS_PROFILE>"
-    },
-    // Mantle open models (gpt-oss-*) use the host without the /openai prefix
+    // Bedrock mantle: models on Bedrock (SigV4 auth via the AWS CLI)
     {
       "name": "bedrock-mantle",
       "variant": "default",
       "baseURL": "https://bedrock-mantle.<region>.api.aws",
+      "awsProfile": "<AWS_PROFILE>"
+    },
+    // OpenAI models on mantle add the /openai path prefix
+    {
+      "name": "bedrock-mantle",
+      "variant": "openai",
+      "baseURL": "https://bedrock-mantle.<region>.api.aws/openai",
       "awsProfile": "<AWS_PROFILE>"
     },
 
