@@ -97,8 +97,6 @@ export async function callOpenAICompatibleModel(
             ...modelConfigWithoutName,
           };
         case "bedrock-mantle":
-          // Mantle speaks the OpenAI Chat Completions API: keep the model in
-          // the body and stream like a regular OpenAI-compatible endpoint.
           return {
             ...modelConfig,
             stream: true,

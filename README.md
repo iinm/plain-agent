@@ -332,6 +332,21 @@ Create a configuration file.
       "awsProfile": "<AWS_PROFILE>"
     },
 
+    // Bedrock mantle: OpenAI models on Bedrock (SigV4 auth via the AWS CLI)
+    {
+      "name": "bedrock-mantle",
+      "variant": "openai",
+      "baseURL": "https://bedrock-mantle.<region>.api.aws/openai",
+      "awsProfile": "<AWS_PROFILE>"
+    },
+    // Mantle open models (gpt-oss-*) use the host without the /openai prefix
+    {
+      "name": "bedrock-mantle",
+      "variant": "default",
+      "baseURL": "https://bedrock-mantle.<region>.api.aws",
+      "awsProfile": "<AWS_PROFILE>"
+    },
+
     // Vertex AI: Requires the gcloud CLI for authentication
     {
       "name": "vertex-ai",
@@ -379,24 +394,6 @@ Create a configuration file.
       "variant": "novita",
       "baseURL": "https://api.novita.ai/openai",
       "apiKey": "<NOVITA_API_KEY>"
-    },
-    // Bedrock mantle: OpenAI models served on Amazon Bedrock via the mantle
-    // endpoint. The mantle endpoint speaks the OpenAI API but is authenticated
-    // with AWS SigV4 (AWS CLI profile), not a Bearer API key. Used by the
-    // *-bedrock-mantle predefined models (gpt-5.5, gpt-5.6-*).
-    {
-      "name": "bedrock-mantle",
-      "variant": "openai",
-      "baseURL": "https://bedrock-mantle.<region>.api.aws/openai",
-      "awsProfile": "<AWS_PROFILE>"
-    },
-    // Open models (gpt-oss-*) live on the same mantle host but without the
-    // /openai path prefix. Used by the gpt-oss-120b+bedrock-mantle model.
-    {
-      "name": "bedrock-mantle",
-      "variant": "default",
-      "baseURL": "https://bedrock-mantle.<region>.api.aws",
-      "awsProfile": "<AWS_PROFILE>"
     }
   ]
 }
