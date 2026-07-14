@@ -379,6 +379,24 @@ Create a configuration file.
       "variant": "novita",
       "baseURL": "https://api.novita.ai/openai",
       "apiKey": "<NOVITA_API_KEY>"
+    },
+    // Bedrock mantle: OpenAI models on Bedrock, authenticated with a
+    // long-term Bedrock API key (Bearer token). The mantle endpoint speaks
+    // the OpenAI API, so it is configured as an openai-compatible platform.
+    // Used by the *-bedrock-mantle predefined models (gpt-5.5, gpt-5.6-*).
+    {
+      "name": "openai-compatible",
+      "variant": "bedrock-mantle",
+      "baseURL": "https://bedrock-mantle.<region>.api.aws/openai",
+      "apiKey": "<BEDROCK_API_KEY>"
+    },
+    // Open models (gpt-oss-*) live on the same mantle host but without the
+    // /openai path prefix. Used by the gpt-oss-120b+bedrock-mantle model.
+    {
+      "name": "openai-compatible",
+      "variant": "bedrock-mantle-oss",
+      "baseURL": "https://bedrock-mantle.<region>.api.aws",
+      "apiKey": "<BEDROCK_API_KEY>"
     }
   ]
 }
