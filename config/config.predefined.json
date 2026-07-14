@@ -1967,8 +1967,8 @@
       "name": "gpt-5.5",
       "variant": "thinking-medium-bedrock-mantle",
       "platform": {
-        "name": "openai-compatible",
-        "variant": "bedrock-mantle"
+        "name": "bedrock-mantle",
+        "variant": "default"
       },
       "model": {
         "format": "openai-responses",
@@ -1994,8 +1994,8 @@
       "name": "gpt-5.5",
       "variant": "thinking-high-bedrock-mantle",
       "platform": {
-        "name": "openai-compatible",
-        "variant": "bedrock-mantle"
+        "name": "bedrock-mantle",
+        "variant": "default"
       },
       "model": {
         "format": "openai-responses",
@@ -2021,8 +2021,8 @@
       "name": "gpt-5.6-sol",
       "variant": "thinking-medium-bedrock-mantle",
       "platform": {
-        "name": "openai-compatible",
-        "variant": "bedrock-mantle"
+        "name": "bedrock-mantle",
+        "variant": "default"
       },
       "model": {
         "format": "openai-responses",
@@ -2048,8 +2048,8 @@
       "name": "gpt-5.6-sol",
       "variant": "thinking-high-bedrock-mantle",
       "platform": {
-        "name": "openai-compatible",
-        "variant": "bedrock-mantle"
+        "name": "bedrock-mantle",
+        "variant": "default"
       },
       "model": {
         "format": "openai-responses",
@@ -2075,8 +2075,8 @@
       "name": "gpt-5.6-terra",
       "variant": "thinking-medium-bedrock-mantle",
       "platform": {
-        "name": "openai-compatible",
-        "variant": "bedrock-mantle"
+        "name": "bedrock-mantle",
+        "variant": "default"
       },
       "model": {
         "format": "openai-responses",
@@ -2102,8 +2102,8 @@
       "name": "gpt-5.6-terra",
       "variant": "thinking-high-bedrock-mantle",
       "platform": {
-        "name": "openai-compatible",
-        "variant": "bedrock-mantle"
+        "name": "bedrock-mantle",
+        "variant": "default"
       },
       "model": {
         "format": "openai-responses",
@@ -2129,8 +2129,8 @@
       "name": "gpt-5.6-luna",
       "variant": "thinking-medium-bedrock-mantle",
       "platform": {
-        "name": "openai-compatible",
-        "variant": "bedrock-mantle"
+        "name": "bedrock-mantle",
+        "variant": "default"
       },
       "model": {
         "format": "openai-responses",
@@ -2156,8 +2156,8 @@
       "name": "gpt-5.6-luna",
       "variant": "thinking-high-bedrock-mantle",
       "platform": {
-        "name": "openai-compatible",
-        "variant": "bedrock-mantle"
+        "name": "bedrock-mantle",
+        "variant": "default"
       },
       "model": {
         "format": "openai-responses",
@@ -2208,8 +2208,8 @@
       "name": "gpt-oss-120b",
       "variant": "bedrock-mantle",
       "platform": {
-        "name": "openai-compatible",
-        "variant": "bedrock-mantle-oss"
+        "name": "bedrock-mantle",
+        "variant": "oss"
       },
       "model": {
         "format": "openai-messages",

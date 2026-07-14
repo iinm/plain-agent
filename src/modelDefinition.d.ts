@@ -62,6 +62,13 @@ export type PlatformConfig =
       awsProfile: string;
     }
   | {
+      name: "bedrock-mantle";
+      variant: string;
+      baseURL: string;
+      customHeaders?: Record<string, string>;
+      awsProfile: string;
+    }
+  | {
       name: "vertex-ai";
       variant: string;
       baseURL: string;

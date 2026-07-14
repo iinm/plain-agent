@@ -6,6 +6,7 @@
 
 import { styleText } from "node:util";
 import { noThrow } from "../utils/noThrow.mjs";
+import { loadAwsCredentials, signAwsRequest } from "./platform/awsSigV4.mjs";
 import { getAzureAccessToken } from "./platform/azure.mjs";
 
 /**
@@ -38,34 +39,71 @@ export async function callOpenAIModel(
       stream: true,
     };
 
-    const apiKey = await (async () => {
-      switch (platformConfig.name) {
-        case "openai":
-        case "openai-compatible":
-          return platformConfig.apiKey;
-        case "azure":
-          return getAzureAccessToken(
-            platformConfig.azureConfigDir
-              ? {
-                  azureConfigDir: platformConfig.azureConfigDir,
-                }
-              : undefined,
-          );
-        default:
-          throw new Error(`Unsupported platform: ${platformConfig.name}`);
-      }
-    })();
+    const url = `${platformConfig.baseURL}/v1/responses`;
+    const body = JSON.stringify(request);
 
-    const response = await fetch(`${platformConfig.baseURL}/v1/responses`, {
-      method: "POST",
-      headers: {
-        ...platformConfig.customHeaders,
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(request),
-      signal: AbortSignal.timeout(8 * 60 * 1000),
-    });
+    const runFetch = async () => {
+      // bedrock-mantle: OpenAI Responses API signed with AWS SigV4
+      if (platformConfig.name === "bedrock-mantle") {
+        const region =
+          platformConfig.baseURL.match(
+            /bedrock-mantle\.([\w-]+)\.api\.aws/,
+          )?.[1] ?? "";
+        const { hostname, pathname } = new URL(url);
+        const credentials = await loadAwsCredentials(platformConfig.awsProfile);
+        const signed = signAwsRequest(
+          {
+            method: "POST",
+            hostname,
+            path: pathname,
+            headers: {
+              ...platformConfig.customHeaders,
+              host: hostname,
+              "Content-Type": "application/json",
+            },
+            body,
+          },
+          { region, service: "bedrock", credentials },
+        );
+        return fetch(url, {
+          method: signed.method,
+          headers: signed.headers,
+          body: signed.body,
+          signal: AbortSignal.timeout(8 * 60 * 1000),
+        });
+      }
+
+      const apiKey = await (async () => {
+        switch (platformConfig.name) {
+          case "openai":
+          case "openai-compatible":
+            return platformConfig.apiKey;
+          case "azure":
+            return getAzureAccessToken(
+              platformConfig.azureConfigDir
+                ? {
+                    azureConfigDir: platformConfig.azureConfigDir,
+                  }
+                : undefined,
+            );
+          default:
+            throw new Error(`Unsupported platform: ${platformConfig.name}`);
+        }
+      })();
+
+      return fetch(url, {
+        method: "POST",
+        headers: {
+          ...platformConfig.customHeaders,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body,
+        signal: AbortSignal.timeout(8 * 60 * 1000),
+      });
+    };
+
+    const response = await runFetch();
 
     const retryInterval = Math.min(2 * 2 ** retryCount, 16);
     if ((response.status === 429 || response.status >= 500) && retryCount < 5) {

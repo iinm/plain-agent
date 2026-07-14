@@ -42,6 +42,8 @@ export async function callOpenAICompatibleModel(
           return `${baseURL}/v1/chat/completions`;
         case "bedrock":
           return `${baseURL}/model/${modelConfig.model}/invoke-with-response-stream`;
+        case "bedrock-mantle":
+          return `${baseURL}/v1/chat/completions`;
         case "vertex-ai":
           return `${baseURL}/endpoints/openapi/chat/completions`;
         case "azure":
@@ -61,6 +63,8 @@ export async function callOpenAICompatibleModel(
             Authorization: `Bearer ${platformConfig.apiKey}`,
           };
         case "bedrock":
+        case "bedrock-mantle":
+          // Authorization is added later via AWS SigV4 signing.
           return platformConfig.customHeaders ?? {};
         case "vertex-ai":
           return {
@@ -91,6 +95,13 @@ export async function callOpenAICompatibleModel(
         case "bedrock":
           return {
             ...modelConfigWithoutName,
+          };
+        case "bedrock-mantle":
+          // Mantle speaks the OpenAI Chat Completions API: keep the model in
+          // the body and stream like a regular OpenAI-compatible endpoint.
+          return {
+            ...modelConfig,
+            stream: true,
           };
         case "vertex-ai":
           return {
@@ -126,15 +137,20 @@ export async function callOpenAICompatibleModel(
         signal: AbortSignal.timeout(8 * 60 * 1000),
       });
 
-    // bedrock + sso profile
+    // bedrock / bedrock-mantle + sso profile
     const runFetchForBedrock = async () => {
       const region =
-        url.match(/bedrock-runtime\.([\w-]+)\.amazonaws\.com/)?.[1] ?? "";
+        url.match(/bedrock-runtime\.([\w-]+)\.amazonaws\.com/)?.[1] ??
+        url.match(/bedrock-mantle\.([\w-]+)\.api\.aws/)?.[1] ??
+        "";
       const urlParsed = new URL(url);
       const { hostname, pathname } = urlParsed;
 
       const credentials = await loadAwsCredentials(
-        platformConfig.name === "bedrock" ? platformConfig.awsProfile : "",
+        platformConfig.name === "bedrock" ||
+          platformConfig.name === "bedrock-mantle"
+          ? platformConfig.awsProfile
+          : "",
       );
 
       const signed = signAwsRequest(
@@ -143,6 +159,7 @@ export async function callOpenAICompatibleModel(
           hostname,
           path: pathname,
           headers: {
+            ...headers,
             host: hostname,
             "Content-Type": "application/json",
           },
@@ -160,7 +177,10 @@ export async function callOpenAICompatibleModel(
     };
 
     const runFetch =
-      platformConfig.name === "bedrock" ? runFetchForBedrock : runFetchDefault;
+      platformConfig.name === "bedrock" ||
+      platformConfig.name === "bedrock-mantle"
+        ? runFetchForBedrock
+        : runFetchDefault;
 
     const response = await retryOnError(() => runFetch(), {
       shouldRetry: (err) => err instanceof Error && err.name === "TimeoutError",
