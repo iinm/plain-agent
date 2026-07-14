@@ -386,7 +386,7 @@ Create a configuration file.
     // *-bedrock-mantle predefined models (gpt-5.5, gpt-5.6-*).
     {
       "name": "bedrock-mantle",
-      "variant": "default",
+      "variant": "openai",
       "baseURL": "https://bedrock-mantle.<region>.api.aws/openai",
       "awsProfile": "<AWS_PROFILE>"
     },
@@ -394,7 +394,7 @@ Create a configuration file.
     // /openai path prefix. Used by the gpt-oss-120b+bedrock-mantle model.
     {
       "name": "bedrock-mantle",
-      "variant": "oss",
+      "variant": "default",
       "baseURL": "https://bedrock-mantle.<region>.api.aws",
       "awsProfile": "<AWS_PROFILE>"
     }

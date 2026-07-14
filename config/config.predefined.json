@@ -1968,7 +1968,7 @@
       "variant": "thinking-medium-bedrock-mantle",
       "platform": {
         "name": "bedrock-mantle",
-        "variant": "default"
+        "variant": "openai"
       },
       "model": {
         "format": "openai-responses",
@@ -1995,7 +1995,7 @@
       "variant": "thinking-high-bedrock-mantle",
       "platform": {
         "name": "bedrock-mantle",
-        "variant": "default"
+        "variant": "openai"
       },
       "model": {
         "format": "openai-responses",
@@ -2022,7 +2022,7 @@
       "variant": "thinking-medium-bedrock-mantle",
       "platform": {
         "name": "bedrock-mantle",
-        "variant": "default"
+        "variant": "openai"
       },
       "model": {
         "format": "openai-responses",
@@ -2049,7 +2049,7 @@
       "variant": "thinking-high-bedrock-mantle",
       "platform": {
         "name": "bedrock-mantle",
-        "variant": "default"
+        "variant": "openai"
       },
       "model": {
         "format": "openai-responses",
@@ -2076,7 +2076,7 @@
       "variant": "thinking-medium-bedrock-mantle",
       "platform": {
         "name": "bedrock-mantle",
-        "variant": "default"
+        "variant": "openai"
       },
       "model": {
         "format": "openai-responses",
@@ -2103,7 +2103,7 @@
       "variant": "thinking-high-bedrock-mantle",
       "platform": {
         "name": "bedrock-mantle",
-        "variant": "default"
+        "variant": "openai"
       },
       "model": {
         "format": "openai-responses",
@@ -2130,7 +2130,7 @@
       "variant": "thinking-medium-bedrock-mantle",
       "platform": {
         "name": "bedrock-mantle",
-        "variant": "default"
+        "variant": "openai"
       },
       "model": {
         "format": "openai-responses",
@@ -2157,7 +2157,7 @@
       "variant": "thinking-high-bedrock-mantle",
       "platform": {
         "name": "bedrock-mantle",
-        "variant": "default"
+        "variant": "openai"
       },
       "model": {
         "format": "openai-responses",
@@ -2209,7 +2209,7 @@
       "variant": "bedrock-mantle",
       "platform": {
         "name": "bedrock-mantle",
-        "variant": "oss"
+        "variant": "default"
       },
       "model": {
         "format": "openai-messages",
