@@ -89,6 +89,8 @@ export function createAgent({
 
   /** @type {Promise<void>} */
   let persistChain = Promise.resolve();
+  /** Whether the session has ever been written to disk. */
+  let sessionPersisted = false;
   function schedulePersist() {
     persistChain = persistChain.then(async () => {
       try {
@@ -104,6 +106,7 @@ export function createAgent({
           allowedToolUseInSession: toolUseApprover.getAllowedToolUseInSession(),
           tokenUsageHistory: costTracker.getUsageHistory(),
         });
+        sessionPersisted = true;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.error(
@@ -214,6 +217,7 @@ export function createAgent({
       getActiveSubagent: () => subagentManager.getActiveSubagent(),
       flushSessionPersistence: async () => {
         await persistChain;
+        return sessionPersisted;
       },
     },
   };

@@ -23,8 +23,12 @@ export type AgentCommands = {
   pauseAutoApprove: () => void;
   /** Subagent currently active for this session, or null. */
   getActiveSubagent: () => { name: string } | null;
-  /** Wait for any pending session-state writes to flush to disk. */
-  flushSessionPersistence: () => Promise<void>;
+  /**
+   * Wait for any pending session-state writes to flush to disk.
+   * Resolves to whether the session has ever been persisted (false for
+   * empty sessions that were never written).
+   */
+  flushSessionPersistence: () => Promise<boolean>;
 };
 
 type UserEventMap = {
