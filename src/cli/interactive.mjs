@@ -152,10 +152,11 @@ export function startInteractiveSession({
 
     cleanup();
     const summary = agentCommands.getCostSummary();
-    console.log();
-    console.log(formatCostSummary(summary));
-    console.log();
-    console.log(`Session saved: ${sessionId}`);
+    console.log(
+      ["", formatCostSummary(summary), "", `Session saved: ${sessionId}`].join(
+        "\n",
+      ),
+    );
     await persistUsage(summary, { sessionId, modelName, startTime });
     await agentCommands.flushSessionPersistence();
     await onStop();
