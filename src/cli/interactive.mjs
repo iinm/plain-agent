@@ -4,8 +4,10 @@
  * @import { Tool, SandboxModeProvider } from "../tool"
  */
 
+import fs from "node:fs/promises";
 import readline from "node:readline";
 import { styleText } from "node:util";
+import { sessionFilePath } from "../sessionStore.mjs";
 import { appendUsageRecord, buildUsageRecord } from "../usageStore.mjs";
 import { createSequentialExecutor } from "../utils/createSequentialExecutor.mjs";
 import { notify } from "../utils/notify.mjs";
@@ -64,6 +66,21 @@ const HELP_MESSAGE = [
  * @property {ClaudeCodePlugin[]} [claudeCodePlugins]
  * @property {Tool & SandboxModeProvider} [execCommandTool]
  */
+
+/**
+ * Check whether a file exists.
+ *
+ * @param {string} filePath
+ * @returns {Promise<boolean>}
+ */
+async function fileExists(filePath) {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Persist the session's cost summary to the usage log.
@@ -152,13 +169,18 @@ export function startInteractiveSession({
 
     cleanup();
     const summary = agentCommands.getCostSummary();
-    console.log(
-      ["", formatCostSummary(summary), "", `Session saved: ${sessionId}`].join(
-        "\n",
-      ),
-    );
     await persistUsage(summary, { sessionId, modelName, startTime });
     await agentCommands.flushSessionPersistence();
+    // Empty sessions (exit without any interaction) are never written to disk,
+    // so only show the resume hint when a session file actually exists.
+    const sessionSaved = await fileExists(sessionFilePath(sessionId));
+    console.log(
+      [
+        "",
+        formatCostSummary(summary),
+        ...(sessionSaved ? ["", `Session saved: ${sessionId}`] : []),
+      ].join("\n"),
+    );
     await onStop();
     process.exit(0);
   };
