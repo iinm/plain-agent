@@ -153,8 +153,6 @@ export function startInteractiveSession({
     cleanup();
     const summary = agentCommands.getCostSummary();
     await persistUsage(summary, { sessionId, modelName, startTime });
-    // Empty sessions (exit without any interaction) are never written to disk,
-    // so only show the resume hint when the session was actually persisted.
     const sessionSaved = await agentCommands.flushSessionPersistence();
     console.log(
       [
