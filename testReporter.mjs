@@ -1,6 +1,6 @@
 /**
  * Minimal test reporter – shows only failures and a final summary.
- * Usage: node --test --test-reporter=./src/test-reporter.mjs
+ * Usage: node --test --test-reporter=./testReporter.mjs
  */
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";

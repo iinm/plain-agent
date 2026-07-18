@@ -1,5 +1,5 @@
 {
-  "include": ["src/**/*", "e2e/**/*", "scripts/**/*"],
+  "include": ["src/**/*", "e2e/**/*", "scripts/**/*", "testReporter.mjs"],
   "compilerOptions": {
     "allowJs": true,
     "checkJs": true,
