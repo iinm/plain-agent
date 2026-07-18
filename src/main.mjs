@@ -130,7 +130,7 @@ export async function main(argv = process.argv) {
     console.log("Resumable sessions (most recently updated first):\n");
     for (const s of sessions) {
       console.log(
-        `  ${s.sessionId}  ${s.modelName}  (updated ${formatLocalDateTime(s.lastUpdatedAt)}, ${s.messageCount} messages)`,
+        `  ${s.sessionId}  ${s.modelName}  (updated ${formatLocalDateTime(s.lastUpdatedAt)})`,
       );
       if (s.workingDir !== process.cwd()) {
         console.log(`    workingDir: ${s.workingDir}`);
@@ -217,9 +217,6 @@ export async function main(argv = process.argv) {
     if (resumedState) {
       console.log(
         styleText("green", `\n⏯  Resuming session: ${resumedState.sessionId}`),
-      );
-      console.log(
-        `  ⤷ ${resumedState.messages.length} messages, last updated ${formatLocalDateTime(resumedState.lastUpdatedAt)}`,
       );
       if (resumedState.workingDir !== process.cwd()) {
         console.log(

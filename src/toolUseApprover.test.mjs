@@ -289,35 +289,4 @@ describe("createToolUseApprover", () => {
       action: "ask",
     });
   });
-
-  it("snapshots and restores allowed tool-use patterns", () => {
-    // given:
-    const a = createToolUseApprover({
-      patterns: [],
-      maxApprovals: 5,
-      defaultAction: "ask",
-      maskApprovalInput: (_name, input) => input,
-    });
-    /** @type {MessageContentToolUse} */
-    const toolUse = {
-      type: "tool_use",
-      toolUseId: "1",
-      toolName: "exec_command",
-      input: { command: "ls" },
-    };
-    a.allowToolUse(toolUse);
-
-    // when:
-    const snapshot = a.getAllowedToolUseInSession();
-    const b = createToolUseApprover({
-      patterns: [],
-      maxApprovals: 5,
-      defaultAction: "ask",
-      maskApprovalInput: (_name, input) => input,
-    });
-    b.restoreAllowedToolUseInSession(snapshot);
-
-    // then:
-    assert.deepStrictEqual(b.isAllowedToolUse(toolUse), { action: "allow" });
-  });
 });

@@ -7,11 +7,10 @@
  * @import { AsyncQueue } from "./utils/createAsyncQueue.mjs"
  */
 
-import { styleText } from "node:util";
 import { createAgentLoop } from "./agentLoop.mjs";
 import { createStateManager } from "./agentState.mjs";
 import { createCostTracker } from "./costTracker.mjs";
-import { SESSION_FILE_VERSION, saveSession } from "./sessionStore.mjs";
+import { SESSION_FORMAT_VERSION } from "./sessionStore.mjs";
 import { createSubagentManager } from "./subagent.mjs";
 import { createToolExecutor } from "./toolExecutor.mjs";
 import {
@@ -53,12 +52,12 @@ export function createAgent({
   const costTracker = createCostTracker(modelCostConfig);
 
   /**
-   * Emit an agent event onto the output stream. providerTokenUsage events are
+   * Emit an agent event onto the output stream. token_usage events are
    * also recorded by the cost tracker as they pass through.
    * @param {AgentEvent} event
    */
   const emitEvent = (event) => {
-    if (event.type === "providerTokenUsage") {
+    if (event.type === "token_usage") {
       costTracker.recordUsage(event.usage);
     }
     eventQueue.push(event);
@@ -81,13 +80,14 @@ export function createAgent({
       for (const message of newMessages) {
         emitEvent({ type: "message", message });
       }
-      schedulePersist();
     },
+    onMessagesReplaced: (messages) =>
+      emitEvent({ type: "messages_reset", messages }),
   });
 
   const subagentManager = createSubagentManager(agentRoles, {
     onSubagentSwitched: (subagent) => {
-      emitEvent({ type: "subagentSwitched", subagent });
+      emitEvent({ type: "subagent_switched", subagent });
     },
   });
 
@@ -96,44 +96,8 @@ export function createAgent({
   // getActiveSubagent() at startup instead.
   if (initialState) {
     subagentManager.restoreState(initialState.subagentState);
-    toolUseApprover.restoreAllowedToolUseInSession(
-      initialState.allowedToolUseInSession,
-    );
     costTracker.restoreUsageHistory(initialState.tokenUsageHistory);
   }
-
-  /** @type {Promise<void>} */
-  let persistChain = Promise.resolve();
-  /** Whether the session has ever been written to disk. */
-  let sessionPersisted = false;
-  function schedulePersist() {
-    persistChain = persistChain.then(async () => {
-      try {
-        await saveSession({
-          version: SESSION_FILE_VERSION,
-          sessionId: sessionMetadata.sessionId,
-          modelName: sessionMetadata.modelName,
-          workingDir: sessionMetadata.workingDir,
-          startTime: sessionMetadata.startTime.toISOString(),
-          lastUpdatedAt: new Date().toISOString(),
-          messages: stateManager.getMessages(),
-          subagentState: subagentManager.getState(),
-          allowedToolUseInSession: toolUseApprover.getAllowedToolUseInSession(),
-          tokenUsageHistory: costTracker.getUsageHistory(),
-        });
-        sessionPersisted = true;
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        console.error(
-          styleText(
-            "yellow",
-            `Warning: failed to persist session state: ${message}`,
-          ),
-        );
-      }
-    });
-  }
-
   /**
    * @param {SwitchToSubagentInput} input
    */
@@ -222,6 +186,23 @@ export function createAgent({
   // Drive the agent by consuming user input from the pull-based queue and
   // running one turn loop per input. Runs for the lifetime of the process.
   let inputLoopStarted = false;
+  let sessionStartEmitted = false;
+  const emitSessionStartOnce = () => {
+    if (sessionStartEmitted) return;
+    sessionStartEmitted = true;
+    emitEvent({
+      type: "session_start",
+      sessionFormatVersion: SESSION_FORMAT_VERSION,
+      sessionId: sessionMetadata.sessionId,
+      modelName: sessionMetadata.modelName,
+      workingDir: sessionMetadata.workingDir,
+      startTime: sessionMetadata.startTime.toISOString(),
+    });
+    emitEvent({
+      type: "messages_reset",
+      messages: stateManager.getMessages(),
+    });
+  };
   const startInputLoop = () => {
     if (inputLoopStarted) return;
     inputLoopStarted = true;
@@ -243,6 +224,7 @@ export function createAgent({
       return eventQueue;
     },
     send(input) {
+      emitSessionStartOnce();
       inputQueue.push(input);
     },
     getCostSummary: () => costTracker.calculateCost(),
@@ -250,9 +232,5 @@ export function createAgent({
       paused = true;
     },
     getActiveSubagent: () => subagentManager.getActiveSubagent(),
-    flushSessionPersistence: async () => {
-      await persistChain;
-      return sessionPersisted;
-    },
   };
 }

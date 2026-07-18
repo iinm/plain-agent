@@ -9,6 +9,7 @@
 /**
  * @typedef {Object} StateEventHandlers
  * @property {(messages: Message[]) => void} onMessagesAppended
+ * @property {(messages: Message[]) => void} [onMessagesReplaced]
  */
 
 /**
@@ -34,8 +35,9 @@ export function createStateManager(initialMessages, handlers) {
     },
 
     /** Replace all messages */
-    setMessages: /** @param {Message[]} newMessages */ (newMessages) => {
+    replaceMessages: /** @param {Message[]} newMessages */ (newMessages) => {
       messages = [...newMessages];
+      handlers.onMessagesReplaced?.([...messages]);
     },
   };
 }

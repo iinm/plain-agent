@@ -94,35 +94,9 @@ export function createToolUseApprover({
       action: "allow",
     });
   }
-
-  /**
-   * Snapshot the tool-use patterns the user explicitly allowed during this
-   * session. Used to persist resumable session state.
-   * @returns {ToolUsePattern[]}
-   */
-  function getAllowedToolUseInSession() {
-    return state.allowedToolUseInSession.map((p) => ({ ...p }));
-  }
-
-  /**
-   * Replace the in-session allow-list with a previously saved snapshot.
-   * @param {ToolUsePattern[]} patterns
-   */
-  function restoreAllowedToolUseInSession(patterns) {
-    if (!Array.isArray(patterns)) {
-      throw new TypeError("patterns must be an array");
-    }
-    state.allowedToolUseInSession.length = 0;
-    for (const p of patterns) {
-      state.allowedToolUseInSession.push({ ...p });
-    }
-  }
-
   return {
     isAllowedToolUse,
     allowToolUse,
     resetApprovalCount,
-    getAllowedToolUseInSession,
-    restoreAllowedToolUseInSession,
   };
 }

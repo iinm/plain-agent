@@ -6,6 +6,7 @@
 
 import readline from "node:readline";
 import { styleText } from "node:util";
+import { persistSessionEvent, sessionFileExists } from "../sessionStore.mjs";
 import { appendUsageRecord, buildUsageRecord } from "../usageStore.mjs";
 import { notify } from "../utils/notify.mjs";
 import { createCommandHandler } from "./commands.mjs";
@@ -147,13 +148,19 @@ export function startInteractiveSession({
 
     cleanup();
     const summary = agent.getCostSummary();
+    const hasSessionFile = await sessionFileExists(sessionId);
+    if (hasSessionFile) {
+      await persistSessionEvent(sessionId, {
+        type: "session_end",
+        cost: summary,
+      });
+    }
     await persistUsage(summary, { sessionId, modelName, startTime });
-    const sessionSaved = await agent.flushSessionPersistence();
     console.log(
       [
         "",
         formatCostSummary(summary),
-        ...(sessionSaved ? ["", `Session saved: ${sessionId}`] : []),
+        ...(hasSessionFile ? ["", `Session saved: ${sessionId}`] : []),
       ].join("\n"),
     );
     await onStop();
@@ -408,8 +415,9 @@ export function startInteractiveSession({
   // sequential executor is needed.
   const consumeAgentEvents = async () => {
     for await (const event of agent.start()) {
+      await persistSessionEvent(sessionId, event);
       switch (event.type) {
-        case "partialMessageContent":
+        case "partial_message_content":
           handlePartialMessageContent(event.partialContent);
           break;
 
@@ -424,7 +432,7 @@ export function startInteractiveSession({
           }
           break;
 
-        case "toolUseRequest": {
+        case "tool_use_request": {
           const toolText =
             event.toolUseCount === 1 ? "tool call" : "tool calls";
           cli.setPrompt(
@@ -439,13 +447,13 @@ export function startInteractiveSession({
           break;
         }
 
-        case "subagentSwitched":
+        case "subagent_switched":
           state.subagentName = event.subagent?.name ?? "";
           currentCliPrompt = getCliPrompt(state.subagentName);
           cli.setPrompt(currentCliPrompt);
           break;
 
-        case "providerTokenUsage":
+        case "token_usage":
           console.log(formatProviderTokenUsage(event.usage));
           break;
 
@@ -458,7 +466,7 @@ export function startInteractiveSession({
           );
           break;
 
-        case "turnEnd": {
+        case "turn_end": {
           // Flush any remaining stream buffer content
           streamBuffer.forceFlush();
 

@@ -30,12 +30,6 @@ export type Agent = {
   pauseAutoApprove: () => void;
   /** Subagent currently active for this session, or null. */
   getActiveSubagent: () => { name: string } | null;
-  /**
-   * Wait for any pending session-state writes to flush to disk.
-   * Resolves to whether the session has ever been persisted (false for
-   * empty sessions that were never written).
-   */
-  flushSessionPersistence: () => Promise<boolean>;
 };
 
 /**
@@ -43,13 +37,30 @@ export type Agent = {
  * `type` field. Consumed via `Agent["start"]`.
  */
 export type AgentEvent =
+  | {
+      type: "session_start";
+      sessionFormatVersion: number;
+      sessionId: string;
+      modelName: string;
+      workingDir: string;
+      startTime: string;
+    }
   | { type: "message"; message: Message }
-  | { type: "partialMessageContent"; partialContent: PartialMessageContent }
+  | { type: "partial_message_content"; partialContent: PartialMessageContent }
   | { type: "error"; error: Error }
-  | { type: "toolUseRequest"; toolUseCount: number }
-  | { type: "turnEnd" }
-  | { type: "providerTokenUsage"; usage: ProviderTokenUsage }
-  | { type: "subagentSwitched"; subagent: { name: string } | null };
+  | { type: "tool_use_request"; toolUseCount: number }
+  | { type: "turn_end" }
+  | { type: "session_end"; cost: CostSummary }
+  | { type: "token_usage"; usage: ProviderTokenUsage }
+  | {
+      type: "subagent_switched";
+      subagent: {
+        name: string;
+        goal: string;
+        switchMessageIndex: number;
+      } | null;
+    }
+  | { type: "messages_reset"; messages: Message[] };
 
 /** Sink used by the agent loop to push events onto the output stream. */
 export type AgentEventSink = (event: AgentEvent) => void;

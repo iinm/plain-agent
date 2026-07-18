@@ -77,8 +77,6 @@ export type ToolUseApprover = {
   isAllowedToolUse: (toolUse: MessageContentToolUse) => ToolUseDecision;
   allowToolUse: (toolUse: MessageContentToolUse) => void;
   resetApprovalCount: () => void;
-  getAllowedToolUseInSession: () => ToolUsePattern[];
-  restoreAllowedToolUseInSession: (patterns: ToolUsePattern[]) => void;
 };
 
 export type ToolUsePattern = {
