@@ -39,7 +39,7 @@ export function createAgent({
   inputTokensKeys,
 }) {
   /**
-   * Pull-based input queue. CLI callers push input via sendUserInput; the
+   * Pull-based input queue. CLI callers push input via send(); the
    * agent's run loop consumes it as an async iterable.
    * @type {AsyncQueue<AgentInput>}
    */
@@ -239,23 +239,21 @@ export function createAgent({
   };
 
   return {
-    run() {
+    start() {
       startInputLoop();
       return eventQueue;
     },
-    sendUserInput(input) {
+    send(input) {
       inputQueue.push(input);
     },
-    agentCommands: {
-      getCostSummary: () => costTracker.calculateCost(),
-      pauseAutoApprove: () => {
-        paused = true;
-      },
-      getActiveSubagent: () => subagentManager.getActiveSubagent(),
-      flushSessionPersistence: async () => {
-        await persistChain;
-        return sessionPersisted;
-      },
+    getCostSummary: () => costTracker.calculateCost(),
+    pauseAutoApprove: () => {
+      paused = true;
+    },
+    getActiveSubagent: () => subagentManager.getActiveSubagent(),
+    flushSessionPersistence: async () => {
+      await persistChain;
+      return sessionPersisted;
     },
   };
 }

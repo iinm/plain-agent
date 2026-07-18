@@ -15,20 +15,17 @@ export type AgentInput = (MessageContentText | MessageContentImage)[];
 
 export type Agent = {
   /**
-   * Async stream of agent events. Consume with `for await`. The agent
-   * internally drives the input queue and pushes events onto this stream.
+   * Start the agent loop and return the async event stream. Consume with
+   * `for await`. Also kicks off the internal input queue consumer; call
+   * exactly once per session.
    */
-  run: () => AsyncIterable<AgentEvent>;
+  start: () => AsyncIterable<AgentEvent>;
   /**
-   * Supply user input to the agent. Input is pushed onto an internal async
+   * Send user input to the agent. Input is pushed onto an internal async
    * queue and consumed by the agent loop; may be called from multiple places
    * (plain input, slash commands, tool approval).
    */
-  sendUserInput: (input: AgentInput) => void;
-  agentCommands: AgentCommands;
-};
-
-export type AgentCommands = {
+  send: (input: AgentInput) => void;
   getCostSummary: () => CostSummary;
   pauseAutoApprove: () => void;
   /** Subagent currently active for this session, or null. */
@@ -43,7 +40,7 @@ export type AgentCommands = {
 
 /**
  * Discriminated union of events emitted by the agent, distinguished by the
- * `type` field. Consumed via `Agent["run"]`.
+ * `type` field. Consumed via `Agent["start"]`.
  */
 export type AgentEvent =
   | { type: "message"; message: Message }
