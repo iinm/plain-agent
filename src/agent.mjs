@@ -78,9 +78,8 @@ export function createAgent({
 
   const stateManager = createStateManager(baseMessages, {
     onMessagesAppended: (newMessages) => {
-      const lastMessage = newMessages.at(-1);
-      if (lastMessage) {
-        emitEvent({ type: "message", message: lastMessage });
+      for (const message of newMessages) {
+        emitEvent({ type: "message", message });
       }
       schedulePersist();
     },
