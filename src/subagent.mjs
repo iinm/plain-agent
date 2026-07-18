@@ -161,12 +161,11 @@ export function createSubagentManager(agentRoles, handlers) {
 
   /**
    * Process tool results and update state based on special tools.
-   * Returns the truncated message history and a new message to add.
    * @param {MessageContentToolUse[]} toolUseParts
    * @param {MessageContentToolResult[]} toolResults
    * @param {Message[]} messages
-   * @returns {{ messages: Message[], newMessage: Message | null }}
-   *   - messages: The potentially truncated message history (new array)
+   * @returns {{ state: { type: "unchanged" } | { type: "replaceMessages", messages: Message[] }, newMessage: Message | null }}
+   *   - state: Whether the caller must replace its messages
    *   - newMessage: The user message to add, or null if tool results should be added directly
    */
   function processToolResults(toolUseParts, toolResults, messages) {
@@ -179,7 +178,7 @@ export function createSubagentManager(agentRoles, handlers) {
         (res) => res.toolUseId === reportSubagentToolUse.toolUseId,
       );
       if (!reportResult) {
-        return { messages, newMessage: null };
+        return { state: { type: "unchanged" }, newMessage: null };
       }
       return handleSubagentReport(
         reportSubagentToolUse,
@@ -188,7 +187,7 @@ export function createSubagentManager(agentRoles, handlers) {
       );
     }
 
-    return { messages, newMessage: null };
+    return { state: { type: "unchanged" }, newMessage: null };
   }
 
   /**
@@ -198,18 +197,16 @@ export function createSubagentManager(agentRoles, handlers) {
    * @param {MessageContentToolUse} reportToolUse
    * @param {MessageContentToolResult} reportResult
    * @param {Message[]} messages
-   * @returns {{ messages: Message[], newMessage: Message | null }}
-   *   - messages: The truncated message history (new array)
-   *   - newMessage: The user message to add, or null if not handled
+   * @returns {{ state: { type: "unchanged" } | { type: "replaceMessages", messages: Message[] }, newMessage: Message | null }}
    */
   function handleSubagentReport(reportToolUse, reportResult, messages) {
     if (reportResult.isError) {
-      return { messages, newMessage: null };
+      return { state: { type: "unchanged" }, newMessage: null };
     }
 
     const currentSubagent = subagents.pop();
     if (!currentSubagent) {
-      return { messages, newMessage: null };
+      return { state: { type: "unchanged" }, newMessage: null };
     }
 
     handlers.onSubagentSwitched(subagents.at(-1) ?? null);
@@ -245,7 +242,10 @@ export function createSubagentManager(agentRoles, handlers) {
       ],
     };
 
-    return { messages: truncatedMessages, newMessage };
+    return {
+      state: { type: "replaceMessages", messages: truncatedMessages },
+      newMessage,
+    };
   }
 
   /**
