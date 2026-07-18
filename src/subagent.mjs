@@ -2,6 +2,8 @@
  * @import { Message, MessageContentToolResult, MessageContentToolUse } from "./model"
  * @import { SwitchToMainAgentInput } from "./tools/switchToMainAgent"
  * @import { AgentRole } from "./context/loadAgentRoles.mjs"
+ * @import { Marker } from "./agentState.mjs"
+ * @import { SubagentSerializedState } from "./sessionStore.mjs"
  */
 
 import fs from "node:fs/promises";
@@ -23,7 +25,7 @@ import { switchToMainAgentToolName } from "./tools/switchToMainAgent.mjs";
  * @param {SubagentStateEventHandlers} handlers
  */
 export function createSubagentManager(agentRoles, handlers) {
-  /** @type {{name: string; goal: string; switchMessageIndex: number}[]} */
+  /** @type {{name: string; goal: string; checkpoint: Marker}[]} */
   const subagents = [];
   let subagentCount = 0;
 
@@ -47,10 +49,10 @@ export function createSubagentManager(agentRoles, handlers) {
    * Switch to a subagent role.
    * @param {string} name
    * @param {string} goal
-   * @param {number} switchMessageIndex
+   * @param {Marker} checkpoint - Opaque marker for the point to restore to on report.
    * @returns {SwitchToSubagentResult}
    */
-  function switchToSubagent(name, goal, switchMessageIndex) {
+  function switchToSubagent(name, goal, checkpoint) {
     if (subagents.length > 0) {
       return {
         success: false,
@@ -86,7 +88,7 @@ export function createSubagentManager(agentRoles, handlers) {
     subagents.push({
       name: actualName,
       goal,
-      switchMessageIndex,
+      checkpoint,
     });
     handlers.onSubagentSwitched({ name: actualName });
 
@@ -160,16 +162,22 @@ export function createSubagentManager(agentRoles, handlers) {
   }
 
   /**
-   * Process tool results and update state based on special tools.
-   * Returns the truncated message history and a new message to add.
+   * @typedef {Object} ProcessToolResultsOutcome
+   * @property {Marker | null} marker - Checkpoint to truncate the history back
+   *   to, or null when no truncation is required.
+   * @property {Message | null} newMessage - The user message to add, or null
+   *   when tool results should be appended directly.
+   */
+
+  /**
+   * Process tool results and decide how the message history should change,
+   * without touching the message array itself. When a subagent reports back,
+   * returns the checkpoint marker to restore to and the report message to add.
    * @param {MessageContentToolUse[]} toolUseParts
    * @param {MessageContentToolResult[]} toolResults
-   * @param {Message[]} messages
-   * @returns {{ messages: Message[], newMessage: Message | null }}
-   *   - messages: The potentially truncated message history (new array)
-   *   - newMessage: The user message to add, or null if tool results should be added directly
+   * @returns {ProcessToolResultsOutcome}
    */
-  function processToolResults(toolUseParts, toolResults, messages) {
+  function processToolResults(toolUseParts, toolResults) {
     const reportSubagentToolUse = toolUseParts.find(
       (toolUse) => toolUse.toolName === switchToMainAgentToolName,
     );
@@ -179,46 +187,33 @@ export function createSubagentManager(agentRoles, handlers) {
         (res) => res.toolUseId === reportSubagentToolUse.toolUseId,
       );
       if (!reportResult) {
-        return { messages, newMessage: null };
+        return { marker: null, newMessage: null };
       }
-      return handleSubagentReport(
-        reportSubagentToolUse,
-        reportResult,
-        messages,
-      );
+      return handleSubagentReport(reportSubagentToolUse, reportResult);
     }
 
-    return { messages, newMessage: null };
+    return { marker: null, newMessage: null };
   }
 
   /**
    * Handle the result of a subagent reporting back.
-   * On success, truncates conversation history back to the switch point
-   * and converts the report into a standard user message.
+   * On success, returns the checkpoint to restore the conversation to and the
+   * report converted into a standard user message. Does not mutate the history.
    * @param {MessageContentToolUse} reportToolUse
    * @param {MessageContentToolResult} reportResult
-   * @param {Message[]} messages
-   * @returns {{ messages: Message[], newMessage: Message | null }}
-   *   - messages: The truncated message history (new array)
-   *   - newMessage: The user message to add, or null if not handled
+   * @returns {ProcessToolResultsOutcome}
    */
-  function handleSubagentReport(reportToolUse, reportResult, messages) {
+  function handleSubagentReport(reportToolUse, reportResult) {
     if (reportResult.isError) {
-      return { messages, newMessage: null };
+      return { marker: null, newMessage: null };
     }
 
     const currentSubagent = subagents.pop();
     if (!currentSubagent) {
-      return { messages, newMessage: null };
+      return { marker: null, newMessage: null };
     }
 
     handlers.onSubagentSwitched(subagents.at(-1) ?? null);
-
-    // Truncate history back to the switch point
-    const truncatedMessages = messages.slice(
-      0,
-      currentSubagent.switchMessageIndex,
-    );
 
     // Convert the tool result into a standard user message
     const resultText = reportResult.content
@@ -245,7 +240,7 @@ export function createSubagentManager(agentRoles, handlers) {
       ],
     };
 
-    return { messages: truncatedMessages, newMessage };
+    return { marker: currentSubagent.checkpoint, newMessage };
   }
 
   /**
@@ -266,29 +261,33 @@ export function createSubagentManager(agentRoles, handlers) {
   }
 
   /**
-   * @typedef {Object} SubagentSerializedState
-   * @property {{name: string, goal: string, switchMessageIndex: number}[]} subagents
-   * @property {number} subagentCount
-   */
-
-  /**
-   * Snapshot the subagent stack for persistence.
+   * Snapshot the subagent stack for persistence. The opaque in-memory checkpoint
+   * markers are converted to their serializable form via the supplied resolver
+   * so this module never sees the on-disk index representation.
+   * @param {(marker: Marker) => number} serializeMarker
    * @returns {SubagentSerializedState}
    */
-  function getState() {
+  function getState(serializeMarker) {
     return {
-      subagents: subagents.map((s) => ({ ...s })),
+      subagents: subagents.map((s) => ({
+        name: s.name,
+        goal: s.goal,
+        switchMessageIndex: serializeMarker(s.checkpoint),
+      })),
       subagentCount,
     };
   }
 
   /**
-   * Restore the subagent stack from a previously saved snapshot.
-   * Does NOT fire onSubagentSwitched; the caller is responsible for
-   * syncing any UI state (since listeners may not be attached yet).
+   * Restore the subagent stack from a previously saved snapshot. The persisted
+   * index for each subagent is turned back into an opaque marker via the
+   * supplied reviver. Does NOT fire onSubagentSwitched; the caller is
+   * responsible for syncing any UI state (since listeners may not be attached
+   * yet).
    * @param {SubagentSerializedState} state
+   * @param {(index: number) => Marker} reviveMarker
    */
-  function restoreState(state) {
+  function restoreState(state, reviveMarker) {
     if (typeof state !== "object" || state === null) {
       throw new TypeError("state must be a non-null object");
     }
@@ -303,7 +302,7 @@ export function createSubagentManager(agentRoles, handlers) {
       subagents.push({
         name: s.name,
         goal: s.goal,
-        switchMessageIndex: s.switchMessageIndex,
+        checkpoint: reviveMarker(s.switchMessageIndex),
       });
     }
     subagentCount = state.subagentCount;

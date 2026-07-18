@@ -76,11 +76,16 @@ export function createAgent({
     ? [systemMessage, ...initialState.messages.slice(1)]
     : [systemMessage];
 
+  // Thin adapter over the state manager's structural notifications: an
+  // "append" surfaces the newest message to listeners; both kinds persist.
+  // The state manager itself knows nothing about emitting or persisting.
   const stateManager = createStateManager(baseMessages, {
-    onMessagesAppended: (newMessages) => {
-      const lastMessage = newMessages.at(-1);
-      if (lastMessage) {
-        emitEvent({ type: "message", message: lastMessage });
+    onMessagesChanged: (change) => {
+      if (change.kind === "append") {
+        const lastMessage = change.messages.at(-1);
+        if (lastMessage) {
+          emitEvent({ type: "message", message: lastMessage });
+        }
       }
       schedulePersist();
     },
@@ -96,7 +101,10 @@ export function createAgent({
   // (no event), since CLI listeners aren't attached yet — the CLI consults
   // getActiveSubagent() at startup instead.
   if (initialState) {
-    subagentManager.restoreState(initialState.subagentState);
+    subagentManager.restoreState(
+      initialState.subagentState,
+      stateManager.reviveMarker,
+    );
     toolUseApprover.restoreAllowedToolUseInSession(
       initialState.allowedToolUseInSession,
     );
@@ -118,7 +126,7 @@ export function createAgent({
           startTime: sessionMetadata.startTime.toISOString(),
           lastUpdatedAt: new Date().toISOString(),
           messages: stateManager.getMessages(),
-          subagentState: subagentManager.getState(),
+          subagentState: subagentManager.getState(stateManager.serializeMarker),
           allowedToolUseInSession: toolUseApprover.getAllowedToolUseInSession(),
           tokenUsageHistory: costTracker.getUsageHistory(),
         });
@@ -142,7 +150,7 @@ export function createAgent({
     const result = subagentManager.switchToSubagent(
       input.name,
       input.goal,
-      stateManager.getMessages().length - 1,
+      stateManager.markCheckpoint(),
     );
     if (!result.success) {
       return new Error(result.error);

@@ -260,9 +260,10 @@ export function createAgentLoop({
       const result = subagentManager.processToolResults(
         toolUseParts,
         toolResults,
-        stateManager.getMessages(),
       );
-      stateManager.setMessages(result.messages);
+      if (result.marker) {
+        stateManager.truncateToMarker(result.marker);
+      }
       if (result.newMessage) {
         stateManager.appendMessages([result.newMessage]);
       } else {
@@ -426,9 +427,10 @@ export function createInputHandler(context) {
       const result = subagentManager.processToolResults(
         toolUseParts,
         toolResults,
-        stateManager.getMessages(),
       );
-      stateManager.setMessages(result.messages);
+      if (result.marker) {
+        stateManager.truncateToMarker(result.marker);
+      }
 
       if (result.newMessage) {
         stateManager.appendMessages([result.newMessage]);
