@@ -6,7 +6,7 @@
 
 import readline from "node:readline";
 import { styleText } from "node:util";
-import { appendSessionLine, WRITABLE_EVENT_TYPES } from "../sessionStore.mjs";
+import { persistSessionEvent, sessionFileExists } from "../sessionStore.mjs";
 import { appendUsageRecord, buildUsageRecord } from "../usageStore.mjs";
 import { notify } from "../utils/notify.mjs";
 import { createCommandHandler } from "./commands.mjs";
@@ -142,24 +142,25 @@ export function startInteractiveSession({
 
   // Handle exit signals
   let isExiting = false;
-  let sessionSaved = false;
-  let sessionEndWritten = false;
   const handleExit = async () => {
     if (isExiting) return;
     isExiting = true;
 
     cleanup();
     const summary = agent.getCostSummary();
-    if (!sessionEndWritten) {
-      await persistSessionEvent({ type: "session_end", cost: summary });
-      sessionEndWritten = true;
+    const hasSessionFile = await sessionFileExists(sessionId);
+    if (hasSessionFile) {
+      await persistSessionEvent(sessionId, {
+        type: "session_end",
+        cost: summary,
+      });
     }
     await persistUsage(summary, { sessionId, modelName, startTime });
     console.log(
       [
         "",
         formatCostSummary(summary),
-        ...(sessionSaved ? ["", `Session saved: ${sessionId}`] : []),
+        ...(hasSessionFile ? ["", `Session saved: ${sessionId}`] : []),
       ].join("\n"),
     );
     await onStop();
@@ -409,22 +410,12 @@ export function startInteractiveSession({
     }
   };
 
-  /** @param {import("../agent").AgentEvent} event */
-  async function persistSessionEvent(event) {
-    if (!WRITABLE_EVENT_TYPES.has(event.type)) return;
-    await appendSessionLine(
-      sessionId,
-      JSON.stringify({ ...event, timestamp: new Date().toISOString() }),
-    );
-    sessionSaved = true;
-  }
-
   // Consume the agent's event stream. Because events are pulled one at a time
   // and awaited in order, output is naturally serialized — no manual
   // sequential executor is needed.
   const consumeAgentEvents = async () => {
     for await (const event of agent.start()) {
-      await persistSessionEvent(event);
+      await persistSessionEvent(sessionId, event);
       switch (event.type) {
         case "partial_message_content":
           handlePartialMessageContent(event.partialContent);

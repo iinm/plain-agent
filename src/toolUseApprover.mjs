@@ -21,7 +21,7 @@ export function createToolUseApprover({
   const state = {
     approvalCount: 0,
     /** @type {ToolUsePattern[]} */
-    allowedToolUsePatterns: [],
+    allowedToolUseInSession: [],
   };
 
   /** @returns {void} */
@@ -39,7 +39,7 @@ export function createToolUseApprover({
       input: toolUse.input,
     };
 
-    for (const pattern of [...patterns, ...state.allowedToolUsePatterns]) {
+    for (const pattern of [...patterns, ...state.allowedToolUseInSession]) {
       const patternToMatch = {
         toolName: pattern.toolName,
         ...(pattern.input !== undefined && { input: pattern.input }),
@@ -88,7 +88,7 @@ export function createToolUseApprover({
    * @returns {void}
    */
   function allowToolUse(toolUse) {
-    state.allowedToolUsePatterns.push({
+    state.allowedToolUseInSession.push({
       toolName: toolUse.toolName,
       input: maskApprovalInput(toolUse.toolName, toolUse.input),
       action: "allow",

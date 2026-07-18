@@ -4,10 +4,11 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import {
-  appendSessionLine,
   listSessions,
   loadSession,
+  persistSessionEvent,
   SESSION_FORMAT_VERSION,
+  sessionFileExists,
   sessionFilePath,
 } from "./sessionStore.mjs";
 
@@ -37,25 +38,6 @@ const userMessage = {
   content: [{ type: "text", text: "hello" }],
 };
 
-/** @param {string} sessionId @param {object} event */
-async function append(sessionId, event) {
-  await appendSessionLine(
-    sessionId,
-    JSON.stringify({ ...event, timestamp: "2026-05-10T08:03:01.000Z" }),
-    { dir: tmpDir },
-  );
-}
-
-/** @param {string} sessionId */
-async function start(sessionId = metadata.sessionId) {
-  await append(sessionId, {
-    type: "session_start",
-    sessionFormatVersion: SESSION_FORMAT_VERSION,
-    ...metadata,
-    sessionId,
-  });
-}
-
 describe("sessionFilePath", () => {
   it("uses the jsonl extension", () => {
     // when:
@@ -65,34 +47,87 @@ describe("sessionFilePath", () => {
   });
 });
 
-describe("appendSessionLine + loadSession", () => {
+describe("sessionFileExists", () => {
+  it("returns false when the session event-stream file is missing", async () => {
+    // when:
+    const exists = await sessionFileExists("missing", { dir: tmpDir });
+
+    // then:
+    assert.equal(exists, false);
+  });
+
+  it("returns true when the session event-stream file exists", async () => {
+    // given:
+    await persistSessionEvent(
+      metadata.sessionId,
+      {
+        type: "session_start",
+        sessionFormatVersion: SESSION_FORMAT_VERSION,
+        ...metadata,
+      },
+      { dir: tmpDir },
+    );
+
+    // when:
+    const exists = await sessionFileExists(metadata.sessionId, { dir: tmpDir });
+
+    // then:
+    assert.equal(exists, true);
+  });
+});
+
+describe("persistSessionEvent + loadSession", () => {
   it("replays messages, resets, usage, and subagent transitions", async () => {
     // given:
-    await start();
-    await append(metadata.sessionId, {
-      type: "message",
-      message: systemMessage,
-    });
-    await append(metadata.sessionId, { type: "message", message: userMessage });
-    await append(metadata.sessionId, {
-      type: "messages_reset",
-      messages: [systemMessage],
-    });
+    await persistSessionEvent(
+      metadata.sessionId,
+      {
+        type: "session_start",
+        sessionFormatVersion: SESSION_FORMAT_VERSION,
+        ...metadata,
+      },
+      { dir: tmpDir },
+    );
+    await persistSessionEvent(
+      metadata.sessionId,
+      { type: "message", message: systemMessage },
+      { dir: tmpDir },
+    );
+    await persistSessionEvent(
+      metadata.sessionId,
+      { type: "message", message: userMessage },
+      { dir: tmpDir },
+    );
+    await persistSessionEvent(
+      metadata.sessionId,
+      { type: "messages_reset", messages: [systemMessage] },
+      { dir: tmpDir },
+    );
     const subagent = {
       name: "researcher",
       goal: "investigate",
       switchMessageIndex: 1,
     };
-    await append(metadata.sessionId, { type: "subagent_switched", subagent });
-    await append(metadata.sessionId, {
-      type: "subagent_switched",
-      subagent: null,
-    });
-    await append(metadata.sessionId, { type: "subagent_switched", subagent });
-    await append(metadata.sessionId, {
-      type: "token_usage",
-      usage: { inputTokens: 4 },
-    });
+    await persistSessionEvent(
+      metadata.sessionId,
+      { type: "subagent_switched", subagent },
+      { dir: tmpDir },
+    );
+    await persistSessionEvent(
+      metadata.sessionId,
+      { type: "subagent_switched", subagent: null },
+      { dir: tmpDir },
+    );
+    await persistSessionEvent(
+      metadata.sessionId,
+      { type: "subagent_switched", subagent },
+      { dir: tmpDir },
+    );
+    await persistSessionEvent(
+      metadata.sessionId,
+      { type: "token_usage", usage: { inputTokens: 4 } },
+      { dir: tmpDir },
+    );
 
     // when:
     const loaded = await loadSession(metadata.sessionId, { dir: tmpDir });
@@ -109,20 +144,53 @@ describe("appendSessionLine + loadSession", () => {
 
   it("skips corrupt event lines and later session_start events", async () => {
     // given:
-    await start();
-    await appendSessionLine(metadata.sessionId, "not json", { dir: tmpDir });
-    await append(metadata.sessionId, {
-      type: "session_start",
-      sessionFormatVersion: 999,
-      ...metadata,
-    });
-    await append(metadata.sessionId, { type: "message", message: userMessage });
+    await persistSessionEvent(
+      metadata.sessionId,
+      {
+        type: "session_start",
+        sessionFormatVersion: SESSION_FORMAT_VERSION,
+        ...metadata,
+      },
+      { dir: tmpDir },
+    );
+    await fs.appendFile(
+      sessionFilePath(metadata.sessionId, { dir: tmpDir }),
+      "not json\n",
+      "utf8",
+    );
+    await persistSessionEvent(
+      metadata.sessionId,
+      {
+        type: "session_start",
+        sessionFormatVersion: 999,
+        ...metadata,
+      },
+      { dir: tmpDir },
+    );
+    await persistSessionEvent(
+      metadata.sessionId,
+      { type: "message", message: userMessage },
+      { dir: tmpDir },
+    );
 
     // when:
     const loaded = await loadSession(metadata.sessionId, { dir: tmpDir });
 
     // then:
     assert.deepEqual(loaded?.messages, [userMessage]);
+  });
+
+  it("does not create a stream for an event outside the session format", async () => {
+    // when:
+    await persistSessionEvent(
+      "not-persisted",
+      { type: "turn_end" },
+      { dir: tmpDir },
+    );
+    const loaded = await loadSession("not-persisted", { dir: tmpDir });
+
+    // then:
+    assert.equal(loaded, null);
   });
 
   it("returns null for a missing stream", async () => {
@@ -134,11 +202,15 @@ describe("appendSessionLine + loadSession", () => {
 
   it("throws for a format-version mismatch", async () => {
     // given:
-    await append(metadata.sessionId, {
-      type: "session_start",
-      sessionFormatVersion: 999,
-      ...metadata,
-    });
+    await persistSessionEvent(
+      metadata.sessionId,
+      {
+        type: "session_start",
+        sessionFormatVersion: 999,
+        ...metadata,
+      },
+      { dir: tmpDir },
+    );
     // when/then:
     await assert.rejects(
       () => loadSession(metadata.sessionId, { dir: tmpDir }),
@@ -150,9 +222,27 @@ describe("appendSessionLine + loadSession", () => {
 describe("listSessions", () => {
   it("lists only valid jsonl streams in mtime-descending order", async () => {
     // given:
-    await start("older");
+    await persistSessionEvent(
+      "older",
+      {
+        type: "session_start",
+        sessionFormatVersion: SESSION_FORMAT_VERSION,
+        ...metadata,
+        sessionId: "older",
+      },
+      { dir: tmpDir },
+    );
     await new Promise((resolve) => setTimeout(resolve, 20));
-    await start("newer");
+    await persistSessionEvent(
+      "newer",
+      {
+        type: "session_start",
+        sessionFormatVersion: SESSION_FORMAT_VERSION,
+        ...metadata,
+        sessionId: "newer",
+      },
+      { dir: tmpDir },
+    );
     await fs.writeFile(path.join(tmpDir, "ignored.json"), "{}", "utf8");
     await fs.writeFile(path.join(tmpDir, "bad.jsonl"), "not json\n", "utf8");
 

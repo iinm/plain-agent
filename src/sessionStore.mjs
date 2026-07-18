@@ -10,7 +10,7 @@ import { SESSIONS_DIR } from "./env.mjs";
 export const SESSION_FORMAT_VERSION = 2;
 
 /** Event types that are persisted in session JSONL streams. */
-export const WRITABLE_EVENT_TYPES = new Set([
+const WRITABLE_EVENT_TYPES = new Set([
   "session_start",
   "message",
   "token_usage",
@@ -57,14 +57,41 @@ export function sessionFilePath(sessionId, options = {}) {
 }
 
 /**
- * Append one JSONL line to a session event stream.
+ * Return whether a session event-stream file exists.
  * @param {string} sessionId
- * @param {string} line
+ * @param {{ dir?: string }} [options]
+ * @returns {Promise<boolean>}
+ */
+export async function sessionFileExists(sessionId, options = {}) {
+  try {
+    await fs.access(sessionFilePath(sessionId, options));
+    return true;
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      /** @type {NodeJS.ErrnoException} */ (err).code === "ENOENT"
+    ) {
+      return false;
+    }
+    throw err;
+  }
+}
+
+/**
+ * Persist an event when it belongs in the session event stream.
+ * @param {string} sessionId
+ * @param {{ type: string, [key: string]: unknown }} event
  * @param {{ dir?: string }} [options]
  */
-export async function appendSessionLine(sessionId, line, options = {}) {
+export async function persistSessionEvent(sessionId, event, options = {}) {
+  if (!WRITABLE_EVENT_TYPES.has(event.type)) return;
+
   const dir = options.dir ?? SESSIONS_DIR;
   await fs.mkdir(dir, { recursive: true });
+  const line = JSON.stringify({
+    ...event,
+    timestamp: new Date().toISOString(),
+  });
   await fs.appendFile(sessionFilePath(sessionId, { dir }), `${line}\n`, "utf8");
 }
 

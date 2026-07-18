@@ -81,7 +81,7 @@ export function createAgent({
         emitEvent({ type: "message", message });
       }
     },
-    onMessagesReset: (messages) =>
+    onMessagesReplaced: (messages) =>
       emitEvent({ type: "messages_reset", messages }),
   });
 
@@ -187,6 +187,22 @@ export function createAgent({
   // running one turn loop per input. Runs for the lifetime of the process.
   let inputLoopStarted = false;
   let sessionStartEmitted = false;
+  const emitSessionStartOnce = () => {
+    if (sessionStartEmitted) return;
+    sessionStartEmitted = true;
+    emitEvent({
+      type: "session_start",
+      sessionFormatVersion: SESSION_FORMAT_VERSION,
+      sessionId: sessionMetadata.sessionId,
+      modelName: sessionMetadata.modelName,
+      workingDir: sessionMetadata.workingDir,
+      startTime: sessionMetadata.startTime.toISOString(),
+    });
+    emitEvent({
+      type: "messages_reset",
+      messages: stateManager.getMessages(),
+    });
+  };
   const startInputLoop = () => {
     if (inputLoopStarted) return;
     inputLoopStarted = true;
@@ -204,25 +220,11 @@ export function createAgent({
 
   return {
     start() {
-      if (!sessionStartEmitted) {
-        sessionStartEmitted = true;
-        emitEvent({
-          type: "session_start",
-          sessionFormatVersion: SESSION_FORMAT_VERSION,
-          sessionId: sessionMetadata.sessionId,
-          modelName: sessionMetadata.modelName,
-          workingDir: sessionMetadata.workingDir,
-          startTime: sessionMetadata.startTime.toISOString(),
-        });
-        emitEvent({
-          type: "messages_reset",
-          messages: stateManager.getMessages(),
-        });
-      }
       startInputLoop();
       return eventQueue;
     },
     send(input) {
+      emitSessionStartOnce();
       inputQueue.push(input);
     },
     getCostSummary: () => costTracker.calculateCost(),

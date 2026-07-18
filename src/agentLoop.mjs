@@ -34,7 +34,7 @@ function applyCompactContextIfCalled(stateManager, toolUseParts, toolResults) {
   const systemMessage = stateManager.getMessageAt(0);
   if (!systemMessage) return false;
 
-  stateManager.setMessages([systemMessage]);
+  stateManager.replaceMessages([systemMessage]);
   stateManager.appendMessages([
     { role: "user", content: compactResult.content },
   ]);
@@ -262,7 +262,7 @@ export function createAgentLoop({
         toolResults,
         stateManager.getMessages(),
       );
-      stateManager.setMessages(result.messages);
+      stateManager.replaceMessages(result.messages);
       if (result.newMessage) {
         stateManager.appendMessages([result.newMessage]);
       } else {
@@ -428,7 +428,7 @@ export function createInputHandler(context) {
         toolResults,
         stateManager.getMessages(),
       );
-      stateManager.setMessages(result.messages);
+      stateManager.replaceMessages(result.messages);
 
       if (result.newMessage) {
         stateManager.appendMessages([result.newMessage]);

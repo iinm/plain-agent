@@ -2,7 +2,7 @@
  * @import { Agent } from "../agent"
  */
 
-import { appendSessionLine, WRITABLE_EVENT_TYPES } from "../sessionStore.mjs";
+import { persistSessionEvent } from "../sessionStore.mjs";
 import { appendUsageRecord, buildUsageRecord } from "../usageStore.mjs";
 import { formatCostForBatch } from "./formatter.mjs";
 
@@ -114,19 +114,6 @@ export async function startBatchSession({
       }
     }
   }
-}
-
-/**
- * Persist an event when it belongs in the session event stream.
- * @param {string} sessionId
- * @param {{ type: string }} event
- */
-async function persistSessionEvent(sessionId, event) {
-  if (!WRITABLE_EVENT_TYPES.has(event.type)) return;
-  await appendSessionLine(
-    sessionId,
-    JSON.stringify({ ...event, timestamp: new Date().toISOString() }),
-  );
 }
 
 /**
