@@ -1,5 +1,5 @@
 /**
- * @import { UserEventEmitter, AgentEventEmitter, AgentCommands } from "../agent"
+ * @import { Agent } from "../agent"
  * @import { ClaudeCodePlugin } from "../claudeCodePlugin.mjs"
  * @import { Tool, SandboxModeProvider } from "../tool"
  */
@@ -7,7 +7,6 @@
 import readline from "node:readline";
 import { styleText } from "node:util";
 import { appendUsageRecord, buildUsageRecord } from "../usageStore.mjs";
-import { createSequentialExecutor } from "../utils/createSequentialExecutor.mjs";
 import { notify } from "../utils/notify.mjs";
 import { createCommandHandler } from "./commands.mjs";
 import { createCompleter, SLASH_COMMANDS } from "./completer.mjs";
@@ -52,9 +51,7 @@ const HELP_MESSAGE = [
 
 /**
  * @typedef {object} CliOptions
- * @property {UserEventEmitter} userEventEmitter
- * @property {AgentEventEmitter} agentEventEmitter
- * @property {AgentCommands} agentCommands
+ * @property {Agent} agent
  * @property {string} sessionId
  * @property {string} modelName
  * @property {Date} startTime
@@ -96,9 +93,7 @@ async function persistUsage(summary, { sessionId, modelName, startTime }) {
  * @param {CliOptions} options
  */
 export function startInteractiveSession({
-  userEventEmitter,
-  agentEventEmitter,
-  agentCommands,
+  agent,
   sessionId,
   modelName,
   startTime,
@@ -108,6 +103,7 @@ export function startInteractiveSession({
   claudeCodePlugins,
   execCommandTool,
 }) {
+  const { agentCommands } = agent;
   /** @type {{ turn: boolean, multiLineBuffer: string[] | null, subagentName: string, toolSpinnerIndex: number, toolSpinnerLastTime: number }} */
   const state = {
     turn: true,
@@ -288,7 +284,7 @@ export function startInteractiveSession({
 
   const handleCommand = createCommandHandler({
     agentCommands,
-    userEventEmitter,
+    sendUserInput: agent.sendUserInput,
     claudeCodePlugins,
     helpMessage: HELP_MESSAGE,
   });
@@ -359,7 +355,11 @@ export function startInteractiveSession({
     await processInput(lineInput);
   });
 
-  agentEventEmitter.on("partialMessageContent", (partialContent) => {
+  /**
+   * Render a streaming partial message content chunk.
+   * @param {import("../model").PartialMessageContent} partialContent
+   */
+  const handlePartialMessageContent = (partialContent) => {
     if (partialContent.position === "start") {
       const subagentPrefix = state.subagentName
         ? styleText("cyan", `[${state.subagentName}]\n`)
@@ -403,74 +403,85 @@ export function startInteractiveSession({
         console.log(styleText("gray", `\n</${partialContent.type}>`));
       }
     }
-  });
+  };
 
-  const enqueueOutput = createSequentialExecutor();
+  // Consume the agent's event stream. Because events are pulled one at a time
+  // and awaited in order, output is naturally serialized — no manual
+  // sequential executor is needed.
+  const consumeAgentEvents = async () => {
+    for await (const event of agent.run()) {
+      switch (event.type) {
+        case "partialMessageContent":
+          handlePartialMessageContent(event.partialContent);
+          break;
 
-  agentEventEmitter.on("message", (message) => {
-    enqueueOutput(() =>
-      printMessage(message, { execCommandTool }).catch((err) => {
-        console.error(
-          styleText("red", `Error rendering message: ${err.message}`),
-        );
-      }),
-    );
-  });
+        case "message":
+          try {
+            await printMessage(event.message, { execCommandTool });
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error(
+              styleText("red", `Error rendering message: ${message}`),
+            );
+          }
+          break;
 
-  agentEventEmitter.on("toolUseRequest", (toolCount) => {
-    const toolText = toolCount === 1 ? "tool call" : "tool calls";
-    cli.setPrompt(
-      getCliPrompt(
-        state.subagentName,
-        styleText(
-          "yellow",
-          `Approve ${toolCount} ${toolText}? (y = allow once, Y = allow in this session, or feedback)`,
-        ),
-      ),
-    );
-  });
+        case "toolUseRequest": {
+          const toolText =
+            event.toolUseCount === 1 ? "tool call" : "tool calls";
+          cli.setPrompt(
+            getCliPrompt(
+              state.subagentName,
+              styleText(
+                "yellow",
+                `Approve ${event.toolUseCount} ${toolText}? (y = allow once, Y = allow in this session, or feedback)`,
+              ),
+            ),
+          );
+          break;
+        }
 
-  agentEventEmitter.on("subagentSwitched", (subagent) => {
-    state.subagentName = subagent?.name ?? "";
-    currentCliPrompt = getCliPrompt(state.subagentName);
-    cli.setPrompt(currentCliPrompt);
-  });
+        case "subagentSwitched":
+          state.subagentName = event.subagent?.name ?? "";
+          currentCliPrompt = getCliPrompt(state.subagentName);
+          cli.setPrompt(currentCliPrompt);
+          break;
 
-  agentEventEmitter.on("providerTokenUsage", (usage) => {
-    enqueueOutput(() => {
-      console.log(formatProviderTokenUsage(usage));
-    });
-  });
+        case "providerTokenUsage":
+          console.log(formatProviderTokenUsage(event.usage));
+          break;
 
-  agentEventEmitter.on("error", (error) => {
-    console.error(
-      styleText(
-        "red",
-        `\nError: message=${error.message}, stack=${error.stack}`,
-      ),
-    );
-  });
+        case "error":
+          console.error(
+            styleText(
+              "red",
+              `\nError: message=${event.error.message}, stack=${event.error.stack}`,
+            ),
+          );
+          break;
 
-  agentEventEmitter.on("turnEnd", async () => {
-    // Flush any remaining stream buffer content
-    streamBuffer.forceFlush();
+        case "turnEnd": {
+          // Flush any remaining stream buffer content
+          streamBuffer.forceFlush();
 
-    const err = notify(notifyCmd);
-    if (err) {
-      console.error(
-        styleText("yellow", `\nNotification error: ${err.message}`),
-      );
+          const err = notify(notifyCmd);
+          if (err) {
+            console.error(
+              styleText("yellow", `\nNotification error: ${err.message}`),
+            );
+          }
+
+          // Defer prompt rendering to ensure terminal output is visible
+          await new Promise((resolve) => setImmediate(resolve));
+
+          state.turn = true;
+          cli.prompt();
+          break;
+        }
+      }
     }
-
-    // Wait for all output operations to complete
-    await enqueueOutput(() => {});
-
-    // Defer prompt rendering to ensure terminal output is visible
-    await new Promise((resolve) => setImmediate(resolve));
-
-    state.turn = true;
-    cli.prompt();
-  });
+  };
+  consumeAgentEvents();
 
   cli.prompt();
 

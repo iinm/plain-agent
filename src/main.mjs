@@ -448,7 +448,7 @@ export async function main(argv = process.argv) {
     );
   }
 
-  const { userEventEmitter, agentEventEmitter, agentCommands } = createAgent({
+  const agent = createAgent({
     callModel: agentCallModel,
     prompt,
     tools: [...builtinTools, ...mcpTools],
@@ -467,9 +467,7 @@ export async function main(argv = process.argv) {
   });
 
   const sessionOptions = {
-    userEventEmitter,
-    agentEventEmitter,
-    agentCommands,
+    agent,
     sessionId,
     modelName: modelNameWithVariant,
     sandbox: Boolean(appConfig.sandbox),

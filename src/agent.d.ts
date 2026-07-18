@@ -1,4 +1,3 @@
-import type { EventEmitter } from "node:events";
 import type { AgentRole } from "./context/loadAgentRoles.mjs";
 import type { CostConfig, CostSummary } from "./costTracker.mjs";
 import type {
@@ -12,9 +11,20 @@ import type {
 import type { SessionState } from "./sessionStore.mjs";
 import type { Tool, ToolUseApprover } from "./tool";
 
+export type AgentInput = (MessageContentText | MessageContentImage)[];
+
 export type Agent = {
-  userEventEmitter: UserEventEmitter;
-  agentEventEmitter: AgentEventEmitter;
+  /**
+   * Async stream of agent events. Consume with `for await`. The agent
+   * internally drives the input queue and pushes events onto this stream.
+   */
+  run: () => AsyncIterable<AgentEvent>;
+  /**
+   * Supply user input to the agent. Input is pushed onto an internal async
+   * queue and consumed by the agent loop; may be called from multiple places
+   * (plain input, slash commands, tool approval).
+   */
+  sendUserInput: (input: AgentInput) => void;
   agentCommands: AgentCommands;
 };
 
@@ -31,23 +41,21 @@ export type AgentCommands = {
   flushSessionPersistence: () => Promise<boolean>;
 };
 
-type UserEventMap = {
-  userInput: [(MessageContentText | MessageContentImage)[]];
-};
+/**
+ * Discriminated union of events emitted by the agent, distinguished by the
+ * `type` field. Consumed via `Agent["run"]`.
+ */
+export type AgentEvent =
+  | { type: "message"; message: Message }
+  | { type: "partialMessageContent"; partialContent: PartialMessageContent }
+  | { type: "error"; error: Error }
+  | { type: "toolUseRequest"; toolUseCount: number }
+  | { type: "turnEnd" }
+  | { type: "providerTokenUsage"; usage: ProviderTokenUsage }
+  | { type: "subagentSwitched"; subagent: { name: string } | null };
 
-export type UserEventEmitter = EventEmitter<UserEventMap>;
-
-type AgentEventMap = {
-  message: [Message];
-  partialMessageContent: [PartialMessageContent];
-  error: [Error];
-  toolUseRequest: [number];
-  turnEnd: [];
-  providerTokenUsage: [ProviderTokenUsage];
-  subagentSwitched: [{ name: string } | null];
-};
-
-export type AgentEventEmitter = EventEmitter<AgentEventMap>;
+/** Sink used by the agent loop to push events onto the output stream. */
+export type AgentEventSink = (event: AgentEvent) => void;
 
 export type AgentConfig = {
   callModel: CallModel;

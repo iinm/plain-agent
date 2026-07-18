@@ -1,5 +1,5 @@
 /**
- * @import { AgentEventEmitter } from "./agent"
+ * @import { AgentEventSink } from "./agent"
  * @import { CallModel, MessageContentText, MessageContentImage, MessageContentToolResult, PartialMessageContent, UserMessage, MessageContentToolUse } from "./model"
  * @import { ToolDefinition, ToolUseApprover } from "./tool"
  * @import { SubagentManager } from "./subagent.mjs"
@@ -53,7 +53,7 @@ function applyCompactContextIfCalled(stateManager, toolUseParts, toolResults) {
  * @property {StateManager} stateManager - State manager for message handling
  * @property {ToolDefinition[]} toolDefs - Tool definitions for the model
  * @property {import("./toolExecutor.mjs").ToolExecutor} toolExecutor - Tool executor instance
- * @property {AgentEventEmitter} agentEventEmitter - Event emitter for agent events
+ * @property {AgentEventSink} emitEvent - Sink that pushes agent events onto the output stream
  * @property {ToolUseApprover} toolUseApprover - Tool use approval checker
  * @property {SubagentManager} subagentManager - Subagent manager instance
  * @property {PauseSignal} pauseSignal - Signal to pause auto-approve after current tool completes
@@ -74,7 +74,7 @@ export function createAgentLoop({
   stateManager,
   toolDefs,
   toolExecutor,
-  agentEventEmitter,
+  emitEvent,
   toolUseApprover,
   subagentManager,
   pauseSignal,
@@ -98,7 +98,7 @@ export function createAgentLoop({
     toolUseApprover.resetApprovalCount();
     await inputHandler.handle(input);
     await runTurnLoop();
-    agentEventEmitter.emit("turnEnd");
+    emitEvent({ type: "turnEnd" });
   }
 
   /**
@@ -124,19 +124,19 @@ export function createAgentLoop({
          * @param {PartialMessageContent} partialContent
          */
         onPartialMessageContent: (partialContent) => {
-          agentEventEmitter.emit("partialMessageContent", partialContent);
+          emitEvent({ type: "partialMessageContent", partialContent });
         },
       });
 
       if (modelOutput instanceof Error) {
-        agentEventEmitter.emit("error", modelOutput);
+        emitEvent({ type: "error", error: modelOutput });
         break;
       }
 
       const { message: assistantMessage, providerTokenUsage } = modelOutput;
       stateManager.appendMessages([assistantMessage]);
       if (providerTokenUsage) {
-        agentEventEmitter.emit("providerTokenUsage", providerTokenUsage);
+        emitEvent({ type: "providerTokenUsage", usage: providerTokenUsage });
       }
 
       // Gemini may stop with "thinking" -> continue
@@ -209,14 +209,20 @@ export function createAgentLoop({
 
       const isAllToolUseApproved = decisions.every((d) => d.action === "allow");
       if (!isAllToolUseApproved) {
-        agentEventEmitter.emit("toolUseRequest", toolUseParts.length);
+        emitEvent({
+          type: "toolUseRequest",
+          toolUseCount: toolUseParts.length,
+        });
         break;
       }
 
       // Ctrl-C during model call: skip execution and ask for approval
       if (pauseSignal.isPaused()) {
         pauseSignal.reset();
-        agentEventEmitter.emit("toolUseRequest", toolUseParts.length);
+        emitEvent({
+          type: "toolUseRequest",
+          toolUseCount: toolUseParts.length,
+        });
         break;
       }
 

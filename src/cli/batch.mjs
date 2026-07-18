@@ -1,5 +1,5 @@
 /**
- * @import { UserEventEmitter, AgentEventEmitter, AgentCommands } from "../agent"
+ * @import { Agent } from "../agent"
  */
 
 import { appendUsageRecord, buildUsageRecord } from "../usageStore.mjs";
@@ -7,9 +7,7 @@ import { formatCostForBatch } from "./formatter.mjs";
 
 /**
  * @typedef {object} BatchSessionOptions
- * @property {UserEventEmitter} userEventEmitter
- * @property {AgentEventEmitter} agentEventEmitter
- * @property {AgentCommands} agentCommands
+ * @property {Agent} agent
  * @property {string} task - Task instruction to execute
  * @property {string} sessionId
  * @property {string} modelName
@@ -26,9 +24,7 @@ import { formatCostForBatch } from "./formatter.mjs";
  * @returns {Promise<void>}
  */
 export async function startBatchSession({
-  userEventEmitter,
-  agentEventEmitter,
-  agentCommands,
+  agent,
   task,
   sessionId,
   modelName,
@@ -36,61 +32,8 @@ export async function startBatchSession({
   startTime,
   onStop,
 }) {
-  setupEventHandlers(agentEventEmitter, { sessionId, modelName, sandbox });
+  const { agentCommands } = agent;
 
-  userEventEmitter.emit("userInput", [{ type: "text", text: task }]);
-
-  await new Promise((/** @type {(value?: void) => void} */ resolve) => {
-    agentEventEmitter.on("turnEnd", async () => {
-      const costSummary = agentCommands.getCostSummary();
-
-      outputEvent({
-        type: "session_end",
-        timestamp: new Date().toISOString(),
-        cost: formatCostForBatch(costSummary),
-      });
-
-      try {
-        const record = buildUsageRecord({
-          sessionId,
-          mode: "batch",
-          modelName,
-          workingDir: process.cwd(),
-          costSummary,
-          now: startTime,
-        });
-        if (record) {
-          await appendUsageRecord(record);
-        }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        outputEvent({
-          type: "error",
-          error: { message: `failed to record usage: ${message}` },
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      await agentCommands.flushSessionPersistence();
-      await onStop();
-      resolve();
-    });
-  });
-
-  process.exit(0);
-}
-
-/**
- * Setup event handlers for batch mode.
- * Output events as JSON Lines.
- *
- * @param {AgentEventEmitter} agentEventEmitter
- * @param {{ sessionId: string, modelName: string, sandbox: boolean }} meta
- */
-function setupEventHandlers(
-  agentEventEmitter,
-  { sessionId, modelName, sandbox },
-) {
   outputEvent({
     type: "session_start",
     sessionId,
@@ -99,42 +42,84 @@ function setupEventHandlers(
     timestamp: new Date().toISOString(),
   });
 
-  agentEventEmitter.on("message", (message) => {
-    outputEvent({
-      type: "message",
-      message,
-      timestamp: new Date().toISOString(),
-    });
-  });
+  agent.sendUserInput([{ type: "text", text: task }]);
 
-  agentEventEmitter.on("error", (error) => {
-    outputEvent({
-      type: "error",
-      error: {
-        message: error.message,
-        stack: error.stack,
-      },
-      timestamp: new Date().toISOString(),
-    });
+  // Consume the agent event stream, emitting JSON Lines per event. The first
+  // turnEnd marks completion of the batch task and ends the session.
+  for await (const event of agent.run()) {
+    switch (event.type) {
+      case "message":
+        outputEvent({
+          type: "message",
+          message: event.message,
+          timestamp: new Date().toISOString(),
+        });
+        break;
 
-    process.exit(1);
-  });
+      case "error":
+        outputEvent({
+          type: "error",
+          error: {
+            message: event.error.message,
+            stack: event.error.stack,
+          },
+          timestamp: new Date().toISOString(),
+        });
+        process.exit(1);
+        break;
 
-  agentEventEmitter.on("subagentSwitched", (subagent) => {
-    outputEvent({
-      type: "subagent_switched",
-      subagent,
-      timestamp: new Date().toISOString(),
-    });
-  });
+      case "subagentSwitched":
+        outputEvent({
+          type: "subagent_switched",
+          subagent: event.subagent,
+          timestamp: new Date().toISOString(),
+        });
+        break;
 
-  agentEventEmitter.on("providerTokenUsage", (usage) => {
-    outputEvent({
-      type: "token_usage",
-      usage,
-      timestamp: new Date().toISOString(),
-    });
-  });
+      case "providerTokenUsage":
+        outputEvent({
+          type: "token_usage",
+          usage: event.usage,
+          timestamp: new Date().toISOString(),
+        });
+        break;
+
+      case "turnEnd": {
+        const costSummary = agentCommands.getCostSummary();
+
+        outputEvent({
+          type: "session_end",
+          timestamp: new Date().toISOString(),
+          cost: formatCostForBatch(costSummary),
+        });
+
+        try {
+          const record = buildUsageRecord({
+            sessionId,
+            mode: "batch",
+            modelName,
+            workingDir: process.cwd(),
+            costSummary,
+            now: startTime,
+          });
+          if (record) {
+            await appendUsageRecord(record);
+          }
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          outputEvent({
+            type: "error",
+            error: { message: `failed to record usage: ${message}` },
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        await agentCommands.flushSessionPersistence();
+        await onStop();
+        process.exit(0);
+      }
+    }
+  }
 }
 
 /**

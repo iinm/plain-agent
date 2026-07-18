@@ -1,5 +1,5 @@
 /**
- * @import { UserEventEmitter, AgentCommands } from "../agent"
+ * @import { Agent, AgentCommands } from "../agent"
  * @import { ClaudeCodePlugin } from "../claudeCodePlugin.mjs"
  */
 
@@ -26,7 +26,7 @@ import { formatCostSummary } from "./formatter.mjs";
 /**
  * @typedef {object} CommandHandlerDeps
  * @property {AgentCommands} agentCommands
- * @property {UserEventEmitter} userEventEmitter
+ * @property {Agent["sendUserInput"]} sendUserInput
  * @property {ClaudeCodePlugin[] | undefined} claudeCodePlugins
  * @property {string} helpMessage
  */
@@ -39,7 +39,7 @@ import { formatCostSummary } from "./formatter.mjs";
  */
 export function createCommandHandler({
   agentCommands,
-  userEventEmitter,
+  sendUserInput,
   claudeCodePlugins,
   helpMessage,
 }) {
@@ -59,10 +59,7 @@ export function createCommandHandler({
       goalTextContent?.type === "text" ? goalTextContent.text : goal;
 
     const messageText = `Switch to "${name}" subagent with goal: ${goalText}`;
-    userEventEmitter.emit("userInput", [
-      { type: "text", text: messageText },
-      ...goalImages,
-    ]);
+    sendUserInput([{ type: "text", text: messageText }, ...goalImages]);
     return "continue";
   }
 
@@ -96,10 +93,7 @@ export function createCommandHandler({
       ? `System: This prompt was invoked as "${invocation}".\nPrompt path: ${prompt.filePath}\n\n${promptContent}`
       : `System: This prompt was invoked as "${invocation}".\n\n${promptContent}`;
 
-    userEventEmitter.emit("userInput", [
-      { type: "text", text: message },
-      ...argsImages,
-    ]);
+    sendUserInput([{ type: "text", text: message }, ...argsImages]);
     return "continue";
   }
 
@@ -130,7 +124,7 @@ export function createCommandHandler({
       }
 
       const messageWithContext = await loadUserMessageContext(fileContent);
-      userEventEmitter.emit("userInput", messageWithContext);
+      sendUserInput(messageWithContext);
       return "continue";
     }
 
@@ -147,7 +141,7 @@ export function createCommandHandler({
         invocation: inputTrimmed,
         isSubagent: agentCommands.getActiveSubagent() !== null,
       });
-      userEventEmitter.emit("userInput", [{ type: "text", text: message }]);
+      sendUserInput([{ type: "text", text: message }]);
       return "continue";
     }
 
@@ -250,7 +244,7 @@ export function createCommandHandler({
 
       const combinedInput = prompt ? `${prompt}\n\n${clipboard}` : clipboard;
       const messageWithContext = await loadUserMessageContext(combinedInput);
-      userEventEmitter.emit("userInput", messageWithContext);
+      sendUserInput(messageWithContext);
       return "continue";
     }
 
@@ -270,7 +264,7 @@ export function createCommandHandler({
 
     // Default: emit as plain user input
     const messageWithContext = await loadUserMessageContext(inputTrimmed);
-    userEventEmitter.emit("userInput", messageWithContext);
+    sendUserInput(messageWithContext);
     return "continue";
   };
 }
