@@ -4,10 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import {
+  appendSessionLine,
   listSessions,
   loadSession,
-  SESSION_FILE_VERSION,
-  saveSession,
+  SESSION_FORMAT_VERSION,
   sessionFilePath,
 } from "./sessionStore.mjs";
 
@@ -22,173 +22,151 @@ afterEach(async () => {
   await fs.rm(tmpDir, { recursive: true, force: true });
 });
 
-/**
- * @param {Partial<import("./sessionStore.mjs").SessionState>} overrides
- * @returns {import("./sessionStore.mjs").SessionState}
- */
-function buildState(overrides = {}) {
-  return {
-    version: SESSION_FILE_VERSION,
-    sessionId: "2026-05-10-0803-a7k",
-    modelName: "claude-sonnet-4-6+thinking-high",
-    workingDir: "/w",
-    startTime: "2026-05-10T08:03:00.000Z",
-    lastUpdatedAt: "2026-05-10T08:03:00.000Z",
-    messages: [{ role: "system", content: [{ type: "text", text: "system" }] }],
-    subagentState: { subagents: [], subagentCount: 0 },
-    allowedToolUseInSession: [],
-    tokenUsageHistory: [],
-    ...overrides,
-  };
+const metadata = {
+  sessionId: "2026-05-10-0803-a7k",
+  modelName: "claude-sonnet-4-6+thinking-high",
+  workingDir: "/w",
+  startTime: "2026-05-10T08:03:00.000Z",
+};
+const systemMessage = {
+  role: "system",
+  content: [{ type: "text", text: "system" }],
+};
+const userMessage = {
+  role: "user",
+  content: [{ type: "text", text: "hello" }],
+};
+
+/** @param {string} sessionId @param {object} event */
+async function append(sessionId, event) {
+  await appendSessionLine(
+    sessionId,
+    JSON.stringify({ ...event, timestamp: "2026-05-10T08:03:01.000Z" }),
+    { dir: tmpDir },
+  );
+}
+
+/** @param {string} sessionId */
+async function start(sessionId = metadata.sessionId) {
+  await append(sessionId, {
+    type: "session_start",
+    sessionFormatVersion: SESSION_FORMAT_VERSION,
+    ...metadata,
+    sessionId,
+  });
 }
 
 describe("sessionFilePath", () => {
-  it("joins directory and sessionId.json", () => {
+  it("uses the jsonl extension", () => {
     // when:
     const result = sessionFilePath("abc", { dir: "/tmp/sessions" });
     // then:
-    assert.equal(result, path.join("/tmp/sessions", "abc.json"));
+    assert.equal(result, path.join("/tmp/sessions", "abc.jsonl"));
   });
 });
 
-describe("saveSession + loadSession", () => {
-  it("round-trips a session state", async () => {
+describe("appendSessionLine + loadSession", () => {
+  it("replays messages, resets, usage, and subagent transitions", async () => {
     // given:
-    const state = buildState();
+    await start();
+    await append(metadata.sessionId, {
+      type: "message",
+      message: systemMessage,
+    });
+    await append(metadata.sessionId, { type: "message", message: userMessage });
+    await append(metadata.sessionId, {
+      type: "messages_reset",
+      messages: [systemMessage],
+    });
+    const subagent = {
+      name: "researcher",
+      goal: "investigate",
+      switchMessageIndex: 1,
+    };
+    await append(metadata.sessionId, { type: "subagent_switched", subagent });
+    await append(metadata.sessionId, {
+      type: "subagent_switched",
+      subagent: null,
+    });
+    await append(metadata.sessionId, { type: "subagent_switched", subagent });
+    await append(metadata.sessionId, {
+      type: "token_usage",
+      usage: { inputTokens: 4 },
+    });
 
     // when:
-    await saveSession(state, { dir: tmpDir });
-    const loaded = await loadSession(state.sessionId, { dir: tmpDir });
+    const loaded = await loadSession(metadata.sessionId, { dir: tmpDir });
 
     // then:
-    assert.deepStrictEqual(loaded, state);
+    assert.deepEqual(loaded, {
+      version: SESSION_FORMAT_VERSION,
+      ...metadata,
+      messages: [systemMessage],
+      subagentState: { subagents: [subagent], subagentCount: 2 },
+      tokenUsageHistory: [{ inputTokens: 4 }],
+    });
   });
 
-  it("creates the directory when missing", async () => {
+  it("skips corrupt event lines and later session_start events", async () => {
     // given:
-    const nested = path.join(tmpDir, "nested", "sessions");
-    const state = buildState();
+    await start();
+    await appendSessionLine(metadata.sessionId, "not json", { dir: tmpDir });
+    await append(metadata.sessionId, {
+      type: "session_start",
+      sessionFormatVersion: 999,
+      ...metadata,
+    });
+    await append(metadata.sessionId, { type: "message", message: userMessage });
 
     // when:
-    await saveSession(state, { dir: nested });
+    const loaded = await loadSession(metadata.sessionId, { dir: tmpDir });
 
     // then:
-    const stat = await fs.stat(path.join(nested, `${state.sessionId}.json`));
-    assert.ok(stat.isFile());
+    assert.deepEqual(loaded?.messages, [userMessage]);
   });
 
-  it("overwrites an existing file and leaves no temp file behind", async () => {
-    // given:
-    const state1 = buildState({ lastUpdatedAt: "2026-05-10T08:03:00.000Z" });
-    const state2 = buildState({ lastUpdatedAt: "2026-05-10T09:00:00.000Z" });
-
+  it("returns null for a missing stream", async () => {
     // when:
-    await saveSession(state1, { dir: tmpDir });
-    await saveSession(state2, { dir: tmpDir });
-
-    // then:
-    const loaded = await loadSession(state1.sessionId, { dir: tmpDir });
-    assert.equal(loaded?.lastUpdatedAt, "2026-05-10T09:00:00.000Z");
-    // No leftover temp file
-    const entries = await fs.readdir(tmpDir);
-    assert.deepEqual(
-      entries.filter((e) => e.includes(".tmp.")),
-      [],
-    );
-  });
-
-  it("returns null when the session file does not exist", async () => {
-    // when:
-    const loaded = await loadSession("nonexistent", { dir: tmpDir });
-
+    const loaded = await loadSession("missing", { dir: tmpDir });
     // then:
     assert.equal(loaded, null);
   });
 
-  it("throws on unsupported version", async () => {
+  it("throws for a format-version mismatch", async () => {
     // given:
-    const target = path.join(tmpDir, "bad.json");
-    await fs.writeFile(
-      target,
-      JSON.stringify({ version: 999, sessionId: "bad" }),
-      "utf8",
-    );
-
+    await append(metadata.sessionId, {
+      type: "session_start",
+      sessionFormatVersion: 999,
+      ...metadata,
+    });
     // when/then:
     await assert.rejects(
-      () => loadSession("bad", { dir: tmpDir }),
+      () => loadSession(metadata.sessionId, { dir: tmpDir }),
       /Unsupported session file version/,
-    );
-  });
-
-  it("throws on a non-object payload", async () => {
-    // given:
-    const target = path.join(tmpDir, "junk.json");
-    await fs.writeFile(target, JSON.stringify(42), "utf8");
-
-    // when/then:
-    await assert.rejects(
-      () => loadSession("junk", { dir: tmpDir }),
-      /Invalid session file/,
     );
   });
 });
 
 describe("listSessions", () => {
-  it("returns an empty list when the directory is missing", async () => {
-    // when:
-    const sessions = await listSessions({
-      dir: path.join(tmpDir, "missing"),
-    });
-
-    // then:
-    assert.deepEqual(sessions, []);
-  });
-
-  it("lists sessions sorted by lastUpdatedAt descending", async () => {
+  it("lists only valid jsonl streams in mtime-descending order", async () => {
     // given:
-    await saveSession(
-      buildState({
-        sessionId: "older",
-        lastUpdatedAt: "2026-05-10T08:00:00.000Z",
-      }),
-      { dir: tmpDir },
-    );
-    await saveSession(
-      buildState({
-        sessionId: "newer",
-        lastUpdatedAt: "2026-05-10T09:00:00.000Z",
-      }),
-      { dir: tmpDir },
-    );
+    await start("older");
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await start("newer");
+    await fs.writeFile(path.join(tmpDir, "ignored.json"), "{}", "utf8");
+    await fs.writeFile(path.join(tmpDir, "bad.jsonl"), "not json\n", "utf8");
 
     // when:
     const sessions = await listSessions({ dir: tmpDir });
 
     // then:
     assert.deepEqual(
-      sessions.map((s) => s.sessionId),
+      sessions.map((session) => session.sessionId),
       ["newer", "older"],
     );
-  });
-
-  it("skips temp files and malformed entries", async () => {
-    // given:
-    await saveSession(buildState({ sessionId: "good" }), { dir: tmpDir });
-    await fs.writeFile(path.join(tmpDir, "good.json.tmp.123"), "garbage");
-    await fs.writeFile(path.join(tmpDir, "bad.json"), "not json");
-    await fs.writeFile(
-      path.join(tmpDir, "wrong-version.json"),
-      JSON.stringify({ version: 999 }),
+    assert.ok(
+      sessions.every((session) => typeof session.lastUpdatedAt === "string"),
     );
-
-    // when:
-    const sessions = await listSessions({ dir: tmpDir });
-
-    // then:
-    assert.deepEqual(
-      sessions.map((s) => s.sessionId),
-      ["good"],
-    );
+    assert.ok(sessions.every((session) => !("messageCount" in session)));
   });
 });

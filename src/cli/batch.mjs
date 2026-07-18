@@ -2,6 +2,7 @@
  * @import { Agent } from "../agent"
  */
 
+import { appendSessionLine, WRITABLE_EVENT_TYPES } from "../sessionStore.mjs";
 import { appendUsageRecord, buildUsageRecord } from "../usageStore.mjs";
 import { formatCostForBatch } from "./formatter.mjs";
 
@@ -42,9 +43,9 @@ export async function startBatchSession({
 
   agent.send([{ type: "text", text: task }]);
 
-  // Consume the agent event stream, emitting JSON Lines per event. The first
-  // turnEnd marks completion of the batch task and ends the session.
+  // The first turn_end marks completion of the batch task and ends the session.
   for await (const event of agent.start()) {
+    await persistSessionEvent(sessionId, event);
     switch (event.type) {
       case "message":
         outputEvent({
@@ -57,16 +58,13 @@ export async function startBatchSession({
       case "error":
         outputEvent({
           type: "error",
-          error: {
-            message: event.error.message,
-            stack: event.error.stack,
-          },
+          error: { message: event.error.message, stack: event.error.stack },
           timestamp: new Date().toISOString(),
         });
         process.exit(1);
         break;
 
-      case "subagentSwitched":
+      case "subagent_switched":
         outputEvent({
           type: "subagent_switched",
           subagent: event.subagent,
@@ -74,7 +72,7 @@ export async function startBatchSession({
         });
         break;
 
-      case "providerTokenUsage":
+      case "token_usage":
         outputEvent({
           type: "token_usage",
           usage: event.usage,
@@ -82,9 +80,10 @@ export async function startBatchSession({
         });
         break;
 
-      case "turnEnd": {
+      case "turn_end": {
         const costSummary = agent.getCostSummary();
-
+        const sessionEnd = { type: "session_end", cost: costSummary };
+        await persistSessionEvent(sessionId, sessionEnd);
         outputEvent({
           type: "session_end",
           timestamp: new Date().toISOString(),
@@ -100,9 +99,7 @@ export async function startBatchSession({
             costSummary,
             now: startTime,
           });
-          if (record) {
-            await appendUsageRecord(record);
-          }
+          if (record) await appendUsageRecord(record);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           outputEvent({
@@ -112,7 +109,6 @@ export async function startBatchSession({
           });
         }
 
-        await agent.flushSessionPersistence();
         await onStop();
         process.exit(0);
       }
@@ -121,9 +117,21 @@ export async function startBatchSession({
 }
 
 /**
+ * Persist an event when it belongs in the session event stream.
+ * @param {string} sessionId
+ * @param {{ type: string }} event
+ */
+async function persistSessionEvent(sessionId, event) {
+  if (!WRITABLE_EVENT_TYPES.has(event.type)) return;
+  await appendSessionLine(
+    sessionId,
+    JSON.stringify({ ...event, timestamp: new Date().toISOString() }),
+  );
+}
+
+/**
  * Output an event as JSON Lines format.
  * Each event is a single line of JSON.
- *
  * @param {object} event
  */
 function outputEvent(event) {

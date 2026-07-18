@@ -14,7 +14,7 @@ import { switchToMainAgentToolName } from "./tools/switchToMainAgent.mjs";
 
 /**
  * @typedef {Object} SubagentStateEventHandlers
- * @property {(subagent: {name:string} | null) => void} onSubagentSwitched
+ * @property {(subagent: {name:string, goal:string, switchMessageIndex:number} | null) => void} onSubagentSwitched
  */
 
 /**
@@ -88,7 +88,7 @@ export function createSubagentManager(agentRoles, handlers) {
       goal,
       switchMessageIndex,
     });
-    handlers.onSubagentSwitched({ name: actualName });
+    handlers.onSubagentSwitched({ name: actualName, goal, switchMessageIndex });
 
     return {
       success: true,

@@ -21,7 +21,7 @@ export function createToolUseApprover({
   const state = {
     approvalCount: 0,
     /** @type {ToolUsePattern[]} */
-    allowedToolUseInSession: [],
+    allowedToolUsePatterns: [],
   };
 
   /** @returns {void} */
@@ -39,7 +39,7 @@ export function createToolUseApprover({
       input: toolUse.input,
     };
 
-    for (const pattern of [...patterns, ...state.allowedToolUseInSession]) {
+    for (const pattern of [...patterns, ...state.allowedToolUsePatterns]) {
       const patternToMatch = {
         toolName: pattern.toolName,
         ...(pattern.input !== undefined && { input: pattern.input }),
@@ -88,41 +88,15 @@ export function createToolUseApprover({
    * @returns {void}
    */
   function allowToolUse(toolUse) {
-    state.allowedToolUseInSession.push({
+    state.allowedToolUsePatterns.push({
       toolName: toolUse.toolName,
       input: maskApprovalInput(toolUse.toolName, toolUse.input),
       action: "allow",
     });
   }
-
-  /**
-   * Snapshot the tool-use patterns the user explicitly allowed during this
-   * session. Used to persist resumable session state.
-   * @returns {ToolUsePattern[]}
-   */
-  function getAllowedToolUseInSession() {
-    return state.allowedToolUseInSession.map((p) => ({ ...p }));
-  }
-
-  /**
-   * Replace the in-session allow-list with a previously saved snapshot.
-   * @param {ToolUsePattern[]} patterns
-   */
-  function restoreAllowedToolUseInSession(patterns) {
-    if (!Array.isArray(patterns)) {
-      throw new TypeError("patterns must be an array");
-    }
-    state.allowedToolUseInSession.length = 0;
-    for (const p of patterns) {
-      state.allowedToolUseInSession.push({ ...p });
-    }
-  }
-
   return {
     isAllowedToolUse,
     allowToolUse,
     resetApprovalCount,
-    getAllowedToolUseInSession,
-    restoreAllowedToolUseInSession,
   };
 }

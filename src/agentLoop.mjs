@@ -98,7 +98,7 @@ export function createAgentLoop({
     toolUseApprover.resetApprovalCount();
     await inputHandler.handle(input);
     await runTurnLoop();
-    emitEvent({ type: "turnEnd" });
+    emitEvent({ type: "turn_end" });
   }
 
   /**
@@ -124,7 +124,7 @@ export function createAgentLoop({
          * @param {PartialMessageContent} partialContent
          */
         onPartialMessageContent: (partialContent) => {
-          emitEvent({ type: "partialMessageContent", partialContent });
+          emitEvent({ type: "partial_message_content", partialContent });
         },
       });
 
@@ -136,7 +136,7 @@ export function createAgentLoop({
       const { message: assistantMessage, providerTokenUsage } = modelOutput;
       stateManager.appendMessages([assistantMessage]);
       if (providerTokenUsage) {
-        emitEvent({ type: "providerTokenUsage", usage: providerTokenUsage });
+        emitEvent({ type: "token_usage", usage: providerTokenUsage });
       }
 
       // Gemini may stop with "thinking" -> continue
@@ -210,7 +210,7 @@ export function createAgentLoop({
       const isAllToolUseApproved = decisions.every((d) => d.action === "allow");
       if (!isAllToolUseApproved) {
         emitEvent({
-          type: "toolUseRequest",
+          type: "tool_use_request",
           toolUseCount: toolUseParts.length,
         });
         break;
@@ -220,7 +220,7 @@ export function createAgentLoop({
       if (pauseSignal.isPaused()) {
         pauseSignal.reset();
         emitEvent({
-          type: "toolUseRequest",
+          type: "tool_use_request",
           toolUseCount: toolUseParts.length,
         });
         break;
