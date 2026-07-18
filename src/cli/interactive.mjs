@@ -103,12 +103,11 @@ export function startInteractiveSession({
   claudeCodePlugins,
   execCommandTool,
 }) {
-  const { agentCommands } = agent;
   /** @type {{ turn: boolean, multiLineBuffer: string[] | null, subagentName: string, toolSpinnerIndex: number, toolSpinnerLastTime: number }} */
   const state = {
     turn: true,
     multiLineBuffer: null,
-    subagentName: agentCommands.getActiveSubagent()?.name ?? "",
+    subagentName: agent.getActiveSubagent()?.name ?? "",
     toolSpinnerIndex: 0,
     toolSpinnerLastTime: 0,
   };
@@ -147,9 +146,9 @@ export function startInteractiveSession({
     isExiting = true;
 
     cleanup();
-    const summary = agentCommands.getCostSummary();
+    const summary = agent.getCostSummary();
     await persistUsage(summary, { sessionId, modelName, startTime });
-    const sessionSaved = await agentCommands.flushSessionPersistence();
+    const sessionSaved = await agent.flushSessionPersistence();
     console.log(
       [
         "",
@@ -185,7 +184,7 @@ export function startInteractiveSession({
   const handleCtrlC = () => {
     // Agent turn: pause auto-approve; do not clear input.
     if (!state.turn) {
-      agentCommands.pauseAutoApprove();
+      agent.pauseAutoApprove();
       console.error(
         styleText(
           "yellow",
@@ -283,8 +282,7 @@ export function startInteractiveSession({
   process.on("SIGHUP", handleExit);
 
   const handleCommand = createCommandHandler({
-    agentCommands,
-    sendUserInput: agent.sendUserInput,
+    agent,
     claudeCodePlugins,
     helpMessage: HELP_MESSAGE,
   });
@@ -409,7 +407,7 @@ export function startInteractiveSession({
   // and awaited in order, output is naturally serialized — no manual
   // sequential executor is needed.
   const consumeAgentEvents = async () => {
-    for await (const event of agent.run()) {
+    for await (const event of agent.start()) {
       switch (event.type) {
         case "partialMessageContent":
           handlePartialMessageContent(event.partialContent);

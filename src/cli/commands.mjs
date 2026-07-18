@@ -1,5 +1,5 @@
 /**
- * @import { Agent, AgentCommands } from "../agent"
+ * @import { Agent } from "../agent"
  * @import { ClaudeCodePlugin } from "../claudeCodePlugin.mjs"
  */
 
@@ -25,8 +25,7 @@ import { formatCostSummary } from "./formatter.mjs";
 
 /**
  * @typedef {object} CommandHandlerDeps
- * @property {AgentCommands} agentCommands
- * @property {Agent["sendUserInput"]} sendUserInput
+ * @property {Agent} agent
  * @property {ClaudeCodePlugin[] | undefined} claudeCodePlugins
  * @property {string} helpMessage
  */
@@ -38,8 +37,7 @@ import { formatCostSummary } from "./formatter.mjs";
  * @returns {(input: string) => Promise<CommandResult>}
  */
 export function createCommandHandler({
-  agentCommands,
-  sendUserInput,
+  agent,
   claudeCodePlugins,
   helpMessage,
 }) {
@@ -51,15 +49,15 @@ export function createCommandHandler({
    */
   async function invokeAgent(id, goal) {
     const agentRoles = await loadAgentRoles(claudeCodePlugins);
-    const agent = agentRoles.get(id);
-    const name = agent ? id : `custom:${id}`;
+    const agentRole = agentRoles.get(id);
+    const name = agentRole ? id : `custom:${id}`;
 
     const [goalTextContent, ...goalImages] = await loadUserMessageContext(goal);
     const goalText =
       goalTextContent?.type === "text" ? goalTextContent.text : goal;
 
     const messageText = `Switch to "${name}" subagent with goal: ${goalText}`;
-    sendUserInput([{ type: "text", text: messageText }, ...goalImages]);
+    agent.send([{ type: "text", text: messageText }, ...goalImages]);
     return "continue";
   }
 
@@ -93,7 +91,7 @@ export function createCommandHandler({
       ? `System: This prompt was invoked as "${invocation}".\nPrompt path: ${prompt.filePath}\n\n${promptContent}`
       : `System: This prompt was invoked as "${invocation}".\n\n${promptContent}`;
 
-    sendUserInput([{ type: "text", text: message }, ...argsImages]);
+    agent.send([{ type: "text", text: message }, ...argsImages]);
     return "continue";
   }
 
@@ -124,13 +122,13 @@ export function createCommandHandler({
       }
 
       const messageWithContext = await loadUserMessageContext(fileContent);
-      sendUserInput(messageWithContext);
+      agent.send(messageWithContext);
       return "continue";
     }
 
     // /cost
     if (inputTrimmed.toLowerCase() === "/cost") {
-      const summary = agentCommands.getCostSummary();
+      const summary = agent.getCostSummary();
       console.log(formatCostSummary(summary));
       return "prompt";
     }
@@ -139,9 +137,9 @@ export function createCommandHandler({
     if (/^\/compact( |$)/i.test(inputTrimmed)) {
       const message = buildCompactPrompt({
         invocation: inputTrimmed,
-        isSubagent: agentCommands.getActiveSubagent() !== null,
+        isSubagent: agent.getActiveSubagent() !== null,
       });
-      sendUserInput([{ type: "text", text: message }]);
+      agent.send([{ type: "text", text: message }]);
       return "continue";
     }
 
@@ -244,7 +242,7 @@ export function createCommandHandler({
 
       const combinedInput = prompt ? `${prompt}\n\n${clipboard}` : clipboard;
       const messageWithContext = await loadUserMessageContext(combinedInput);
-      sendUserInput(messageWithContext);
+      agent.send(messageWithContext);
       return "continue";
     }
 
@@ -264,7 +262,7 @@ export function createCommandHandler({
 
     // Default: emit as plain user input
     const messageWithContext = await loadUserMessageContext(inputTrimmed);
-    sendUserInput(messageWithContext);
+    agent.send(messageWithContext);
     return "continue";
   };
 }

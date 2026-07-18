@@ -32,8 +32,6 @@ export async function startBatchSession({
   startTime,
   onStop,
 }) {
-  const { agentCommands } = agent;
-
   outputEvent({
     type: "session_start",
     sessionId,
@@ -42,11 +40,11 @@ export async function startBatchSession({
     timestamp: new Date().toISOString(),
   });
 
-  agent.sendUserInput([{ type: "text", text: task }]);
+  agent.send([{ type: "text", text: task }]);
 
   // Consume the agent event stream, emitting JSON Lines per event. The first
   // turnEnd marks completion of the batch task and ends the session.
-  for await (const event of agent.run()) {
+  for await (const event of agent.start()) {
     switch (event.type) {
       case "message":
         outputEvent({
@@ -85,7 +83,7 @@ export async function startBatchSession({
         break;
 
       case "turnEnd": {
-        const costSummary = agentCommands.getCostSummary();
+        const costSummary = agent.getCostSummary();
 
         outputEvent({
           type: "session_end",
@@ -114,7 +112,7 @@ export async function startBatchSession({
           });
         }
 
-        await agentCommands.flushSessionPersistence();
+        await agent.flushSessionPersistence();
         await onStop();
         process.exit(0);
       }
