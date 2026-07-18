@@ -1,12 +1,12 @@
 /**
- * @import { Agent, AgentConfig, AgentEventEmitter, UserEventEmitter } from "./agent"
+ * @import { Agent, AgentConfig, AgentEvent, AgentInput } from "./agent"
  * @import { Tool, ToolDefinition } from "./tool"
  * @import { CompactContextInput } from "./tools/compactContext"
  * @import { SwitchToSubagentInput } from "./tools/switchToSubagent"
  * @import { SwitchToMainAgentInput } from "./tools/switchToMainAgent"
+ * @import { AsyncQueue } from "./utils/createAsyncQueue.mjs"
  */
 
-import { EventEmitter } from "node:events";
 import { styleText } from "node:util";
 import { createAgentLoop } from "./agentLoop.mjs";
 import { createStateManager } from "./agentState.mjs";
@@ -20,6 +20,7 @@ import {
 } from "./tools/compactContext.mjs";
 import { switchToMainAgentToolName } from "./tools/switchToMainAgent.mjs";
 import { switchToSubagentToolName } from "./tools/switchToSubagent.mjs";
+import { createAsyncQueue } from "./utils/createAsyncQueue.mjs";
 
 /**
  * @param {AgentConfig} config
@@ -37,16 +38,31 @@ export function createAgent({
   contextSoftLimit,
   inputTokensKeys,
 }) {
-  /** @type {UserEventEmitter} */
-  const userEventEmitter = new EventEmitter();
-  /** @type {AgentEventEmitter} */
-  const agentEventEmitter = new EventEmitter();
+  /**
+   * Pull-based input queue. CLI callers push input via sendUserInput; the
+   * agent's run loop consumes it as an async iterable.
+   * @type {AsyncQueue<AgentInput>}
+   */
+  const inputQueue = createAsyncQueue();
+  /**
+   * Output stream of agent events, yielded by run().
+   * @type {AsyncQueue<AgentEvent>}
+   */
+  const eventQueue = createAsyncQueue();
 
   const costTracker = createCostTracker(modelCostConfig);
 
-  agentEventEmitter.on("providerTokenUsage", (usage) => {
-    costTracker.recordUsage(usage);
-  });
+  /**
+   * Emit an agent event onto the output stream. providerTokenUsage events are
+   * also recorded by the cost tracker as they pass through.
+   * @param {AgentEvent} event
+   */
+  const emitEvent = (event) => {
+    if (event.type === "providerTokenUsage") {
+      costTracker.recordUsage(event.usage);
+    }
+    eventQueue.push(event);
+  };
 
   // Build the initial message list. When resuming, replace messages[0] with
   // the freshly built system prompt (today/agent roles/skills may have
@@ -64,7 +80,7 @@ export function createAgent({
     onMessagesAppended: (newMessages) => {
       const lastMessage = newMessages.at(-1);
       if (lastMessage) {
-        agentEventEmitter.emit("message", lastMessage);
+        emitEvent({ type: "message", message: lastMessage });
       }
       schedulePersist();
     },
@@ -72,7 +88,7 @@ export function createAgent({
 
   const subagentManager = createSubagentManager(agentRoles, {
     onSubagentSwitched: (subagent) => {
-      agentEventEmitter.emit("subagentSwitched", subagent);
+      emitEvent({ type: "subagentSwitched", subagent });
     },
   });
 
@@ -196,7 +212,7 @@ export function createAgent({
     stateManager,
     toolDefs,
     toolExecutor,
-    agentEventEmitter,
+    emitEvent,
     toolUseApprover,
     subagentManager,
     pauseSignal,
@@ -204,11 +220,32 @@ export function createAgent({
     inputTokensKeys,
   });
 
-  userEventEmitter.on("userInput", agentLoop.handleUserInput);
+  // Drive the agent by consuming user input from the pull-based queue and
+  // running one turn loop per input. Runs for the lifetime of the process.
+  let inputLoopStarted = false;
+  const startInputLoop = () => {
+    if (inputLoopStarted) return;
+    inputLoopStarted = true;
+    (async () => {
+      for await (const input of inputQueue) {
+        await agentLoop.handleUserInput(input);
+      }
+    })().catch((err) => {
+      emitEvent({
+        type: "error",
+        error: err instanceof Error ? err : new Error(String(err)),
+      });
+    });
+  };
 
   return {
-    userEventEmitter,
-    agentEventEmitter,
+    run() {
+      startInputLoop();
+      return eventQueue;
+    },
+    sendUserInput(input) {
+      inputQueue.push(input);
+    },
     agentCommands: {
       getCostSummary: () => costTracker.calculateCost(),
       pauseAutoApprove: () => {
