@@ -150,7 +150,7 @@ export function createAgent({
     const result = subagentManager.switchToSubagent(
       input.name,
       input.goal,
-      stateManager.markCheckpoint(),
+      stateManager.markCheckpoint,
     );
     if (!result.success) {
       return new Error(result.error);

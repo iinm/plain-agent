@@ -49,10 +49,12 @@ export function createSubagentManager(agentRoles, handlers) {
    * Switch to a subagent role.
    * @param {string} name
    * @param {string} goal
-   * @param {Marker} checkpoint - Opaque marker for the point to restore to on report.
+   * @param {() => Marker} createCheckpoint - Factory for the marker to restore
+   *   to on report. Invoked only once the switch is known to proceed, so a
+   *   rejected switch never leaves an abandoned checkpoint behind.
    * @returns {SwitchToSubagentResult}
    */
-  function switchToSubagent(name, goal, checkpoint) {
+  function switchToSubagent(name, goal, createCheckpoint) {
     if (subagents.length > 0) {
       return {
         success: false,
@@ -88,7 +90,7 @@ export function createSubagentManager(agentRoles, handlers) {
     subagents.push({
       name: actualName,
       goal,
-      checkpoint,
+      checkpoint: createCheckpoint(),
     });
     handlers.onSubagentSwitched({ name: actualName });
 

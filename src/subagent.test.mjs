@@ -77,8 +77,11 @@ describe("subagent switch + report via markers", () => {
 
     // when: the switch tool use is appended, then we mark and switch
     stateManager.appendMessages([switchAssistantMessage()]);
-    const marker = stateManager.markCheckpoint();
-    const switchResult = manager.switchToSubagent("custom:x", "do it", marker);
+    const switchResult = manager.switchToSubagent(
+      "custom:x",
+      "do it",
+      stateManager.markCheckpoint,
+    );
     assert.ok(switchResult.success);
 
     // subagent produces some conversation
@@ -118,6 +121,31 @@ describe("subagent switch + report via markers", () => {
     assert.ok(changes.some((c) => c.kind === "replace"));
   });
 
+  it("does not create a checkpoint when the switch is rejected", () => {
+    // given: already acting as a subagent
+    const stateManager = setupState([userMessage("a")]);
+    let created = 0;
+    const createCheckpoint = () => {
+      created += 1;
+      return stateManager.markCheckpoint();
+    };
+    const manager = createSubagentManager(new Map(), noopHandlers());
+    assert.ok(
+      manager.switchToSubagent("custom:x", "g", createCheckpoint).success,
+    );
+
+    // when: a nested switch is attempted and rejected
+    const rejected = manager.switchToSubagent(
+      "custom:y",
+      "g2",
+      createCheckpoint,
+    );
+
+    // then: no checkpoint was created for the rejected switch
+    assert.equal(rejected.success, false);
+    assert.equal(created, 1);
+  });
+
   it("returns no marker when no subagent report is present", () => {
     // given:
     const manager = createSubagentManager(new Map(), noopHandlers());
@@ -150,8 +178,7 @@ describe("subagent state persistence round-trip", () => {
     ];
     const stateA = setupState(messages);
     const managerA = createSubagentManager(new Map(), noopHandlers());
-    const marker = stateA.markCheckpoint();
-    managerA.switchToSubagent("custom:x", "goal", marker);
+    managerA.switchToSubagent("custom:x", "goal", stateA.markCheckpoint);
 
     // when: persist
     const saved = managerA.getState(stateA.serializeMarker);
