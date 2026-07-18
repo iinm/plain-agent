@@ -264,7 +264,9 @@ export function createAgentLoop({
         toolResults,
         stateManager.getMessages(),
       );
-      stateManager.replaceMessages(result.messages);
+      if (result.state.type === "replaceMessages") {
+        stateManager.replaceMessages(result.state.messages);
+      }
       if (result.newMessage) {
         stateManager.appendMessages([result.newMessage]);
       } else {
@@ -430,7 +432,9 @@ export function createInputHandler(context) {
         toolResults,
         stateManager.getMessages(),
       );
-      stateManager.replaceMessages(result.messages);
+      if (result.state.type === "replaceMessages") {
+        stateManager.replaceMessages(result.state.messages);
+      }
 
       if (result.newMessage) {
         stateManager.appendMessages([result.newMessage]);
