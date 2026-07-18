@@ -5,15 +5,16 @@
     "patterns": [
       {
         "toolName": "exec_command",
-        "input": { "command": { "$regex": "^(gh|docker)$" } },
-        "action": "ask"
-      },
-      {
-        "toolName": "exec_command",
         "input": {
           "command": "git",
-          "args": { "$has": { "$regex": "^(commit|fetch|pull|push)$" } }
+          "args": [{ "$regex": "^(status|diff|log|show|ls-remote|rev-parse)$" }]
         },
+        "action": "allow"
+      },
+
+      {
+        "toolName": "exec_command",
+        "input": { "command": { "$regex": "^(git|gh|docker)$" } },
         "action": "ask"
       },
 
@@ -65,14 +66,7 @@
     "separator": "--",
     "rules": [
       {
-        "pattern": { "command": { "$regex": "^(gh|docker)$" } },
-        "mode": "unsandboxed"
-      },
-      {
-        "pattern": {
-          "command": "git",
-          "args": [{ "$regex": "^(fetch|pull|push)$" }]
-        },
+        "pattern": { "command": { "$regex": "^(git|gh|docker)$" } },
         "mode": "unsandboxed"
       },
       {
