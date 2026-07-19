@@ -5,7 +5,7 @@ import { lineHash } from "../utils/lineHash.mjs";
 import {
   collectPatchLineRanges,
   createPatchFileTool,
-  getPatchPreviewSnapshotByInput,
+  getPatchPreviewSnapshot,
   MAX_PATCH_PREVIEW_CACHE_ENTRIES,
   parseBlocks,
   patchPreviewCacheKey,
@@ -957,7 +957,7 @@ describe("patch preview cache (LRU)", () => {
     await patchFileTool.impl(input);
 
     // then: the snapshot holds the pre-write line 2 only, plus total count.
-    const snapshot = getPatchPreviewSnapshotByInput(input);
+    const snapshot = getPatchPreviewSnapshot(patchPreviewCacheKey(input));
     assert.ok(snapshot);
     assert.equal(snapshot.totalLines, 3);
     assert.deepEqual(snapshot.lines, { 2: "bravo" });
@@ -982,7 +982,12 @@ describe("patch preview cache (LRU)", () => {
     }
 
     // then: the oldest entry is gone, the newest remains.
-    assert.equal(getPatchPreviewSnapshotByInput(inputs[0]), null);
-    assert.ok(getPatchPreviewSnapshotByInput(inputs[inputs.length - 1]));
+    assert.equal(
+      getPatchPreviewSnapshot(patchPreviewCacheKey(inputs[0])),
+      null,
+    );
+    assert.ok(
+      getPatchPreviewSnapshot(patchPreviewCacheKey(inputs[inputs.length - 1])),
+    );
   });
 });

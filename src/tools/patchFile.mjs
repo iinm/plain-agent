@@ -403,16 +403,6 @@ export function getPatchPreviewSnapshot(key) {
 }
 
 /**
- * Convenience getter that derives the cache key from a patch input.
- *
- * @param {PatchFileInput} input
- * @returns {PatchPreviewSnapshot | null}
- */
-export function getPatchPreviewSnapshotByInput(input) {
-  return getPatchPreviewSnapshot(patchPreviewCacheKey(input));
-}
-
-/**
  * @param {string} headerArgs
  * @param {"replace" | "insert"} op
  * @returns {{ op: "replace"; start: number; end: number; startHash: string; endHash: string } | { op: "insert"; after: number; afterHash: string }}
