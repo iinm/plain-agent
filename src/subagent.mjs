@@ -258,23 +258,18 @@ export function createSubagentManager(agentRoles, handlers) {
 
   /**
    * Get the most recently activated subagent, or null if none is active.
-   * @returns {{name: string} | null}
+   *
+   * `switchMessageIndex` is the message index at which the subagent was
+   * switched in; history is truncated back to it when the subagent reports,
+   * so `switchMessageIndex - 1` is the tail of the prefix that survives the
+   * switch and can be cache-read on return.
+   * @returns {{name: string, switchMessageIndex: number} | null}
    */
   function getActiveSubagent() {
     const top = subagents.at(-1);
-    return top ? { name: top.name } : null;
-  }
-
-  /**
-   * Message index at which the active subagent was switched in, or null if no
-   * subagent is active. History is truncated back to this index when the
-   * subagent reports, so `switchMessageIndex - 1` is the tail of the prefix
-   * that survives the switch and can be cache-read on return.
-   * @returns {number | null}
-   */
-  function getActiveSubagentSwitchMessageIndex() {
-    const top = subagents.at(-1);
-    return top ? top.switchMessageIndex : null;
+    return top
+      ? { name: top.name, switchMessageIndex: top.switchMessageIndex }
+      : null;
   }
 
   /**
@@ -327,7 +322,6 @@ export function createSubagentManager(agentRoles, handlers) {
     processToolResults,
     isSubagentActive,
     getActiveSubagent,
-    getActiveSubagentSwitchMessageIndex,
     getState,
     restoreState,
   };

@@ -121,9 +121,9 @@ export function createAgentLoop({
       // prefix that survives the switch back (messages before switchMessageIndex),
       // so it can be cache-read immediately after returning to the main agent.
       const switchMessageIndex =
-        subagentManager.getActiveSubagentSwitchMessageIndex();
+        subagentManager.getActiveSubagent()?.switchMessageIndex;
       const additionalCacheBreakpointIndices =
-        switchMessageIndex !== null && switchMessageIndex > 0
+        switchMessageIndex !== undefined && switchMessageIndex > 0
           ? [switchMessageIndex - 1]
           : undefined;
 
