@@ -3,6 +3,7 @@ import assert from "node:assert";
 import fs from "node:fs/promises";
 import { after, afterEach, before, describe, it } from "node:test";
 import { styleText } from "node:util";
+import { createPatchFileTool } from "../tools/patchFile.mjs";
 import { lineHash } from "../utils/lineHash.mjs";
 import {
   formatCommandArgs,
@@ -638,6 +639,31 @@ describe("formatToolUse (patch_file)", () => {
         "with no markers",
       ].join("\n"),
     );
+  });
+
+  it("renders the before-diff from the execution-time cache even after the file is overwritten", async () => {
+    // given: the tool impl runs first, freezing a before-snapshot, and the
+    // file on disk now holds the new content.
+    const tmpFilePath = await writeTmp(["alpha", "bravo", "charlie"]);
+    const tool = createPatchFileTool("zzz");
+    const patch = [
+      `REPLACE zzz 2:${lineHash("bravo")}-2:${lineHash("bravo")}`,
+      "BRAVO!",
+    ].join("\n");
+    const input = { filePath: tmpFilePath, patch };
+    const result = await tool.impl(input);
+    assert.equal(result, `Patched file: ${tmpFilePath}`);
+
+    // when: format the same input; disk already says "BRAVO!".
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "tcache",
+      toolName: "patch_file",
+      input,
+    });
+
+    // then: the removed line reflects the cached original "bravo", not disk.
+    assert.ok(stripAnsi(output).includes("- bravo\n+ BRAVO!"));
   });
 });
 

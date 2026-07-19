@@ -1,12 +1,23 @@
 /**
  * @import { Tool } from '../tool'
- * @import { PatchBlock, PatchFileInput } from './patchFile'
+ * @import { PatchBlock, PatchFileInput, PatchOriginalLines } from './patchFile'
  */
 
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import { diffLines } from "../utils/diffLines.mjs";
 import { lineHash } from "../utils/lineHash.mjs";
 import { noThrow } from "../utils/noThrow.mjs";
+
+/** Maximum entries in the original-lines cache. */
+const MAX_PATCH_ORIGINAL_LINES_CACHE_ENTRIES = 32;
+
+/**
+ * Original lines captured before applying a patch, keyed by patch input.
+ *
+ * @type {Map<string, PatchOriginalLines>}
+ */
+const patchOriginalLinesCache = new Map();
 
 /**
  * @param {string} [nonce]
@@ -67,6 +78,15 @@ content at beginning of file
         }
 
         const original = await fs.readFile(filePath, "utf8");
+        // Freeze the original lines for the diff preview here, before the
+        // write, so the CLI can render an accurate diff no matter when it runs.
+        setPatchOriginalLines(
+          input,
+          buildPatchOriginalLines(
+            splitFileLines(original),
+            collectPatchLineRanges(blocks),
+          ),
+        );
         const newContent = applyBlocks(original, blocks);
         await fs.writeFile(filePath, newContent);
 
@@ -249,8 +269,11 @@ export function applyBlocks(original, blocks) {
  * default to identity so the output is plain text suitable for tool results,
  * while the CLI passes styleText-based stylers for colored display.
  *
+ * The original content may be provided either as an absolute array of every
+ * line (backward-compatible), or as sparse {@link PatchOriginalLines}.
+ *
  * @param {PatchBlock} block
- * @param {string[] | null} originalLines
+ * @param {string[] | PatchOriginalLines | null} originalLines
  * @param {string} nonce
  * @param {{ header?: DiffStyler, del?: DiffStyler, add?: DiffStyler }} [style]
  * @returns {string}
@@ -260,6 +283,8 @@ export function renderPatchBlock(block, originalLines, nonce, style = {}) {
   const del = style.del ?? ((text) => text);
   const add = style.add ?? ((text) => text);
 
+  const source = normalizeOriginalSource(originalLines);
+
   /** @type {string[]} */
   const out = [];
   if (block.op === "replace") {
@@ -268,10 +293,14 @@ export function renderPatchBlock(block, originalLines, nonce, style = {}) {
         `REPLACE ${nonce} ${block.start}:${block.startHash}-${block.end}:${block.endHash}`,
       ),
     );
-    if (originalLines) {
+    if (source) {
       const safeStart = Math.max(1, block.start);
-      const safeEnd = Math.min(originalLines.length, block.end);
-      const oldSlice = originalLines.slice(safeStart - 1, safeEnd);
+      const safeEnd = Math.min(source.totalLines, block.end);
+      /** @type {string[]} */
+      const oldSlice = [];
+      for (let i = safeStart; i <= safeEnd; i++) {
+        oldSlice.push(source.getLine(i));
+      }
       // Use a real line diff so unchanged lines render as context
       // (no color, "  " prefix) instead of being shown as both "- " and
       // "+ ".
@@ -301,6 +330,59 @@ export function renderPatchBlock(block, originalLines, nonce, style = {}) {
   return out.join("\n");
 }
 
+/**
+ * Compute a deterministic cache key for a patch input.
+ *
+ * @param {PatchFileInput} input
+ * @returns {string}
+ */
+function patchOriginalLinesCacheKey(input) {
+  const { filePath, patch } = input;
+  const serialized = JSON.stringify({ filePath, patch });
+  return createHash("sha256").update(serialized).digest("hex");
+}
+
+/**
+ * Compute the set of original line ranges needed to render a patch's diff
+ * preview: the union of every replace block's `[start, end]` (1-based,
+ * inclusive). Insert blocks reference no original content and are excluded.
+ * Overlapping or adjacent ranges are merged; the result is sorted ascending.
+ *
+ * @param {PatchBlock[]} blocks
+ * @returns {[number, number][]}
+ */
+export function collectPatchLineRanges(blocks) {
+  /** @type {[number, number][]} */
+  const ranges = [];
+  for (const block of blocks) {
+    if (block.op === "replace") {
+      ranges.push([block.start, block.end]);
+    }
+  }
+  ranges.sort((a, b) => a[0] - b[0]);
+
+  /** @type {[number, number][]} */
+  const merged = [];
+  for (const [start, end] of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && start <= last[1] + 1) {
+      last[1] = Math.max(last[1], end);
+    } else {
+      merged.push([start, end]);
+    }
+  }
+  return merged;
+}
+
+/**
+ * Look up original lines captured before applying a patch.
+ *
+ * @param {PatchFileInput} input
+ * @returns {PatchOriginalLines | null}
+ */
+export function getPatchOriginalLines(input) {
+  return patchOriginalLinesCache.get(patchOriginalLinesCacheKey(input)) ?? null;
+}
 /**
  * @param {string} headerArgs
  * @param {"replace" | "insert"} op
@@ -440,4 +522,93 @@ function detectConflicts(blocks) {
       }
     }
   }
+}
+
+/**
+ * Store original lines using an opaque cache key derived from the patch input,
+ * maintaining the cache as an LRU: re-inserting an existing key moves it to
+ * newest, and once the entry count exceeds
+ * {@link MAX_PATCH_ORIGINAL_LINES_CACHE_ENTRIES} the oldest entries are
+ * evicted.
+ *
+ * @param {PatchFileInput} input
+ * @param {PatchOriginalLines} originalLines
+ */
+function setPatchOriginalLines(input, originalLines) {
+  const key = patchOriginalLinesCacheKey(input);
+  if (patchOriginalLinesCache.has(key)) {
+    patchOriginalLinesCache.delete(key);
+  }
+  patchOriginalLinesCache.set(key, originalLines);
+  while (
+    patchOriginalLinesCache.size > MAX_PATCH_ORIGINAL_LINES_CACHE_ENTRIES
+  ) {
+    const oldest = patchOriginalLinesCache.keys().next().value;
+    if (oldest === undefined) {
+      break;
+    }
+    patchOriginalLinesCache.delete(oldest);
+  }
+}
+
+/**
+ * Build sparse original lines from an absolute array, keeping only the lines
+ * within the given ranges (1-based, inclusive) plus the file's total line
+ * count.
+ *
+ * @param {string[]} originalLines
+ * @param {[number, number][]} ranges
+ * @returns {PatchOriginalLines}
+ */
+function buildPatchOriginalLines(originalLines, ranges) {
+  /** @type {Record<number, string>} */
+  const lines = {};
+  for (const [start, end] of ranges) {
+    const safeStart = Math.max(1, start);
+    const safeEnd = Math.min(originalLines.length, end);
+    for (let i = safeStart; i <= safeEnd; i++) {
+      lines[i] = originalLines[i - 1];
+    }
+  }
+  return { totalLines: originalLines.length, lines };
+}
+
+/**
+ * Normalize the original-content argument of {@link renderPatchBlock} into a
+ * uniform accessor, accepting either an absolute line array or sparse original
+ * lines. Returns null when no content is available.
+ *
+ * @param {string[] | PatchOriginalLines | null} originalLines
+ * @returns {{ totalLines: number; getLine: (line: number) => string } | null}
+ */
+function normalizeOriginalSource(originalLines) {
+  if (!originalLines) {
+    return null;
+  }
+  if (Array.isArray(originalLines)) {
+    return {
+      totalLines: originalLines.length,
+      getLine: (line) => originalLines[line - 1] ?? "",
+    };
+  }
+  return {
+    totalLines: originalLines.totalLines,
+    getLine: (line) => originalLines.lines[line] ?? "",
+  };
+}
+
+/**
+ * Split file content into 1-based lines, dropping the trailing empty element
+ * produced when the content ends with a newline. Mirrors {@link applyBlocks}'s
+ * own line indexing so snapshot line numbers match read_file / patch offsets.
+ *
+ * @param {string} content
+ * @returns {string[]}
+ */
+function splitFileLines(content) {
+  const lines = content.split("\n");
+  if (lines.length > 0 && lines[lines.length - 1] === "") {
+    lines.pop();
+  }
+  return lines;
 }

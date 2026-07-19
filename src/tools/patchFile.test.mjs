@@ -2,7 +2,13 @@ import assert from "node:assert";
 import fs from "node:fs/promises";
 import { afterEach, describe, it } from "node:test";
 import { lineHash } from "../utils/lineHash.mjs";
-import { createPatchFileTool, parseBlocks } from "./patchFile.mjs";
+import {
+  collectPatchLineRanges,
+  createPatchFileTool,
+  getPatchOriginalLines,
+  parseBlocks,
+  renderPatchBlock,
+} from "./patchFile.mjs";
 
 describe("patchFileTool", () => {
   const patchFileTool = createPatchFileTool("012");
@@ -733,5 +739,221 @@ describe("parseBlocks", () => {
 
     // when/then:
     assert.throws(() => parseBlocks(patch, "xyz"), /No patch blocks found/);
+  });
+});
+
+describe("collectPatchLineRanges", () => {
+  it("collects the union of replace ranges, ignoring inserts", () => {
+    // given:
+    /** @type {import("./patchFile").PatchBlock[]} */
+    const blocks = [
+      {
+        op: "replace",
+        start: 5,
+        end: 6,
+        startHash: "aa",
+        endHash: "bb",
+        body: [],
+      },
+      { op: "insert", after: 10, afterHash: "cc", body: ["x"] },
+      {
+        op: "replace",
+        start: 1,
+        end: 2,
+        startHash: "dd",
+        endHash: "ee",
+        body: [],
+      },
+    ];
+
+    // when:
+    const ranges = collectPatchLineRanges(blocks);
+
+    // then: sorted ascending, insert excluded.
+    assert.deepEqual(ranges, [
+      [1, 2],
+      [5, 6],
+    ]);
+  });
+
+  it("merges overlapping and adjacent ranges", () => {
+    // given:
+    /** @type {import("./patchFile").PatchBlock[]} */
+    const blocks = [
+      {
+        op: "replace",
+        start: 1,
+        end: 3,
+        startHash: "aa",
+        endHash: "bb",
+        body: [],
+      },
+      {
+        op: "replace",
+        start: 3,
+        end: 5,
+        startHash: "cc",
+        endHash: "dd",
+        body: [],
+      },
+      {
+        op: "replace",
+        start: 6,
+        end: 7,
+        startHash: "ee",
+        endHash: "ff",
+        body: [],
+      },
+    ];
+
+    // when:
+    const ranges = collectPatchLineRanges(blocks);
+
+    // then: 1-3 overlaps 3-5, and 6-7 is adjacent to 5 → all merged.
+    assert.deepEqual(ranges, [[1, 7]]);
+  });
+
+  it("returns an empty list when there are no replace blocks", () => {
+    // given:
+    /** @type {import("./patchFile").PatchBlock[]} */
+    const blocks = [{ op: "insert", after: 0, afterHash: "", body: ["x"] }];
+
+    // when/then:
+    assert.deepEqual(collectPatchLineRanges(blocks), []);
+  });
+});
+
+describe("renderPatchBlock with sparse original lines", () => {
+  it("renders a replace diff from sparse original lines", () => {
+    // given: only the touched lines are present in the snapshot.
+    /** @type {import("./patchFile").PatchBlock} */
+    const block = {
+      op: "replace",
+      start: 2,
+      end: 3,
+      startHash: "aa",
+      endHash: "bb",
+      body: ["NEW"],
+    };
+    /** @type {import("./patchFile").PatchOriginalLines} */
+    const snapshot = { totalLines: 5, lines: { 2: "two", 3: "three" } };
+
+    // when:
+    const out = renderPatchBlock(block, snapshot, "xyz");
+
+    // then:
+    assert.equal(
+      out,
+      ["REPLACE xyz 2:aa-3:bb", "- two", "- three", "+ NEW"].join("\n"),
+    );
+  });
+
+  it("caps the end bound using the snapshot's totalLines", () => {
+    // given: block.end (6) exceeds totalLines (5).
+    /** @type {import("./patchFile").PatchBlock} */
+    const block = {
+      op: "replace",
+      start: 5,
+      end: 6,
+      startHash: "aa",
+      endHash: "bb",
+      body: ["NEW"],
+    };
+    /** @type {import("./patchFile").PatchOriginalLines} */
+    const snapshot = { totalLines: 5, lines: { 5: "five" } };
+
+    // when:
+    const out = renderPatchBlock(block, snapshot, "xyz");
+
+    // then: only line 5 is treated as removed.
+    assert.equal(out, ["REPLACE xyz 5:aa-6:bb", "- five", "+ NEW"].join("\n"));
+  });
+
+  it("still renders from an absolute line array (backward compatible)", () => {
+    // given:
+    /** @type {import("./patchFile").PatchBlock} */
+    const block = {
+      op: "replace",
+      start: 1,
+      end: 1,
+      startHash: "aa",
+      endHash: "aa",
+      body: ["NEW"],
+    };
+
+    // when:
+    const out = renderPatchBlock(block, ["old", "keep"], "xyz");
+
+    // then:
+    assert.equal(out, ["REPLACE xyz 1:aa-1:aa", "- old", "+ NEW"].join("\n"));
+  });
+});
+describe("patch original lines cache (LRU)", () => {
+  const patchFileTool = createPatchFileTool("012");
+
+  /** @type {(() => Promise<void>)[]} */
+  const cleanups = [];
+
+  const generateRandomString = () => Math.random().toString(36).substring(2);
+
+  /**
+   * @param {string[]} lines
+   * @returns {Promise<string>}
+   */
+  const writeTmp = async (lines) => {
+    const tmpFilePath = `tmp/patchCacheTest-${generateRandomString()}.txt`;
+    await fs.mkdir("tmp", { recursive: true });
+    await fs.writeFile(tmpFilePath, lines.join("\n"));
+    cleanups.push(() => fs.unlink(tmpFilePath));
+    return tmpFilePath;
+  };
+
+  afterEach(async () => {
+    for (const cleanup of [...cleanups].reverse()) {
+      await cleanup();
+    }
+    cleanups.length = 0;
+  });
+
+  it("stores sparse original lines on execution, keyed by input", async () => {
+    // given:
+    const tmpFilePath = await writeTmp(["alpha", "bravo", "charlie"]);
+    const patch = [
+      `REPLACE 012 2:${lineHash("bravo")}-2:${lineHash("bravo")}`,
+      "BRAVO!",
+    ].join("\n");
+    const input = { filePath: tmpFilePath, patch };
+
+    // when:
+    await patchFileTool.impl(input);
+
+    // then: the original lines hold the pre-write line 2 only, plus total count.
+    const snapshot = getPatchOriginalLines(input);
+    assert.ok(snapshot);
+    assert.equal(snapshot.totalLines, 3);
+    assert.deepEqual(snapshot.lines, { 2: "bravo" });
+  });
+
+  it("evicts the oldest entry once the size limit is exceeded", async () => {
+    // given: run more patches than the cache can hold, tracking every input.
+    /** @type {{ filePath: string; patch: string }[]} */
+    const inputs = [];
+    const total = 35; // Exceeds the private 32-entry cache limit.
+
+    // when:
+    for (let i = 0; i < total; i++) {
+      const tmpFilePath = await writeTmp(["x"]);
+      const patch = [
+        `REPLACE 012 1:${lineHash("x")}-1:${lineHash("x")}`,
+        `y${i}`,
+      ].join("\n");
+      const input = { filePath: tmpFilePath, patch };
+      inputs.push(input);
+      await patchFileTool.impl(input);
+    }
+
+    // then: the oldest entry is gone, the newest remains.
+    assert.equal(getPatchOriginalLines(inputs[0]), null);
+    assert.ok(getPatchOriginalLines(inputs[inputs.length - 1]));
   });
 });
