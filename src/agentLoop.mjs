@@ -117,9 +117,7 @@ export function createAgentLoop({
         break;
       }
 
-      // While a subagent is active, add a cache breakpoint at the tail of the
-      // prefix that survives the switch back (messages before switchMessageIndex),
-      // so it can be cache-read immediately after returning to the main agent.
+      // Cache the prefix that survives the switch back to the main agent.
       const switchMessageIndex =
         subagentManager.getActiveSubagent()?.switchMessageIndex;
       const additionalCacheBreakpointIndices =

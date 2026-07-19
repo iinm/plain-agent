@@ -258,11 +258,6 @@ export function createSubagentManager(agentRoles, handlers) {
 
   /**
    * Get the most recently activated subagent, or null if none is active.
-   *
-   * `switchMessageIndex` is the message index at which the subagent was
-   * switched in; history is truncated back to it when the subagent reports,
-   * so `switchMessageIndex - 1` is the tail of the prefix that survives the
-   * switch and can be cache-read on return.
    * @returns {{name: string, switchMessageIndex: number} | null}
    */
   function getActiveSubagent() {

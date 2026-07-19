@@ -506,21 +506,15 @@ function convertAnthropicStreamEventToAgentPartialContent(
   }
 }
 
-/**
- * Anthropic allows at most 4 cache breakpoints per request.
- */
+// Anthropic allows at most 4 cache breakpoints per request.
 const MAX_CACHE_BREAKPOINTS = 4;
 
 /**
+ * Additional breakpoints take priority over the automatic ones; when the total
+ * exceeds MAX_CACHE_BREAKPOINTS, automatic breakpoints are dropped last-first.
+ * Omitting `additionalCacheBreakpointIndices` reproduces the automatic behavior.
  * @param {AnthropicMessage[]} messages
  * @param {number[]} [additionalCacheBreakpointIndices]
- *   Extra indices into `messages` to mark as cache breakpoints, in addition to
- *   the automatic ones (system + most recent two user messages). When the
- *   combined count exceeds {@link MAX_CACHE_BREAKPOINTS}, additional indices
- *   are kept first and automatic ones are dropped (most recent user message,
- *   then second-to-last user message, then system prompt are preferred, in
- *   that order). Omitting this argument reproduces the automatic behavior
- *   exactly.
  * @returns {AnthropicMessage[]}
  */
 function enableContextCaching(messages, additionalCacheBreakpointIndices) {
@@ -532,7 +526,7 @@ function enableContextCaching(messages, additionalCacheBreakpointIndices) {
     }
   }
 
-  // Automatic breakpoints, ordered by priority (most valuable first).
+  // Ordered by priority (most valuable first).
   const autoTargetIndices = [
     // last user message
     userMessageIndices.at(-1),
@@ -548,8 +542,6 @@ function enableContextCaching(messages, additionalCacheBreakpointIndices) {
     (index) => Number.isInteger(index) && index >= 0 && index < messages.length,
   );
 
-  // Explicit (additional) breakpoints take priority, then automatic ones fill
-  // the remaining slots up to MAX_CACHE_BREAKPOINTS.
   /** @type {Set<number>} */
   const cacheTargetIndices = new Set();
   for (const index of [...additionalTargetIndices, ...autoTargetIndices]) {
