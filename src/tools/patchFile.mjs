@@ -15,7 +15,7 @@ import { noThrow } from "../utils/noThrow.mjs";
  * consumers which never render a diff (e.g. batch runs) cannot grow memory
  * without bound.
  */
-export const MAX_PATCH_PREVIEW_CACHE_ENTRIES = 128;
+export const MAX_PATCH_PREVIEW_CACHE_ENTRIES = 32;
 
 /**
  * Process-global LRU cache mapping a patch input hash to the sparse snapshot of
