@@ -266,6 +266,18 @@ export function createSubagentManager(agentRoles, handlers) {
   }
 
   /**
+   * Message index at which the active subagent was switched in, or null if no
+   * subagent is active. History is truncated back to this index when the
+   * subagent reports, so `switchMessageIndex - 1` is the tail of the prefix
+   * that survives the switch and can be cache-read on return.
+   * @returns {number | null}
+   */
+  function getActiveSubagentSwitchMessageIndex() {
+    const top = subagents.at(-1);
+    return top ? top.switchMessageIndex : null;
+  }
+
+  /**
    * @typedef {Object} SubagentSerializedState
    * @property {{name: string, goal: string, switchMessageIndex: number}[]} subagents
    * @property {number} subagentCount
@@ -315,6 +327,7 @@ export function createSubagentManager(agentRoles, handlers) {
     processToolResults,
     isSubagentActive,
     getActiveSubagent,
+    getActiveSubagentSwitchMessageIndex,
     getState,
     restoreState,
   };

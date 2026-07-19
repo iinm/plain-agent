@@ -25,7 +25,10 @@ export async function callAnthropicModel(
 ) {
   return await noThrow(async () => {
     const messages = convertGenericMessageToAnthropicFormat(input.messages);
-    const cacheEnabledMessages = enableContextCaching(messages);
+    const cacheEnabledMessages = enableContextCaching(
+      messages,
+      input.additionalCacheBreakpointIndices,
+    );
     const tools = convertGenericToolDefinitionToAnthropicFormat(
       input.tools || [],
     );
@@ -504,10 +507,22 @@ function convertAnthropicStreamEventToAgentPartialContent(
 }
 
 /**
+ * Anthropic allows at most 4 cache breakpoints per request.
+ */
+const MAX_CACHE_BREAKPOINTS = 4;
+
+/**
  * @param {AnthropicMessage[]} messages
+ * @param {number[]} [additionalCacheBreakpointIndices]
+ *   Extra indices into `messages` to mark as cache breakpoints, in addition to
+ *   the automatic ones (system + most recent two user messages). When the
+ *   combined count exceeds {@link MAX_CACHE_BREAKPOINTS}, additional indices
+ *   are kept first and automatic ones are dropped (most recent user message,
+ *   then system, then second-to-last user message are preferred, in that
+ *   order). Omitting this argument reproduces the automatic behavior exactly.
  * @returns {AnthropicMessage[]}
  */
-function enableContextCaching(messages) {
+function enableContextCaching(messages, additionalCacheBreakpointIndices) {
   /** @type {number[]} */
   const userMessageIndices = [];
   for (let i = 0; i < messages.length; i++) {
@@ -515,18 +530,36 @@ function enableContextCaching(messages) {
       userMessageIndices.push(i);
     }
   }
-  const cacheTargetIndices = [
+
+  // Automatic breakpoints, ordered by priority (most valuable first).
+  const autoTargetIndices = [
     // last user message
     userMessageIndices.at(-1),
+    // system prompt
+    messages[0]?.role === "system" ? 0 : undefined,
     // second last user message
     userMessageIndices.at(-2),
   ].filter((index) => index !== undefined);
 
+  const additionalTargetIndices = (
+    additionalCacheBreakpointIndices ?? []
+  ).filter(
+    (index) => Number.isInteger(index) && index >= 0 && index < messages.length,
+  );
+
+  // Explicit (additional) breakpoints take priority, then automatic ones fill
+  // the remaining slots up to MAX_CACHE_BREAKPOINTS.
+  /** @type {Set<number>} */
+  const cacheTargetIndices = new Set();
+  for (const index of [...additionalTargetIndices, ...autoTargetIndices]) {
+    if (cacheTargetIndices.size >= MAX_CACHE_BREAKPOINTS) {
+      break;
+    }
+    cacheTargetIndices.add(index);
+  }
+
   const contextCachingEnabledMessages = messages.map((message, index) => {
-    if (
-      (index === 0 && message.role === "system") ||
-      cacheTargetIndices.includes(index)
-    ) {
+    if (cacheTargetIndices.has(index)) {
       return {
         ...message,
         content: message.content.map((part, partIndex) =>

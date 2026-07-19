@@ -117,9 +117,20 @@ export function createAgentLoop({
         break;
       }
 
+      // While a subagent is active, add a cache breakpoint at the tail of the
+      // prefix that survives the switch back (messages before switchMessageIndex),
+      // so it can be cache-read immediately after returning to the main agent.
+      const switchMessageIndex =
+        subagentManager.getActiveSubagentSwitchMessageIndex();
+      const additionalCacheBreakpointIndices =
+        switchMessageIndex !== null && switchMessageIndex > 0
+          ? [switchMessageIndex - 1]
+          : undefined;
+
       const modelOutput = await callModel({
         messages: stateManager.getMessages(),
         tools: toolDefs,
+        additionalCacheBreakpointIndices,
         /**
          * @param {PartialMessageContent} partialContent
          */

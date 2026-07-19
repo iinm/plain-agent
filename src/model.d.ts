@@ -6,6 +6,16 @@ export type ModelInput = {
   messages: Message[];
   tools?: ToolDefinition[];
   onPartialMessageContent?: (partialContent: PartialMessageContent) => void;
+
+  /**
+   * Indices into `messages` at which the caller wants to add cache
+   * breakpoints, in addition to the ones providers add automatically
+   * (e.g. system + the most recent user messages for Anthropic).
+   *
+   * Provider support is optional: only Anthropic honors this field;
+   * other providers ignore it.
+   */
+  additionalCacheBreakpointIndices?: number[];
 };
 
 export type ModelOutput = {
