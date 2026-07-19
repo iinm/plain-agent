@@ -11,7 +11,12 @@
 
 import fs from "node:fs/promises";
 import { styleText } from "node:util";
-import { parseBlocks, renderPatchBlock } from "../tools/patchFile.mjs";
+import {
+  getPatchPreviewSnapshot,
+  parseBlocks,
+  patchPreviewCacheKey,
+  renderPatchBlock,
+} from "../tools/patchFile.mjs";
 import { noThrow } from "../utils/noThrow.mjs";
 
 /** Length above which a single-line arg forces block-form rendering. */
@@ -853,8 +858,13 @@ async function renderPatch(filePath, patch) {
     return fallback;
   }
 
-  let originalLines = null;
-  if (filePath) {
+  // Prefer the snapshot frozen at execution time so the diff is accurate even
+  // if the file has already been written; fall back to reading from disk.
+  /** @type {string[] | import("../tools/patchFile").PatchPreviewSnapshot | null} */
+  let originalLines = getPatchPreviewSnapshot(
+    patchPreviewCacheKey({ filePath, patch }),
+  );
+  if (!originalLines && filePath) {
     const original = await noThrow(() => fs.readFile(filePath, "utf8"));
     if (!(original instanceof Error)) {
       originalLines = splitContentLines(original);

@@ -1,12 +1,37 @@
 /**
  * @import { Tool } from '../tool'
- * @import { PatchBlock, PatchFileInput } from './patchFile'
+ * @import { PatchBlock, PatchFileInput, PatchPreviewSnapshot } from './patchFile'
  */
 
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import { diffLines } from "../utils/diffLines.mjs";
 import { lineHash } from "../utils/lineHash.mjs";
 import { noThrow } from "../utils/noThrow.mjs";
+
+/**
+ * Max number of entries retained in the process-global patch preview cache.
+ * Entries are evicted oldest-first once this limit is exceeded so that
+ * consumers which never render a diff (e.g. batch runs) cannot grow memory
+ * without bound.
+ */
+export const MAX_PATCH_PREVIEW_CACHE_ENTRIES = 128;
+
+/**
+ * Process-global LRU cache mapping a patch input hash to the sparse snapshot of
+ * the target file's original content, captured at execution time (before the
+ * write). It lets the CLI render an accurate "before" diff regardless of the
+ * order in which the formatter and the tool impl run, without keeping the
+ * snapshot in stateManager messages / tool_use input (so it is never sent to
+ * the model nor persisted to the session jsonl).
+ *
+ * A plain Map preserves insertion order, so re-inserting a key on write keeps
+ * the most recently written entry newest and `keys().next().value` yields the
+ * oldest for eviction.
+ *
+ * @type {Map<string, PatchPreviewSnapshot>}
+ */
+const patchPreviewCache = new Map();
 
 /**
  * @param {string} [nonce]
@@ -67,6 +92,15 @@ content at beginning of file
         }
 
         const original = await fs.readFile(filePath, "utf8");
+        // Freeze the "before" content for the diff preview here, before the
+        // write, so the CLI can render an accurate diff no matter when it runs.
+        setPatchPreviewSnapshot(
+          patchPreviewCacheKey(input),
+          buildPatchPreviewSnapshot(
+            splitFileLines(original),
+            collectPatchLineRanges(blocks),
+          ),
+        );
         const newContent = applyBlocks(original, blocks);
         await fs.writeFile(filePath, newContent);
 
@@ -249,8 +283,12 @@ export function applyBlocks(original, blocks) {
  * default to identity so the output is plain text suitable for tool results,
  * while the CLI passes styleText-based stylers for colored display.
  *
+ * The original content may be provided either as an absolute array of every
+ * line (backward-compatible), or as a sparse {@link PatchPreviewSnapshot} that
+ * only carries the lines needed for the diff plus the file's total line count.
+ *
  * @param {PatchBlock} block
- * @param {string[] | null} originalLines
+ * @param {string[] | PatchPreviewSnapshot | null} originalLines
  * @param {string} nonce
  * @param {{ header?: DiffStyler, del?: DiffStyler, add?: DiffStyler }} [style]
  * @returns {string}
@@ -260,6 +298,8 @@ export function renderPatchBlock(block, originalLines, nonce, style = {}) {
   const del = style.del ?? ((text) => text);
   const add = style.add ?? ((text) => text);
 
+  const source = normalizeOriginalSource(originalLines);
+
   /** @type {string[]} */
   const out = [];
   if (block.op === "replace") {
@@ -268,10 +308,14 @@ export function renderPatchBlock(block, originalLines, nonce, style = {}) {
         `REPLACE ${nonce} ${block.start}:${block.startHash}-${block.end}:${block.endHash}`,
       ),
     );
-    if (originalLines) {
+    if (source) {
       const safeStart = Math.max(1, block.start);
-      const safeEnd = Math.min(originalLines.length, block.end);
-      const oldSlice = originalLines.slice(safeStart - 1, safeEnd);
+      const safeEnd = Math.min(source.totalLines, block.end);
+      /** @type {string[]} */
+      const oldSlice = [];
+      for (let i = safeStart; i <= safeEnd; i++) {
+        oldSlice.push(source.getLine(i));
+      }
       // Use a real line diff so unchanged lines render as context
       // (no color, "  " prefix) instead of being shown as both "- " and
       // "+ ".
@@ -299,6 +343,73 @@ export function renderPatchBlock(block, originalLines, nonce, style = {}) {
     }
   }
   return out.join("\n");
+}
+
+/**
+ * Compute a deterministic cache key for a patch input. Both the tool impl and
+ * the CLI formatter derive the key from the same `{ filePath, patch }` pair so
+ * a snapshot written at execution time can be looked up when rendering.
+ *
+ * @param {PatchFileInput} input
+ * @returns {string}
+ */
+export function patchPreviewCacheKey(input) {
+  const { filePath, patch } = input;
+  const serialized = JSON.stringify({ filePath, patch });
+  return createHash("sha256").update(serialized).digest("hex");
+}
+
+/**
+ * Compute the set of original line ranges needed to render a patch's diff
+ * preview: the union of every replace block's `[start, end]` (1-based,
+ * inclusive). Insert blocks reference no original content and are excluded.
+ * Overlapping or adjacent ranges are merged; the result is sorted ascending.
+ *
+ * @param {PatchBlock[]} blocks
+ * @returns {[number, number][]}
+ */
+export function collectPatchLineRanges(blocks) {
+  /** @type {[number, number][]} */
+  const ranges = [];
+  for (const block of blocks) {
+    if (block.op === "replace") {
+      ranges.push([block.start, block.end]);
+    }
+  }
+  ranges.sort((a, b) => a[0] - b[0]);
+
+  /** @type {[number, number][]} */
+  const merged = [];
+  for (const [start, end] of ranges) {
+    const last = merged[merged.length - 1];
+    if (last && start <= last[1] + 1) {
+      last[1] = Math.max(last[1], end);
+    } else {
+      merged.push([start, end]);
+    }
+  }
+  return merged;
+}
+
+/**
+ * Look up a previously captured patch preview snapshot by cache key. Read-only:
+ * it never mutates or evicts the cache (no delete-on-read).
+ *
+ * @param {string} key
+ * @returns {PatchPreviewSnapshot | null}
+ */
+export function getPatchPreviewSnapshot(key) {
+  return patchPreviewCache.get(key) ?? null;
+}
+
+/**
+ * Convenience getter that derives the cache key from a patch input.
+ *
+ * @param {PatchFileInput} input
+ * @returns {PatchPreviewSnapshot | null}
+ */
+export function getPatchPreviewSnapshotByInput(input) {
+  return getPatchPreviewSnapshot(patchPreviewCacheKey(input));
 }
 
 /**
@@ -440,4 +551,88 @@ function detectConflicts(blocks) {
       }
     }
   }
+}
+
+/**
+ * Store a snapshot under `key`, maintaining the cache as an LRU: re-inserting
+ * an existing key moves it to newest, and once the entry count exceeds
+ * {@link MAX_PATCH_PREVIEW_CACHE_ENTRIES} the oldest entries are evicted.
+ *
+ * @param {string} key
+ * @param {PatchPreviewSnapshot} snapshot
+ */
+function setPatchPreviewSnapshot(key, snapshot) {
+  if (patchPreviewCache.has(key)) {
+    patchPreviewCache.delete(key);
+  }
+  patchPreviewCache.set(key, snapshot);
+  while (patchPreviewCache.size > MAX_PATCH_PREVIEW_CACHE_ENTRIES) {
+    const oldest = patchPreviewCache.keys().next().value;
+    if (oldest === undefined) {
+      break;
+    }
+    patchPreviewCache.delete(oldest);
+  }
+}
+
+/**
+ * Build a sparse snapshot from an absolute array of original lines, keeping
+ * only the lines within the given ranges (1-based, inclusive) plus the file's
+ * total line count.
+ *
+ * @param {string[]} originalLines
+ * @param {[number, number][]} ranges
+ * @returns {PatchPreviewSnapshot}
+ */
+function buildPatchPreviewSnapshot(originalLines, ranges) {
+  /** @type {Record<number, string>} */
+  const lines = {};
+  for (const [start, end] of ranges) {
+    const safeStart = Math.max(1, start);
+    const safeEnd = Math.min(originalLines.length, end);
+    for (let i = safeStart; i <= safeEnd; i++) {
+      lines[i] = originalLines[i - 1];
+    }
+  }
+  return { totalLines: originalLines.length, lines };
+}
+
+/**
+ * Normalize the original-content argument of {@link renderPatchBlock} into a
+ * uniform accessor, accepting either an absolute line array or a sparse
+ * snapshot. Returns null when no content is available.
+ *
+ * @param {string[] | PatchPreviewSnapshot | null} originalLines
+ * @returns {{ totalLines: number; getLine: (line: number) => string } | null}
+ */
+function normalizeOriginalSource(originalLines) {
+  if (!originalLines) {
+    return null;
+  }
+  if (Array.isArray(originalLines)) {
+    return {
+      totalLines: originalLines.length,
+      getLine: (line) => originalLines[line - 1] ?? "",
+    };
+  }
+  return {
+    totalLines: originalLines.totalLines,
+    getLine: (line) => originalLines.lines[line] ?? "",
+  };
+}
+
+/**
+ * Split file content into 1-based lines, dropping the trailing empty element
+ * produced when the content ends with a newline. Mirrors {@link applyBlocks}'s
+ * own line indexing so snapshot line numbers match read_file / patch offsets.
+ *
+ * @param {string} content
+ * @returns {string[]}
+ */
+function splitFileLines(content) {
+  const lines = content.split("\n");
+  if (lines.length > 0 && lines[lines.length - 1] === "") {
+    lines.pop();
+  }
+  return lines;
 }

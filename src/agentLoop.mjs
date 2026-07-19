@@ -235,8 +235,6 @@ export function createAgentLoop({
         break;
       }
 
-      // Work around a race where patch_file can modify a file before the CLI reads it for the diff preview.
-      await new Promise((resolve) => setTimeout(resolve, 0));
       const executionResult = await toolExecutor.executeBatch(toolUseParts);
 
       if (!executionResult.success) {
