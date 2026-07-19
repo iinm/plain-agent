@@ -8,7 +8,7 @@ export type ModelInput = {
   onPartialMessageContent?: (partialContent: PartialMessageContent) => void;
 
   // Extra `messages` indices to mark as cache breakpoints, on top of the
-  // automatic ones. Only Anthropic honors this; other providers ignore it.
+  // automatic ones. Only the Anthropic provider uses this; others ignore it.
   additionalCacheBreakpointIndices?: number[];
 };
 
