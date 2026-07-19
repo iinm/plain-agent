@@ -518,8 +518,9 @@ const MAX_CACHE_BREAKPOINTS = 4;
  *   the automatic ones (system + most recent two user messages). When the
  *   combined count exceeds {@link MAX_CACHE_BREAKPOINTS}, additional indices
  *   are kept first and automatic ones are dropped (most recent user message,
- *   then system, then second-to-last user message are preferred, in that
- *   order). Omitting this argument reproduces the automatic behavior exactly.
+ *   then second-to-last user message, then system prompt are preferred, in
+ *   that order). Omitting this argument reproduces the automatic behavior
+ *   exactly.
  * @returns {AnthropicMessage[]}
  */
 function enableContextCaching(messages, additionalCacheBreakpointIndices) {
@@ -535,10 +536,10 @@ function enableContextCaching(messages, additionalCacheBreakpointIndices) {
   const autoTargetIndices = [
     // last user message
     userMessageIndices.at(-1),
-    // system prompt
-    messages[0]?.role === "system" ? 0 : undefined,
     // second last user message
     userMessageIndices.at(-2),
+    // system prompt
+    messages[0]?.role === "system" ? 0 : undefined,
   ].filter((index) => index !== undefined);
 
   const additionalTargetIndices = (
