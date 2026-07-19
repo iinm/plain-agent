@@ -518,20 +518,23 @@ const MAX_CACHE_BREAKPOINTS = 4;
  * @returns {AnthropicMessage[]}
  */
 function enableContextCaching(messages, additionalCacheBreakpointIndices) {
+  // End of each run of consecutive user messages, so that multiple user
+  // messages inserted in one turn count as a single breakpoint position and
+  // the previous turn's cached boundary keeps a breakpoint (=> cache read hit).
   /** @type {number[]} */
-  const userMessageIndices = [];
+  const userRunEndIndices = [];
   for (let i = 0; i < messages.length; i++) {
-    if (messages[i].role === "user") {
-      userMessageIndices.push(i);
+    if (messages[i].role === "user" && messages[i + 1]?.role !== "user") {
+      userRunEndIndices.push(i);
     }
   }
 
   // Ordered by priority (most valuable first).
   const autoTargetIndices = [
-    // last user message
-    userMessageIndices.at(-1),
-    // second last user message
-    userMessageIndices.at(-2),
+    // last user run
+    userRunEndIndices.at(-1),
+    // second last user run
+    userRunEndIndices.at(-2),
     // system prompt
     messages[0]?.role === "system" ? 0 : undefined,
   ].filter((index) => index !== undefined);
