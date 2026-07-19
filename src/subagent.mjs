@@ -258,11 +258,13 @@ export function createSubagentManager(agentRoles, handlers) {
 
   /**
    * Get the most recently activated subagent, or null if none is active.
-   * @returns {{name: string} | null}
+   * @returns {{name: string, switchMessageIndex: number} | null}
    */
   function getActiveSubagent() {
     const top = subagents.at(-1);
-    return top ? { name: top.name } : null;
+    return top
+      ? { name: top.name, switchMessageIndex: top.switchMessageIndex }
+      : null;
   }
 
   /**

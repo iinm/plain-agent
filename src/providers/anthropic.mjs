@@ -25,7 +25,10 @@ export async function callAnthropicModel(
 ) {
   return await noThrow(async () => {
     const messages = convertGenericMessageToAnthropicFormat(input.messages);
-    const cacheEnabledMessages = enableContextCaching(messages);
+    const cacheEnabledMessages = enableContextCaching(
+      messages,
+      input.additionalCacheBreakpointIndices,
+    );
     const tools = convertGenericToolDefinitionToAnthropicFormat(
       input.tools || [],
     );
@@ -503,30 +506,56 @@ function convertAnthropicStreamEventToAgentPartialContent(
   }
 }
 
+// Anthropic allows at most 4 cache breakpoints per request.
+const MAX_CACHE_BREAKPOINTS = 4;
+
 /**
+ * Additional breakpoints take priority over the automatic ones; when the total
+ * exceeds MAX_CACHE_BREAKPOINTS, automatic breakpoints are dropped last-first.
+ * Omitting `additionalCacheBreakpointIndices` reproduces the automatic behavior.
  * @param {AnthropicMessage[]} messages
+ * @param {number[]} [additionalCacheBreakpointIndices]
  * @returns {AnthropicMessage[]}
  */
-function enableContextCaching(messages) {
+function enableContextCaching(messages, additionalCacheBreakpointIndices) {
+  // End of each run of consecutive user messages, so that multiple user
+  // messages inserted in one turn count as a single breakpoint position and
+  // the previous turn's cached boundary keeps a breakpoint (=> cache read hit).
   /** @type {number[]} */
-  const userMessageIndices = [];
+  const userRunEndIndices = [];
   for (let i = 0; i < messages.length; i++) {
-    if (messages[i].role === "user") {
-      userMessageIndices.push(i);
+    if (messages[i].role === "user" && messages[i + 1]?.role !== "user") {
+      userRunEndIndices.push(i);
     }
   }
-  const cacheTargetIndices = [
-    // last user message
-    userMessageIndices.at(-1),
-    // second last user message
-    userMessageIndices.at(-2),
+
+  // Ordered by priority (most valuable first).
+  const autoTargetIndices = [
+    // last user run
+    userRunEndIndices.at(-1),
+    // second last user run
+    userRunEndIndices.at(-2),
+    // system prompt
+    messages[0]?.role === "system" ? 0 : undefined,
   ].filter((index) => index !== undefined);
 
+  const additionalTargetIndices = (
+    additionalCacheBreakpointIndices ?? []
+  ).filter(
+    (index) => Number.isInteger(index) && index >= 0 && index < messages.length,
+  );
+
+  /** @type {Set<number>} */
+  const cacheTargetIndices = new Set();
+  for (const index of [...additionalTargetIndices, ...autoTargetIndices]) {
+    if (cacheTargetIndices.size >= MAX_CACHE_BREAKPOINTS) {
+      break;
+    }
+    cacheTargetIndices.add(index);
+  }
+
   const contextCachingEnabledMessages = messages.map((message, index) => {
-    if (
-      (index === 0 && message.role === "system") ||
-      cacheTargetIndices.includes(index)
-    ) {
+    if (cacheTargetIndices.has(index)) {
       return {
         ...message,
         content: message.content.map((part, partIndex) =>

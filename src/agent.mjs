@@ -231,6 +231,9 @@ export function createAgent({
     pauseAutoApprove: () => {
       paused = true;
     },
-    getActiveSubagent: () => subagentManager.getActiveSubagent(),
+    getActiveSubagent: () => {
+      const active = subagentManager.getActiveSubagent();
+      return active ? { name: active.name } : null;
+    },
   };
 }

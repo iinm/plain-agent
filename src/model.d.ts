@@ -6,6 +6,10 @@ export type ModelInput = {
   messages: Message[];
   tools?: ToolDefinition[];
   onPartialMessageContent?: (partialContent: PartialMessageContent) => void;
+
+  // Extra `messages` indices to mark as cache breakpoints, on top of the
+  // automatic ones. Only the Anthropic provider uses this; others ignore it.
+  additionalCacheBreakpointIndices?: number[];
 };
 
 export type ModelOutput = {
