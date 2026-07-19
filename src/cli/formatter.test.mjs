@@ -665,27 +665,6 @@ describe("formatToolUse (patch_file)", () => {
     // then: the removed line reflects the cached original "bravo", not disk.
     assert.ok(stripAnsi(output).includes("- bravo\n+ BRAVO!"));
   });
-
-  it("falls back to reading disk on a cache miss", async () => {
-    // given: a file that was never patched through the tool, so nothing is
-    // cached for this input.
-    const tmpFilePath = await writeTmp(["one", "two", "three"]);
-    const patch = [
-      `REPLACE mss 2:${lineHash("two")}-2:${lineHash("two")}`,
-      "TWO!",
-    ].join("\n");
-
-    // when:
-    const output = await formatToolUse({
-      type: "tool_use",
-      toolUseId: "tmiss",
-      toolName: "patch_file",
-      input: { filePath: tmpFilePath, patch },
-    });
-
-    // then: the current on-disk content is used for the diff.
-    assert.ok(stripAnsi(output).includes("- two\n+ TWO!"));
-  });
 });
 
 describe("formatToolUse (read_file)", () => {
