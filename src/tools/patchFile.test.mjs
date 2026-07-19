@@ -5,10 +5,8 @@ import { lineHash } from "../utils/lineHash.mjs";
 import {
   collectPatchLineRanges,
   createPatchFileTool,
-  getPatchPreviewSnapshot,
-  MAX_PATCH_PREVIEW_CACHE_ENTRIES,
+  getPatchOriginalLines,
   parseBlocks,
-  patchPreviewCacheKey,
   renderPatchBlock,
 } from "./patchFile.mjs";
 
@@ -825,34 +823,8 @@ describe("collectPatchLineRanges", () => {
   });
 });
 
-describe("patchPreviewCacheKey", () => {
-  it("is deterministic for the same filePath and patch", () => {
-    // given:
-    const input = { filePath: "a/b.txt", patch: "REPLACE 012 1:aa\nnew" };
-
-    // when:
-    const key1 = patchPreviewCacheKey(input);
-    const key2 = patchPreviewCacheKey({ ...input });
-
-    // then:
-    assert.equal(key1, key2);
-    assert.match(key1, /^[a-f0-9]{64}$/);
-  });
-
-  it("differs when filePath or patch differ", () => {
-    // given/when:
-    const base = patchPreviewCacheKey({ filePath: "a.txt", patch: "p" });
-    const otherPath = patchPreviewCacheKey({ filePath: "b.txt", patch: "p" });
-    const otherPatch = patchPreviewCacheKey({ filePath: "a.txt", patch: "q" });
-
-    // then:
-    assert.notEqual(base, otherPath);
-    assert.notEqual(base, otherPatch);
-  });
-});
-
-describe("renderPatchBlock with a sparse snapshot", () => {
-  it("renders a replace diff from a sparse snapshot", () => {
+describe("renderPatchBlock with sparse original lines", () => {
+  it("renders a replace diff from sparse original lines", () => {
     // given: only the touched lines are present in the snapshot.
     /** @type {import("./patchFile").PatchBlock} */
     const block = {
@@ -863,7 +835,7 @@ describe("renderPatchBlock with a sparse snapshot", () => {
       endHash: "bb",
       body: ["NEW"],
     };
-    /** @type {import("./patchFile").PatchPreviewSnapshot} */
+    /** @type {import("./patchFile").PatchOriginalLines} */
     const snapshot = { totalLines: 5, lines: { 2: "two", 3: "three" } };
 
     // when:
@@ -887,7 +859,7 @@ describe("renderPatchBlock with a sparse snapshot", () => {
       endHash: "bb",
       body: ["NEW"],
     };
-    /** @type {import("./patchFile").PatchPreviewSnapshot} */
+    /** @type {import("./patchFile").PatchOriginalLines} */
     const snapshot = { totalLines: 5, lines: { 5: "five" } };
 
     // when:
@@ -916,8 +888,7 @@ describe("renderPatchBlock with a sparse snapshot", () => {
     assert.equal(out, ["REPLACE xyz 1:aa-1:aa", "- old", "+ NEW"].join("\n"));
   });
 });
-
-describe("patch preview cache (LRU)", () => {
+describe("patch original lines cache (LRU)", () => {
   const patchFileTool = createPatchFileTool("012");
 
   /** @type {(() => Promise<void>)[]} */
@@ -944,7 +915,7 @@ describe("patch preview cache (LRU)", () => {
     cleanups.length = 0;
   });
 
-  it("stores a sparse before-snapshot on execution, keyed by input", async () => {
+  it("stores sparse original lines on execution, keyed by input", async () => {
     // given:
     const tmpFilePath = await writeTmp(["alpha", "bravo", "charlie"]);
     const patch = [
@@ -956,8 +927,8 @@ describe("patch preview cache (LRU)", () => {
     // when:
     await patchFileTool.impl(input);
 
-    // then: the snapshot holds the pre-write line 2 only, plus total count.
-    const snapshot = getPatchPreviewSnapshot(patchPreviewCacheKey(input));
+    // then: the original lines hold the pre-write line 2 only, plus total count.
+    const snapshot = getPatchOriginalLines(input);
     assert.ok(snapshot);
     assert.equal(snapshot.totalLines, 3);
     assert.deepEqual(snapshot.lines, { 2: "bravo" });
@@ -967,7 +938,7 @@ describe("patch preview cache (LRU)", () => {
     // given: run more patches than the cache can hold, tracking every input.
     /** @type {{ filePath: string; patch: string }[]} */
     const inputs = [];
-    const total = MAX_PATCH_PREVIEW_CACHE_ENTRIES + 3;
+    const total = 35; // Exceeds the private 32-entry cache limit.
 
     // when:
     for (let i = 0; i < total; i++) {
@@ -982,12 +953,7 @@ describe("patch preview cache (LRU)", () => {
     }
 
     // then: the oldest entry is gone, the newest remains.
-    assert.equal(
-      getPatchPreviewSnapshot(patchPreviewCacheKey(inputs[0])),
-      null,
-    );
-    assert.ok(
-      getPatchPreviewSnapshot(patchPreviewCacheKey(inputs[inputs.length - 1])),
-    );
+    assert.equal(getPatchOriginalLines(inputs[0]), null);
+    assert.ok(getPatchOriginalLines(inputs[inputs.length - 1]));
   });
 });

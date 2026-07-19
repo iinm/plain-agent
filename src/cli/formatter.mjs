@@ -12,9 +12,8 @@
 import fs from "node:fs/promises";
 import { styleText } from "node:util";
 import {
-  getPatchPreviewSnapshot,
+  getPatchOriginalLines,
   parseBlocks,
-  patchPreviewCacheKey,
   renderPatchBlock,
 } from "../tools/patchFile.mjs";
 import { noThrow } from "../utils/noThrow.mjs";
@@ -858,12 +857,10 @@ async function renderPatch(filePath, patch) {
     return fallback;
   }
 
-  // Prefer the snapshot frozen at execution time so the diff is accurate even
+  // Prefer original lines frozen at execution time so the diff is accurate even
   // if the file has already been written; fall back to reading from disk.
-  /** @type {string[] | import("../tools/patchFile").PatchPreviewSnapshot | null} */
-  let originalLines = getPatchPreviewSnapshot(
-    patchPreviewCacheKey({ filePath, patch }),
-  );
+  /** @type {string[] | import("../tools/patchFile").PatchOriginalLines | null} */
+  let originalLines = getPatchOriginalLines({ filePath, patch });
   if (!originalLines && filePath) {
     const original = await noThrow(() => fs.readFile(filePath, "utf8"));
     if (!(original instanceof Error)) {
