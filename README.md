@@ -662,7 +662,6 @@ Files are loaded in the following order. Settings in later files override earlie
     "allowGitUnmanagedFiles": false,
     // Allow access to paths outside the working directory (default: false).
     // ⚠️ Relaxes a security check (e.g., for bash -c scripts). Sandbox is required.
-    // Combine with allowGitUnmanagedFiles to fully bypass path checks; .plain-agent/ and .. stay blocked.
     "allowOutsideWorkingDirectory": false,
     // Default action when no patterns match. Can be "ask" (prompt user) or "deny" (block action).
     "defaultAction": "ask",
