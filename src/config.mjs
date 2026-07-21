@@ -91,9 +91,9 @@ export async function loadAppConfig(options = {}) {
         allowGitUnmanagedFiles:
           config.autoApproval?.allowGitUnmanagedFiles ??
           merged.autoApproval?.allowGitUnmanagedFiles,
-        skipPathValidation:
-          config.autoApproval?.skipPathValidation ??
-          merged.autoApproval?.skipPathValidation,
+        allowOutsideWorkingDirectory:
+          config.autoApproval?.allowOutsideWorkingDirectory ??
+          merged.autoApproval?.allowOutsideWorkingDirectory,
         tests: [
           ...(config.autoApproval?.tests ?? []).map((t) => ({
             ...t,

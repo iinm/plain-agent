@@ -290,7 +290,7 @@ describe("createToolUseApprover", () => {
     });
   });
 
-  it("should allow tool use bypassing path validation when skipPathValidation is true", () => {
+  it("should allow bash -c scripts with allowOutsideWorkingDirectory + allowGitUnmanagedFiles", () => {
     // given:
     const patterns = [
       {
@@ -318,11 +318,22 @@ describe("createToolUseApprover", () => {
       maskApprovalInput: (_name, input) => input,
     });
 
-    const skipApprover = createToolUseApprover({
+    // allowOutsideWorkingDirectory alone is not enough: the git-unmanaged check
+    // still rejects the script string, so both options are required.
+    const outsideOnlyApprover = createToolUseApprover({
       patterns,
       maxApprovals: 2,
       defaultAction: "ask",
-      skipPathValidation: true,
+      allowOutsideWorkingDirectory: true,
+      maskApprovalInput: (_name, input) => input,
+    });
+
+    const relaxedApprover = createToolUseApprover({
+      patterns,
+      maxApprovals: 2,
+      defaultAction: "ask",
+      allowOutsideWorkingDirectory: true,
+      allowGitUnmanagedFiles: true,
       maskApprovalInput: (_name, input) => input,
     });
 
@@ -333,9 +344,14 @@ describe("createToolUseApprover", () => {
       "should fall back to defaultAction when path validation fails",
     );
     assert.deepStrictEqual(
-      skipApprover.isAllowedToolUse(toolUse),
+      outsideOnlyApprover.isAllowedToolUse(toolUse),
+      { action: "ask" },
+      "should still fall back when only the working-directory check is relaxed",
+    );
+    assert.deepStrictEqual(
+      relaxedApprover.isAllowedToolUse(toolUse),
       { action: "allow" },
-      "should allow when path validation is skipped",
+      "should allow when both path checks are relaxed",
     );
   });
 });

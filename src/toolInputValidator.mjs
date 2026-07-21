@@ -19,24 +19,36 @@ const BUILTIN_ALLOWED_PATHS = [
  * @param {unknown} input
  * @param {string[]} [allowedPaths=[]] - Additional allowed paths (outside working directory)
  * @param {boolean} [allowGitUnmanagedFiles=false] - Allow access to git-unmanaged files
+ * @param {boolean} [allowOutsideWorkingDirectory=false] - Allow paths outside the working directory
  * @returns {boolean}
  */
 export function isSafeToolInput(
   input,
   allowedPaths = [],
   allowGitUnmanagedFiles = false,
+  allowOutsideWorkingDirectory = false,
 ) {
   if (["number", "boolean", "undefined"].includes(typeof input)) {
     return true;
   }
 
   if (typeof input === "string") {
-    return isSafeToolInputItem(input, allowedPaths, allowGitUnmanagedFiles);
+    return isSafeToolInputItem(
+      input,
+      allowedPaths,
+      allowGitUnmanagedFiles,
+      allowOutsideWorkingDirectory,
+    );
   }
 
   if (Array.isArray(input)) {
     return input.every((item) =>
-      isSafeToolInput(item, allowedPaths, allowGitUnmanagedFiles),
+      isSafeToolInput(
+        item,
+        allowedPaths,
+        allowGitUnmanagedFiles,
+        allowOutsideWorkingDirectory,
+      ),
     );
   }
 
@@ -45,7 +57,12 @@ export function isSafeToolInput(
       return true;
     }
     return Object.values(input).every((value) =>
-      isSafeToolInput(value, allowedPaths, allowGitUnmanagedFiles),
+      isSafeToolInput(
+        value,
+        allowedPaths,
+        allowGitUnmanagedFiles,
+        allowOutsideWorkingDirectory,
+      ),
     );
   }
 
@@ -56,19 +73,31 @@ export function isSafeToolInput(
  * @param {string} arg
  * @param {string[]} [allowedPaths=[]] - Additional allowed paths (outside working directory)
  * @param {boolean} [allowGitUnmanagedFiles=false] - Allow access to git-unmanaged files
+ * @param {boolean} [allowOutsideWorkingDirectory=false] - Allow paths outside the working directory
  * @returns {boolean}
  */
 export function isSafeToolInputItem(
   arg,
   allowedPaths = [],
   allowGitUnmanagedFiles = false,
+  allowOutsideWorkingDirectory = false,
 ) {
   // @<path> pattern (e.g., curl -d @file.json)
   if (arg.startsWith("@")) {
     const pathPart = arg.slice(1);
     return (
-      isSafeToolInputItemRaw(arg, allowedPaths, allowGitUnmanagedFiles) &&
-      isSafeToolInputItemRaw(pathPart, allowedPaths, allowGitUnmanagedFiles)
+      isSafeToolInputItemRaw(
+        arg,
+        allowedPaths,
+        allowGitUnmanagedFiles,
+        allowOutsideWorkingDirectory,
+      ) &&
+      isSafeToolInputItemRaw(
+        pathPart,
+        allowedPaths,
+        allowGitUnmanagedFiles,
+        allowOutsideWorkingDirectory,
+      )
     );
   }
 
@@ -76,8 +105,18 @@ export function isSafeToolInputItem(
   const longOptMatch = arg.match(/^--[^=]+=(.+)$/);
   if (longOptMatch) {
     return (
-      isSafeToolInputItemRaw(arg, allowedPaths, allowGitUnmanagedFiles) &&
-      isSafeToolInputItem(longOptMatch[1], allowedPaths, allowGitUnmanagedFiles)
+      isSafeToolInputItemRaw(
+        arg,
+        allowedPaths,
+        allowGitUnmanagedFiles,
+        allowOutsideWorkingDirectory,
+      ) &&
+      isSafeToolInputItem(
+        longOptMatch[1],
+        allowedPaths,
+        allowGitUnmanagedFiles,
+        allowOutsideWorkingDirectory,
+      )
     );
   }
 
@@ -85,11 +124,17 @@ export function isSafeToolInputItem(
   const shortOptMatch = arg.match(/^-[a-zA-Z](.+)$/);
   if (shortOptMatch) {
     return (
-      isSafeToolInputItemRaw(arg, allowedPaths, allowGitUnmanagedFiles) &&
+      isSafeToolInputItemRaw(
+        arg,
+        allowedPaths,
+        allowGitUnmanagedFiles,
+        allowOutsideWorkingDirectory,
+      ) &&
       isSafeToolInputItem(
         shortOptMatch[1],
         allowedPaths,
         allowGitUnmanagedFiles,
+        allowOutsideWorkingDirectory,
       )
     );
   }
@@ -99,11 +144,17 @@ export function isSafeToolInputItem(
   const keyValueMatch = arg.match(/^[^-@][^=]*=(.+)$/);
   if (keyValueMatch) {
     return (
-      isSafeToolInputItemRaw(arg, allowedPaths, allowGitUnmanagedFiles) &&
+      isSafeToolInputItemRaw(
+        arg,
+        allowedPaths,
+        allowGitUnmanagedFiles,
+        allowOutsideWorkingDirectory,
+      ) &&
       isSafeToolInputItem(
         keyValueMatch[1],
         allowedPaths,
         allowGitUnmanagedFiles,
+        allowOutsideWorkingDirectory,
       )
     );
   }
@@ -112,27 +163,40 @@ export function isSafeToolInputItem(
   const fileMatch = arg.match(/^file:\/\/(.+)$/i);
   if (fileMatch) {
     return (
-      isSafeToolInputItemRaw(arg, allowedPaths, allowGitUnmanagedFiles) &&
+      isSafeToolInputItemRaw(
+        arg,
+        allowedPaths,
+        allowGitUnmanagedFiles,
+        allowOutsideWorkingDirectory,
+      ) &&
       isSafeToolInputItemRaw(
         `/${fileMatch[1]}`,
         allowedPaths,
         allowGitUnmanagedFiles,
+        allowOutsideWorkingDirectory,
       )
     );
   }
-  return isSafeToolInputItemRaw(arg, allowedPaths, allowGitUnmanagedFiles);
+  return isSafeToolInputItemRaw(
+    arg,
+    allowedPaths,
+    allowGitUnmanagedFiles,
+    allowOutsideWorkingDirectory,
+  );
 }
 
 /**
  * @param {string} arg
  * @param {string[]} [allowedPaths=[]] - Additional allowed paths (outside working directory)
  * @param {boolean} [allowGitUnmanagedFiles=false] - Allow access to git-unmanaged files
+ * @param {boolean} [allowOutsideWorkingDirectory=false] - Allow paths outside the working directory
  * @returns {boolean}
  */
 function isSafeToolInputItemRaw(
   arg,
   allowedPaths = [],
   allowGitUnmanagedFiles = false,
+  allowOutsideWorkingDirectory = false,
 ) {
   const workingDir = process.cwd();
 
@@ -168,7 +232,9 @@ function isSafeToolInputItemRaw(
   }
 
   // Path must be inside the working directory or in user-configured allowed paths
+  // (unless path validation is relaxed to allow any path outside the working directory)
   if (
+    !allowOutsideWorkingDirectory &&
     !isInsideWorkingDirectory(realPath, workingDir) &&
     !isInUserAllowedPath(realPath, allowedPaths)
   ) {

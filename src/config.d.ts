@@ -79,10 +79,11 @@ export type AppConfig = {
     /** Allow access to git-unmanaged files (default: false) */
     allowGitUnmanagedFiles?: boolean;
     /**
-     * Skip file path validation (`isSafeToolInput`) entirely (default: false).
-     * ⚠️ Disables a security check. Use only in a sandboxed environment.
+     * Allow access to paths outside the working directory (default: false).
+     * ⚠️ Relaxes a security check. Use only in a sandboxed environment.
+     * `.plain-agent/` and `..` traversal remain blocked.
      */
-    skipPathValidation?: boolean;
+    allowOutsideWorkingDirectory?: boolean;
   };
   sandbox?: ExecCommandSanboxConfig;
   tools?: {

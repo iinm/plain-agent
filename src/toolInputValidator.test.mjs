@@ -501,3 +501,59 @@ describe("allowGitUnmanagedFiles parameter", () => {
     assert.strictEqual(resultBlocked, false);
   });
 });
+
+describe("allowOutsideWorkingDirectory parameter", () => {
+  it("should block path outside working directory by default", () => {
+    // when:
+    const result = isSafeToolInputItem("/tmp/other-dir/some-file.txt");
+    // then:
+    assert.strictEqual(result, false);
+  });
+
+  it("should allow path outside working directory when allowOutsideWorkingDirectory is true", () => {
+    // given: outside path is also git-unmanaged, so both relaxations are needed
+    const allowGitUnmanagedFiles = true;
+    const allowOutsideWorkingDirectory = true;
+    // when:
+    const result = isSafeToolInputItem(
+      "/tmp/other-dir/some-file.txt",
+      [],
+      allowGitUnmanagedFiles,
+      allowOutsideWorkingDirectory,
+    );
+    // then:
+    assert.strictEqual(result, true);
+  });
+
+  it("should still block .. traversal when allowOutsideWorkingDirectory is true", () => {
+    // when:
+    const result = isSafeToolInputItem(
+      "/tmp/some-dir/../other/file.txt",
+      [],
+      true,
+      true,
+    );
+    // then: .. traversal is blocked regardless of the relaxation
+    assert.strictEqual(result, false);
+  });
+
+  it("should still block .plain-agent paths when allowOutsideWorkingDirectory is true", () => {
+    // given:
+    const sandboxPath = path.resolve(AGENT_PROJECT_METADATA_DIR, "sandbox");
+    // when:
+    const result = isSafeToolInputItem(`${sandboxPath}/run.sh`, [], true, true);
+    // then: .plain-agent restriction takes priority
+    assert.strictEqual(result, false);
+  });
+
+  it("should propagate allowOutsideWorkingDirectory through isSafeToolInput", () => {
+    // given:
+    const input = { filePath: "/tmp/other-dir/some-file.txt" };
+    // when:
+    const resultAllowed = isSafeToolInput(input, [], true, true);
+    const resultBlocked = isSafeToolInput(input, [], true, false);
+    // then:
+    assert.strictEqual(resultAllowed, true);
+    assert.strictEqual(resultBlocked, false);
+  });
+});
