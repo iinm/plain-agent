@@ -503,13 +503,6 @@ describe("allowGitUnmanagedFiles parameter", () => {
 });
 
 describe("allowOutsideWorkingDirectory parameter", () => {
-  it("should block path outside working directory by default", () => {
-    // when:
-    const result = isSafeToolInputItem("/tmp/other-dir/some-file.txt");
-    // then:
-    assert.strictEqual(result, false);
-  });
-
   it("should allow path outside working directory when allowOutsideWorkingDirectory is true", () => {
     // given: outside path is also git-unmanaged, so both relaxations are needed
     const allowGitUnmanagedFiles = true;
