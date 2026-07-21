@@ -67,10 +67,12 @@ export function createToolUseApprover({
 
       if (action === "allow") {
         const maskedInput = maskApprovalInput(toolUse.toolName, toolUse.input);
-        const safe =
-          skipPathValidation ||
-          isSafeToolInput(maskedInput, allowedPaths, allowGitUnmanagedFiles);
-        if (safe) {
+        const safe = isSafeToolInput(
+          maskedInput,
+          allowedPaths,
+          allowGitUnmanagedFiles,
+        );
+        if (skipPathValidation || safe) {
           state.approvalCount += 1;
           return state.approvalCount <= max
             ? { action: "allow" }
