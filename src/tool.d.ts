@@ -55,6 +55,11 @@ export type ToolUseApproverConfig = {
   allowedPaths?: string[];
   /** Allow access to git-unmanaged files (default: false) */
   allowGitUnmanagedFiles?: boolean;
+  /**
+   * Skip file path validation (`isSafeToolInput`) entirely (default: false).
+   * ⚠️ Disables a security check. Use only in a sandboxed environment.
+   */
+  skipPathValidation?: boolean;
 
   /**
    * Mask the input before auto-approval checks and recording.

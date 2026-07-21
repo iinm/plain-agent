@@ -17,6 +17,7 @@ export function createToolUseApprover({
   maskApprovalInput,
   allowedPaths = [],
   allowGitUnmanagedFiles = false,
+  skipPathValidation = false,
 }) {
   const state = {
     approvalCount: 0,
@@ -66,9 +67,10 @@ export function createToolUseApprover({
 
       if (action === "allow") {
         const maskedInput = maskApprovalInput(toolUse.toolName, toolUse.input);
-        if (
-          isSafeToolInput(maskedInput, allowedPaths, allowGitUnmanagedFiles)
-        ) {
+        const safe =
+          skipPathValidation ||
+          isSafeToolInput(maskedInput, allowedPaths, allowGitUnmanagedFiles);
+        if (safe) {
           state.approvalCount += 1;
           return state.approvalCount <= max
             ? { action: "allow" }

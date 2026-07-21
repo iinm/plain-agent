@@ -660,6 +660,9 @@ Files are loaded in the following order. Settings in later files override earlie
     // Allow access to git-unmanaged files (default: false).
     // ⚠️ Changes to git-unmanaged files are hard to detect (e.g., node_modules). Sandbox is recommended.
     "allowGitUnmanagedFiles": false,
+    // Skip path validation entirely (default: false).
+    // ⚠️ Disables a security check (e.g., for bash -c scripts). Sandbox is required.
+    "skipPathValidation": false,
     // Default action when no patterns match. Can be "ask" (prompt user) or "deny" (block action).
     "defaultAction": "ask",
     // Maximum number of automatic approvals.

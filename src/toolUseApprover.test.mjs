@@ -289,4 +289,53 @@ describe("createToolUseApprover", () => {
       action: "ask",
     });
   });
+
+  it("should allow tool use bypassing path validation when skipPathValidation is true", () => {
+    // given:
+    const patterns = [
+      {
+        toolName: "exec_command",
+        input: { command: "bash" },
+        action: /** @type {const} */ ("allow"),
+      },
+    ];
+
+    /** @type {MessageContentToolUse} */
+    const toolUse = {
+      type: "tool_use",
+      toolUseId: "test",
+      toolName: "exec_command",
+      input: {
+        command: "bash",
+        args: ["-c", "cd /repo && HOME=/tmp npm test"],
+      },
+    };
+
+    const strictApprover = createToolUseApprover({
+      patterns,
+      maxApprovals: 2,
+      defaultAction: "ask",
+      maskApprovalInput: (_name, input) => input,
+    });
+
+    const skipApprover = createToolUseApprover({
+      patterns,
+      maxApprovals: 2,
+      defaultAction: "ask",
+      skipPathValidation: true,
+      maskApprovalInput: (_name, input) => input,
+    });
+
+    // when/then:
+    assert.deepStrictEqual(
+      strictApprover.isAllowedToolUse(toolUse),
+      { action: "ask" },
+      "should fall back to defaultAction when path validation fails",
+    );
+    assert.deepStrictEqual(
+      skipApprover.isAllowedToolUse(toolUse),
+      { action: "allow" },
+      "should allow when path validation is skipped",
+    );
+  });
 });
