@@ -96,7 +96,9 @@ export function isSafeToolInputItem(
 
   // VAR=val pattern (e.g., make OUTPUT=/path, env KEY=val)
   // Must not start with - or @ (already handled above)
-  const keyValueMatch = arg.match(/^[^-@][^=]*=(.+)$/);
+  // Key must not contain whitespace; otherwise a whole `bash -c` script string
+  // (e.g. `cd … && HOME=/tmp npm …`) would be misdetected as VAR=val.
+  const keyValueMatch = arg.match(/^[^-@][^=\s]*=(.+)$/);
   if (keyValueMatch) {
     return (
       isSafeToolInputItemRaw(arg, allowedPaths, allowGitUnmanagedFiles) &&
