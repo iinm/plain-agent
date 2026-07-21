@@ -313,6 +313,13 @@ describe("isSafeToolInputItem", () => {
       arg: "-DINSTALL_DIR=/etc",
       expected: false,
     },
+    // A whole `bash -c` script string with a whitespace-containing key before `=`
+    // must not be treated as VAR=val; it is validated as a working-dir path.
+    {
+      desc: "bash -c script with mid-string VAR=val is not a VAR=val assignment",
+      arg: "cd foo && HOME=/tmp npm install",
+      expected: true,
+    },
 
     // proto://path pattern
     {
