@@ -78,11 +78,7 @@ export type AppConfig = {
     allowedPaths?: string[];
     /** Allow access to git-unmanaged files (default: false) */
     allowGitUnmanagedFiles?: boolean;
-    /**
-     * Allow access to paths outside the working directory (default: false).
-     * ⚠️ Relaxes a security check. Use only in a sandboxed environment.
-     * `.plain-agent/` and `..` traversal remain blocked.
-     */
+    /** Allow access to paths outside the working directory (default: false) */
     allowOutsideWorkingDirectory?: boolean;
   };
   sandbox?: ExecCommandSanboxConfig;
