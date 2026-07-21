@@ -290,12 +290,12 @@ describe("createToolUseApprover", () => {
     });
   });
 
-  it("should allow bash -c scripts with allowOutsideWorkingDirectory + allowGitUnmanagedFiles", () => {
+  it("should allow paths outside the working directory only with allowOutsideWorkingDirectory + allowGitUnmanagedFiles", () => {
     // given:
     const patterns = [
       {
         toolName: "exec_command",
-        input: { command: "bash" },
+        input: { command: "cat" },
         action: /** @type {const} */ ("allow"),
       },
     ];
@@ -306,8 +306,8 @@ describe("createToolUseApprover", () => {
       toolUseId: "test",
       toolName: "exec_command",
       input: {
-        command: "bash",
-        args: ["-c", "cd /repo && HOME=/tmp npm test"],
+        command: "cat",
+        args: ["/tmp/outside-workdir/file.txt"],
       },
     };
 
@@ -319,7 +319,7 @@ describe("createToolUseApprover", () => {
     });
 
     // allowOutsideWorkingDirectory alone is not enough: the git-unmanaged check
-    // still rejects the script string, so both options are required.
+    // still rejects the path, so both options are required.
     const outsideOnlyApprover = createToolUseApprover({
       patterns,
       maxApprovals: 2,

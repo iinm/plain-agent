@@ -140,8 +140,10 @@ export function isSafeToolInputItem(
   }
 
   // VAR=val pattern (e.g., make OUTPUT=/path, env KEY=val)
-  // Must not start with - or @ (already handled above)
-  const keyValueMatch = arg.match(/^[^-@][^=]*=(.+)$/);
+  // Must not start with - or @ (already handled above).
+  // The key must be a single token: whitespace before "=" is not allowed
+  // (avoids misparsing shell scripts like `cd dir && HOME=/tmp cmd`).
+  const keyValueMatch = arg.match(/^[^-@][^=\s]*=(.+)$/);
   if (keyValueMatch) {
     return (
       isSafeToolInputItemRaw(
