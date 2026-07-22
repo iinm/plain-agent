@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
 
 (async () => {
-  const model = "gemini-3.5-flash";
+  const model = "gemini-3.6-flash";
 
   // Google AI Studio
   // const apiKey = process.env.GEMINI_API_KEY;

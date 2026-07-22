@@ -15,7 +15,7 @@ const provider = process.argv[2] ?? "gemini";
     const webSearchTool = createWebSearchTool({
       provider: "gemini",
       apiKey: process.env.GEMINI_API_KEY ?? "",
-      model: "gemini-3.5-flash",
+      model: "gemini-3.6-flash",
     });
 
     const answer = await webSearchTool.impl({
