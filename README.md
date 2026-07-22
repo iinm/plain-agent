@@ -289,12 +289,12 @@ Create a configuration file.
     "webSearch": {
       "provider": "gemini",
       "apiKey": "<GEMINI_API_KEY>",
-      "model": "gemini-3.5-flash"
+      "model": "gemini-3.6-flash"
 
       // Or use Vertex AI (requires the gcloud CLI for authentication)
       // "provider": "gemini-vertex-ai",
       // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
-      // "model": "gemini-3.5-flash"
+      // "model": "gemini-3.6-flash"
 
       // Or use a custom command
       // "provider": "command",
@@ -305,7 +305,7 @@ Create a configuration file.
     "webFetch": {
       "provider": "gemini",
       "apiKey": "<GEMINI_API_KEY>",
-      "model": "gemini-3.5-flash"
+      "model": "gemini-3.6-flash"
 
       // Or use Vertex AI (requires the gcloud CLI for authentication)
 

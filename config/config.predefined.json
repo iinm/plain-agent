@@ -1158,7 +1158,7 @@
     },
 
     {
-      "name": "gemini-3.5-flash",
+      "name": "gemini-3.6-flash",
       "variant": "thinking-medium",
       "platform": {
         "name": "gemini",
@@ -1168,7 +1168,7 @@
       "model": {
         "format": "gemini",
         "config": {
-          "model": "gemini-3.5-flash",
+          "model": "gemini-3.6-flash",
           "generationConfig": {
             "maxOutputTokens": 32768,
             "thinkingConfig": {
@@ -1184,13 +1184,13 @@
         "prices": {
           "promptTokenCount": 1.5,
           "cachedContentTokenCount": -1.35,
-          "candidatesTokenCount": 9
+          "candidatesTokenCount": 7.5
         }
       },
       "autoCompact": { "inputTokensKeys": ["promptTokenCount"] }
     },
     {
-      "name": "gemini-3.5-flash",
+      "name": "gemini-3.6-flash",
       "variant": "thinking-high",
       "platform": {
         "name": "gemini",
@@ -1200,7 +1200,7 @@
       "model": {
         "format": "gemini",
         "config": {
-          "model": "gemini-3.5-flash",
+          "model": "gemini-3.6-flash",
           "generationConfig": {
             "maxOutputTokens": 65536,
             "thinkingConfig": {
@@ -1216,7 +1216,7 @@
         "prices": {
           "promptTokenCount": 1.5,
           "cachedContentTokenCount": -1.35,
-          "candidatesTokenCount": 9
+          "candidatesTokenCount": 7.5
         }
       },
       "autoCompact": { "inputTokensKeys": ["promptTokenCount"] }
@@ -1287,7 +1287,7 @@
     },
 
     {
-      "name": "gemini-3.5-flash",
+      "name": "gemini-3.6-flash",
       "variant": "thinking-medium-vertex-ai",
       "platform": {
         "name": "vertex-ai",
@@ -1296,7 +1296,7 @@
       "model": {
         "format": "gemini",
         "config": {
-          "model": "gemini-3.5-flash",
+          "model": "gemini-3.6-flash",
           "generationConfig": {
             "maxOutputTokens": 32768,
             "thinkingConfig": {
@@ -1312,13 +1312,13 @@
         "prices": {
           "promptTokenCount": 1.5,
           "cachedContentTokenCount": -1.35,
-          "candidatesTokenCount": 9
+          "candidatesTokenCount": 7.5
         }
       },
       "autoCompact": { "inputTokensKeys": ["promptTokenCount"] }
     },
     {
-      "name": "gemini-3.5-flash",
+      "name": "gemini-3.6-flash",
       "variant": "thinking-high-vertex-ai",
       "platform": {
         "name": "vertex-ai",
@@ -1327,7 +1327,7 @@
       "model": {
         "format": "gemini",
         "config": {
-          "model": "gemini-3.5-flash",
+          "model": "gemini-3.6-flash",
           "generationConfig": {
             "maxOutputTokens": 65536,
             "thinkingConfig": {
@@ -1343,7 +1343,7 @@
         "prices": {
           "promptTokenCount": 1.5,
           "cachedContentTokenCount": -1.35,
-          "candidatesTokenCount": 9
+          "candidatesTokenCount": 7.5
         }
       },
       "autoCompact": { "inputTokensKeys": ["promptTokenCount"] }
