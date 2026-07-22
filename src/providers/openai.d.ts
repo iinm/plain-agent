@@ -115,6 +115,9 @@ export type OpenAIUsage = {
   input_tokens: number;
   input_tokens_details: {
     cached_tokens: number;
+    // Tokens written to cache this request. Reported by GPT-5.6+ models,
+    // where cache writes are billed at 1.25x the uncached input rate.
+    cache_write_tokens?: number;
   };
   output_tokens: number;
   output_tokens_details: {
