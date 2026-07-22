@@ -7,6 +7,8 @@ export type OpenAIModelConfig = {
   };
   store?: boolean;
   include?: ["reasoning.encrypted_content"];
+  // Prompt-cache routing key. See https://developers.openai.com/api/docs/guides/prompt-caching
+  prompt_cache_key?: string;
 };
 
 /**

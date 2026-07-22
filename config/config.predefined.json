@@ -1535,6 +1535,7 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.6-sol",
+          "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "medium", "summary": "auto" },
           "store": false,
           "include": ["reasoning.encrypted_content"]
@@ -1564,6 +1565,7 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.6-sol",
+          "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "high", "summary": "auto" },
           "store": false,
           "include": ["reasoning.encrypted_content"]
@@ -1593,6 +1595,7 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.6-terra",
+          "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "medium", "summary": "auto" },
           "store": false,
           "include": ["reasoning.encrypted_content"]
@@ -1622,6 +1625,7 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.6-terra",
+          "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "high", "summary": "auto" },
           "store": false,
           "include": ["reasoning.encrypted_content"]
@@ -1651,6 +1655,7 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.6-luna",
+          "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "medium", "summary": "auto" },
           "store": false,
           "include": ["reasoning.encrypted_content"]
@@ -1680,6 +1685,7 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.6-luna",
+          "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "high", "summary": "auto" },
           "store": false,
           "include": ["reasoning.encrypted_content"]
@@ -1817,6 +1823,7 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.6-sol",
+          "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "medium", "summary": "auto" },
           "store": false,
           "include": ["reasoning.encrypted_content"]
@@ -1844,6 +1851,7 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.6-sol",
+          "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "high", "summary": "auto" },
           "store": false,
           "include": ["reasoning.encrypted_content"]
@@ -1871,6 +1879,7 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.6-terra",
+          "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "medium", "summary": "auto" },
           "store": false,
           "include": ["reasoning.encrypted_content"]
@@ -1898,6 +1907,7 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.6-terra",
+          "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "high", "summary": "auto" },
           "store": false,
           "include": ["reasoning.encrypted_content"]
@@ -1925,6 +1935,7 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.6-luna",
+          "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "medium", "summary": "auto" },
           "store": false,
           "include": ["reasoning.encrypted_content"]
@@ -1952,6 +1963,7 @@
         "format": "openai-responses",
         "config": {
           "model": "gpt-5.6-luna",
+          "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "high", "summary": "auto" },
           "store": false,
           "include": ["reasoning.encrypted_content"]

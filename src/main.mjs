@@ -48,6 +48,10 @@ import { createToolUseApprover } from "./toolUseApprover.mjs";
  */
 export async function main(argv = process.argv) {
   const cliArgs = parseCliArgs(argv);
+
+  // Ensure PLAIN_AGENT_SESSION_ID is set for $env resolution in config files.
+  process.env.PLAIN_AGENT_SESSION_ID = generateSessionId();
+
   if (cliArgs.subcommand.type === "help") {
     printHelp();
   }
@@ -179,7 +183,11 @@ export async function main(argv = process.argv) {
   const startTime = resumedState
     ? new Date(resumedState.startTime)
     : new Date();
-  const sessionId = resumedState ? resumedState.sessionId : generateSessionId();
+  const sessionId = resumedState
+    ? resumedState.sessionId
+    : process.env.PLAIN_AGENT_SESSION_ID;
+  process.env.PLAIN_AGENT_SESSION_ID = sessionId;
+
   const isBatchMode = cliArgs.subcommand.type === "batch";
   /** @type {string[]} */
   const configFiles =
