@@ -371,7 +371,7 @@ export function startInteractiveSession({
         : "";
       const partialContentStr = styleText("gray", `<${partialContent.type}>`);
 
-      if (partialContent.type === "tool_use") {
+      if (["thinking", "tool_use"].includes(partialContent.type)) {
         state.toolSpinnerIndex = 0;
         state.toolSpinnerLastTime = Date.now();
         process.stdout.write(
@@ -382,7 +382,7 @@ export function startInteractiveSession({
       }
     }
     if (partialContent.content) {
-      if (partialContent.type === "tool_use") {
+      if (["thinking", "tool_use"].includes(partialContent.type)) {
         const now = Date.now();
         if (now - state.toolSpinnerLastTime >= SPINNER_INTERVAL_MS) {
           state.toolSpinnerIndex =
@@ -399,7 +399,7 @@ export function startInteractiveSession({
       }
     }
     if (partialContent.position === "stop") {
-      if (partialContent.type === "tool_use") {
+      if (["thinking", "tool_use"].includes(partialContent.type)) {
         // Clear current line, move up one line, and clear that line too
         process.stdout.write("\x1b[2K\x1b[1F\x1b[2K");
       } else {

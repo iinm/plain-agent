@@ -718,7 +718,7 @@ describe("formatToolResult (read_file)", () => {
     }
   });
 
-  it("colors line number and hash prefix in gray", async () => {
+  it("returns gray summary of read_file output", async () => {
     // given:
     const toolResult = /** @type {MessageContentToolResult} */ ({
       type: "tool_result",
@@ -737,12 +737,10 @@ describe("formatToolResult (read_file)", () => {
     const output = formatToolResult(toolResult);
 
     // then:
-    const grayPrefix = styleText("gray", "1:a3|");
-    assert.ok(output.startsWith(grayPrefix));
-    assert.ok(output.includes(styleText("gray", "2:b7|")));
-    assert.ok(output.includes(styleText("gray", "3:c1|")));
+    assert.equal(output, styleText("gray", "(read_file output: 3 lines)"));
   });
 });
+
 describe("formatMarkdownTable", () => {
   /** @type {string | undefined} */
   let prevForceColor;
