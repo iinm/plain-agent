@@ -104,14 +104,19 @@ export function startInteractiveSession({
   claudeCodePlugins,
   execCommandTool,
 }) {
-  /** @type {{ turn: boolean, multiLineBuffer: string[] | null, subagentName: string, toolSpinnerIndex: number, toolSpinnerLastTime: number }} */
+  /** @type {{ turn: boolean, multiLineBuffer: string[] | null, subagentName: string, toolSpinnerIndex: number, toolSpinnerLastTime: number, thinkingBuffer: string, thinkingRenderedLines: number }} */
   const state = {
     turn: true,
     multiLineBuffer: null,
     subagentName: agent.getActiveSubagent()?.name ?? "",
     toolSpinnerIndex: 0,
     toolSpinnerLastTime: 0,
+    thinkingBuffer: "",
+    thinkingRenderedLines: 0,
   };
+
+  // Number of most recent thinking lines to keep visible while streaming.
+  const THINKING_VISIBLE_LINES = 3;
 
   const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
   const SPINNER_INTERVAL_MS = 80;
@@ -360,11 +365,56 @@ export function startInteractiveSession({
     await processInput(lineInput);
   });
 
+  // Erase the currently rendered thinking lines and reset the counter.
+  const clearThinking = () => {
+    if (state.thinkingRenderedLines > 0) {
+      // Clear the current line, then move up and clear each remaining line.
+      let seq = "\r\x1b[2K";
+      for (let i = 1; i < state.thinkingRenderedLines; i += 1) {
+        seq += "\x1b[1F\x1b[2K";
+      }
+      process.stdout.write(seq);
+    }
+    state.thinkingRenderedLines = 0;
+  };
+
+  // Redraw the last few thinking lines in place from the buffer.
+  const renderThinking = () => {
+    clearThinking();
+    const lines = state.thinkingBuffer
+      .split("\n")
+      .slice(-THINKING_VISIBLE_LINES);
+    process.stdout.write(
+      lines.map((line) => styleText("gray", line)).join("\n"),
+    );
+    state.thinkingRenderedLines = lines.length;
+  };
+
   /**
    * Render a streaming partial message content chunk.
    * @param {import("../model").PartialMessageContent} partialContent
    */
   const handlePartialMessageContent = (partialContent) => {
+    if (partialContent.type === "thinking") {
+      // Fall back to no rendering when we cannot control the cursor.
+      if (!process.stdout.isTTY) {
+        return;
+      }
+      if (partialContent.position === "start") {
+        state.thinkingBuffer = "";
+        state.thinkingRenderedLines = 0;
+      }
+      if (partialContent.content) {
+        state.thinkingBuffer += partialContent.content;
+        renderThinking();
+      }
+      if (partialContent.position === "stop") {
+        clearThinking();
+        state.thinkingBuffer = "";
+      }
+      return;
+    }
+
     if (partialContent.position === "start") {
       const subagentPrefix = state.subagentName
         ? styleText("cyan", `[${state.subagentName}]\n`)

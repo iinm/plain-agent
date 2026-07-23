@@ -263,9 +263,10 @@ export function formatToolResult(toolResult) {
   }
 
   if (toolResult.toolName === "read_file") {
-    return contentString.replace(
-      /^(\s*\d+:[0-9a-f]{2}\|)/gm,
-      styleText("gray", "$1"),
+    const lineCount = contentString ? contentString.split("\n").length : 0;
+    return styleText(
+      "gray",
+      `... (read_file output hidden, ${lineCount} line${lineCount === 1 ? "" : "s"})`,
     );
   }
 

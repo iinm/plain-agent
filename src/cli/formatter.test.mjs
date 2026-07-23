@@ -718,7 +718,7 @@ describe("formatToolResult (read_file)", () => {
     }
   });
 
-  it("colors line number and hash prefix in gray", async () => {
+  it("hides the content and shows a gray summary line", async () => {
     // given:
     const toolResult = /** @type {MessageContentToolResult} */ ({
       type: "tool_result",
@@ -737,10 +737,29 @@ describe("formatToolResult (read_file)", () => {
     const output = formatToolResult(toolResult);
 
     // then:
-    const grayPrefix = styleText("gray", "1:a3|");
-    assert.ok(output.startsWith(grayPrefix));
-    assert.ok(output.includes(styleText("gray", "2:b7|")));
-    assert.ok(output.includes(styleText("gray", "3:c1|")));
+    assert.equal(
+      output,
+      styleText("gray", "... (read_file output hidden, 3 lines)"),
+    );
+    assert.ok(!output.includes("function hello()"));
+    assert.ok(!output.includes("return 42"));
+  });
+
+  it("still shows the content when the result is an error", async () => {
+    // given:
+    const toolResult = /** @type {MessageContentToolResult} */ ({
+      type: "tool_result",
+      toolUseId: "r2",
+      toolName: "read_file",
+      content: [{ type: "text", text: "File not found: missing.txt" }],
+      isError: true,
+    });
+
+    // when:
+    const output = formatToolResult(toolResult);
+
+    // then:
+    assert.equal(output, styleText("magenta", "File not found: missing.txt"));
   });
 });
 describe("formatMarkdownTable", () => {
