@@ -588,6 +588,13 @@ function convertOpenAIStreamDataToAgentPartialContent(
   }
 
   if (firstChoice?.delta.content) {
+    const lastContent = partialContents.at(-1);
+    if (lastContent && lastContent.type !== "text") {
+      partialContents.push({
+        type: lastContent.type,
+        position: "stop",
+      });
+    }
     partialContents.push({
       type: "text",
       content: firstChoice.delta.content,
@@ -596,6 +603,13 @@ function convertOpenAIStreamDataToAgentPartialContent(
   }
 
   if (firstChoice?.delta.tool_calls) {
+    const lastContent = partialContents.at(-1);
+    if (lastContent && lastContent.type !== "tool_use") {
+      partialContents.push({
+        type: lastContent.type,
+        position: "stop",
+      });
+    }
     partialContents.push({
       type: "tool_use",
       content: [
