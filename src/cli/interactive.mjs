@@ -395,11 +395,9 @@ export function startInteractiveSession({
    * @param {import("../model").PartialMessageContent} partialContent
    */
   const handlePartialMessageContent = (partialContent) => {
-    if (partialContent.type === "thinking") {
-      // Fall back to no rendering when we cannot control the cursor.
-      if (!process.stdout.isTTY) {
-        return;
-      }
+    // Buffered thinking rendering needs cursor control; when stdout is not a
+    // TTY, fall through to the default handling to keep the previous behavior.
+    if (partialContent.type === "thinking" && process.stdout.isTTY) {
       if (partialContent.position === "start") {
         state.thinkingBuffer = "";
         state.thinkingRenderedLines = 0;
