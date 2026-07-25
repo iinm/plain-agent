@@ -29,10 +29,12 @@ const metadata = {
   workingDir: "/w",
   startTime: "2026-05-10T08:03:00.000Z",
 };
+/** @type {import("./model").SystemMessage} */
 const systemMessage = {
   role: "system",
   content: [{ type: "text", text: "system" }],
 };
+/** @type {import("./model").UserMessage} */
 const userMessage = {
   role: "user",
   content: [{ type: "text", text: "hello" }],
@@ -61,6 +63,7 @@ describe("sessionFileExists", () => {
     await persistSessionEvent(
       metadata.sessionId,
       {
+        timestamp: new Date(),
         type: "session_start",
         sessionFormatVersion: SESSION_FORMAT_VERSION,
         ...metadata,
@@ -82,6 +85,7 @@ describe("persistSessionEvent + loadSession", () => {
     await persistSessionEvent(
       metadata.sessionId,
       {
+        timestamp: new Date(),
         type: "session_start",
         sessionFormatVersion: SESSION_FORMAT_VERSION,
         ...metadata,
@@ -90,17 +94,21 @@ describe("persistSessionEvent + loadSession", () => {
     );
     await persistSessionEvent(
       metadata.sessionId,
-      { type: "message", message: systemMessage },
+      { timestamp: new Date(), type: "message", message: systemMessage },
       { dir: tmpDir },
     );
     await persistSessionEvent(
       metadata.sessionId,
-      { type: "message", message: userMessage },
+      { timestamp: new Date(), type: "message", message: userMessage },
       { dir: tmpDir },
     );
     await persistSessionEvent(
       metadata.sessionId,
-      { type: "messages_reset", messages: [systemMessage] },
+      {
+        timestamp: new Date(),
+        type: "messages_reset",
+        messages: [systemMessage],
+      },
       { dir: tmpDir },
     );
     const subagent = {
@@ -110,22 +118,22 @@ describe("persistSessionEvent + loadSession", () => {
     };
     await persistSessionEvent(
       metadata.sessionId,
-      { type: "subagent_switched", subagent },
+      { timestamp: new Date(), type: "subagent_switched", subagent },
       { dir: tmpDir },
     );
     await persistSessionEvent(
       metadata.sessionId,
-      { type: "subagent_switched", subagent: null },
+      { timestamp: new Date(), type: "subagent_switched", subagent: null },
       { dir: tmpDir },
     );
     await persistSessionEvent(
       metadata.sessionId,
-      { type: "subagent_switched", subagent },
+      { timestamp: new Date(), type: "subagent_switched", subagent },
       { dir: tmpDir },
     );
     await persistSessionEvent(
       metadata.sessionId,
-      { type: "token_usage", usage: { inputTokens: 4 } },
+      { timestamp: new Date(), type: "token_usage", usage: { inputTokens: 4 } },
       { dir: tmpDir },
     );
 
@@ -147,6 +155,7 @@ describe("persistSessionEvent + loadSession", () => {
     await persistSessionEvent(
       metadata.sessionId,
       {
+        timestamp: new Date(),
         type: "session_start",
         sessionFormatVersion: SESSION_FORMAT_VERSION,
         ...metadata,
@@ -161,6 +170,7 @@ describe("persistSessionEvent + loadSession", () => {
     await persistSessionEvent(
       metadata.sessionId,
       {
+        timestamp: new Date(),
         type: "session_start",
         sessionFormatVersion: 999,
         ...metadata,
@@ -169,7 +179,7 @@ describe("persistSessionEvent + loadSession", () => {
     );
     await persistSessionEvent(
       metadata.sessionId,
-      { type: "message", message: userMessage },
+      { timestamp: new Date(), type: "message", message: userMessage },
       { dir: tmpDir },
     );
 
@@ -184,7 +194,7 @@ describe("persistSessionEvent + loadSession", () => {
     // when:
     await persistSessionEvent(
       "not-persisted",
-      { type: "turn_end" },
+      { timestamp: new Date(), type: "turn_end" },
       { dir: tmpDir },
     );
     const loaded = await loadSession("not-persisted", { dir: tmpDir });
@@ -205,6 +215,7 @@ describe("persistSessionEvent + loadSession", () => {
     await persistSessionEvent(
       metadata.sessionId,
       {
+        timestamp: new Date(),
         type: "session_start",
         sessionFormatVersion: 999,
         ...metadata,
@@ -225,6 +236,7 @@ describe("listSessions", () => {
     await persistSessionEvent(
       "older",
       {
+        timestamp: new Date(),
         type: "session_start",
         sessionFormatVersion: SESSION_FORMAT_VERSION,
         ...metadata,
@@ -236,6 +248,7 @@ describe("listSessions", () => {
     await persistSessionEvent(
       "newer",
       {
+        timestamp: new Date(),
         type: "session_start",
         sessionFormatVersion: SESSION_FORMAT_VERSION,
         ...metadata,

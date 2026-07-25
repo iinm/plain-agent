@@ -1,13 +1,16 @@
 /**
+ * @import { Interface } from "node:readline"
  * @import { Agent } from "../agent"
+ * @import { CostTracker } from "../metrics/costTracker.mjs";
  * @import { ClaudeCodePlugin } from "../claudeCodePlugin.mjs"
  * @import { Tool, SandboxModeProvider } from "../tool"
+ * @import { PartialMessageContent } from "../model"
  */
 
 import readline from "node:readline";
 import { styleText } from "node:util";
+import { appendUsageRecord, buildUsageRecord } from "../metrics/usageStore.mjs";
 import { persistSessionEvent, sessionFileExists } from "../sessionStore.mjs";
-import { appendUsageRecord, buildUsageRecord } from "../usageStore.mjs";
 import { notify } from "../utils/notify.mjs";
 import { createCommandHandler } from "./commands.mjs";
 import { createCompleter, SLASH_COMMANDS } from "./completer.mjs";
@@ -56,39 +59,13 @@ const HELP_MESSAGE = [
  * @property {string} sessionId
  * @property {string} modelName
  * @property {Date} startTime
- * @property {{ command: string; args?: string[] } | undefined} notifyCmd
  * @property {boolean} sandbox
+ * @property {{ command: string; args?: string[] } | undefined} notifyCmd
+ * @property {CostTracker} costTracker
  * @property {() => Promise<void>} onStop
  * @property {ClaudeCodePlugin[]} [claudeCodePlugins]
  * @property {Tool & SandboxModeProvider} [execCommandTool]
  */
-
-/**
- * Persist the session's cost summary to the usage log.
- * Failures are logged but never thrown so exit is not blocked.
- *
- * @param {import("../costTracker.mjs").CostSummary} summary
- * @param {{ sessionId: string, modelName: string, startTime: Date }} meta
- */
-async function persistUsage(summary, { sessionId, modelName, startTime }) {
-  try {
-    const record = buildUsageRecord({
-      sessionId,
-      mode: "interactive",
-      modelName,
-      workingDir: process.cwd(),
-      costSummary: summary,
-      now: startTime,
-    });
-    if (!record) return;
-    await appendUsageRecord(record);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(
-      styleText("yellow", `Warning: failed to record usage: ${message}`),
-    );
-  }
-}
 
 /**
  * @param {CliOptions} options
@@ -100,24 +77,71 @@ export function startInteractiveSession({
   startTime,
   notifyCmd,
   sandbox,
+  costTracker,
   onStop,
   claudeCodePlugins,
   execCommandTool,
 }) {
-  /** @type {{ turn: boolean, multiLineBuffer: string[] | null, subagentName: string, toolSpinnerIndex: number, toolSpinnerLastTime: number }} */
   const state = {
     turn: true,
+    /** @type {string[] | null} */
     multiLineBuffer: null,
     subagentName: agent.getActiveSubagent()?.name ?? "",
-    toolSpinnerIndex: 0,
-    toolSpinnerLastTime: 0,
+    spinnerIndex: 0,
+    spinnerLastTime: 0,
+    isExiting: false,
+
+    /** Double-press Ctrl-D exit confirmation */
+    lastCtrlDAttempt: new Date(0).getTime(),
   };
 
-  const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-  const SPINNER_INTERVAL_MS = 80;
+  const handleExit = async () => {
+    if (state.isExiting) return;
+    state.isExiting = true;
 
-  // Create the stream buffer instance for this session
-  const streamBuffer = createStreamBuffer();
+    const summary = costTracker.calculateCost();
+    const hasSessionFile = await sessionFileExists(sessionId);
+    if (hasSessionFile) {
+      await persistSessionEvent(sessionId, {
+        timestamp: new Date(),
+        type: "session_end",
+        cost: summary,
+      });
+    }
+
+    const record = buildUsageRecord({
+      sessionId,
+      mode: "interactive",
+      modelName,
+      workingDir: process.cwd(),
+      costSummary: summary,
+      now: startTime,
+    });
+    if (record) {
+      const err = await appendUsageRecord(record);
+      if (err) {
+        console.error(
+          styleText(
+            "yellow",
+            `Warning: failed to record usage: ${err.message}`,
+          ),
+        );
+      }
+    }
+
+    console.log(
+      [
+        "",
+        formatCostSummary(summary),
+        ...(hasSessionFile ? ["", `Session saved: ${sessionId}`] : []),
+      ].join("\n"),
+    );
+    await onStop();
+    process.exit(0);
+  };
+
+  process.on("SIGTERM", handleExit);
+  process.on("SIGHUP", handleExit);
 
   const getCliPrompt = (subagentName = "", flashMessage = "") =>
     [
@@ -133,45 +157,7 @@ export function startInteractiveSession({
       "> ",
     ].join("\n");
 
-  // Cleanup handler to disable bracketed paste mode on exit
-  const cleanup = () => {
-    if (process.stdout.isTTY) {
-      process.stdout.write("\x1b[?2004l");
-    }
-  };
-
-  // Handle exit signals
-  let isExiting = false;
-  const handleExit = async () => {
-    if (isExiting) return;
-    isExiting = true;
-
-    cleanup();
-    const summary = agent.getCostSummary();
-    const hasSessionFile = await sessionFileExists(sessionId);
-    if (hasSessionFile) {
-      await persistSessionEvent(sessionId, {
-        type: "session_end",
-        cost: summary,
-      });
-    }
-    await persistUsage(summary, { sessionId, modelName, startTime });
-    console.log(
-      [
-        "",
-        formatCostSummary(summary),
-        ...(hasSessionFile ? ["", `Session saved: ${sessionId}`] : []),
-      ].join("\n"),
-    );
-    await onStop();
-    process.exit(0);
-  };
-
-  // Double-press Ctrl-D exit confirmation
-  let lastCtrlDAttempt = 0;
-  const EXIT_CONFIRM_TIMEOUT = 1500;
-
-  /** @type {import("node:readline").Interface} */
+  /** @type {Interface} */
   let cli;
 
   /**
@@ -215,7 +201,7 @@ export function startInteractiveSession({
       cli.prompt();
     }
     // Reset Ctrl-D confirmation when Ctrl-C is pressed
-    lastCtrlDAttempt = 0;
+    state.lastCtrlDAttempt = 0;
   };
 
   const handleCtrlD = () => {
@@ -225,11 +211,11 @@ export function startInteractiveSession({
     }
 
     const now = Date.now();
-    if (now - lastCtrlDAttempt < EXIT_CONFIRM_TIMEOUT) {
+    if (now - state.lastCtrlDAttempt < 1500) {
       handleExit();
       return;
     }
-    lastCtrlDAttempt = now;
+    state.lastCtrlDAttempt = now;
     if (state.turn) {
       cli.setPrompt(
         getCliPrompt(
@@ -243,6 +229,12 @@ export function startInteractiveSession({
     }
   };
 
+  // Setup stdin
+  readline.emitKeypressEvents(process.stdin);
+  if (process.stdin.isTTY) {
+    process.stdin.setRawMode(true);
+  }
+
   // Pre-readline pipeline:
   //   stdin -> interrupt (Ctrl-C / Ctrl-D) -> paste (bracketed paste) -> readline
   const interrupt = createInterruptTransform({
@@ -250,12 +242,19 @@ export function startInteractiveSession({
     onCtrlD: handleCtrlD,
   });
   const paste = createPasteHandler();
-
   process.stdin.pipe(interrupt).pipe(paste.transform);
 
   // Enable bracketed paste mode
   if (process.stdout.isTTY) {
     process.stdout.write("\x1b[?2004h");
+    const disableBracketedPasteMode = () => {
+      if (process.stdout.isTTY) {
+        process.stdout.write("\x1b[?2004l");
+      }
+    };
+    process.on("exit", disableBracketedPasteMode);
+    process.on("SIGTERM", disableBracketedPasteMode);
+    process.on("SIGHUP", disableBracketedPasteMode);
   }
 
   let currentCliPrompt = getCliPrompt(state.subagentName);
@@ -265,6 +264,7 @@ export function startInteractiveSession({
     prompt: currentCliPrompt,
     completer: createCompleter(() => cli, claudeCodePlugins),
   });
+  cli.on("close", handleExit);
 
   // Disable automatic prompt redraw on resize during agent turn
   // @ts-expect-error - internal property
@@ -278,18 +278,9 @@ export function startInteractiveSession({
     };
   }
 
-  readline.emitKeypressEvents(process.stdin);
-  if (process.stdin.isTTY) {
-    process.stdin.setRawMode(true);
-  }
-
-  // Handle readline close (e.g., stdin closed externally)
-  cli.on("close", handleExit);
-  process.on("SIGTERM", handleExit);
-  process.on("SIGHUP", handleExit);
-
   const handleCommand = createCommandHandler({
     agent,
+    costTracker,
     claudeCodePlugins,
     helpMessage: HELP_MESSAGE,
   });
@@ -360,9 +351,13 @@ export function startInteractiveSession({
     await processInput(lineInput);
   });
 
+  const outputStreamBuffer = createStreamBuffer();
+  const spinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+  const spinnerIntervalMs = 80;
+
   /**
    * Render a streaming partial message content chunk.
-   * @param {import("../model").PartialMessageContent} partialContent
+   * @param {PartialMessageContent} partialContent
    */
   const handlePartialMessageContent = (partialContent) => {
     if (partialContent.position === "start") {
@@ -372,10 +367,10 @@ export function startInteractiveSession({
       const partialContentStr = styleText("gray", `<${partialContent.type}>`);
 
       if (["thinking", "tool_use"].includes(partialContent.type)) {
-        state.toolSpinnerIndex = 0;
-        state.toolSpinnerLastTime = Date.now();
+        state.spinnerIndex = 0;
+        state.spinnerLastTime = Date.now();
         process.stdout.write(
-          `\n${subagentPrefix}${partialContentStr} ${styleText("cyan", SPINNER_FRAMES[0])}`,
+          `\n${subagentPrefix}${partialContentStr} ${styleText("cyan", spinnerFrames[0])}`,
         );
       } else {
         console.log(`\n${subagentPrefix}${partialContentStr}`);
@@ -384,16 +379,15 @@ export function startInteractiveSession({
     if (partialContent.content) {
       if (["thinking", "tool_use"].includes(partialContent.type)) {
         const now = Date.now();
-        if (now - state.toolSpinnerLastTime >= SPINNER_INTERVAL_MS) {
-          state.toolSpinnerIndex =
-            (state.toolSpinnerIndex + 1) % SPINNER_FRAMES.length;
-          state.toolSpinnerLastTime = now;
+        if (now - state.spinnerLastTime >= spinnerIntervalMs) {
+          state.spinnerIndex = (state.spinnerIndex + 1) % spinnerFrames.length;
+          state.spinnerLastTime = now;
           process.stdout.write(
-            `\r\x1b[K${styleText("gray", `<${partialContent.type}>`)} ${styleText("cyan", SPINNER_FRAMES[state.toolSpinnerIndex])}`,
+            `\r\x1b[K${styleText("gray", `<${partialContent.type}>`)} ${styleText("cyan", spinnerFrames[state.spinnerIndex])}`,
           );
         }
       } else if (partialContent.type === "text") {
-        streamBuffer.feed(partialContent.content);
+        outputStreamBuffer.feed(partialContent.content);
       } else {
         process.stdout.write(partialContent.content);
       }
@@ -403,16 +397,12 @@ export function startInteractiveSession({
         // Clear current line, move up one line, and clear that line too
         process.stdout.write("\x1b[2K\x1b[1F\x1b[2K");
       } else {
-        // Flush any buffered text before printing the closing tag
-        streamBuffer.forceFlush();
+        outputStreamBuffer.forceFlush();
         console.log(styleText("gray", `\n</${partialContent.type}>`));
       }
     }
   };
 
-  // Consume the agent's event stream. Because events are pulled one at a time
-  // and awaited in order, output is naturally serialized — no manual
-  // sequential executor is needed.
   const consumeAgentEvents = async () => {
     for await (const event of agent.start()) {
       await persistSessionEvent(sessionId, event);
@@ -467,8 +457,7 @@ export function startInteractiveSession({
           break;
 
         case "turn_end": {
-          // Flush any remaining stream buffer content
-          streamBuffer.forceFlush();
+          outputStreamBuffer.forceFlush();
 
           const err = notify(notifyCmd);
           if (err) {
@@ -477,9 +466,6 @@ export function startInteractiveSession({
             );
           }
 
-          // Defer prompt rendering to ensure terminal output is visible
-          await new Promise((resolve) => setImmediate(resolve));
-
           state.turn = true;
           cli.prompt();
           break;
@@ -487,13 +473,9 @@ export function startInteractiveSession({
       }
     }
   };
+
   consumeAgentEvents();
-
   cli.prompt();
-
-  // Register cleanup handlers
-  process.on("exit", cleanup);
-  process.on("SIGTERM", cleanup);
 }
 
 /**

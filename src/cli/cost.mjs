@@ -1,9 +1,9 @@
 /**
- * @import { UsageRecord } from "../usageStore.mjs"
+ * @import { UsageRecord } from "../metrics/usageStore.mjs"
  */
 
 import { styleText } from "node:util";
-import * as usageStore from "../usageStore.mjs";
+import * as usageStore from "../metrics/usageStore.mjs";
 
 /**
  * @typedef {Object} CostPeriod
@@ -275,7 +275,7 @@ function formatCost(value) {
  * Run the `plain cost` subcommand.
  *
  * @param {{ from: string | null, to: string | null }} args
- * @param {{ readUsageRecords?: typeof import("../usageStore.mjs").readUsageRecords }} [deps]
+ * @param {{ readUsageRecords?: typeof import("../metrics/usageStore.mjs").readUsageRecords }} [deps]
  * @returns {Promise<number>} exit code
  */
 export async function runCostCommand(args, deps = {}) {

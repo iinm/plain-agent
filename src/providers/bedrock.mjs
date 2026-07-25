@@ -10,7 +10,7 @@ import { loadAwsCredentials, signAwsRequest } from "./platform/awsSigV4.mjs";
 import { readBedrockStreamEvents } from "./platform/bedrock.mjs";
 
 /**
- * @param {import("../modelDefinition").PlatformConfig} platformConfig
+ * @param {import("../model.definition").PlatformConfig} platformConfig
  * @param {BedrockConverseModelConfig} modelConfig
  * @param {ModelInput} input
  * @param {number} [retryCount]

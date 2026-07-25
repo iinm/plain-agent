@@ -9,7 +9,7 @@ import { noThrow } from "../utils/noThrow.mjs";
 import { getAzureAccessToken } from "./platform/azure.mjs";
 
 /**
- * @param {import("../modelDefinition").PlatformConfig} platformConfig
+ * @param {import("../model.definition").PlatformConfig} platformConfig
  * @param {OpenAIModelConfig} modelConfig
  * @param {ModelInput} input
  * @param {number} retryCount

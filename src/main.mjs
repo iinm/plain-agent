@@ -25,7 +25,8 @@ import { loadAgentRoles } from "./context/loadAgentRoles.mjs";
 import { loadPrompts } from "./context/loadPrompts.mjs";
 import { AGENT_PROJECT_METADATA_DIR, USER_NAME } from "./env.mjs";
 import { setupMCPServer } from "./mcp/integration.mjs";
-import { createModelCaller } from "./modelCaller.mjs";
+import { createCostTracker } from "./metrics/costTracker.mjs";
+import { createModelCaller } from "./model.mjs";
 import { createPrompt } from "./prompt.mjs";
 import { listSessions, loadSession } from "./sessionStore.mjs";
 import { createCompactContextTool } from "./tools/compactContext.mjs";
@@ -437,7 +438,6 @@ export async function main(argv = process.argv) {
     },
   });
 
-  // Resolve context soft limit from autoCompact config
   const contextSoftLimit = resolveContextSoftLimit(
     appConfig.autoCompact,
     modelNameWithVariant,
@@ -453,13 +453,23 @@ export async function main(argv = process.argv) {
     );
   }
 
+  const costTracker = createCostTracker(modelDef.cost);
+  if (resumedState?.tokenUsageHistory) {
+    costTracker.restoreUsageHistory(resumedState.tokenUsageHistory);
+  }
+
   const agent = createAgent({
-    callModel: agentCallModel,
+    callModel: async (input) => {
+      const output = await agentCallModel(input);
+      if (!(output instanceof Error) && output.providerTokenUsage) {
+        costTracker.recordUsage(output.providerTokenUsage);
+      }
+      return output;
+    },
     prompt,
     tools: [...builtinTools, ...mcpTools],
     toolUseApprover,
     agentRoles,
-    modelCostConfig: modelDef.cost,
     sessionMetadata: {
       sessionId,
       modelName: modelNameWithVariant,
@@ -477,6 +487,7 @@ export async function main(argv = process.argv) {
     modelName: modelNameWithVariant,
     sandbox: Boolean(appConfig.sandbox),
     startTime,
+    costTracker,
     onStop: async () => {
       for (const cleanup of mcpCleanups) {
         await cleanup();
@@ -493,14 +504,15 @@ export async function main(argv = process.argv) {
       ...sessionOptions,
       task,
     });
-  } else {
-    startInteractiveSession({
-      ...sessionOptions,
-      execCommandTool,
-      notifyCmd: appConfig.notifyCmd,
-      claudeCodePlugins: resolvePluginPaths(appConfig.claudeCodePlugins ?? []),
-    });
+    return;
   }
+
+  startInteractiveSession({
+    ...sessionOptions,
+    execCommandTool,
+    notifyCmd: appConfig.notifyCmd,
+    claudeCodePlugins: resolvePluginPaths(appConfig.claudeCodePlugins ?? []),
+  });
 }
 
 /**

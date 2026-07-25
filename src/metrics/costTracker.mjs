@@ -1,5 +1,5 @@
 /**
- * @import { ProviderTokenUsage } from "./model"
+ * @import { ProviderTokenUsage } from "../model"
  */
 
 /**
@@ -221,8 +221,8 @@ function calculateCostFromConfig(aggregated, config) {
   return Object.freeze({
     currency: config?.currency ?? "USD",
     unit: config?.unit ?? "1M",
-    breakdown,
     totalCost: config?.prices ? totalCost : undefined,
+    breakdown,
   });
 }
 
