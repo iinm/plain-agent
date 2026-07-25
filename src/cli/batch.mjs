@@ -1,10 +1,13 @@
 /**
- * @import { Agent } from "../agent"
+ * @import { Agent, AgentEvent } from "../agent"
+ * @import { CostTracker } from "../metrics/costTracker.mjs";
  */
 
-import { persistSessionEvent } from "../sessionStore.mjs";
-import { appendUsageRecord, buildUsageRecord } from "../usageStore.mjs";
-import { formatCostForBatch } from "./formatter.mjs";
+import { appendUsageRecord, buildUsageRecord } from "../metrics/usageStore.mjs";
+import {
+  PERSISTED_SESSION_EVENT_TYPES,
+  persistSessionEvent,
+} from "../sessionStore.mjs";
 
 /**
  * @typedef {object} BatchSessionOptions
@@ -12,8 +15,8 @@ import { formatCostForBatch } from "./formatter.mjs";
  * @property {string} task - Task instruction to execute
  * @property {string} sessionId
  * @property {string} modelName
- * @property {boolean} sandbox
  * @property {Date} startTime
+ * @property {CostTracker} costTracker
  * @property {() => Promise<void>} onStop
  */
 
@@ -29,98 +32,72 @@ export async function startBatchSession({
   task,
   sessionId,
   modelName,
-  sandbox,
   startTime,
+  costTracker,
   onStop,
 }) {
-  outputEvent({
-    type: "session_start",
-    sessionId,
-    modelName,
-    sandbox,
-    timestamp: new Date().toISOString(),
-  });
-
   agent.send([{ type: "text", text: task }]);
 
-  // The first turn_end marks completion of the batch task and ends the session.
   for await (const event of agent.start()) {
     await persistSessionEvent(sessionId, event);
-    switch (event.type) {
-      case "message":
-        outputEvent({
-          type: "message",
-          message: event.message,
-          timestamp: new Date().toISOString(),
-        });
-        break;
 
-      case "error":
-        outputEvent({
-          type: "error",
-          error: { message: event.error.message, stack: event.error.stack },
-          timestamp: new Date().toISOString(),
-        });
-        process.exit(1);
-        break;
+    if (PERSISTED_SESSION_EVENT_TYPES.has(event.type)) {
+      outputEvent(event);
+    } else if (event.type === "error") {
+      outputEvent(event);
+    }
 
-      case "subagent_switched":
-        outputEvent({
-          type: "subagent_switched",
-          subagent: event.subagent,
-          timestamp: new Date().toISOString(),
-        });
-        break;
-
-      case "token_usage":
-        outputEvent({
-          type: "token_usage",
-          usage: event.usage,
-          timestamp: new Date().toISOString(),
-        });
-        break;
-
-      case "turn_end": {
-        const costSummary = agent.getCostSummary();
-        const sessionEnd = { type: "session_end", cost: costSummary };
-        await persistSessionEvent(sessionId, sessionEnd);
-        outputEvent({
-          type: "session_end",
-          timestamp: new Date().toISOString(),
-          cost: formatCostForBatch(costSummary),
-        });
-
-        try {
-          const record = buildUsageRecord({
-            sessionId,
-            mode: "batch",
-            modelName,
-            workingDir: process.cwd(),
-            costSummary,
-            now: startTime,
-          });
-          if (record) await appendUsageRecord(record);
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          outputEvent({
-            type: "error",
-            error: { message: `failed to record usage: ${message}` },
-            timestamp: new Date().toISOString(),
-          });
-        }
-
-        await onStop();
-        process.exit(0);
-      }
+    if (["error", "turn_end"].includes(event.type)) {
+      agent.stop();
     }
   }
+
+  const costSummary = costTracker.calculateCost();
+
+  const record = buildUsageRecord({
+    sessionId,
+    mode: "batch",
+    modelName,
+    workingDir: process.cwd(),
+    costSummary,
+    now: startTime,
+  });
+
+  if (record) {
+    const recordError = await appendUsageRecord(record);
+    if (recordError instanceof Error) {
+      outputEvent({
+        type: "error",
+        error: recordError,
+        timestamp: new Date(),
+      });
+    }
+  }
+
+  /** @type {AgentEvent} */
+  const sessionEnd = {
+    timestamp: new Date(),
+    type: "session_end",
+    cost: costSummary,
+  };
+  await persistSessionEvent(sessionId, sessionEnd);
+  outputEvent(sessionEnd);
+
+  await onStop();
 }
 
 /**
- * Output an event as JSON Lines format.
- * Each event is a single line of JSON.
- * @param {object} event
+ * @param {AgentEvent} event
  */
 function outputEvent(event) {
-  console.log(JSON.stringify(event));
+  const { timestamp, ...rest } = event;
+  console.log(
+    JSON.stringify({
+      timestamp: timestamp.toISOString(),
+      ...rest,
+      ...(rest.type === "error"
+        ? { error: { message: rest.error.message } }
+        : {}),
+    }),
+  );
 }

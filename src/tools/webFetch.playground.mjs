@@ -26,7 +26,7 @@ const provider = process.argv[2] ?? "gemini";
       model: "claude-haiku-4-5",
       max_tokens: 8192,
     };
-    /** @type {import("../modelDefinition").PlatformConfig} */
+    /** @type {import("../model.definition").PlatformConfig} */
     const platformConfig = {
       name: "anthropic",
       variant: "default",

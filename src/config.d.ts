@@ -1,5 +1,5 @@
 import { ClaudeCodePluginRepo } from "./claudeCodePlugin.mjs";
-import { ModelDefinition, PlatformConfig } from "./modelDefinition";
+import { ModelDefinition, PlatformConfig } from "./model.definition";
 import { ToolUsePattern } from "./tool";
 import { ExecCommandSanboxConfig } from "./tools/execCommand";
 import {

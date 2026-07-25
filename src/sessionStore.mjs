@@ -10,7 +10,7 @@ import { SESSIONS_DIR } from "./env.mjs";
 export const SESSION_FORMAT_VERSION = 2;
 
 /** Event types that are persisted in session JSONL streams. */
-const WRITABLE_EVENT_TYPES = new Set([
+export const PERSISTED_SESSION_EVENT_TYPES = new Set([
   "session_start",
   "message",
   "token_usage",
@@ -80,17 +80,19 @@ export async function sessionFileExists(sessionId, options = {}) {
 /**
  * Persist an event when it belongs in the session event stream.
  * @param {string} sessionId
- * @param {{ type: string, [key: string]: unknown }} event
+ * @param {import("./agent").AgentEvent} event
  * @param {{ dir?: string }} [options]
  */
 export async function persistSessionEvent(sessionId, event, options = {}) {
-  if (!WRITABLE_EVENT_TYPES.has(event.type)) return;
+  if (!PERSISTED_SESSION_EVENT_TYPES.has(event.type)) return;
 
   const dir = options.dir ?? SESSIONS_DIR;
   await fs.mkdir(dir, { recursive: true });
+
+  const { timestamp, ...rest } = event;
   const line = JSON.stringify({
-    ...event,
-    timestamp: new Date().toISOString(),
+    timestamp: event.timestamp.toISOString(),
+    ...rest,
   });
   await fs.appendFile(sessionFilePath(sessionId, { dir }), `${line}\n`, "utf8");
 }

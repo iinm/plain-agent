@@ -1,5 +1,5 @@
 import type { AgentRole } from "./context/loadAgentRoles.mjs";
-import type { CostConfig, CostSummary } from "./costTracker.mjs";
+import type { CostSummary } from "./metrics/costTracker.mjs";
 import type {
   CallModel,
   Message,
@@ -26,7 +26,7 @@ export type Agent = {
    * (plain input, slash commands, tool approval).
    */
   send: (input: AgentInput) => void;
-  getCostSummary: () => CostSummary;
+  stop: () => void;
   pauseAutoApprove: () => void;
   /** Subagent currently active for this session, or null. */
   getActiveSubagent: () => { name: string } | null;
@@ -36,7 +36,7 @@ export type Agent = {
  * Discriminated union of events emitted by the agent, distinguished by the
  * `type` field. Consumed via `Agent["start"]`.
  */
-export type AgentEvent =
+export type AgentEvent = { timestamp: Date } & (
   | {
       type: "session_start";
       sessionFormatVersion: number;
@@ -60,7 +60,8 @@ export type AgentEvent =
         switchMessageIndex: number;
       } | null;
     }
-  | { type: "messages_reset"; messages: Message[] };
+  | { type: "messages_reset"; messages: Message[] }
+);
 
 /** Sink used by the agent loop to push events onto the output stream. */
 export type AgentEventSink = (event: AgentEvent) => void;
@@ -71,7 +72,6 @@ export type AgentConfig = {
   tools: Tool[];
   toolUseApprover: ToolUseApprover;
   agentRoles: Map<string, AgentRole>;
-  modelCostConfig?: CostConfig;
   /** Metadata used when persisting session state. */
   sessionMetadata: {
     sessionId: string;

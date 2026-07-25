@@ -5,7 +5,7 @@ import { callOpenAIModel } from "./providers/openai.mjs";
 import { callOpenAICompatibleModel } from "./providers/openaiCompatible.mjs";
 
 /**
- * @param {import("./modelDefinition").ModelDefinition} modelDef
+ * @param {import("./model.definition").ModelDefinition} modelDef
  * @returns {import("./model").CallModel}
  */
 export function createModelCaller(modelDef) {

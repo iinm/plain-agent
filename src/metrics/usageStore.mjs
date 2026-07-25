@@ -4,7 +4,7 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import { USAGE_LOG_PATH } from "./env.mjs";
+import { USAGE_LOG_PATH } from "../env.mjs";
 
 /**
  * @typedef {Object} UsageRecord
@@ -38,19 +38,23 @@ const MAX_RECORD_BYTES = 3072;
  *
  * @param {UsageRecord} record
  * @param {{ path?: string }} [options]
- * @returns {Promise<void>}
+ * @returns {Promise<void | Error>}
  */
 export async function appendUsageRecord(record, options = {}) {
   const filePath = options.path ?? USAGE_LOG_PATH;
   const line = `${JSON.stringify(record)}\n`;
   const bytes = Buffer.byteLength(line, "utf8");
   if (bytes > MAX_RECORD_BYTES) {
-    throw new Error(
+    return new Error(
       `Usage record exceeds ${MAX_RECORD_BYTES} bytes (${bytes}); refusing to write to keep appends atomic.`,
     );
   }
-  await fs.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.appendFile(filePath, line, { encoding: "utf8" });
+  try {
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.appendFile(filePath, line, { encoding: "utf8" });
+  } catch (err) {
+    if (err instanceof Error) return err;
+  }
 }
 
 /**

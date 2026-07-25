@@ -20,7 +20,7 @@ import { getGoogleCloudAccessToken } from "./platform/googleCloud.mjs";
  * References:
  * - https://ai.google.dev/gemini-api/docs/caching
  * - https://ai.google.dev/api/caching
- * @param {import("../modelDefinition").PlatformConfig} platformConfig
+ * @param {import("../model.definition").PlatformConfig} platformConfig
  * @param {GeminiModelConfig} modelConfig
  * @returns {GeminiModelCaller}
  */

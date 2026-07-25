@@ -13,7 +13,7 @@ import { readBedrockStreamEvents } from "./platform/bedrock.mjs";
 import { getGoogleCloudAccessToken } from "./platform/googleCloud.mjs";
 
 /**
- * @param {import("../modelDefinition").PlatformConfig} platformConfig
+ * @param {import("../model.definition").PlatformConfig} platformConfig
  * @param {OpenAICompatibleModelConfig} modelConfig
  * @param {ModelInput} input
  * @param {number} retryCount

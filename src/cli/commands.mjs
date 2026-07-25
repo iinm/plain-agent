@@ -1,5 +1,6 @@
 /**
  * @import { Agent } from "../agent"
+ * @import { CostTracker } from "../metrics/costTracker.mjs";
  * @import { ClaudeCodePlugin } from "../claudeCodePlugin.mjs"
  */
 
@@ -26,6 +27,7 @@ import { formatCostSummary } from "./formatter.mjs";
 /**
  * @typedef {object} CommandHandlerDeps
  * @property {Agent} agent
+ * @property {CostTracker} costTracker
  * @property {ClaudeCodePlugin[] | undefined} claudeCodePlugins
  * @property {string} helpMessage
  */
@@ -38,6 +40,7 @@ import { formatCostSummary } from "./formatter.mjs";
  */
 export function createCommandHandler({
   agent,
+  costTracker,
   claudeCodePlugins,
   helpMessage,
 }) {
@@ -128,7 +131,7 @@ export function createCommandHandler({
 
     // /cost
     if (inputTrimmed.toLowerCase() === "/cost") {
-      const summary = agent.getCostSummary();
+      const summary = costTracker.calculateCost();
       console.log(formatCostSummary(summary));
       return "prompt";
     }

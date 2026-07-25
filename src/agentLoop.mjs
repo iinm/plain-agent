@@ -1,45 +1,15 @@
 /**
  * @import { AgentEventSink } from "./agent"
- * @import { CallModel, MessageContentText, MessageContentImage, MessageContentToolResult, PartialMessageContent, UserMessage, MessageContentToolUse } from "./model"
- * @import { ToolDefinition, ToolUseApprover } from "./tool"
- * @import { SubagentManager } from "./subagent.mjs"
  * @import { StateManager } from "./agentState.mjs"
+ * @import { CallModel, MessageContentText, MessageContentImage, MessageContentToolResult, PartialMessageContent, UserMessage, MessageContentToolUse, ProviderTokenUsage } from "./model"
+ * @import { ToolDefinition, ToolUseApprover } from "./tool"
+ * @import { ToolExecutor } from "./toolExecutor.mjs";
+ * @import { SubagentManager } from "./subagent.mjs"
  */
 
 import { styleText } from "node:util";
 import { buildCompactPrompt } from "./prompt.mjs";
-import { extractInputTokenCount } from "./tokenUsage.mjs";
 import { compactContextToolName } from "./tools/compactContext.mjs";
-
-/**
- * If compact_context was called successfully, discard the prior conversation
- * (keeping only the system prompt) and append the tool result as a standard
- * user message so the model can resume from the reloaded memory file.
- * @param {StateManager} stateManager
- * @param {MessageContentToolUse[]} toolUseParts
- * @param {MessageContentToolResult[]} toolResults
- * @returns {boolean} true if compact was applied
- */
-function applyCompactContextIfCalled(stateManager, toolUseParts, toolResults) {
-  const compactToolUse = toolUseParts.find(
-    (t) => t.toolName === compactContextToolName,
-  );
-  if (!compactToolUse) return false;
-
-  const compactResult = toolResults.find(
-    (r) => r.toolUseId === compactToolUse.toolUseId,
-  );
-  if (!compactResult || compactResult.isError) return false;
-
-  const systemMessage = stateManager.getMessageAt(0);
-  if (!systemMessage) return false;
-
-  stateManager.replaceMessages([systemMessage]);
-  stateManager.appendMessages([
-    { role: "user", content: compactResult.content },
-  ]);
-  return true;
-}
 
 /**
  * @typedef {Object} PauseSignal
@@ -52,7 +22,7 @@ function applyCompactContextIfCalled(stateManager, toolUseParts, toolResults) {
  * @property {CallModel} callModel - Function to call the language model
  * @property {StateManager} stateManager - State manager for message handling
  * @property {ToolDefinition[]} toolDefs - Tool definitions for the model
- * @property {import("./toolExecutor.mjs").ToolExecutor} toolExecutor - Tool executor instance
+ * @property {ToolExecutor} toolExecutor - Tool executor instance
  * @property {AgentEventSink} emitEvent - Sink that pushes agent events onto the output stream
  * @property {ToolUseApprover} toolUseApprover - Tool use approval checker
  * @property {SubagentManager} subagentManager - Subagent manager instance
@@ -98,7 +68,7 @@ export function createAgentLoop({
     toolUseApprover.resetApprovalCount();
     await inputHandler.handle(input);
     await runTurnLoop();
-    emitEvent({ type: "turn_end" });
+    emitEvent({ timestamp: new Date(), type: "turn_end" });
   }
 
   /**
@@ -133,19 +103,27 @@ export function createAgentLoop({
          * @param {PartialMessageContent} partialContent
          */
         onPartialMessageContent: (partialContent) => {
-          emitEvent({ type: "partial_message_content", partialContent });
+          emitEvent({
+            timestamp: new Date(),
+            type: "partial_message_content",
+            partialContent,
+          });
         },
       });
 
       if (modelOutput instanceof Error) {
-        emitEvent({ type: "error", error: modelOutput });
+        emitEvent({ timestamp: new Date(), type: "error", error: modelOutput });
         break;
       }
 
       const { message: assistantMessage, providerTokenUsage } = modelOutput;
       stateManager.appendMessages([assistantMessage]);
       if (providerTokenUsage) {
-        emitEvent({ type: "token_usage", usage: providerTokenUsage });
+        emitEvent({
+          timestamp: new Date(),
+          type: "token_usage",
+          usage: providerTokenUsage,
+        });
       }
 
       // Gemini may stop with "thinking" -> continue
@@ -219,6 +197,7 @@ export function createAgentLoop({
       const isAllToolUseApproved = decisions.every((d) => d.action === "allow");
       if (!isAllToolUseApproved) {
         emitEvent({
+          timestamp: new Date(),
           type: "tool_use_request",
           toolUseCount: toolUseParts.length,
         });
@@ -229,6 +208,7 @@ export function createAgentLoop({
       if (pauseSignal.isPaused()) {
         pauseSignal.reset();
         emitEvent({
+          timestamp: new Date(),
           type: "tool_use_request",
           toolUseCount: toolUseParts.length,
         });
@@ -349,9 +329,9 @@ export function createAgentLoop({
 /**
  * @typedef {Object} InputHandlerContext
  * @property {StateManager} stateManager
- * @property {import("./toolExecutor.mjs").ToolExecutor} toolExecutor
- * @property {import("./subagent.mjs").SubagentManager} subagentManager
- * @property {import("./tool.d.ts").ToolUseApprover} toolUseApprover
+ * @property {ToolExecutor} toolExecutor
+ * @property {SubagentManager} subagentManager
+ * @property {ToolUseApprover} toolUseApprover
  */
 
 /**
@@ -506,4 +486,59 @@ export function createInputHandler(context) {
       }
     },
   };
+}
+
+/**
+ * If compact_context was called successfully, discard the prior conversation
+ * (keeping only the system prompt) and append the tool result as a standard
+ * user message so the model can resume from the reloaded memory file.
+ * @param {StateManager} stateManager
+ * @param {MessageContentToolUse[]} toolUseParts
+ * @param {MessageContentToolResult[]} toolResults
+ * @returns {boolean} true if compact was applied
+ */
+function applyCompactContextIfCalled(stateManager, toolUseParts, toolResults) {
+  const compactToolUse = toolUseParts.find(
+    (t) => t.toolName === compactContextToolName,
+  );
+  if (!compactToolUse) return false;
+
+  const compactResult = toolResults.find(
+    (r) => r.toolUseId === compactToolUse.toolUseId,
+  );
+  if (!compactResult || compactResult.isError) return false;
+
+  const systemMessage = stateManager.getMessageAt(0);
+  if (!systemMessage) return false;
+
+  stateManager.replaceMessages([systemMessage]);
+  stateManager.appendMessages([
+    { role: "user", content: compactResult.content },
+  ]);
+  return true;
+}
+
+/**
+ * Extract the input (prompt/context) token count from a single turn's
+ * provider token usage object by summing the values of the specified keys.
+ *
+ * Returns `undefined` when no specified key yields a positive number.
+ *
+ * @param {ProviderTokenUsage} usage
+ * @param {string[]} inputTokensKeys - Keys whose numeric values are summed.
+ * @returns {number | undefined}
+ */
+export function extractInputTokenCount(usage, inputTokensKeys) {
+  let total = 0;
+  let found = false;
+
+  for (const key of inputTokensKeys) {
+    const value = usage[key];
+    if (typeof value === "number" && value > 0) {
+      total += value;
+      found = true;
+    }
+  }
+
+  return found ? total : undefined;
 }

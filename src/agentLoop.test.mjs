@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { extractInputTokenCount } from "./tokenUsage.mjs";
+import { extractInputTokenCount } from "./agentLoop.mjs";
 
 describe("extractInputTokenCount", () => {
   it("returns the value of a single specified key", () => {

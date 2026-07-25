@@ -239,14 +239,15 @@ export function printHelp(exitCode = 0) {
 Usage: plain [options]
        plain batch [options] <task>
        plain resume [<sessionId>] [--list]
-       plain sandbox [-c <file>...] -- [sandbox args...]
        plain cost [--from YYYY-MM-DD] [--to YYYY-MM-DD]
        plain list-models
        plain install-claude-code-plugins
+       plain sandbox [-c <file>...] -- [sandbox args...]
+       plain test-approval [options]
 
 Options:
-  -m, --model <model+variant>  Model to use
   -h, --help                   Show this help message
+  -m, --model <model+variant>  Model to use
   -c, --config <file>          Config file to load (repeatable)
 
 Subcommands:
@@ -258,18 +259,18 @@ Subcommands:
                                most recently updated session. Use --list to
                                see resumable sessions. Switching models is
                                not supported (-m is rejected).
-  test-approval                Run auto-approval rule tests defined in config.
-  sandbox                      Launch the sandbox command using the app
-                               config's sandbox settings. Arguments after --
-                               are passed through to the sandbox command as-is.
   cost                         Show aggregated token cost per day for a period.
                                Defaults to the first day of the current month
                                through today.
   list-models                  List available models
   install-claude-code-plugins  Install Claude Code plugins
+  sandbox                      Launch the sandbox command using the app
+                               config's sandbox settings. Arguments after --
+                               are passed through to the sandbox command as-is.
+  test-approval                Run auto-approval rule tests defined in config.
 
 Examples:
-  plain -m claude-sonnet-4-6+thinking-high
+  plain -m claude-sonnet-5+thinking-high
   plain batch \\
         -c ~/.config/plain-agent/config.local.json \\
         -c .plain-agent/config.json \\

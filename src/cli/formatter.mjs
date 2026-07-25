@@ -333,7 +333,7 @@ export function formatProviderTokenUsage(usage) {
 
 /**
  * Format cost summary for interactive display
- * @param {import("../costTracker.mjs").CostSummary} summary
+ * @param {import("../metrics/costTracker.mjs").CostSummary} summary
  * @returns {string}
  */
 export function formatCostSummary(summary) {
@@ -367,28 +367,6 @@ export function formatCostSummary(summary) {
   }
 
   return lines.join("\n");
-}
-
-/**
- * Format cost for batch mode JSON output
- * @param {import("../costTracker.mjs").CostSummary} summary
- */
-export function formatCostForBatch(summary) {
-  if (!summary || Object.keys(summary.breakdown).length === 0) {
-    return undefined;
-  }
-
-  return {
-    total: summary.totalCost,
-    currency: summary.currency,
-    unit: summary.unit,
-    breakdown: Object.fromEntries(
-      Object.entries(summary.breakdown).map(([key, { tokens, cost }]) => [
-        key,
-        { tokens, cost },
-      ]),
-    ),
-  };
 }
 
 /**

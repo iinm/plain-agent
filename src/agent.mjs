@@ -1,5 +1,7 @@
 /**
  * @import { Agent, AgentConfig, AgentEvent, AgentInput } from "./agent"
+ * @import { PauseSignal } from "./agentLoop.mjs";
+ * @import { SystemMessage } from "./model"
  * @import { Tool, ToolDefinition } from "./tool"
  * @import { CompactContextInput } from "./tools/compactContext"
  * @import { SwitchToSubagentInput } from "./tools/switchToSubagent"
@@ -9,7 +11,6 @@
 
 import { createAgentLoop } from "./agentLoop.mjs";
 import { createStateManager } from "./agentState.mjs";
-import { createCostTracker } from "./costTracker.mjs";
 import { SESSION_FORMAT_VERSION } from "./sessionStore.mjs";
 import { createSubagentManager } from "./subagent.mjs";
 import { createToolExecutor } from "./toolExecutor.mjs";
@@ -31,42 +32,17 @@ export function createAgent({
   tools,
   toolUseApprover,
   agentRoles,
-  modelCostConfig,
   sessionMetadata,
   initialState,
   contextSoftLimit,
   inputTokensKeys,
 }) {
-  /**
-   * Pull-based input queue. CLI callers push input via send(); the
-   * agent's run loop consumes it as an async iterable.
-   * @type {AsyncQueue<AgentInput>}
-   */
+  /** @type {AsyncQueue<AgentInput>} */
   const inputQueue = createAsyncQueue();
-  /**
-   * Output stream of agent events, yielded by run().
-   * @type {AsyncQueue<AgentEvent>}
-   */
+  /** @type {AsyncQueue<AgentEvent>} */
   const eventQueue = createAsyncQueue();
 
-  const costTracker = createCostTracker(modelCostConfig);
-
-  /**
-   * Emit an agent event onto the output stream. token_usage events are
-   * also recorded by the cost tracker as they pass through.
-   * @param {AgentEvent} event
-   */
-  const emitEvent = (event) => {
-    if (event.type === "token_usage") {
-      costTracker.recordUsage(event.usage);
-    }
-    eventQueue.push(event);
-  };
-
-  // Build the initial message list. When resuming, replace messages[0] with
-  // the freshly built system prompt (today/agent roles/skills may have
-  // changed) but keep the rest of the saved conversation verbatim.
-  /** @type {import("./model").SystemMessage} */
+  /** @type {SystemMessage} */
   const systemMessage = {
     role: "system",
     content: [{ type: "text", text: prompt }],
@@ -78,25 +54,29 @@ export function createAgent({
   const stateManager = createStateManager(baseMessages, {
     onMessagesAppended: (newMessages) => {
       for (const message of newMessages) {
-        emitEvent({ type: "message", message });
+        eventQueue.push({ timestamp: new Date(), type: "message", message });
       }
     },
     onMessagesReplaced: (messages) =>
-      emitEvent({ type: "messages_reset", messages }),
+      eventQueue.push({
+        timestamp: new Date(),
+        type: "messages_reset",
+        messages,
+      }),
   });
 
   const subagentManager = createSubagentManager(agentRoles, {
     onSubagentSwitched: (subagent) => {
-      emitEvent({ type: "subagent_switched", subagent });
+      eventQueue.push({
+        timestamp: new Date(),
+        type: "subagent_switched",
+        subagent,
+      });
     },
   });
 
-  // Restore the rest of the session state. Subagent restoration is silent
-  // (no event), since CLI listeners aren't attached yet — the CLI consults
-  // getActiveSubagent() at startup instead.
   if (initialState) {
     subagentManager.restoreState(initialState.subagentState);
-    costTracker.restoreUsageHistory(initialState.tokenUsageHistory);
   }
   /**
    * @param {SwitchToSubagentInput} input
@@ -162,7 +142,7 @@ export function createAgent({
 
   // Pause signal: set by Ctrl-C during agent execution, checked after each tool batch completes
   let paused = false;
-  /** @type {import("./agentLoop.mjs").PauseSignal} */
+  /** @type {PauseSignal} */
   const pauseSignal = {
     isPaused: () => paused,
     reset: () => {
@@ -175,7 +155,7 @@ export function createAgent({
     stateManager,
     toolDefs,
     toolExecutor,
-    emitEvent,
+    emitEvent: (event) => eventQueue.push(event),
     toolUseApprover,
     subagentManager,
     pauseSignal,
@@ -183,14 +163,12 @@ export function createAgent({
     inputTokensKeys,
   });
 
-  // Drive the agent by consuming user input from the pull-based queue and
-  // running one turn loop per input. Runs for the lifetime of the process.
-  let inputLoopStarted = false;
   let sessionStartEmitted = false;
   const emitSessionStartOnce = () => {
     if (sessionStartEmitted) return;
     sessionStartEmitted = true;
-    emitEvent({
+    eventQueue.push({
+      timestamp: new Date(),
       type: "session_start",
       sessionFormatVersion: SESSION_FORMAT_VERSION,
       sessionId: sessionMetadata.sessionId,
@@ -198,12 +176,15 @@ export function createAgent({
       workingDir: sessionMetadata.workingDir,
       startTime: sessionMetadata.startTime.toISOString(),
     });
-    emitEvent({
+    eventQueue.push({
+      timestamp: new Date(),
       type: "messages_reset",
       messages: stateManager.getMessages(),
     });
   };
-  const startInputLoop = () => {
+
+  let inputLoopStarted = false;
+  const startInputLoopOnce = () => {
     if (inputLoopStarted) return;
     inputLoopStarted = true;
     (async () => {
@@ -211,7 +192,8 @@ export function createAgent({
         await agentLoop.handleUserInput(input);
       }
     })().catch((err) => {
-      emitEvent({
+      eventQueue.push({
+        timestamp: new Date(),
         type: "error",
         error: err instanceof Error ? err : new Error(String(err)),
       });
@@ -220,14 +202,17 @@ export function createAgent({
 
   return {
     start() {
-      startInputLoop();
+      startInputLoopOnce();
       return eventQueue;
     },
     send(input) {
       emitSessionStartOnce();
       inputQueue.push(input);
     },
-    getCostSummary: () => costTracker.calculateCost(),
+    stop() {
+      inputQueue.close();
+      eventQueue.close();
+    },
     pauseAutoApprove: () => {
       paused = true;
     },

@@ -15,10 +15,10 @@ import {
  * Properties explicitly set to `undefined` in overrides are ignored,
  * preserving the default value.
  * @param {Record<string, unknown>} overrides
- * @returns {import("../usageStore.mjs").UsageRecord}
+ * @returns {import("../metrics/usageStore.mjs").UsageRecord}
  */
 function makeRecord(overrides) {
-  /** @type {import("../usageStore.mjs").UsageRecord} */
+  /** @type {import("../metrics/usageStore.mjs").UsageRecord} */
   const defaults = {
     timestamp: "2026-04-10T12:34:56.000Z",
     sessionId: "s1",
