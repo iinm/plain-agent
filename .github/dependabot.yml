@@ -21,3 +21,10 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    groups:
+      github-actions-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
