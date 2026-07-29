@@ -6,12 +6,7 @@
 import { appendUsageRecord, buildUsageRecord } from "../metrics/usageStore.mjs";
 import { persistSessionEvent } from "../sessionStore.mjs";
 
-/**
- * Event types emitted to batch stdout (JSON Lines).
- * Managed independently from PERSISTED_SESSION_EVENT_TYPES so batch output
- * can be tuned without affecting persistence. Note: `messages_reset` is
- * persisted but intentionally excluded from batch output.
- */
+/** Event types emitted to batch stdout (JSON Lines). */
 const BATCH_OUTPUT_EVENT_TYPES = new Set([
   "session_start",
   "message",
