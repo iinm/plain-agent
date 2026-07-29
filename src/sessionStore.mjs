@@ -9,7 +9,6 @@ import { SESSIONS_DIR } from "./env.mjs";
 /** Current on-disk event-stream format version. Bump on breaking changes. */
 export const SESSION_FORMAT_VERSION = 2;
 
-/** Event types that are persisted in session JSONL streams. */
 const PERSISTED_SESSION_EVENT_TYPES = new Set([
   "session_start",
   "message",

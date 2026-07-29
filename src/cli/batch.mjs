@@ -6,7 +6,6 @@
 import { appendUsageRecord, buildUsageRecord } from "../metrics/usageStore.mjs";
 import { persistSessionEvent } from "../sessionStore.mjs";
 
-/** Event types emitted to batch stdout (JSON Lines). */
 const BATCH_OUTPUT_EVENT_TYPES = new Set([
   "session_start",
   "message",
