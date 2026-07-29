@@ -4,10 +4,16 @@
  */
 
 import { appendUsageRecord, buildUsageRecord } from "../metrics/usageStore.mjs";
-import {
-  PERSISTED_SESSION_EVENT_TYPES,
-  persistSessionEvent,
-} from "../sessionStore.mjs";
+import { persistSessionEvent } from "../sessionStore.mjs";
+
+const BATCH_OUTPUT_EVENT_TYPES = new Set([
+  "session_start",
+  "message",
+  "token_usage",
+  "subagent_switched",
+  "session_end",
+  "error",
+]);
 
 /**
  * @typedef {object} BatchSessionOptions
@@ -41,9 +47,7 @@ export async function startBatchSession({
   for await (const event of agent.start()) {
     await persistSessionEvent(sessionId, event);
 
-    if (PERSISTED_SESSION_EVENT_TYPES.has(event.type)) {
-      outputEvent(event);
-    } else if (event.type === "error") {
+    if (BATCH_OUTPUT_EVENT_TYPES.has(event.type)) {
       outputEvent(event);
     }
 
