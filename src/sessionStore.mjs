@@ -10,7 +10,7 @@ import { SESSIONS_DIR } from "./env.mjs";
 export const SESSION_FORMAT_VERSION = 2;
 
 /** Event types that are persisted in session JSONL streams. */
-export const PERSISTED_SESSION_EVENT_TYPES = new Set([
+const PERSISTED_SESSION_EVENT_TYPES = new Set([
   "session_start",
   "message",
   "token_usage",
