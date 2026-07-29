@@ -12,6 +12,7 @@ const BATCH_OUTPUT_EVENT_TYPES = new Set([
   "token_usage",
   "subagent_switched",
   "session_end",
+  "error",
 ]);
 
 /**
@@ -47,8 +48,6 @@ export async function startBatchSession({
     await persistSessionEvent(sessionId, event);
 
     if (BATCH_OUTPUT_EVENT_TYPES.has(event.type)) {
-      outputEvent(event);
-    } else if (event.type === "error") {
       outputEvent(event);
     }
 
