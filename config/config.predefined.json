@@ -2258,6 +2258,30 @@
       },
       "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
     },
+    {
+      "name": "kimi-k3",
+      "variant": "fireworks",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "fireworks"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "accounts/fireworks/models/kimi-k3"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "prompt_tokens": 3,
+          "prompt_tokens_details.cached_tokens": -2.7,
+          "completion_tokens": 15
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
+    },
 
     {
       "name": "deepseek-v4-pro",
