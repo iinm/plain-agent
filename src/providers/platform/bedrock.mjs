@@ -2,7 +2,6 @@ import { styleText } from "node:util";
 
 /**
  * Resolve the AWS SigV4 region and signing service for a Bedrock endpoint URL.
- * The bedrock-mantle endpoint is signed with the `bedrock-mantle` service name.
  * @param {string} url
  * @returns {{ region: string, service: string }}
  */

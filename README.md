@@ -918,12 +918,9 @@ policy='{
     {
       "Effect": "Allow",
       "Action": [
-        "bedrock-mantle:CreateInference",
-        "bedrock-mantle:GetProject",
-        "bedrock-mantle:ListProjects",
-        "bedrock-mantle:ListTagsForResources"
+        "bedrock-mantle:CreateInference"
       ],
-      "Resource": "*"
+      "Resource": "arn:aws:bedrock-mantle:*:*:*"
     }
   ]
 }'
