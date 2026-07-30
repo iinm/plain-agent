@@ -1971,8 +1971,8 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 5,
-          "input_tokens_details.cached_tokens": -4.5,
+          "input_tokens": 6.25,
+          "input_tokens_details.cached_tokens": -5.75,
           "output_tokens": 30
         }
       },
@@ -1999,8 +1999,8 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 5,
-          "input_tokens_details.cached_tokens": -4.5,
+          "input_tokens": 6.25,
+          "input_tokens_details.cached_tokens": -5.75,
           "output_tokens": 30
         }
       },
@@ -2027,8 +2027,8 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 2.5,
-          "input_tokens_details.cached_tokens": -2.25,
+          "input_tokens": 3.125,
+          "input_tokens_details.cached_tokens": -2.875,
           "output_tokens": 15
         }
       },
@@ -2055,8 +2055,8 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 2.5,
-          "input_tokens_details.cached_tokens": -2.25,
+          "input_tokens": 3.125,
+          "input_tokens_details.cached_tokens": -2.875,
           "output_tokens": 15
         }
       },
@@ -2083,8 +2083,8 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 1,
-          "input_tokens_details.cached_tokens": -0.9,
+          "input_tokens": 1.25,
+          "input_tokens_details.cached_tokens": -1.15,
           "output_tokens": 6
         }
       },
@@ -2111,8 +2111,8 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 1,
-          "input_tokens_details.cached_tokens": -0.9,
+          "input_tokens": 1.25,
+          "input_tokens_details.cached_tokens": -1.15,
           "output_tokens": 6
         }
       },
