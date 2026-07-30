@@ -548,7 +548,7 @@ function convertOpenAIStreamDataToAgentPartialContent(streamEvent) {
 /**
  * @param {ReadableStreamDefaultReader<Uint8Array>} reader
  */
-async function* readOpenAIStreamData(reader) {
+export async function* readOpenAIStreamData(reader) {
   let buffer = new Uint8Array();
 
   while (true) {
@@ -579,6 +579,12 @@ async function* readOpenAIStreamData(reader) {
         const eventDate = decodedData.split("\n").slice(1).join("\n");
         /** @type {OpenAIStreamEvent} */
         const parsedData = JSON.parse(eventDate.slice("data: ".length));
+        yield parsedData;
+      } else if (decodedData.startsWith("data: ")) {
+        // Some compatible endpoints (e.g. bedrock-mantle) omit the `event:`
+        // line and emit only the `data:` line.
+        /** @type {OpenAIStreamEvent} */
+        const parsedData = JSON.parse(decodedData.slice("data: ".length));
         yield parsedData;
       }
     }
