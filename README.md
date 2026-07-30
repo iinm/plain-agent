@@ -914,6 +914,16 @@ policy='{
         "arn:aws:bedrock:*:*:inference-profile/*",
         "arn:aws:bedrock:*:*:application-inference-profile/*"
       ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "bedrock-mantle:CreateInference",
+        "bedrock-mantle:GetProject",
+        "bedrock-mantle:ListProjects",
+        "bedrock-mantle:ListTagsForResources"
+      ],
+      "Resource": "*"
     }
   ]
 }'
