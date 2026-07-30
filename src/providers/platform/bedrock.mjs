@@ -1,6 +1,23 @@
 import { styleText } from "node:util";
 
 /**
+ * Resolve the AWS SigV4 region and signing service for a Bedrock endpoint URL.
+ * The bedrock-mantle endpoint is signed with the `bedrock-mantle` service name.
+ * @param {string} url
+ * @returns {{ region: string, service: string }}
+ */
+export function resolveBedrockSigningTarget(url) {
+  const mantleRegion = url.match(/bedrock-mantle\.([\w-]+)\.api\.aws/)?.[1];
+  if (mantleRegion) {
+    return { region: mantleRegion, service: "bedrock-mantle" };
+  }
+  return {
+    region: url.match(/bedrock-runtime\.([\w-]+)\.amazonaws\.com/)?.[1] ?? "",
+    service: "bedrock",
+  };
+}
+
+/**
  * @param {ReadableStreamDefaultReader<Uint8Array>} reader
  */
 export async function* readBedrockStreamEvents(reader) {

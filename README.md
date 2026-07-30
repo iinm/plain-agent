@@ -332,6 +332,14 @@ Create a configuration file.
       "awsProfile": "<AWS_PROFILE>"
     },
 
+    // Bedrock mantle: OpenAI-compatible endpoint on Bedrock (SigV4 via the AWS CLI)
+    {
+      "name": "bedrock-mantle",
+      "variant": "default",
+      "baseURL": "https://bedrock-mantle.<region>.api.aws",
+      "awsProfile": "<AWS_PROFILE>"
+    },
+
     // Vertex AI: Requires the gcloud CLI for authentication
     {
       "name": "vertex-ai",
