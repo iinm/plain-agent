@@ -1,8 +1,8 @@
 import { AnthropicModelConfig } from "./providers/anthropic";
 import { BedrockConverseModelConfig } from "./providers/bedrock";
 import { GeminiModelConfig } from "./providers/gemini";
-import { OpenAIModelConfig } from "./providers/openai";
-import { OpenAICompatibleModelConfig } from "./providers/openaiCompatible";
+import { OpenAICompatibleModelConfig } from "./providers/openaiMessages";
+import { OpenAIModelConfig } from "./providers/openaiResponses";
 
 export type ModelDefinition = {
   name: string;
