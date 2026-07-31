@@ -6,7 +6,9 @@
 
 import { styleText } from "node:util";
 import { noThrow } from "../utils/noThrow.mjs";
+import { loadAwsCredentials, signAwsRequest } from "./platform/awsSigV4.mjs";
 import { getAzureAccessToken } from "./platform/azure.mjs";
+import { resolveBedrockSigningTarget } from "./platform/bedrock.mjs";
 
 /**
  * @param {import("../model.definition").PlatformConfig} platformConfig
@@ -38,34 +40,78 @@ export async function callOpenAIModel(
       stream: true,
     };
 
-    const apiKey = await (async () => {
-      switch (platformConfig.name) {
-        case "openai":
-        case "openai-compatible":
-          return platformConfig.apiKey;
-        case "azure":
-          return getAzureAccessToken(
-            platformConfig.azureConfigDir
-              ? {
-                  azureConfigDir: platformConfig.azureConfigDir,
-                }
-              : undefined,
-          );
-        default:
-          throw new Error(`Unsupported platform: ${platformConfig.name}`);
-      }
-    })();
+    const url = `${platformConfig.baseURL}/v1/responses`;
+    const body = JSON.stringify(request);
 
-    const response = await fetch(`${platformConfig.baseURL}/v1/responses`, {
-      method: "POST",
-      headers: {
-        ...platformConfig.customHeaders,
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(request),
-      signal: AbortSignal.timeout(8 * 60 * 1000),
-    });
+    // bedrock-mantle + sso profile
+    const runFetchForBedrockMantle = async () => {
+      const { region, service } = resolveBedrockSigningTarget(url);
+      const { hostname, pathname } = new URL(url);
+
+      const credentials = await loadAwsCredentials(
+        platformConfig.name === "bedrock-mantle"
+          ? platformConfig.awsProfile
+          : "",
+      );
+
+      const signed = signAwsRequest(
+        {
+          method: "POST",
+          hostname,
+          path: pathname,
+          headers: {
+            ...platformConfig.customHeaders,
+            host: hostname,
+            "Content-Type": "application/json",
+          },
+          body,
+        },
+        { region, service, credentials },
+      );
+
+      return fetch(url, {
+        method: signed.method,
+        headers: signed.headers,
+        body: signed.body,
+        signal: AbortSignal.timeout(8 * 60 * 1000),
+      });
+    };
+
+    const runFetchDefault = async () => {
+      const apiKey = await (async () => {
+        switch (platformConfig.name) {
+          case "openai":
+          case "openai-compatible":
+            return platformConfig.apiKey;
+          case "azure":
+            return getAzureAccessToken(
+              platformConfig.azureConfigDir
+                ? {
+                    azureConfigDir: platformConfig.azureConfigDir,
+                  }
+                : undefined,
+            );
+          default:
+            throw new Error(`Unsupported platform: ${platformConfig.name}`);
+        }
+      })();
+
+      return fetch(url, {
+        method: "POST",
+        headers: {
+          ...platformConfig.customHeaders,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body,
+        signal: AbortSignal.timeout(8 * 60 * 1000),
+      });
+    };
+
+    const response =
+      platformConfig.name === "bedrock-mantle"
+        ? await runFetchForBedrockMantle()
+        : await runFetchDefault();
 
     const retryInterval = Math.min(2 * 2 ** retryCount, 16);
     if ((response.status === 429 || response.status >= 500) && retryCount < 5) {
@@ -502,7 +548,7 @@ function convertOpenAIStreamDataToAgentPartialContent(streamEvent) {
 /**
  * @param {ReadableStreamDefaultReader<Uint8Array>} reader
  */
-async function* readOpenAIStreamData(reader) {
+export async function* readOpenAIStreamData(reader) {
   let buffer = new Uint8Array();
 
   while (true) {
@@ -533,6 +579,12 @@ async function* readOpenAIStreamData(reader) {
         const eventDate = decodedData.split("\n").slice(1).join("\n");
         /** @type {OpenAIStreamEvent} */
         const parsedData = JSON.parse(eventDate.slice("data: ".length));
+        yield parsedData;
+      } else if (decodedData.startsWith("data: ")) {
+        // Some compatible endpoints (e.g. bedrock-mantle) omit the `event:`
+        // line and emit only the `data:` line.
+        /** @type {OpenAIStreamEvent} */
+        const parsedData = JSON.parse(decodedData.slice("data: ".length));
         yield parsedData;
       }
     }

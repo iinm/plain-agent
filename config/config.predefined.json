@@ -2143,6 +2143,30 @@
       },
       "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
     },
+    {
+      "name": "gpt-oss-120b",
+      "variant": "bedrock-mantle",
+      "platform": {
+        "name": "bedrock-mantle",
+        "variant": "default"
+      },
+      "model": {
+        "format": "openai-messages",
+        "config": {
+          "model": "openai.gpt-oss-120b",
+          "reasoning_effort": "high"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "prompt_tokens": 0.15,
+          "completion_tokens": 0.6
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
+    },
 
     {
       "name": "glm-5",
@@ -2170,9 +2194,9 @@
     },
     {
       "name": "glm-5",
-      "variant": "bedrock",
+      "variant": "bedrock-mantle",
       "platform": {
-        "name": "bedrock",
+        "name": "bedrock-mantle",
         "variant": "default"
       },
       "model": {

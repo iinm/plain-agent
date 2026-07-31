@@ -9,7 +9,10 @@ import { noThrow } from "../utils/noThrow.mjs";
 import { retryOnError } from "../utils/retryOnError.mjs";
 import { loadAwsCredentials, signAwsRequest } from "./platform/awsSigV4.mjs";
 import { getAzureAccessToken } from "./platform/azure.mjs";
-import { readBedrockStreamEvents } from "./platform/bedrock.mjs";
+import {
+  readBedrockStreamEvents,
+  resolveBedrockSigningTarget,
+} from "./platform/bedrock.mjs";
 import { getGoogleCloudAccessToken } from "./platform/googleCloud.mjs";
 
 /**
@@ -42,6 +45,8 @@ export async function callOpenAICompatibleModel(
           return `${baseURL}/v1/chat/completions`;
         case "bedrock":
           return `${baseURL}/model/${modelConfig.model}/invoke-with-response-stream`;
+        case "bedrock-mantle":
+          return `${baseURL}/v1/chat/completions`;
         case "vertex-ai":
           return `${baseURL}/endpoints/openapi/chat/completions`;
         case "azure":
@@ -61,6 +66,8 @@ export async function callOpenAICompatibleModel(
             Authorization: `Bearer ${platformConfig.apiKey}`,
           };
         case "bedrock":
+        case "bedrock-mantle":
+          // Authorization is added by AWS SigV4 signing.
           return platformConfig.customHeaders ?? {};
         case "vertex-ai":
           return {
@@ -91,6 +98,11 @@ export async function callOpenAICompatibleModel(
         case "bedrock":
           return {
             ...modelConfigWithoutName,
+          };
+        case "bedrock-mantle":
+          return {
+            ...modelConfig,
+            stream: true,
           };
         case "vertex-ai":
           return {
@@ -126,15 +138,17 @@ export async function callOpenAICompatibleModel(
         signal: AbortSignal.timeout(8 * 60 * 1000),
       });
 
-    // bedrock + sso profile
+    // bedrock / bedrock-mantle + sso profile
     const runFetchForBedrock = async () => {
-      const region =
-        url.match(/bedrock-runtime\.([\w-]+)\.amazonaws\.com/)?.[1] ?? "";
+      const { region, service } = resolveBedrockSigningTarget(url);
       const urlParsed = new URL(url);
       const { hostname, pathname } = urlParsed;
 
       const credentials = await loadAwsCredentials(
-        platformConfig.name === "bedrock" ? platformConfig.awsProfile : "",
+        platformConfig.name === "bedrock" ||
+          platformConfig.name === "bedrock-mantle"
+          ? platformConfig.awsProfile
+          : "",
       );
 
       const signed = signAwsRequest(
@@ -143,12 +157,13 @@ export async function callOpenAICompatibleModel(
           hostname,
           path: pathname,
           headers: {
+            ...headers,
             host: hostname,
             "Content-Type": "application/json",
           },
           body: JSON.stringify(request),
         },
-        { region, service: "bedrock", credentials },
+        { region, service, credentials },
       );
 
       return fetch(url, {
@@ -160,7 +175,10 @@ export async function callOpenAICompatibleModel(
     };
 
     const runFetch =
-      platformConfig.name === "bedrock" ? runFetchForBedrock : runFetchDefault;
+      platformConfig.name === "bedrock" ||
+      platformConfig.name === "bedrock-mantle"
+        ? runFetchForBedrock
+        : runFetchDefault;
 
     const response = await retryOnError(() => runFetch(), {
       shouldRetry: (err) => err instanceof Error && err.name === "TimeoutError",

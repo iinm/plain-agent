@@ -331,6 +331,12 @@ Create a configuration file.
       "baseURL": "https://bedrock-runtime.<region>.amazonaws.com",
       "awsProfile": "<AWS_PROFILE>"
     },
+    {
+      "name": "bedrock-mantle",
+      "variant": "default",
+      "baseURL": "https://bedrock-mantle.<region>.api.aws",
+      "awsProfile": "<AWS_PROFILE>"
+    },
 
     // Vertex AI: Requires the gcloud CLI for authentication
     {
@@ -906,6 +912,13 @@ policy='{
         "arn:aws:bedrock:*:*:inference-profile/*",
         "arn:aws:bedrock:*:*:application-inference-profile/*"
       ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "bedrock-mantle:CreateInference"
+      ],
+      "Resource": "arn:aws:bedrock-mantle:*:*:*"
     }
   ]
 }'
