@@ -2154,20 +2154,18 @@
         "format": "openai-messages",
         "config": {
           "model": "openai.gpt-oss-120b",
-          "reasoning": { "effort": "high", "summary": "auto" },
-          "store": false,
-          "include": ["reasoning.encrypted_content"]
+          "reasoning_effort": "high"
         }
       },
       "cost": {
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 0.15,
-          "output_tokens": 0.6
+          "prompt_tokens": 0.15,
+          "completion_tokens": 0.6
         }
       },
-      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
+      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
     },
 
     {
