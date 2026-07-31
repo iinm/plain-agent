@@ -1,6 +1,6 @@
 /**
  * @import { ModelInput, Message, AssistantMessage, ModelOutput, PartialMessageContent } from "../model"
- * @import { OpenAIFunctionToolCall, OpenAIInputImage, OpenAIInputItem, OpenAIModelConfig, OpenAIOutputItem, OpenAIOutputMessage, OpenAIReasoning, OpenAIRequest, OpenAIStreamEvent, OpenAIToolFunction } from "./openai"
+ * @import { OpenAIFunctionToolCall, OpenAIInputImage, OpenAIInputItem, OpenAIModelConfig, OpenAIOutputItem, OpenAIOutputMessage, OpenAIReasoning, OpenAIRequest, OpenAIStreamEvent, OpenAIToolFunction } from "./openaiResponses"
  * @import { ToolDefinition } from "../tool"
  */
 
@@ -17,7 +17,7 @@ import { resolveBedrockSigningTarget } from "./platform/bedrock.mjs";
  * @param {number} retryCount
  * @returns {Promise<ModelOutput | Error>}
  */
-export async function callOpenAIModel(
+export async function callOpenAIResponsesModel(
   platformConfig,
   modelConfig,
   input,
@@ -122,7 +122,7 @@ export async function callOpenAIModel(
         ),
       );
       await new Promise((resolve) => setTimeout(resolve, retryInterval * 1000));
-      return callOpenAIModel(
+      return callOpenAIResponsesModel(
         platformConfig,
         modelConfig,
         input,
@@ -169,7 +169,7 @@ export async function callOpenAIModel(
         ),
       );
       await new Promise((resolve) => setTimeout(resolve, retryInterval * 1000));
-      return callOpenAIModel(
+      return callOpenAIResponsesModel(
         platformConfig,
         modelConfig,
         input,

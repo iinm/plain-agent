@@ -1,6 +1,6 @@
 /**
  * @import { ModelInput, Message, MessageContentText, AssistantMessage, ModelOutput, PartialMessageContent, MessageContentThinking, MessageContentToolUse } from "../model"
- * @import { OpenAIAssistantMessage, OpenAIMessage, OpenAIMessageToolCall, OpenAICompatibleModelConfig, OpenAIToolDefinition, OpenAIStreamData, OpenAIChatCompletion, OpenAIMessageContentImage, OpenAIChatCompletionRequest } from "./openaiCompatible"
+ * @import { OpenAIAssistantMessage, OpenAIMessage, OpenAIMessageToolCall, OpenAIChatCompletionsModelConfig, OpenAIToolDefinition, OpenAIStreamData, OpenAIChatCompletion, OpenAIMessageContentImage, OpenAIChatCompletionRequest } from "./openaiChatCompletions"
  * @import { ToolDefinition } from "../tool"
  */
 
@@ -17,12 +17,12 @@ import { getGoogleCloudAccessToken } from "./platform/googleCloud.mjs";
 
 /**
  * @param {import("../model.definition").PlatformConfig} platformConfig
- * @param {OpenAICompatibleModelConfig} modelConfig
+ * @param {OpenAIChatCompletionsModelConfig} modelConfig
  * @param {ModelInput} input
  * @param {number} retryCount
  * @returns {Promise<ModelOutput | Error>}
  */
-export async function callOpenAICompatibleModel(
+export async function callOpenAIChatCompletionsModel(
   platformConfig,
   modelConfig,
   input,
@@ -205,7 +205,7 @@ export async function callOpenAICompatibleModel(
         ),
       );
       await new Promise((resolve) => setTimeout(resolve, retryInterval * 1000));
-      return callOpenAICompatibleModel(
+      return callOpenAIChatCompletionsModel(
         platformConfig,
         modelConfig,
         input,
@@ -264,7 +264,7 @@ export async function callOpenAICompatibleModel(
         await new Promise((resolve) =>
           setTimeout(resolve, retryInterval * 1000),
         );
-        return callOpenAICompatibleModel(
+        return callOpenAIChatCompletionsModel(
           platformConfig,
           modelConfig,
           input,

@@ -1,8 +1,8 @@
 import { callAnthropicModel } from "./providers/anthropic.mjs";
 import { callBedrockConverseModel } from "./providers/bedrock.mjs";
 import { createCacheEnabledGeminiModelCaller } from "./providers/gemini.mjs";
-import { callOpenAIModel } from "./providers/openai.mjs";
-import { callOpenAICompatibleModel } from "./providers/openaiCompatible.mjs";
+import { callOpenAIChatCompletionsModel } from "./providers/openaiChatCompletions.mjs";
+import { callOpenAIResponsesModel } from "./providers/openaiResponses.mjs";
 
 /**
  * @param {import("./model.definition").ModelDefinition} modelDef
@@ -22,10 +22,10 @@ export function createModelCaller(modelDef) {
       return (input) => modelCaller(model.config, input);
     }
     case "openai-responses":
-      return (input) => callOpenAIModel(platform, model.config, input);
-    case "openai-messages":
+      return (input) => callOpenAIResponsesModel(platform, model.config, input);
+    case "openai-chat-completions":
       return (input) =>
-        callOpenAICompatibleModel(platform, model.config, input);
+        callOpenAIChatCompletionsModel(platform, model.config, input);
     case "bedrock-converse":
       return (input) => callBedrockConverseModel(platform, model.config, input);
   }

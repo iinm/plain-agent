@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import test, { describe } from "node:test";
-import { readOpenAIStreamData } from "./openai.mjs";
+import { readOpenAIStreamData } from "./openaiResponses.mjs";
 
 describe("readOpenAIStreamData", () => {
   /** @param {string[]} chunks */

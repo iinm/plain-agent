@@ -35,7 +35,7 @@ Supports Claude, OpenAI, Gemini, and any OpenAI-compatible provider. Bedrock, Ve
 Each model definition has two independent parts:
 
 - **`platform`**: where to send the request and how to authenticate (Anthropic, Bedrock, Vertex AI, Azure, etc.)
-- **`model.format`**: which API format to use (`anthropic`, `gemini`, `openai-responses`, `openai-messages`, `bedrock-converse`)
+- **`model.format`**: which API format to use (`anthropic`, `gemini`, `openai-responses`, `openai-chat-completions`, `bedrock-converse`)
 
 Because these are separate, the same API format works across different platforms. For example, Claude models use the `anthropic` format whether you call Anthropic directly or through Bedrock.
 

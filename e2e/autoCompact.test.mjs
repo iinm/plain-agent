@@ -83,7 +83,7 @@ describe("auto-compact", () => {
             variant: "default",
             platform: { name: "openai-compatible", variant: "fake" },
             model: {
-              format: "openai-messages",
+              format: "openai-chat-completions",
               config: { model: "fake-model" },
             },
             autoCompact: { inputTokensKeys: ["prompt_tokens"] },

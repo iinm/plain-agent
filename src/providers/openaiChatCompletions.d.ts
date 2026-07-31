@@ -1,5 +1,5 @@
 /* Model */
-export type OpenAICompatibleModelConfig =
+export type OpenAIChatCompletionsModelConfig =
   | {
       model: string;
       temperature?: number;
