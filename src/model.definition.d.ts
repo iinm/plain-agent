@@ -1,7 +1,7 @@
 import { AnthropicModelConfig } from "./providers/anthropic";
 import { BedrockConverseModelConfig } from "./providers/bedrock";
 import { GeminiModelConfig } from "./providers/gemini";
-import { OpenAICompatibleModelConfig } from "./providers/openaiMessages";
+import { OpenAIChatCompletionsModelConfig } from "./providers/openaiChatCompletions";
 import { OpenAIModelConfig } from "./providers/openaiResponses";
 
 export type ModelDefinition = {
@@ -90,8 +90,8 @@ export type ModelConfig =
       config: OpenAIModelConfig;
     }
   | {
-      format: "openai-messages";
-      config: OpenAICompatibleModelConfig;
+      format: "openai-chat-completions";
+      config: OpenAIChatCompletionsModelConfig;
     }
   | {
       format: "bedrock-converse";

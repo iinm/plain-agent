@@ -2127,7 +2127,7 @@
         "variant": "fireworks"
       },
       "model": {
-        "format": "openai-messages",
+        "format": "openai-chat-completions",
         "config": {
           "model": "accounts/fireworks/models/gpt-oss-120b"
         }
@@ -2151,7 +2151,7 @@
         "variant": "default"
       },
       "model": {
-        "format": "openai-messages",
+        "format": "openai-chat-completions",
         "config": {
           "model": "openai.gpt-oss-120b",
           "reasoning_effort": "high"
@@ -2176,7 +2176,7 @@
         "variant": "default"
       },
       "model": {
-        "format": "openai-messages",
+        "format": "openai-chat-completions",
         "config": {
           "model": "zai-org/glm-5-maas"
         }
@@ -2200,7 +2200,7 @@
         "variant": "default"
       },
       "model": {
-        "format": "openai-messages",
+        "format": "openai-chat-completions",
         "config": {
           "model": "zai.glm-5",
           "reasoning_effort": "high"
@@ -2225,7 +2225,7 @@
         "variant": "fireworks"
       },
       "model": {
-        "format": "openai-messages",
+        "format": "openai-chat-completions",
         "config": {
           "model": "accounts/fireworks/models/glm-5p2"
         }
@@ -2250,7 +2250,7 @@
         "variant": "default"
       },
       "model": {
-        "format": "openai-messages",
+        "format": "openai-chat-completions",
         "config": {
           "model": "Kimi-K2.6",
           "reasoning_effort": "high"
@@ -2266,7 +2266,7 @@
         "variant": "fireworks"
       },
       "model": {
-        "format": "openai-messages",
+        "format": "openai-chat-completions",
         "config": {
           "model": "accounts/fireworks/models/kimi-k2p7-code"
         }
@@ -2290,7 +2290,7 @@
         "variant": "fireworks"
       },
       "model": {
-        "format": "openai-messages",
+        "format": "openai-chat-completions",
         "config": {
           "model": "accounts/fireworks/models/kimi-k3"
         }
@@ -2315,7 +2315,7 @@
         "variant": "fireworks"
       },
       "model": {
-        "format": "openai-messages",
+        "format": "openai-chat-completions",
         "config": {
           "model": "accounts/fireworks/models/deepseek-v4-pro"
         }
@@ -2339,7 +2339,7 @@
         "variant": "default"
       },
       "model": {
-        "format": "openai-messages",
+        "format": "openai-chat-completions",
         "config": {
           "model": "DeepSeek-V4-Pro",
           "reasoning_effort": "high"
@@ -2356,7 +2356,7 @@
         "variant": "fireworks"
       },
       "model": {
-        "format": "openai-messages",
+        "format": "openai-chat-completions",
         "config": {
           "model": "accounts/fireworks/models/minimax-m3"
         }
@@ -2381,7 +2381,7 @@
         "variant": "fireworks"
       },
       "model": {
-        "format": "openai-messages",
+        "format": "openai-chat-completions",
         "config": {
           "model": "accounts/fireworks/models/qwen3p7-plus"
         }
