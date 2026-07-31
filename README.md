@@ -331,8 +331,6 @@ Create a configuration file.
       "baseURL": "https://bedrock-runtime.<region>.amazonaws.com",
       "awsProfile": "<AWS_PROFILE>"
     },
-
-    // Bedrock mantle: OpenAI-compatible endpoint on Bedrock (SigV4 via the AWS CLI)
     {
       "name": "bedrock-mantle",
       "variant": "default",
