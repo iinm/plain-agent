@@ -1,7 +1,7 @@
 # Plain Agent
 
 [![CodeQL](https://github.com/iinm/plain-agent/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/iinm/plain-agent/actions/workflows/github-code-scanning/codeql)
-[![Socket Badge](https://badge.socket.dev/npm/package/@iinm/plain-agent/1.15.5)](https://socket.dev/npm/package/@iinm/plain-agent)
+[![Socket Badge](https://badge.socket.dev/npm/package/@iinm/plain-agent/1.16.0)](https://socket.dev/npm/package/@iinm/plain-agent)
 [![install size](https://packagephobia.com/badge?p=@iinm/plain-agent)](https://packagephobia.com/result?p=@iinm/plain-agent)
 
 A lightweight terminal-based coding agent focused on safety and low token cost
