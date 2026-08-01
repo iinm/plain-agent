@@ -32,8 +32,8 @@
   },
   "scripts": {
     "check": "npm run lint && tsc && npm run test && npm run test:config",
-    "test": "node --test --test-reporter=./testReporter.mjs",
-    "test:coverage": "c8 --exclude='src/**/*.test.mjs' --exclude='e2e/**' node --test --test-reporter=./testReporter.mjs",
+    "test": "node --test --test-reporter=./testReporter.mjs --test-timeout=30000 --test-force-exit",
+    "test:coverage": "c8 --exclude='src/**/*.test.mjs' --exclude='e2e/**' node --test --test-reporter=./testReporter.mjs --test-timeout=30000 --test-force-exit",
     "test:config": "bash -c 'set -e; mkdir -p tmp; cd tmp; env HOME=. ../bin/plain test-approval'",
     "lint": "npx @biomejs/biome check",
     "fix": "npx @biomejs/biome check --fix",
