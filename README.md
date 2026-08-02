@@ -1,5 +1,9 @@
 # Plain Agent
 
+[![NPM Version](https://img.shields.io/npm/v/%40iinm%2Fplain-agent)](https://www.npmjs.com/package/@iinm/plain-agent)
+[![Install Size](https://packagephobia.com/badge?p=@iinm/plain-agent)](https://packagephobia.com/result?p=@iinm/plain-agent)
+[![CodeQL](https://github.com/iinm/plain-agent/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/iinm/plain-agent/actions/workflows/github-code-scanning/codeql)
+
 A lightweight terminal-based coding agent focused on safety and low token cost
 
 ## Table of Contents
