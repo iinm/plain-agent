@@ -343,6 +343,7 @@ export async function main(argv = process.argv) {
     projectMetadataDir: AGENT_PROJECT_METADATA_DIR,
     agentRoles,
     skills: Array.from(prompts.values()).filter((p) => p.isSkill),
+    userPreferences: appConfig.systemPrompt?.userPreferences ?? [],
   });
 
   const execCommandTool = createExecCommandTool({ sandbox: appConfig.sandbox });

@@ -10,6 +10,7 @@ import { toOneLine } from "./utils/toOneLine.mjs";
  * @property {string} projectMetadataDir - The directory where memory files are stored.
  * @property {Map<string, import('./context/loadAgentRoles.mjs').AgentRole>} agentRoles - Available agent roles.
  * @property {{filePath: string, description: string}[]} skills
+ * @property {string[]} [userPreferences] - Free-form user preferences injected under a `# User Preferences` section.
  */
 
 /**
@@ -25,6 +26,7 @@ export function createPrompt({
   projectMetadataDir,
   agentRoles,
   skills,
+  userPreferences = [],
 }) {
   const agentRoleDescriptions = Array.from(agentRoles.entries())
     .map(([id, role]) => {
@@ -41,6 +43,12 @@ export function createPrompt({
       return `- ${skill.filePath}\n  ${desc}`;
     })
     .join("\n");
+  const userPreferencesSection =
+    userPreferences.length > 0
+      ? `# User Preferences
+
+${userPreferences.join("\n")}`
+      : "";
 
   return `
 # Communication Style
@@ -96,6 +104,8 @@ ${skillDescriptions}
 Available subagents:
 ${agentRoleDescriptions}
 - custom:<role-name>: Use this for ad-hoc roles not listed above (e.g., custom:explore, custom:plan).
+
+${userPreferencesSection}
 `.trim();
 }
 
