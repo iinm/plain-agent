@@ -63,86 +63,108 @@ export async function loadAppConfig(options = {}) {
     if (Object.keys(config).length) {
       loadedConfigPath.push(filePath);
     }
-    merged = {
-      model: config.model || merged.model,
-      models: [...(config.models ?? []), ...(merged.models ?? [])],
-      platforms: [...(config.platforms ?? []), ...(merged.platforms ?? [])],
-      autoApproval: {
-        defaultAction:
-          config.autoApproval?.defaultAction ??
-          merged.autoApproval?.defaultAction,
-        patterns: [
-          ...(config.autoApproval?.patterns ?? []).map(
-            (p) =>
-              /** @type {ToolUsePatternWithSource} */ ({
-                ...p,
-                source: filePath,
-              }),
-          ),
-          ...(merged.autoApproval?.patterns ?? []),
-        ],
-        maxApprovals:
-          config.autoApproval?.maxApprovals ??
-          merged.autoApproval?.maxApprovals,
-        allowedPaths: [
-          ...(config.autoApproval?.allowedPaths ?? []),
-          ...(merged.autoApproval?.allowedPaths ?? []),
-        ],
-        allowGitUnmanagedFiles:
-          config.autoApproval?.allowGitUnmanagedFiles ??
-          merged.autoApproval?.allowGitUnmanagedFiles,
-        tests: [
-          ...(config.autoApproval?.tests ?? []).map((t) => ({
-            ...t,
-            source: filePath,
-          })),
-          ...(merged.autoApproval?.tests ?? []),
-        ],
-      },
-      sandbox: config.sandbox ?? merged.sandbox,
-      tools: {
-        webSearch: config.tools?.webSearch
-          ? {
-              ...(merged.tools?.webSearch ?? {}),
-              ...config.tools.webSearch,
-            }
-          : merged.tools?.webSearch,
-        webFetch: config.tools?.webFetch
-          ? {
-              ...(merged.tools?.webFetch ?? {}),
-              ...config.tools.webFetch,
-            }
-          : merged.tools?.webFetch,
-        tmux: config.tools?.tmux
-          ? {
-              ...(merged.tools?.tmux ?? {}),
-              ...config.tools.tmux,
-            }
-          : merged.tools?.tmux,
-      },
-      mcpServers: {
-        ...(merged.mcpServers ?? {}),
-        ...(config.mcpServers ?? {}),
-      },
-      autoCompact: config.autoCompact
-        ? {
-            softLimit:
-              config.autoCompact.softLimit ?? merged.autoCompact?.softLimit,
-            softLimitPerModelPrefix: {
-              ...(merged.autoCompact?.softLimitPerModelPrefix ?? {}),
-              ...(config.autoCompact.softLimitPerModelPrefix ?? {}),
-            },
-          }
-        : merged.autoCompact,
-      notifyCmd: config.notifyCmd ?? merged.notifyCmd,
-      claudeCodePlugins: [
-        ...(merged.claudeCodePlugins ?? []),
-        ...(config.claudeCodePlugins ?? []),
-      ],
-    };
+    merged = mergeAppConfig(merged, config, filePath);
   }
 
   return { appConfig: merged, loadedConfigPath };
+}
+
+/**
+ * Merge a single config file's contents into the accumulated config.
+ *
+ * Arrays are concatenated with the current `config` items first, so the
+ * last-processed file's values come first overall. Objects are merged with
+ * later files overriding.
+ *
+ * @param {AppConfig} merged - The accumulated config so far.
+ * @param {AppConfig} config - The config read from the current file.
+ * @param {string} source - File path of the current config (used as the
+ *   `source` tag on auto-approval patterns/tests).
+ * @returns {AppConfig}
+ */
+export function mergeAppConfig(merged, config, source) {
+  return {
+    model: config.model || merged.model,
+    models: [...(config.models ?? []), ...(merged.models ?? [])],
+    platforms: [...(config.platforms ?? []), ...(merged.platforms ?? [])],
+    systemPrompt: {
+      userPreferences: [
+        ...(config.systemPrompt?.userPreferences ?? []),
+        ...(merged.systemPrompt?.userPreferences ?? []),
+      ],
+    },
+    autoApproval: {
+      defaultAction:
+        config.autoApproval?.defaultAction ??
+        merged.autoApproval?.defaultAction,
+      patterns: [
+        ...(config.autoApproval?.patterns ?? []).map(
+          (p) =>
+            /** @type {ToolUsePatternWithSource} */ ({
+              ...p,
+              source,
+            }),
+        ),
+        ...(merged.autoApproval?.patterns ?? []),
+      ],
+      maxApprovals:
+        config.autoApproval?.maxApprovals ?? merged.autoApproval?.maxApprovals,
+      allowedPaths: [
+        ...(config.autoApproval?.allowedPaths ?? []),
+        ...(merged.autoApproval?.allowedPaths ?? []),
+      ],
+      allowGitUnmanagedFiles:
+        config.autoApproval?.allowGitUnmanagedFiles ??
+        merged.autoApproval?.allowGitUnmanagedFiles,
+      tests: [
+        ...(config.autoApproval?.tests ?? []).map((t) => ({
+          ...t,
+          source,
+        })),
+        ...(merged.autoApproval?.tests ?? []),
+      ],
+    },
+    sandbox: config.sandbox ?? merged.sandbox,
+    tools: {
+      webSearch: config.tools?.webSearch
+        ? {
+            ...(merged.tools?.webSearch ?? {}),
+            ...config.tools.webSearch,
+          }
+        : merged.tools?.webSearch,
+      webFetch: config.tools?.webFetch
+        ? {
+            ...(merged.tools?.webFetch ?? {}),
+            ...config.tools.webFetch,
+          }
+        : merged.tools?.webFetch,
+      tmux: config.tools?.tmux
+        ? {
+            ...(merged.tools?.tmux ?? {}),
+            ...config.tools.tmux,
+          }
+        : merged.tools?.tmux,
+    },
+    mcpServers: {
+      ...(merged.mcpServers ?? {}),
+      ...(config.mcpServers ?? {}),
+    },
+    autoCompact: config.autoCompact
+      ? {
+          softLimit:
+            config.autoCompact.softLimit ?? merged.autoCompact?.softLimit,
+          softLimitPerModelPrefix: {
+            ...(merged.autoCompact?.softLimitPerModelPrefix ?? {}),
+            ...(config.autoCompact.softLimitPerModelPrefix ?? {}),
+          },
+        }
+      : merged.autoCompact,
+    notifyCmd: config.notifyCmd ?? merged.notifyCmd,
+    claudeCodePlugins: [
+      ...(merged.claudeCodePlugins ?? []),
+      ...(config.claudeCodePlugins ?? []),
+    ],
+  };
 }
 
 /**

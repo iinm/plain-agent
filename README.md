@@ -654,6 +654,9 @@ Files are loaded in the following order. Settings in later files override earlie
 
 ```js
 {
+  // Preferences the agent should respect, appended to its system prompt.
+  "systemPrompt": { "userPreferences": ["Communication style: ...", "Code style: ..."] },
+
   "autoApproval": {
     // Absolute paths outside the working directory that are allowed. Relative paths are ignored.
     "allowedPaths": ["/path/to/other/git-repo"],

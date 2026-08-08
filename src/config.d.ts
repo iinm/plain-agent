@@ -92,6 +92,9 @@ export type AppConfig = {
     softLimitPerModelPrefix?: Record<string, number>;
   };
   claudeCodePlugins?: ClaudeCodePluginRepo[];
+  systemPrompt?: {
+    userPreferences?: string[];
+  };
 };
 
 export type AutoApprovalTestCase = {
