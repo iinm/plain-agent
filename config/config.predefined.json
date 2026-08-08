@@ -2347,6 +2347,30 @@
       },
       "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
     },
+    {
+      "name": "deepseek-v4-flash-0731",
+      "variant": "fireworks",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "fireworks"
+      },
+      "model": {
+        "format": "openai-chat-completions",
+        "config": {
+          "model": "accounts/fireworks/models/deepseek-v4-flash-0731"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "prompt_tokens": 0.14,
+          "prompt_tokens_details.cached_tokens": -0.112,
+          "completion_tokens": 0.28
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
+    },
 
     {
       "name": "minimax-m3",
