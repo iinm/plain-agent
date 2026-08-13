@@ -2423,6 +2423,31 @@
     },
 
     {
+      "name": "muse-glimmer-30b",
+      "variant": "fireworks",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "fireworks"
+      },
+      "model": {
+        "format": "openai-chat-completions",
+        "config": {
+          "model": "accounts/fireworks/models/muse-glimmer-30b"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "prompt_tokens": 0.35,
+          "prompt_tokens_details.cached_tokens": -0.31,
+          "completion_tokens": 1.5
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
+    },
+
+    {
       "name": "nova-2-lite",
       "variant": "bedrock",
       "platform": {
