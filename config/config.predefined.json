@@ -1296,7 +1296,7 @@
     },
 
     {
-      "name": "gemini-3.6-flash",
+      "name": "gemini-3.7-flash",
       "variant": "thinking-medium",
       "platform": {
         "name": "gemini",
@@ -1306,7 +1306,7 @@
       "model": {
         "format": "gemini",
         "config": {
-          "model": "gemini-3.6-flash",
+          "model": "gemini-3.7-flash",
           "generationConfig": {
             "maxOutputTokens": 32768,
             "thinkingConfig": {
@@ -1328,7 +1328,7 @@
       "autoCompact": { "inputTokensKeys": ["promptTokenCount"] }
     },
     {
-      "name": "gemini-3.6-flash",
+      "name": "gemini-3.7-flash",
       "variant": "thinking-high",
       "platform": {
         "name": "gemini",
@@ -1338,7 +1338,7 @@
       "model": {
         "format": "gemini",
         "config": {
-          "model": "gemini-3.6-flash",
+          "model": "gemini-3.7-flash",
           "generationConfig": {
             "maxOutputTokens": 65536,
             "thinkingConfig": {
@@ -1425,7 +1425,7 @@
     },
 
     {
-      "name": "gemini-3.6-flash",
+      "name": "gemini-3.7-flash",
       "variant": "thinking-medium-vertex-ai",
       "platform": {
         "name": "vertex-ai",
@@ -1434,7 +1434,7 @@
       "model": {
         "format": "gemini",
         "config": {
-          "model": "gemini-3.6-flash",
+          "model": "gemini-3.7-flash",
           "generationConfig": {
             "maxOutputTokens": 32768,
             "thinkingConfig": {
@@ -1456,7 +1456,7 @@
       "autoCompact": { "inputTokensKeys": ["promptTokenCount"] }
     },
     {
-      "name": "gemini-3.6-flash",
+      "name": "gemini-3.7-flash",
       "variant": "thinking-high-vertex-ai",
       "platform": {
         "name": "vertex-ai",
@@ -1465,7 +1465,7 @@
       "model": {
         "format": "gemini",
         "config": {
-          "model": "gemini-3.6-flash",
+          "model": "gemini-3.7-flash",
           "generationConfig": {
             "maxOutputTokens": 65536,
             "thinkingConfig": {
