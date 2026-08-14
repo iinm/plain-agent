@@ -2308,7 +2308,7 @@
     },
 
     {
-      "name": "deepseek-v4-pro",
+      "name": "deepseek-v4-pro-0813",
       "variant": "fireworks",
       "platform": {
         "name": "openai-compatible",
@@ -2317,7 +2317,7 @@
       "model": {
         "format": "openai-chat-completions",
         "config": {
-          "model": "accounts/fireworks/models/deepseek-v4-pro"
+          "model": "accounts/fireworks/models/deepseek-v4-pro-0813"
         }
       },
       "cost": {
