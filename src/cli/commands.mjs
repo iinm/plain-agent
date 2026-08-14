@@ -32,6 +32,21 @@ import { formatCostSummary } from "./formatter.mjs";
  * @property {string} helpMessage
  */
 
+/** @param {string} input */
+export function matchShortcutCommand(input) {
+  return input.match(/^\/([^ ]+)(?:\s+(.*))?$/s);
+}
+
+/** @param {string} input */
+export function matchPromptsCommand(input) {
+  return input.match(/^\/prompts:([^ ]+)(?:\s+(.*))?$/s);
+}
+
+/** @param {string} input */
+export function matchAgentsCommand(input) {
+  return input.match(/^\/agents:([^ ]+)(?:\s+(.*))?$/s);
+}
+
 /**
  * Create command handler function for processing slash commands.
  *
@@ -167,7 +182,7 @@ export function createCommandHandler({
     }
 
     if (inputTrimmed.startsWith("/agents:")) {
-      const match = inputTrimmed.match(/^\/agents:([^ ]+)(?:\s+(.*))?$/s);
+      const match = matchAgentsCommand(inputTrimmed);
       if (!match) {
         console.error(styleText("red", "\nInvalid agent invocation format."));
         return "prompt";
@@ -197,7 +212,7 @@ export function createCommandHandler({
       }
 
       if (inputTrimmed.startsWith("/prompts:")) {
-        const match = inputTrimmed.match(/^\/prompts:([^ ]+)(?:\s+(.*))?$/s);
+        const match = matchPromptsCommand(inputTrimmed);
         if (!match) {
           console.error(
             styleText("red", "\nInvalid prompt invocation format."),
@@ -251,7 +266,7 @@ export function createCommandHandler({
 
     // /<id> — shortcut for prompts in shortcuts/ directory
     if (inputTrimmed.startsWith("/")) {
-      const match = inputTrimmed.match(/^\/([^ ]+)(?:\s+(.*))?$/);
+      const match = matchShortcutCommand(inputTrimmed);
       if (match) {
         const id = match[1];
         const prompts = await loadPrompts(claudeCodePlugins);
