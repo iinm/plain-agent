@@ -1550,7 +1550,7 @@
     },
 
     {
-      "name": "gpt-5.6-sol",
+      "name": "gpt-5.6-luna",
       "variant": "thinking-medium",
       "platform": {
         "name": "openai",
@@ -1560,7 +1560,7 @@
       "model": {
         "format": "openai-responses",
         "config": {
-          "model": "gpt-5.6-sol",
+          "model": "gpt-5.6-luna",
           "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "medium", "summary": "auto" },
           "store": false,
@@ -1571,16 +1571,16 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 5,
-          "input_tokens_details.cached_tokens": -4.5,
-          "input_tokens_details.cache_write_tokens": 1.25,
-          "output_tokens": 30
+          "input_tokens": 0.2,
+          "input_tokens_details.cached_tokens": -0.18,
+          "input_tokens_details.cache_write_tokens": 0.05,
+          "output_tokens": 1.2
         }
       },
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
-      "name": "gpt-5.6-sol",
+      "name": "gpt-5.6-luna",
       "variant": "thinking-high",
       "platform": {
         "name": "openai",
@@ -1590,7 +1590,7 @@
       "model": {
         "format": "openai-responses",
         "config": {
-          "model": "gpt-5.6-sol",
+          "model": "gpt-5.6-luna",
           "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "high", "summary": "auto" },
           "store": false,
@@ -1601,10 +1601,10 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 5,
-          "input_tokens_details.cached_tokens": -4.5,
-          "input_tokens_details.cache_write_tokens": 1.25,
-          "output_tokens": 30
+          "input_tokens": 0.2,
+          "input_tokens_details.cached_tokens": -0.18,
+          "input_tokens_details.cache_write_tokens": 0.05,
+          "output_tokens": 1.2
         }
       },
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }
@@ -1670,7 +1670,7 @@
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
-      "name": "gpt-5.6-luna",
+      "name": "gpt-5.6-sol",
       "variant": "thinking-medium",
       "platform": {
         "name": "openai",
@@ -1680,7 +1680,7 @@
       "model": {
         "format": "openai-responses",
         "config": {
-          "model": "gpt-5.6-luna",
+          "model": "gpt-5.6-sol",
           "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "medium", "summary": "auto" },
           "store": false,
@@ -1691,16 +1691,16 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 0.2,
-          "input_tokens_details.cached_tokens": -0.18,
-          "input_tokens_details.cache_write_tokens": 0.05,
-          "output_tokens": 1.2
+          "input_tokens": 5,
+          "input_tokens_details.cached_tokens": -4.5,
+          "input_tokens_details.cache_write_tokens": 1.25,
+          "output_tokens": 30
         }
       },
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
-      "name": "gpt-5.6-luna",
+      "name": "gpt-5.6-sol",
       "variant": "thinking-high",
       "platform": {
         "name": "openai",
@@ -1710,7 +1710,7 @@
       "model": {
         "format": "openai-responses",
         "config": {
-          "model": "gpt-5.6-luna",
+          "model": "gpt-5.6-sol",
           "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "high", "summary": "auto" },
           "store": false,
@@ -1721,17 +1721,17 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 0.2,
-          "input_tokens_details.cached_tokens": -0.18,
-          "input_tokens_details.cache_write_tokens": 0.05,
-          "output_tokens": 1.2
+          "input_tokens": 5,
+          "input_tokens_details.cached_tokens": -4.5,
+          "input_tokens_details.cache_write_tokens": 1.25,
+          "output_tokens": 30
         }
       },
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
 
     {
-      "name": "gpt-5.6-sol",
+      "name": "gpt-5.6-luna",
       "variant": "thinking-medium-azure",
       "platform": {
         "name": "azure",
@@ -1740,7 +1740,7 @@
       "model": {
         "format": "openai-responses",
         "config": {
-          "model": "gpt-5.6-sol",
+          "model": "gpt-5.6-luna",
           "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "medium", "summary": "auto" },
           "store": false,
@@ -1751,15 +1751,15 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 6.25,
-          "input_tokens_details.cached_tokens": -5.75,
-          "output_tokens": 30
+          "input_tokens": 1.25,
+          "input_tokens_details.cached_tokens": -1.15,
+          "output_tokens": 6
         }
       },
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
-      "name": "gpt-5.6-sol",
+      "name": "gpt-5.6-luna",
       "variant": "thinking-high-azure",
       "platform": {
         "name": "azure",
@@ -1768,7 +1768,7 @@
       "model": {
         "format": "openai-responses",
         "config": {
-          "model": "gpt-5.6-sol",
+          "model": "gpt-5.6-luna",
           "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "high", "summary": "auto" },
           "store": false,
@@ -1779,9 +1779,9 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 6.25,
-          "input_tokens_details.cached_tokens": -5.75,
-          "output_tokens": 30
+          "input_tokens": 1.25,
+          "input_tokens_details.cached_tokens": -1.15,
+          "output_tokens": 6
         }
       },
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }
@@ -1843,7 +1843,7 @@
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
-      "name": "gpt-5.6-luna",
+      "name": "gpt-5.6-sol",
       "variant": "thinking-medium-azure",
       "platform": {
         "name": "azure",
@@ -1852,7 +1852,7 @@
       "model": {
         "format": "openai-responses",
         "config": {
-          "model": "gpt-5.6-luna",
+          "model": "gpt-5.6-sol",
           "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "medium", "summary": "auto" },
           "store": false,
@@ -1863,15 +1863,15 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 1.25,
-          "input_tokens_details.cached_tokens": -1.15,
-          "output_tokens": 6
+          "input_tokens": 6.25,
+          "input_tokens_details.cached_tokens": -5.75,
+          "output_tokens": 30
         }
       },
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
-      "name": "gpt-5.6-luna",
+      "name": "gpt-5.6-sol",
       "variant": "thinking-high-azure",
       "platform": {
         "name": "azure",
@@ -1880,7 +1880,7 @@
       "model": {
         "format": "openai-responses",
         "config": {
-          "model": "gpt-5.6-luna",
+          "model": "gpt-5.6-sol",
           "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "high", "summary": "auto" },
           "store": false,
@@ -1891,9 +1891,9 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 1.25,
-          "input_tokens_details.cached_tokens": -1.15,
-          "output_tokens": 6
+          "input_tokens": 6.25,
+          "input_tokens_details.cached_tokens": -5.75,
+          "output_tokens": 30
         }
       },
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }
@@ -1974,46 +1974,6 @@
     },
 
     {
-      "name": "deepseek-v4-pro-0813",
-      "variant": "fireworks",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "fireworks"
-      },
-      "model": {
-        "format": "openai-chat-completions",
-        "config": {
-          "model": "accounts/fireworks/models/deepseek-v4-pro-0813"
-        }
-      },
-      "cost": {
-        "currency": "USD",
-        "unit": "1M",
-        "prices": {
-          "prompt_tokens": 1.74,
-          "prompt_tokens_details.cached_tokens": -1.6,
-          "completion_tokens": 3.48
-        }
-      },
-      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
-    },
-    {
-      "name": "deepseek-v4-pro",
-      "variant": "azure",
-      "platform": {
-        "name": "azure",
-        "variant": "default"
-      },
-      "model": {
-        "format": "openai-chat-completions",
-        "config": {
-          "model": "DeepSeek-V4-Pro",
-          "reasoning_effort": "high"
-        }
-      },
-      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
-    },
-    {
       "name": "deepseek-v4-flash-0731",
       "variant": "fireworks",
       "platform": {
@@ -2033,6 +1993,30 @@
           "prompt_tokens": 0.14,
           "prompt_tokens_details.cached_tokens": -0.112,
           "completion_tokens": 0.28
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
+    },
+    {
+      "name": "deepseek-v4-pro-0813",
+      "variant": "fireworks",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "fireworks"
+      },
+      "model": {
+        "format": "openai-chat-completions",
+        "config": {
+          "model": "accounts/fireworks/models/deepseek-v4-pro-0813"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "prompt_tokens": 1.74,
+          "prompt_tokens_details.cached_tokens": -1.6,
+          "completion_tokens": 3.48
         }
       },
       "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
