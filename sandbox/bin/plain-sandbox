@@ -7,7 +7,7 @@ SCRIPT_NAME=$(basename "${BASH_SOURCE[0]}")
 
 MOUNTABLE_SCRIPT_PATH="$HOME/.cache/$SCRIPT_NAME/$SCRIPT_NAME"
 CONTAINER_SCRIPT_PATH="/sandbox/bin/$SCRIPT_NAME"
-PRESET_BASE_IMAGE="public.ecr.aws/docker/library/debian:stable-20260505-slim"
+PRESET_BASE_IMAGE="public.ecr.aws/docker/library/debian:stable-20260803-slim"
 
 help() {
   cat << HELP
@@ -890,8 +890,8 @@ print_preset_dockerfile() {
   echo "FROM $PRESET_BASE_IMAGE"
   cat << 'EOF'
 
-RUN apt update \
-    && apt install -y \
+RUN apt-get update \
+    && apt-get install -y \
       busybox bash zsh locales gpg \
       fd-find ripgrep jq \
       iptables ipset dnsmasq dnsutils curl \
@@ -903,11 +903,10 @@ RUN apt update \
     && locale-gen
 
 # mise: https://mise.jdx.dev/
-RUN install -dm 755 /etc/apt/keyrings \
-    && curl -fsSL https://mise.jdx.dev/gpg-key.pub | gpg --dearmor | tee /etc/apt/keyrings/mise-archive-keyring.gpg 1> /dev/null \
-    && echo "deb [signed-by=/etc/apt/keyrings/mise-archive-keyring.gpg arch=$(dpkg --print-architecture)] https://mise.jdx.dev/deb stable main" | tee /etc/apt/sources.list.d/mise.list \
-    && apt update \
-    && apt install -y mise
+RUN apt-get install -y extrepo \
+    && extrepo enable mise \
+    && apt-get update \
+    && apt-get install -y mise
 
 # Create user
 RUN groupadd sandbox \
