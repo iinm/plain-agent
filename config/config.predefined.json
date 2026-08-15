@@ -1900,104 +1900,6 @@
     },
 
     {
-      "name": "gpt-oss-120b",
-      "variant": "fireworks",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "fireworks"
-      },
-      "model": {
-        "format": "openai-chat-completions",
-        "config": {
-          "model": "accounts/fireworks/models/gpt-oss-120b"
-        }
-      },
-      "cost": {
-        "currency": "USD",
-        "unit": "1M",
-        "prices": {
-          "prompt_tokens": 0.15,
-          "prompt_tokens_details.cached_tokens": -0.14,
-          "completion_tokens": 0.6
-        }
-      },
-      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
-    },
-    {
-      "name": "gpt-oss-120b",
-      "variant": "bedrock-mantle",
-      "platform": {
-        "name": "bedrock-mantle",
-        "variant": "default"
-      },
-      "model": {
-        "format": "openai-chat-completions",
-        "config": {
-          "model": "openai.gpt-oss-120b",
-          "reasoning_effort": "high"
-        }
-      },
-      "cost": {
-        "currency": "USD",
-        "unit": "1M",
-        "prices": {
-          "prompt_tokens": 0.15,
-          "completion_tokens": 0.6
-        }
-      },
-      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
-    },
-
-    {
-      "name": "glm-5",
-      "variant": "vertex-ai",
-      "platform": {
-        "name": "vertex-ai",
-        "variant": "default"
-      },
-      "model": {
-        "format": "openai-chat-completions",
-        "config": {
-          "model": "zai-org/glm-5-maas"
-        }
-      },
-      "cost": {
-        "currency": "USD",
-        "unit": "1M",
-        "prices": {
-          "prompt_tokens": 1,
-          "completion_tokens": 3.2,
-          "prompt_tokens_details.cached_tokens": -0.9
-        }
-      },
-      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
-    },
-    {
-      "name": "glm-5",
-      "variant": "bedrock-mantle",
-      "platform": {
-        "name": "bedrock-mantle",
-        "variant": "default"
-      },
-      "model": {
-        "format": "openai-chat-completions",
-        "config": {
-          "model": "zai.glm-5",
-          "reasoning_effort": "high"
-        }
-      },
-      "cost": {
-        "currency": "USD",
-        "unit": "1M",
-        "prices": {
-          "prompt_tokens": 1,
-          "completion_tokens": 3.2
-        }
-      },
-      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
-    },
-
-    {
       "name": "glm-5.2",
       "variant": "fireworks",
       "platform": {
@@ -2022,22 +1924,6 @@
       "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
     },
 
-    {
-      "name": "kimi-k2.6",
-      "variant": "azure",
-      "platform": {
-        "name": "azure",
-        "variant": "default"
-      },
-      "model": {
-        "format": "openai-chat-completions",
-        "config": {
-          "model": "Kimi-K2.6",
-          "reasoning_effort": "high"
-        }
-      },
-      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
-    },
     {
       "name": "kimi-k2.7-code",
       "variant": "fireworks",
@@ -2228,30 +2114,6 @@
     },
 
     {
-      "name": "nova-2-lite",
-      "variant": "bedrock",
-      "platform": {
-        "name": "bedrock",
-        "variant": "default"
-      },
-      "model": {
-        "format": "bedrock-converse",
-        "config": {
-          "model": "global.amazon.nova-2-lite-v1:0",
-          "enablePromptCaching": true,
-          "additionalModelRequestFields": {
-            "reasoningConfig": {
-              "type": "enabled",
-              "maxReasoningEffort": "medium"
-            }
-          }
-        }
-      },
-      "autoCompact": {
-        "inputTokensKeys": ["inputTokens", "cacheReadInputTokens"]
-      }
-    },
-    {
       "name": "claude-haiku-4-5",
       "variant": "thinking-16k-bedrock-converse",
       "platform": {
@@ -2281,6 +2143,30 @@
           "cacheWriteInputTokens"
         ]
       }
+    },
+    {
+      "name": "gpt-oss-120b",
+      "variant": "bedrock-mantle",
+      "platform": {
+        "name": "bedrock-mantle",
+        "variant": "default"
+      },
+      "model": {
+        "format": "openai-chat-completions",
+        "config": {
+          "model": "openai.gpt-oss-120b",
+          "reasoning_effort": "high"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "prompt_tokens": 0.15,
+          "completion_tokens": 0.6
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
     }
   ]
 }
