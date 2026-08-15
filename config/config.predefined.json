@@ -2048,7 +2048,7 @@
     },
 
     {
-      "name": "qwen3.7-plus",
+      "name": "qwen3.8-max",
       "variant": "fireworks",
       "platform": {
         "name": "openai-compatible",
@@ -2057,16 +2057,16 @@
       "model": {
         "format": "openai-chat-completions",
         "config": {
-          "model": "accounts/fireworks/models/qwen3p7-plus"
+          "model": "accounts/fireworks/models/qwen3p8-2p4t-a95b"
         }
       },
       "cost": {
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "prompt_tokens": 0.4,
-          "prompt_tokens_details.cached_tokens": -0.32,
-          "completion_tokens": 1.6
+          "prompt_tokens": 2.0,
+          "prompt_tokens_details.cached_tokens": -1.75,
+          "completion_tokens": 6.0
         }
       },
       "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
