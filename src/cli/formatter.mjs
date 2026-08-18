@@ -102,11 +102,15 @@ export async function formatToolUse(toolUse, options = {}) {
   if (toolName === "exec_command") {
     /** @type {Partial<ExecCommandInput>} */
     const execCommandInput = input;
-    const mode = options.execCommandTool?.getSandboxMode?.(input);
+    const sandboxMode = options.execCommandTool?.getSandboxMode?.(input);
     const toolNameLine =
-      mode === "unsandboxed"
-        ? `${toolName}${styleText("yellow", " [unsandboxed]")}`
-        : toolName;
+      sandboxMode &&
+      sandboxMode.mode === "sandbox" &&
+      sandboxMode.additionalArgs?.length
+        ? `${toolName}${styleText("yellow", ` [${sandboxMode.additionalArgs.join(" ")}]`)}`
+        : sandboxMode && sandboxMode.mode === "unsandboxed"
+          ? `${toolName}${styleText("yellow", " [unsandboxed]")}`
+          : toolName;
     return [
       toolNameLine,
       `command: ${JSON.stringify(execCommandInput.command)}`,

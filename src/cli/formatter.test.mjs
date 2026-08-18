@@ -1,4 +1,6 @@
 /** @import { MessageContentToolResult } from "../model" */
+/** @import { SandboxMode } from "../tool" */
+
 import assert from "node:assert";
 import fs from "node:fs/promises";
 import { after, afterEach, before, describe, it } from "node:test";
@@ -209,7 +211,8 @@ describe("formatToolUse", () => {
   it("appends [unsandboxed] badge when execCommandTool.getSandboxMode returns 'unsandboxed'", async () => {
     // given: a mock execCommandTool whose getSandboxMode reports "unsandboxed"
     const execCommandTool = {
-      getSandboxMode: () => /** @type {const} */ ("unsandboxed"),
+      getSandboxMode: () =>
+        /** @type {SandboxMode} */ ({ mode: "unsandboxed" }),
     };
 
     // when:
@@ -228,6 +231,35 @@ describe("formatToolUse", () => {
     assert.equal(
       lines[0],
       `exec_command${styleText("yellow", " [unsandboxed]")}`,
+    );
+  });
+
+  it("appends [--additionalArgs] badge when execCommandTool.getSandboxMode returns additional args", async () => {
+    // given: a mock execCommandTool whose getSandboxMode reports "unsandboxed"
+    const execCommandTool = {
+      getSandboxMode: () =>
+        /** @type {SandboxMode} */ ({
+          mode: "sandbox",
+          additionalArgs: ["--one", "--two"],
+        }),
+    };
+
+    // when:
+    const output = await formatToolUse(
+      {
+        type: "tool_use",
+        toolUseId: "t6",
+        toolName: "exec_command",
+        input: { command: "rm", args: ["-rf", "tmp"] },
+      },
+      { execCommandTool },
+    );
+
+    // then:
+    const lines = output.split("\n");
+    assert.equal(
+      lines[0],
+      `exec_command${styleText("yellow", " [--one --two]")}`,
     );
   });
 
@@ -250,7 +282,7 @@ describe("formatToolUse", () => {
   it("omits the [unsandboxed] badge when getSandboxMode returns 'sandbox'", async () => {
     // given: a mock execCommandTool whose getSandboxMode reports "sandbox"
     const execCommandTool = {
-      getSandboxMode: () => /** @type {const} */ ("sandbox"),
+      getSandboxMode: () => /** @type {SandboxMode} */ ({ mode: "sandbox" }),
     };
 
     // when:

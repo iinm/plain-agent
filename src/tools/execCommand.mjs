@@ -1,5 +1,5 @@
 /**
- * @import { Tool, SandboxModeProvider } from '../tool'
+ * @import { Tool, SandboxModeProvider, SandboxMode } from '../tool'
  * @import { ExecCommandConfig, ExecCommandInput, ExecCommandSanboxConfig } from './execCommand'
  */
 
@@ -196,14 +196,22 @@ Examples:
      * `rewriteInputForSandbox`'s rule-matching logic so the CLI can preview
      * the mode before execution.
      * @param {unknown} input
-     * @returns {"sandbox" | "unsandboxed" | null}
+     * @returns {SandboxMode}
      */
     getSandboxMode: (input) => {
-      if (!config?.sandbox) return null;
+      if (!config?.sandbox) return undefined;
       const matchedRule = (config.sandbox.rules || []).find((rule) =>
         matchValue(/** @type {ExecCommandInput} */ (input), rule.pattern),
       );
-      return matchedRule?.mode === "unsandboxed" ? "unsandboxed" : "sandbox";
+      if (matchedRule?.mode === "unsandboxed") {
+        return {
+          mode: "unsandboxed",
+        };
+      }
+      return {
+        mode: "sandbox",
+        additionalArgs: matchedRule?.additionalArgs,
+      };
     },
   };
 }
