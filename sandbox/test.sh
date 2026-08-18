@@ -100,6 +100,20 @@ out=$(plain-sandbox --dry-run --dockerfile Dockerfile.minimum --volume bin true)
 grep -qE " --mount type=volume,source=plain-sandbox--sandbox-.+--bin,target=/.+/sandbox/bin,consistency=delegated" <<< "$out"
 
 
+echo "case: --volume-each option creates and mounts volume"
+# when:
+out=$(plain-sandbox --dry-run --dockerfile Dockerfile.minimum --volume-each package.json:node_modules true)
+# then:
+grep -qE " --mount type=volume,source=plain-sandbox--sandbox-.+--examples-nodejs-monorepo-node_modules,target=/.+/nodejs-monorepo/node_modules,consistency=delegated" <<< "$out"
+
+
+echo "case: --volume-each option creates and mounts volume (omit manifest)"
+# when:
+out=$(plain-sandbox --dry-run --dockerfile Dockerfile.minimum --volume-each node_modules true)
+# then:
+grep -qE " --mount type=volume,source=plain-sandbox--sandbox-.+--examples-nodejs-monorepo-node_modules,target=/.+/nodejs-monorepo/node_modules,consistency=delegated" <<< "$out"
+
+
 echo "case: --mount-* option mounts host path with explicit container path"
 # when:
 out=$(plain-sandbox --dry-run --dockerfile Dockerfile.minimum --mount-readonly bin:/mnt/bin-readonly --mount-writable bin:/mnt/bin-writable true)

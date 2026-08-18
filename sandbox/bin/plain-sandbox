@@ -49,6 +49,11 @@ Options:
                             if PATH is relative, it is mounted relative to the project root
                             inside the container.
                             If NAME is not given, the volume name is generated.
+  --volume-each [MANIFEST:]DIR
+                            Find MANIFEST files in the project and mount a writable volume
+                            at each adjacent DIR directory (created if missing).
+                            If MANIFEST is omitted, a built-in rule is used.
+                            Built-in: node_modules (manifest: package.json)
 
   --mount-readonly HOST_PATH[:CONTAINER_PATH]
                             Mount a host file or directory to a container path as read-only.
@@ -145,6 +150,7 @@ main() {
   local allow_net="no"
   local allow_net_destinations=()
   local volume_dirs=()
+  local volume_each=()
   local readonly_mounts=()
   local writable_mounts=()
   local publish_ports=()
@@ -178,6 +184,12 @@ main() {
         volume_dirs+=("${new_volume_dirs[@]}")
         shift 2
         ;;
+      --volume-each )
+        local new_volume_each
+        IFS=',' read -r -a new_volume_each <<< "$2"
+        volume_each+=("${new_volume_each[@]}")
+        shift 2
+        ;;
       --mount-readonly )
         local new_readonly_mounts
         IFS=',' read -r -a new_readonly_mounts <<< "$2"
@@ -208,6 +220,33 @@ main() {
       *   ) break ;;
     esac
   done
+
+  if test "${#volume_each[@]}" -gt 0; then
+    for target in "${volume_each[@]}"; do
+      local manifest
+      local dir
+      if grep -qE ':' <<< "$target"; then
+        IFS=':' read -r manifest dir <<< "$target"
+      else
+        dir="$target"
+        if test "$dir" = "node_modules"; then
+          manifest="package.json"
+        else
+          echo "Error: manifest for --volume-each $dir not specified" >&2
+          return 1
+        fi
+      fi
+
+      for path in $(fd "$manifest" | sed -E "s,$manifest\$,$dir,"); do
+        if test "$DRY_RUN" = "no"; then
+          mkdir -p "$path"
+        else
+          echo DRY_RUN: mkdir -p "$path"
+        fi
+        volume_dirs+=("$path")
+      done
+    done
+  fi
 
   # Save arguments to generate container id
   local sandbox_args=(

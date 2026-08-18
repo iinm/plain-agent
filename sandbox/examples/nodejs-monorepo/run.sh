@@ -7,16 +7,11 @@ options=(
   --env-file env
   # Use shared volume for package cache
   --volume plain-sandbox--global--home-npm:/home/node/.npm
+  --volume-each node_modules
   # --volume plain-sandbox--global--home-cache-yarn:/home/node/.cache/yarn
   --mount-readonly ~/.gitconfig:/home/node/.gitconfig
   --allow-write
 )
-
-# Create volumes for each node_modules directory
-for path in $(fd package.json | sed -E 's,package.json$,node_modules,'); do
-  mkdir -p "$path"
-  options+=("--volume" "$path")
-done
 
 # Mount main worktree
 git_root=$(git rev-parse --show-toplevel)
