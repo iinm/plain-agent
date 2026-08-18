@@ -10,7 +10,15 @@ export type Tool = {
   injectImpl?: (impl: ToolImplementation) => void;
 };
 
-export type SandboxMode = "sandbox" | "unsandboxed" | null;
+export type SandboxMode =
+  | {
+      mode: "sandbox";
+      additionalArgs?: string[];
+    }
+  | {
+      mode: "unsandboxed";
+    }
+  | undefined;
 
 /**
  * Implemented by tools that can report the sandbox mode for a given input.
