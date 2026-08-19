@@ -1990,9 +1990,9 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "prompt_tokens": 0.14,
-          "prompt_tokens_details.cached_tokens": -0.112,
-          "completion_tokens": 0.28
+          "prompt_tokens": 0.22,
+          "prompt_tokens_details.cached_tokens": -0.213,
+          "completion_tokens": 0.66
         }
       },
       "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
