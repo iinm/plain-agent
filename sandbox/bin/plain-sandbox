@@ -237,7 +237,7 @@ main() {
         fi
       fi
 
-      for path in $(fd "$manifest" | sed -E "s,$manifest\$,$dir,"); do
+      for path in $(fd -g "$manifest" | sed -E "s,$manifest\$,$dir,"); do
         if test "$DRY_RUN" = "no"; then
           mkdir -p "$path"
         else
