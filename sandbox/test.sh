@@ -86,7 +86,14 @@ out=$(env TZ="Asia/Tokyo" plain-sandbox --dry-run --dockerfile Dockerfile.minimu
 grep -qE "DRY_RUN: docker run .+ --env TZ=Asia/Tokyo" <<< "$out"
 
 
-echo "case: --env-file option pass env file to docker run"
+echo "case: host TERM is forwarded to the container"
+# when:
+out=$(env TERM="xterm-256color" plain-sandbox --dry-run --dockerfile Dockerfile.minimum --no-cache true)
+# then:
+grep -qE "DRY_RUN: docker run .+ --env TERM=xterm-256color" <<< "$out"
+
+
+echo "case: --env-file option passes env file to docker run"
 # when:
 out=$(plain-sandbox --dry-run --dockerfile Dockerfile.minimum --env-file .env true)
 # then:

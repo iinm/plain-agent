@@ -510,6 +510,10 @@ main() {
     docker_run_opts+=(--env "TZ=${host_timezone}")
   fi
 
+  if test -n "${TERM:-}"; then
+    docker_run_opts+=(--env "TERM=${TERM}")
+  fi
+
   # shellcheck disable=SC2001
   log "$(cat << EOF
 Sandbox Configurations:
