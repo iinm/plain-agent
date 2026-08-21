@@ -57,8 +57,7 @@ export function createTmuxCommandTool(config) {
         const { command } = input;
         const args = input.args || [];
 
-        // tmuxはセミコロンを複数コマンドの区切りとして扱うためエスケープが必要
-        // LLMがこのルールを無視するのでここでエスケープする
+        // tmux treats ";" as a command separator, so escape it before sending
         if (command === "send-keys") {
           for (let i = 1; i < args.length; i++) {
             const arg = args[i];
@@ -102,7 +101,7 @@ export function createTmuxCommandTool(config) {
             execFileTmuxCommandInput.args,
             execFileOptions,
             async (err, stdout, stderr) => {
-              // capture-pane の結果に空白の行が含まれることがあるためtrim する
+              // capture-pane output may include blank lines, so trim it
               const stdoutTruncated = stdout.trim().slice(-OUTPUT_MAX_LENGTH);
               const isStdoutTruncated =
                 stdout.trim().length > OUTPUT_MAX_LENGTH;
@@ -164,34 +163,53 @@ export function createTmuxCommandTool(config) {
               }
 
               if (command === "send-keys") {
-                // capture the pane after sending keys
-                // wait for the command to be executed
-                await new Promise((resolve) => setTimeout(resolve, 2000));
                 const targetPosition = args.indexOf("-t") + 1;
                 const target = args[targetPosition];
-                const execFileTmuxCapturePaneInput = useSandbox({
-                  command: "tmux",
-                  args: ["capture-pane", "-p", "-t", target],
-                });
-                const captured = await new Promise((resolve, _reject) => {
-                  execFile(
-                    execFileTmuxCapturePaneInput.command,
-                    execFileTmuxCapturePaneInput.args,
-                    execFileOptions,
-                    (err, stdout, _stderr) => {
-                      if (err) {
-                        console.error(
-                          `Failed to capture tmux pane: ${err.message}, stack=${err.stack}`,
-                        );
-                      }
-                      return resolve(stdout.trim());
-                    },
-                  );
-                });
+                /**
+                 * @param {string} target
+                 * @returns {Promise<string>}
+                 */
+                const capturePane = (target) =>
+                  new Promise((resolve, _reject) => {
+                    const execFileTmuxCapturePaneInput = useSandbox({
+                      command: "tmux",
+                      args: ["capture-pane", "-p", "-t", target],
+                    });
+                    execFile(
+                      execFileTmuxCapturePaneInput.command,
+                      execFileTmuxCapturePaneInput.args,
+                      execFileOptions,
+                      (err, stdout, _stderr) => {
+                        if (err) {
+                          console.error(
+                            `Failed to capture tmux pane: ${err.message}, stack=${err.stack}`,
+                          );
+                        }
+                        return resolve(stdout.trim());
+                      },
+                    );
+                  });
+                // Wait until the output stabilizes
+                let previous = await capturePane(target);
+
+                let captured = previous;
+                const WAIT_INTERVALS_MS = [1000, 2000, 4000];
+                const MAX_POLL_COUNT = 10;
+
+                for (let i = 0; i < MAX_POLL_COUNT; i++) {
+                  const waitMs =
+                    WAIT_INTERVALS_MS[i] ??
+                    WAIT_INTERVALS_MS[WAIT_INTERVALS_MS.length - 1];
+                  await new Promise((resolve) => setTimeout(resolve, waitMs));
+                  captured = await capturePane(target);
+                  if (captured === previous) break;
+                  previous = captured;
+                }
+
                 const capturedTruncated = captured.slice(-OUTPUT_MAX_LENGTH);
                 const isCapturedTruncated = captured.length > OUTPUT_MAX_LENGTH;
                 result.push(
-                  `\n<tmux:capture-pane target="${target}"">\n${isCapturedTruncated ? "(Output truncated) ..." : ""}${capturedTruncated}\n</tmux:capture-pane>`,
+                  `\n<tmux:capture-pane target="${target}">\n${isCapturedTruncated ? "(Output truncated) ..." : ""}${capturedTruncated}\n</tmux:capture-pane>`,
                 );
               }
 
