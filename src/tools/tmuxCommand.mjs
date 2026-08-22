@@ -165,6 +165,7 @@ export function createTmuxCommandTool(config) {
               if (command === "send-keys") {
                 const targetPosition = args.indexOf("-t") + 1;
                 const target = args[targetPosition];
+
                 /**
                  * @param {string} target
                  * @returns {Promise<string>}
@@ -189,20 +190,21 @@ export function createTmuxCommandTool(config) {
                       },
                     );
                   });
+
                 // Wait until the output stabilizes
-                let previous = await capturePane(target);
+                const initial = await capturePane(target);
+                let previous = initial;
+                let captured = "";
 
-                let captured = previous;
-                const WAIT_INTERVALS_MS = [1000, 2000, 4000];
-                const MAX_POLL_COUNT = 10;
+                const waitIntervalMs = 500;
+                const maxWaitTimeMs = 2000;
 
-                for (let i = 0; i < MAX_POLL_COUNT; i++) {
-                  const waitMs =
-                    WAIT_INTERVALS_MS[i] ??
-                    WAIT_INTERVALS_MS[WAIT_INTERVALS_MS.length - 1];
-                  await new Promise((resolve) => setTimeout(resolve, waitMs));
+                for (let i = 0; i < maxWaitTimeMs / waitIntervalMs; i++) {
+                  await new Promise((resolve) =>
+                    setTimeout(resolve, waitIntervalMs),
+                  );
                   captured = await capturePane(target);
-                  if (captured === previous) break;
+                  if (captured !== initial && captured === previous) break;
                   previous = captured;
                 }
 
