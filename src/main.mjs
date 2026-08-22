@@ -243,9 +243,8 @@ export async function main(argv = process.argv) {
 
   /** @type {Tool[]} */
   const mcpTools = [];
-  if (appConfig.mcpServers) {
-    const mcpServerEntries = Object.entries(appConfig.mcpServers);
-
+  const mcpServerEntries = Object.entries(appConfig.mcpServers ?? {});
+  if (mcpServerEntries.length > 0) {
     if (!isBatchMode) {
       console.log();
       for (const [serverName] of mcpServerEntries) {
