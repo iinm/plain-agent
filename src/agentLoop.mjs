@@ -1,5 +1,5 @@
 /**
- * @import { AgentEventSink } from "./agent"
+ * @import { AgentEventSink, AgentBudgetConfig } from "./agent"
  * @import { StateManager } from "./agentState.mjs"
  * @import { CallModel, MessageContentText, MessageContentImage, MessageContentToolResult, PartialMessageContent, UserMessage, MessageContentToolUse, ProviderTokenUsage } from "./model"
  * @import { ToolDefinition, ToolUseApprover } from "./tool"
@@ -29,6 +29,7 @@ import { compactContextToolName } from "./tools/compactContext.mjs";
  * @property {PauseSignal} pauseSignal - Signal to pause auto-approve after current tool completes
  * @property {number} [contextSoftLimit] - Soft limit on input tokens for auto-compact
  * @property {string[]} [inputTokensKeys] - Keys in providerTokenUsage to sum for input token count
+ * @property {AgentBudgetConfig} [budget]
  */
 
 /**
@@ -50,7 +51,14 @@ export function createAgentLoop({
   pauseSignal,
   contextSoftLimit,
   inputTokensKeys,
+  budget,
 }) {
+  const loopCreatedAt = new Date();
+  const state = {
+    turns: 0,
+    turnsAfterBudgetSoftLimitPrompt: -1,
+  };
+
   const inputHandler = createInputHandler({
     stateManager,
     toolExecutor,
@@ -76,16 +84,21 @@ export function createAgentLoop({
    * @returns {Promise<void>}
    */
   async function runTurnLoop() {
-    let thinkingLoops = 0;
     const maxThinkingLoops = 5;
-    let turnsAfterCompactPrompt = -1;
-    let turnsSinceSubagentReminder = 0;
+    const turnLoopState = {
+      thinkingLoops: 0,
+      turnsAfterCompactPrompt: -1,
+      turnsSinceSubagentReminder: 0,
+    };
+
     while (true) {
       // Check if auto-approve was paused by Ctrl-C during tool execution
       if (pauseSignal.isPaused()) {
         pauseSignal.reset();
         break;
       }
+
+      state.turns++;
 
       // Cache the prefix that survives the switch back to the main agent.
       const switchMessageIndex =
@@ -129,8 +142,8 @@ export function createAgentLoop({
       // Gemini may stop with "thinking" -> continue
       const lastContent = assistantMessage.content.at(-1);
       if (lastContent?.type === "thinking") {
-        thinkingLoops += 1;
-        if (thinkingLoops > maxThinkingLoops) {
+        turnLoopState.thinkingLoops += 1;
+        if (turnLoopState.thinkingLoops > maxThinkingLoops) {
           break;
         }
 
@@ -143,7 +156,7 @@ export function createAgentLoop({
         console.error(
           styleText(
             "yellow",
-            `\nModel is thinking. Sending "System: Continue" (Loop: ${thinkingLoops}/${maxThinkingLoops})`,
+            `\nModel is thinking. Sending "System: Continue" (Loop: ${turnLoopState.thinkingLoops}/${maxThinkingLoops})`,
           ),
         );
         continue;
@@ -239,13 +252,8 @@ export function createAgentLoop({
 
       const toolResults = executionResult.results;
 
-      if (
-        applyCompactContextIfCalled(stateManager, toolUseParts, toolResults)
-      ) {
-        turnsAfterCompactPrompt = -1;
-        continue;
-      }
-
+      // Switch from subagent to main agent
+      let subagentReported = false;
       const result = subagentManager.processToolResults(
         toolUseParts,
         toolResults,
@@ -253,25 +261,36 @@ export function createAgentLoop({
       );
       if (result.state.type === "replaceMessages") {
         stateManager.replaceMessages(result.state.messages);
+        subagentReported = true;
       }
       if (result.newMessage) {
         stateManager.appendMessages([result.newMessage]);
       } else {
         stateManager.appendMessages([{ role: "user", content: toolResults }]);
       }
+      if (subagentReported) {
+        continue;
+      }
 
-      // Subagent reminder: every 5 turns, remind the model of its subagent role
-      let autoCompactFired = false;
+      // Auto-compact
+      if (
+        applyCompactContextIfCalled(stateManager, toolUseParts, toolResults)
+      ) {
+        continue;
+      }
 
-      // Auto-compact: insert prompt if context exceeds soft limit
+      // Insert compact prompt if input tokens exceed the soft limit
       if (contextSoftLimit && inputTokensKeys && providerTokenUsage) {
         const inputTokens = extractInputTokenCount(
           providerTokenUsage,
           inputTokensKeys,
         );
         if (inputTokens !== undefined && inputTokens > contextSoftLimit) {
-          if (0 <= turnsAfterCompactPrompt && turnsAfterCompactPrompt < 3) {
-            turnsAfterCompactPrompt += 1;
+          if (
+            0 <= turnLoopState.turnsAfterCompactPrompt &&
+            turnLoopState.turnsAfterCompactPrompt < 3
+          ) {
+            turnLoopState.turnsAfterCompactPrompt += 1;
           } else {
             stateManager.appendMessages([
               {
@@ -286,8 +305,7 @@ export function createAgentLoop({
                 ],
               },
             ]);
-            turnsAfterCompactPrompt = 0;
-            autoCompactFired = true;
+            turnLoopState.turnsAfterCompactPrompt = 0;
             console.error(
               styleText(
                 "yellow",
@@ -295,15 +313,57 @@ export function createAgentLoop({
               ),
             );
           }
+          continue;
         }
+        // Input tokens do not exceed soft limit
+        turnLoopState.turnsAfterCompactPrompt = -1;
       }
 
-      if (!subagentManager.isSubagentActive()) {
-        turnsSinceSubagentReminder = 0;
-      } else if (!autoCompactFired) {
-        turnsSinceSubagentReminder += 1;
-        // Inject reminder every 5 turns (fires when counter reaches 5, 10, 15, ...)
-        if (turnsSinceSubagentReminder % 5 === 0) {
+      if (budget) {
+        const exceededSoftLimit = budget.softLimits.find((b) => {
+          return (
+            (b.type === "time" &&
+              Date.now() - loopCreatedAt.getTime() > b.seconds * 1000) ||
+            (b.type === "turns" && state.turns > b.turns)
+          );
+        });
+
+        if (exceededSoftLimit) {
+          if (
+            0 <= state.turnsAfterBudgetSoftLimitPrompt &&
+            state.turnsAfterBudgetSoftLimitPrompt < 3
+          ) {
+            state.turnsAfterBudgetSoftLimitPrompt += 1;
+          } else {
+            stateManager.appendMessages([
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: budget.promptOnSoftLimitExceeded,
+                  },
+                ],
+              },
+            ]);
+            state.turnsAfterBudgetSoftLimitPrompt = 0;
+            console.error(
+              styleText(
+                "yellow",
+                `\nBudget exceeded soft limit (${JSON.stringify(exceededSoftLimit)}). Prompt inserted.`,
+              ),
+            );
+          }
+          continue;
+        }
+        // Budget soft limit not exceeded
+        state.turnsAfterBudgetSoftLimitPrompt = -1;
+      }
+
+      // Subagent reminder: every 5 turns, remind the model of its subagent role
+      if (subagentManager.isSubagentActive()) {
+        turnLoopState.turnsSinceSubagentReminder += 1;
+        if (turnLoopState.turnsSinceSubagentReminder % 5 === 0) {
           const activeSubagent = subagentManager.getActiveSubagent();
           stateManager.appendMessages([
             {
@@ -317,6 +377,9 @@ export function createAgentLoop({
             },
           ]);
         }
+      } else {
+        // Not in subagent mode
+        turnLoopState.turnsSinceSubagentReminder = 0;
       }
     }
   }
