@@ -85,4 +85,20 @@ export type AgentConfig = {
   contextSoftLimit?: number;
   /** Keys in providerTokenUsage to sum for input token count. */
   inputTokensKeys?: string[];
+  budget?: AgentBudgetConfig;
 };
+
+export type AgentBudgetConfig = {
+  softLimits: AgentBudget[];
+  promptOnSoftLimitExceeded: string;
+};
+
+type AgentBudget =
+  | {
+      type: "time";
+      seconds: number;
+    }
+  | {
+      type: "turns";
+      turns: number;
+    };
