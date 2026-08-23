@@ -252,7 +252,7 @@ npm install -g @iinm/plain-agent
 List the available models.
 
 ```sh
-plain list-models
+plain models
 ```
 
 Create a configuration file.
@@ -541,18 +541,16 @@ plain cost
 plain cost --from 2026-04-01 --to 2026-04-30
 ```
 
-Resume a previously interrupted interactive session. Sessions are
-automatically saved to `.plain-agent/sessions/` and can be deleted with `rm` when
-no longer needed. If no argument is provided, the most recently updated session
-is resumed. Use `--list` to see resumable sessions. Switching models is
-not supported (`-m` is not allowed).
+Resume a previously interrupted interactive session.
+Sessions are automatically saved to `.plain-agent/sessions/`.
 
 ```sh
-plain resume
+# Resume the most recently updated session:
+plain -s -
 
-# Or
-plain resume --list
-plain resume 2026-05-10-0803-a7k
+# List resumable sessions:
+plain sessions
+plain -s 2026-05-10-0803-a7k
 ```
 
 Launch the sandbox command using the app config's sandbox settings.

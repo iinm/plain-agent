@@ -55,9 +55,10 @@ export async function main(argv = process.argv) {
 
   if (cliArgs.subcommand.type === "help") {
     printHelp();
+    process.exit(0);
   }
 
-  if (cliArgs.subcommand.type === "list-models") {
+  if (cliArgs.subcommand.type === "models") {
     const { appConfig } = await loadAppConfig({ skipTrustCheck: true });
     if (!appConfig.models || appConfig.models.length === 0) {
       console.error("No models found in configuration.");
@@ -66,7 +67,21 @@ export async function main(argv = process.argv) {
     for (const model of appConfig.models) {
       const platform = model.platform;
       console.log(
-        `${model.name}+${model.variant} (platform: ${platform.name}+${platform.variant})`,
+        `${model.name}+${model.variant}\t(platform: ${platform.name}+${platform.variant})`,
+      );
+    }
+    process.exit(0);
+  }
+
+  if (cliArgs.subcommand.type === "sessions") {
+    const sessions = await listSessions();
+    if (sessions.length === 0) {
+      console.log("No resumable sessions in .plain-agent/sessions/.");
+      process.exit(0);
+    }
+    for (const s of sessions) {
+      console.log(
+        `${s.sessionId}\t${s.modelName}\t(updated ${formatLocalDateTime(s.lastUpdatedAt)})`,
       );
     }
     process.exit(0);
@@ -126,38 +141,14 @@ export async function main(argv = process.argv) {
     return;
   }
 
-  if (cliArgs.subcommand.type === "resume" && cliArgs.subcommand.list) {
-    const sessions = await listSessions();
-    if (sessions.length === 0) {
-      console.log("No resumable sessions in .plain-agent/sessions/.");
-      process.exit(0);
-    }
-    console.log("Resumable sessions (most recently updated first):\n");
-    for (const s of sessions) {
-      console.log(
-        `  ${s.sessionId}  ${s.modelName}  (updated ${formatLocalDateTime(s.lastUpdatedAt)})`,
-      );
-      if (s.workingDir !== process.cwd()) {
-        console.log(`    workingDir: ${s.workingDir}`);
-      }
-    }
-    process.exit(0);
-  }
-
   /** @type {SessionState | null} */
   let resumedState = null;
-
-  if (cliArgs.subcommand.type === "resume") {
-    const requestedId = cliArgs.subcommand.sessionId;
-    if (requestedId) {
-      resumedState = await loadSession(requestedId);
-      if (!resumedState) {
-        console.error(
-          styleText("red", `No saved session found for id: ${requestedId}`),
-        );
-        process.exit(1);
-      }
-    } else {
+  if (
+    ["interactive", "batch"].includes(cliArgs.subcommand.type) &&
+    cliArgs.subcommand.session
+  ) {
+    const requestedId = cliArgs.subcommand.session;
+    if (requestedId === "-") {
       const sessions = await listSessions();
       if (sessions.length === 0) {
         console.error(
@@ -178,6 +169,14 @@ export async function main(argv = process.argv) {
         );
         process.exit(1);
       }
+    } else {
+      resumedState = await loadSession(requestedId);
+      if (!resumedState) {
+        console.error(
+          styleText("red", `No saved session found for id: ${requestedId}`),
+        );
+        process.exit(1);
+      }
     }
   }
 
@@ -193,8 +192,7 @@ export async function main(argv = process.argv) {
   /** @type {string[]} */
   const configFiles =
     cliArgs.subcommand.type === "batch" ||
-    cliArgs.subcommand.type === "interactive" ||
-    cliArgs.subcommand.type === "resume"
+    cliArgs.subcommand.type === "interactive"
       ? cliArgs.subcommand.config
       : [];
 
@@ -496,13 +494,13 @@ export async function main(argv = process.argv) {
   };
 
   if (cliArgs.subcommand.type === "batch") {
-    const task = cliArgs.subcommand.task;
-    if (!task) {
+    const prompt = cliArgs.subcommand.prompt;
+    if (!prompt) {
       throw new Error("Batch task is required in batch mode");
     }
     await startBatchSession({
       ...sessionOptions,
-      task,
+      prompt,
     });
     return;
   }
