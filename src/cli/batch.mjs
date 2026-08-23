@@ -18,7 +18,7 @@ const BATCH_OUTPUT_EVENT_TYPES = new Set([
 /**
  * @typedef {object} BatchSessionOptions
  * @property {Agent} agent
- * @property {string} task - Task instruction to execute
+ * @property {string} prompt
  * @property {string} sessionId
  * @property {string} modelName
  * @property {Date} startTime
@@ -35,14 +35,14 @@ const BATCH_OUTPUT_EVENT_TYPES = new Set([
  */
 export async function startBatchSession({
   agent,
-  task,
+  prompt,
   sessionId,
   modelName,
   startTime,
   costTracker,
   onStop,
 }) {
-  agent.send([{ type: "text", text: task }]);
+  agent.send([{ type: "text", text: prompt }]);
 
   for await (const event of agent.start()) {
     await persistSessionEvent(sessionId, event);

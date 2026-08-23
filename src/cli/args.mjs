@@ -1,5 +1,5 @@
 /**
- * @typedef {HelpSubcommand | InteractiveSubcommand | BatchSubcommand | ListModelsSubcommand | InstallClaudeCodePluginsSubcommand | CostSubcommand | ResumeSubcommand | TestApprovalSubcommand | SandboxSubcommand} Subcommand
+ * @typedef {HelpSubcommand | InteractiveSubcommand | BatchSubcommand | ListModelsSubcommand | ListSessionsSubcommand | InstallClaudeCodePluginsSubcommand | CostSubcommand | TestApprovalSubcommand | SandboxSubcommand} Subcommand
  */
 
 /**
@@ -7,15 +7,19 @@
  */
 
 /**
- * @typedef {{ type: 'interactive', config: string[], model: string | null }} InteractiveSubcommand
+ * @typedef {{ type: 'interactive', config: string[], model: string | null, session: string | null }} InteractiveSubcommand
  */
 
 /**
- * @typedef {{ type: 'batch', task: string, config: string[], model: string | null }} BatchSubcommand
+ * @typedef {{ type: 'batch', prompt: string, config: string[], model: string | null, session: string | null }} BatchSubcommand
  */
 
 /**
- * @typedef {{ type: 'list-models' }} ListModelsSubcommand
+ * @typedef {{ type: 'models' }} ListModelsSubcommand
+ */
+
+/**
+ * @typedef {{ type: 'sessions' }} ListSessionsSubcommand
  */
 
 /**
@@ -31,13 +35,6 @@
  */
 
 /**
- * Resume a previously interrupted interactive session.
- * - `sessionId === null` and `list === false`: resume the most recently updated session.
- * - `list === true`: print the resumable sessions and exit.
- * @typedef {{ type: 'resume', sessionId: string | null, list: boolean, config: string[] }} ResumeSubcommand
- */
-
-/**
  * Launch the sandbox command using the app config's sandbox settings.
  * Arguments after `--` are passed through to the sandbox command as-is.
  * @typedef {{ type: 'sandbox', config: string[], passthroughArgs: string[] }} SandboxSubcommand
@@ -47,6 +44,57 @@
  * @typedef {Object} CliArgs
  * @property {Subcommand} subcommand - The subcommand to execute
  */
+
+export function printHelp() {
+  console.log(`
+Usage:
+
+  plain [-h,--help]
+
+  plain [-c,--config <additional-config-file>]
+        [-m,--model <model+variant>]
+        [-s,--session <resumable-session-id>]
+
+Options:
+
+  -h, --help    Display this help message and exit.
+
+  -c, --config <additional-config-file>
+                Load additional configuration (can be repeated).
+
+  -m, --model <model+variant>
+                Use specified model variant.
+
+  -s, --session <resumable-session-id>
+                Resume from previous session ID.
+                Use "-" to resume from the most recently updated session.
+
+Subcommands:
+
+  models        List available models.
+
+  sessions      List resumable sessions.
+
+  batch [-c <config-file>] [-m <model+variant>] [-s <resumable-session-id>] PROMPT
+                Run in batch mode with the given task instruction.
+                Config files are NOT auto-loaded in batch mode;
+                use -c to specify config files explicitly.
+
+  cost [--from YYYY-MM-DD] [--to YYYY-MM-DD]
+                Show aggregated token cost per day for a period.
+                Defaults to the first day of the current month through today.
+
+  sandbox [-c <additional-config-file>] -- <sandbox args...>
+                Launch the sandbox command using the app config's sandbox settings.
+                Arguments after -- are passed through to the sandbox command as-is.
+
+  test-approval [-c <additional-config-file>]
+                Run auto-approval rule tests defined in config.
+
+  install-claude-code-plugins
+                Install Claude Code plugins.
+`);
+}
 
 /**
  * Parse command-line arguments.
@@ -65,8 +113,12 @@ export function parseCliArgs(argv) {
 
   if (!subcommandName || subcommandName.startsWith("-")) {
     // Interactive mode (default)
+    /** @type {string[]} */
     const config = [];
+    /** @type {string | null} */
     let model = null;
+    /** @type {string | null} */
+    let session = null;
 
     for (let i = 0; i < args.length; i++) {
       if (args[i] === "-m" || args[i] === "--model") {
@@ -79,20 +131,30 @@ export function parseCliArgs(argv) {
           config.push(args[i + 1]);
           i++;
         }
+      } else if (args[i] === "-s" || args[i] === "--session") {
+        if (args[i + 1]) {
+          session = args[i + 1];
+          i++;
+        }
       }
     }
 
     return {
-      subcommand: { type: "interactive", config, model },
+      subcommand: { type: "interactive", config, model, session },
     };
   }
 
   if (subcommandName === "batch") {
     const batchArgs = args.slice(1);
 
-    let task = null;
-    let model = null;
+    /** @type {string[]} */
     const config = [];
+    /** @type {string | null} */
+    let model = null;
+    /** @type {string | null} */
+    let session = null;
+    /** @type {string | null} */
+    let prompt = null;
 
     for (let i = 0; i < batchArgs.length; i++) {
       if (batchArgs[i] === "-m" || batchArgs[i] === "--model") {
@@ -105,57 +167,42 @@ export function parseCliArgs(argv) {
           config.push(batchArgs[i + 1]);
           i++;
         }
-      } else if (!batchArgs[i].startsWith("-") && !task) {
-        task = batchArgs[i];
+      } else if (batchArgs[i] === "-s" || batchArgs[i] === "--session") {
+        if (batchArgs[i + 1]) {
+          session = batchArgs[i + 1];
+          i++;
+        }
+      } else if (!batchArgs[i].startsWith("-") && !prompt) {
+        prompt = batchArgs[i];
       }
     }
 
     return {
-      subcommand: { type: "batch", task: task || "", config, model },
+      subcommand: {
+        type: "batch",
+        prompt: prompt || "",
+        config,
+        model,
+        session,
+      },
     };
   }
 
-  if (subcommandName === "list-models") {
+  if (subcommandName === "models") {
     return {
-      subcommand: { type: "list-models" },
+      subcommand: { type: "models" },
+    };
+  }
+
+  if (subcommandName === "sessions") {
+    return {
+      subcommand: { type: "sessions" },
     };
   }
 
   if (subcommandName === "install-claude-code-plugins") {
     return {
       subcommand: { type: "install-claude-code-plugins" },
-    };
-  }
-
-  if (subcommandName === "resume") {
-    const resumeArgs = args.slice(1);
-    /** @type {string | null} */
-    let sessionId = null;
-    let list = false;
-    /** @type {string[]} */
-    const config = [];
-
-    for (let i = 0; i < resumeArgs.length; i++) {
-      const arg = resumeArgs[i];
-      if (arg === "--list") {
-        list = true;
-      } else if (arg === "-c" || arg === "--config") {
-        if (resumeArgs[i + 1]) {
-          config.push(resumeArgs[i + 1]);
-          i++;
-        }
-      } else if (arg === "-m" || arg === "--model") {
-        // Switching models on resume is not supported by design.
-        return {
-          subcommand: { type: "help" },
-        };
-      } else if (!arg.startsWith("-") && sessionId === null) {
-        sessionId = arg;
-      }
-    }
-
-    return {
-      subcommand: { type: "resume", sessionId, list, config },
     };
   }
 
@@ -228,53 +275,4 @@ export function parseCliArgs(argv) {
   return {
     subcommand: { type: "help" },
   };
-}
-
-/**
- * Print help message and exit.
- * @param {number} [exitCode] - Exit code (default: 0)
- */
-export function printHelp(exitCode = 0) {
-  console.log(`
-Usage: plain [options]
-       plain batch [options] <task>
-       plain resume [<sessionId>] [--list]
-       plain cost [--from YYYY-MM-DD] [--to YYYY-MM-DD]
-       plain list-models
-       plain install-claude-code-plugins
-       plain sandbox [-c <file>...] -- [sandbox args...]
-       plain test-approval [options]
-
-Options:
-  -h, --help                   Show this help message
-  -m, --model <model+variant>  Model to use
-  -c, --config <file>          Config file to load (repeatable)
-
-Subcommands:
-  batch <task>                 Run in batch mode with the given task instruction.
-                               Config files are NOT auto-loaded in batch mode;
-                               use -c to specify config files explicitly.
-  resume                       Resume an interactive session that was
-                               interrupted. With no sessionId, resumes the
-                               most recently updated session. Use --list to
-                               see resumable sessions. Switching models is
-                               not supported (-m is rejected).
-  cost                         Show aggregated token cost per day for a period.
-                               Defaults to the first day of the current month
-                               through today.
-  list-models                  List available models
-  install-claude-code-plugins  Install Claude Code plugins
-  sandbox                      Launch the sandbox command using the app
-                               config's sandbox settings. Arguments after --
-                               are passed through to the sandbox command as-is.
-  test-approval                Run auto-approval rule tests defined in config.
-
-Examples:
-  plain -m claude-sonnet-5+thinking-high
-  plain batch \\
-        -c ~/.config/plain-agent/config.local.json \\
-        -c .plain-agent/config.json \\
-        "Add tests for ..."
-`);
-  process.exit(exitCode);
 }

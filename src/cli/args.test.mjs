@@ -9,62 +9,50 @@ function parse(cliArgs) {
   return parseCliArgs(["node", "plain", ...cliArgs]).subcommand;
 }
 
-describe("parseCliArgs (resume subcommand)", () => {
-  it("parses bare `resume` as resuming the most recent session", () => {
+describe("parseCliArgs (interactive subcommand)", () => {
+  it("parses all options", () => {
     // when:
-    const sub = parse(["resume"]);
+    const sub = parse([
+      "-m",
+      "foo+default",
+      "-c",
+      "path/to/additional-config.json",
+      "-s",
+      "session-id",
+    ]);
 
     // then:
     assert.deepEqual(sub, {
-      type: "resume",
-      sessionId: null,
-      list: false,
-      config: [],
+      type: "interactive",
+      model: "foo+default",
+      config: ["path/to/additional-config.json"],
+      session: "session-id",
     });
   });
+});
 
-  it("parses `resume <sessionId>`", () => {
+describe("parseCliArgs (batch subcommand)", () => {
+  it("parses all options", () => {
     // when:
-    const sub = parse(["resume", "2026-05-10-0803-a7k"]);
+    const sub = parse([
+      "batch",
+      "-m",
+      "foo+default",
+      "-c",
+      "path/to/additional-config.json",
+      "-s",
+      "session-id",
+      "task description",
+    ]);
 
     // then:
     assert.deepEqual(sub, {
-      type: "resume",
-      sessionId: "2026-05-10-0803-a7k",
-      list: false,
-      config: [],
+      type: "batch",
+      model: "foo+default",
+      config: ["path/to/additional-config.json"],
+      session: "session-id",
+      prompt: "task description",
     });
-  });
-
-  it("parses `resume --list`", () => {
-    // when:
-    const sub = parse(["resume", "--list"]);
-
-    // then:
-    assert.equal(sub.type, "resume");
-    if (sub.type === "resume") {
-      assert.equal(sub.list, true);
-      assert.equal(sub.sessionId, null);
-    }
-  });
-
-  it("collects -c flags", () => {
-    // when:
-    const sub = parse(["resume", "-c", "a.json", "--config", "b.json"]);
-
-    // then:
-    assert.equal(sub.type, "resume");
-    if (sub.type === "resume") {
-      assert.deepEqual(sub.config, ["a.json", "b.json"]);
-    }
-  });
-
-  it("rejects -m by falling back to help (model switching is not supported)", () => {
-    // when:
-    const sub = parse(["resume", "-m", "claude-sonnet-4-6+thinking-high"]);
-
-    // then:
-    assert.deepEqual(sub, { type: "help" });
   });
 });
 
