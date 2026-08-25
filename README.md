@@ -706,8 +706,17 @@ Files are loaded in the following order. Settings in later files override earlie
     // Enable web tools. See Quick Start section.
     "webSearch": {},
     "webFetch": {},
+
     // Enable the tmux tool
-    "tmux": { "enabled": true }
+    "tmux": { "enabled": true },
+
+    "execCommand": {
+      // Additional environment variables passed to executed commands.
+      // By default, PWD, PATH, HOME, LANG are passed.
+      "env": {
+        "GH_TOKEN": { "$env": "GH_TOKEN" }
+      }
+    }
   },
 
   // Sandbox environment for the exec_command and tmux_command tools

@@ -10,6 +10,14 @@
     }
   ],
 
+  "tools": {
+    "execCommand": {
+      "env": {
+        "GH_TOKEN": { "$env": "GH_TOKEN" }
+      }
+    }
+  },
+
   "autoApproval": {
     "defaultAction": "deny",
     "maxApprovals": 100

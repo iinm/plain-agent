@@ -30,6 +30,9 @@ jobs:
           sudo apt-get install -y fd-find ripgrep
           ln -s $(which fdfind) /usr/local/bin/fd
 
+          # npm install -g @iinm/plain-agent
+          npm install -g .
+
       - name: Run Agent
         env:
           FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
@@ -41,9 +44,16 @@ jobs:
             Provide the most important results, findings, changes made,
             and any remaining issues or next steps.
         run: |
-          ./bin/plain batch \
+          plain batch \
             -c .plain-agent/config.github-actions.json \
             --budget-soft-limit "turns:10" \
             --prompt-on-budget-exceed "$BUDGET_PROMPT" \
             "$PROMPT" \
+          | tee events.jsonl \
           | jq .
+
+          # Last assistant message
+          jq -sr 'map(select(.message.role == "assistant")) | last | .message.content[] | select(.type == "text") | .text' events.jsonl
+
+          # Cost
+          jq -r 'select(.type == "session_end") | .cost' events.jsonl
