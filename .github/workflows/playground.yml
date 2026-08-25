@@ -1,0 +1,33 @@
+name: Playground
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: "Prompt"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  playground:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Run Agent
+        env:
+          FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+        run: |
+          ./bin/plain batch \
+            -c .plain-agent/config.github-actions.json \
+            --budget-soft-limit "turns:10" \
+            --prompt-on-budget-exceed "System: Budget limit approaching. Stop further exploration and finalize the current task. Provide the most important results, findings, changes made, and any remaining issues or next steps." \
+            "${{ inputs.prompt }}" \
+          | jq .
