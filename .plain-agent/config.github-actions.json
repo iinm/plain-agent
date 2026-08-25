@@ -1,0 +1,17 @@
+{
+  "model": "qwen3.8-max+fireworks",
+
+  "platforms": [
+    {
+      "name": "openai-compatible",
+      "variant": "fireworks",
+      "baseURL": "https://api.fireworks.ai/inference",
+      "apiKey": { "$env": "FIREWORKS_API_KEY" }
+    }
+  ],
+
+  "autoApproval": {
+    "defaultAction": "deny",
+    "maxApprovals": 100
+  }
+}
