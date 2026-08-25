@@ -10,24 +10,40 @@ on:
 
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 
 jobs:
   playground:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.1
+
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: 22
           cache: npm
 
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fd-find ripgrep
+          ln -s $(which fdfind) /usr/local/bin/fd
+
       - name: Run Agent
         env:
           FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          PROMPT: ${{ inputs.prompt }}
+          BUDGET_PROMPT: |
+            System: Budget limit approaching.
+            Stop further exploration and finalize the current task.
+            Provide the most important results, findings, changes made,
+            and any remaining issues or next steps.
         run: |
           ./bin/plain batch \
             -c .plain-agent/config.github-actions.json \
             --budget-soft-limit "turns:10" \
-            --prompt-on-budget-exceed "System: Budget limit approaching. Stop further exploration and finalize the current task. Provide the most important results, findings, changes made, and any remaining issues or next steps." \
-            "${{ inputs.prompt }}" \
+            --prompt-on-budget-exceed "$BUDGET_PROMPT" \
+            "$PROMPT" \
           | jq .
