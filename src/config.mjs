@@ -144,6 +144,12 @@ export function mergeAppConfig(merged, config, source) {
             ...config.tools.tmux,
           }
         : merged.tools?.tmux,
+      execCommand: config.tools?.execCommand
+        ? {
+            ...(merged.tools?.execCommand ?? {}),
+            ...config.tools.execCommand,
+          }
+        : merged.tools?.execCommand,
     },
     mcpServers: {
       ...(merged.mcpServers ?? {}),

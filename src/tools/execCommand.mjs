@@ -91,6 +91,7 @@ Examples:
                 PATH: process.env.PATH,
                 HOME: process.env.HOME,
                 LANG: process.env.LANG,
+                ...(config?.env ?? {}),
               },
               timeout: 5 * 60 * 1000,
             },

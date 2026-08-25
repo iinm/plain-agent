@@ -347,7 +347,10 @@ export async function main(argv = process.argv) {
     userPreferences: appConfig.systemPrompt?.userPreferences ?? [],
   });
 
-  const execCommandTool = createExecCommandTool({ sandbox: appConfig.sandbox });
+  const execCommandTool = createExecCommandTool({
+    env: appConfig.tools?.execCommand?.env,
+    sandbox: appConfig.sandbox,
+  });
   const builtinTools = [
     execCommandTool,
     readFileTool,

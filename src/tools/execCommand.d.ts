@@ -4,6 +4,7 @@ export type ExecCommandInput = {
 };
 
 export type ExecCommandConfig = {
+  env?: Record<string, string>;
   sandbox?: ExecCommandSanboxConfig;
 };
 
