@@ -24,10 +24,11 @@ jobs:
       - name: Run Agent
         env:
           FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+          PROMPT: "${{ inputs.prompt }}"
         run: |
           ./bin/plain batch \
             -c .plain-agent/config.github-actions.json \
             --budget-soft-limit "turns:10" \
             --prompt-on-budget-exceed "System: Budget limit approaching. Stop further exploration and finalize the current task. Provide the most important results, findings, changes made, and any remaining issues or next steps." \
-            "${{ inputs.prompt }}" \
+            "$PROMPT" \
           | jq .
