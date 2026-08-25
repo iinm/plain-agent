@@ -78,33 +78,33 @@ describe("formatLocalDate", () => {
 });
 
 describe("resolvePeriod", () => {
-  it("falls back to default period when both args are null", () => {
+  it("falls back to default period when both args are empty", () => {
     const fallback = defaultPeriod();
-    const period = resolvePeriod({ from: null, to: null });
+    const period = resolvePeriod({});
     assert.equal(period.from, fallback.from);
     assert.equal(period.to, fallback.to);
   });
 
   it("uses provided from and falls back to default to", () => {
     const fallback = defaultPeriod();
-    const period = resolvePeriod({ from: "2026-01-01", to: null });
+    const period = resolvePeriod({ from: "2026-01-01" });
     assert.equal(period.from, "2026-01-01");
     assert.equal(period.to, fallback.to);
   });
 
   it("uses provided to and falls back to default from", () => {
     const fallback = defaultPeriod();
-    const period = resolvePeriod({ from: null, to: "2026-01-31" });
+    const period = resolvePeriod({ to: "2026-01-31" });
     assert.equal(period.from, fallback.from);
     assert.equal(period.to, "2026-01-31");
   });
 
   it("throws on invalid from", () => {
-    assert.throws(() => resolvePeriod({ from: "bad", to: null }));
+    assert.throws(() => resolvePeriod({ from: "bad" }));
   });
 
   it("throws on invalid to", () => {
-    assert.throws(() => resolvePeriod({ from: null, to: "bad" }));
+    assert.throws(() => resolvePeriod({ to: "bad" }));
   });
 });
 
@@ -141,7 +141,7 @@ describe("runCostCommand", () => {
   });
 
   it("returns 1 when resolvePeriod throws", async () => {
-    const code = await runCostCommand({ from: "bad", to: null });
+    const code = await runCostCommand({ from: "bad" });
     assert.equal(code, 1);
   });
 });

@@ -6,7 +6,11 @@ import { parseCliArgs } from "./args.mjs";
  * @param {string[]} cliArgs
  */
 function parse(cliArgs) {
-  return parseCliArgs(["node", "plain", ...cliArgs]).subcommand;
+  const args = parseCliArgs(["node", "plain", ...cliArgs]);
+  if (args instanceof Error) {
+    throw args;
+  }
+  return args.subcommand;
 }
 
 describe("parseCliArgs (interactive subcommand)", () => {
@@ -42,16 +46,25 @@ describe("parseCliArgs (batch subcommand)", () => {
       "path/to/additional-config.json",
       "-s",
       "session-id",
+      "--budget-soft-limit",
+      "time:60s",
+      "--prompt-on-budget-exceed",
+      "stop",
       "task description",
     ]);
 
     // then:
-    assert.deepEqual(sub, {
+    assert.deepStrictEqual(sub, {
       type: "batch",
-      model: "foo+default",
-      config: ["path/to/additional-config.json"],
-      session: "session-id",
       prompt: "task description",
+      config: ["path/to/additional-config.json"],
+      model: "foo+default",
+      session: "session-id",
+      budgetSoftLimit: {
+        type: "time",
+        seconds: 60,
+        promptOnExceed: "stop",
+      },
     });
   });
 });

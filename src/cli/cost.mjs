@@ -274,7 +274,7 @@ function formatCost(value) {
 /**
  * Run the `plain cost` subcommand.
  *
- * @param {{ from: string | null, to: string | null }} args
+ * @param {{ from?: string, to?: string }} args
  * @param {{ readUsageRecords?: typeof import("../metrics/usageStore.mjs").readUsageRecords }} [deps]
  * @returns {Promise<number>} exit code
  */
@@ -315,7 +315,7 @@ export async function runCostCommand(args, deps = {}) {
 /**
  * Resolve a period from CLI arguments, falling back to the current month.
  *
- * @param {{ from: string | null, to: string | null }} args
+ * @param {{ from?: string, to?: string }} args
  * @returns {CostPeriod}
  */
 export function resolvePeriod(args) {

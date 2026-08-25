@@ -7,11 +7,18 @@
  */
 
 /**
- * @typedef {{ type: 'interactive', config: string[], model: string | null, session: string | null }} InteractiveSubcommand
+ * @typedef {{ type: 'interactive', config: string[], model?: string, session?: string }} InteractiveSubcommand
  */
 
 /**
- * @typedef {{ type: 'batch', prompt: string, config: string[], model: string | null, session: string | null }} BatchSubcommand
+ * @typedef {{
+ * type: 'batch',
+ * prompt: string,
+ * config: string[],
+ * model?: string,
+ * session?: string,
+ * budgetSoftLimit?: { type: 'time', seconds: number, promptOnExceed: string } | { type: 'turns', turns: number, promptOnExceed: string }
+ * }} BatchSubcommand
  */
 
 /**
@@ -27,7 +34,7 @@
  */
 
 /**
- * @typedef {{ type: 'cost', from: string | null, to: string | null }} CostSubcommand
+ * @typedef {{ type: 'cost', from?: string, to?: string }} CostSubcommand
  */
 
 /**
@@ -75,10 +82,12 @@ Subcommands:
 
   sessions      List resumable sessions.
 
-  batch [-c <config-file>] [-m <model+variant>] [-s <resumable-session-id>] PROMPT
+  batch [-c <config-file>] [-m <model+variant>] [-s <resumable-session-id>]
+        [--budget-soft-limit <budget>] [--prompt-on-budget-exceed <prompt>] PROMPT
                 Run in batch mode with the given task instruction.
                 Config files are NOT auto-loaded in batch mode;
                 use -c to specify config files explicitly.
+                <budget> = "time:<seconds>s" or "turns:<turns>"
 
   cost [--from YYYY-MM-DD] [--to YYYY-MM-DD]
                 Show aggregated token cost per day for a period.
@@ -99,7 +108,7 @@ Subcommands:
 /**
  * Parse command-line arguments.
  * @param {string[]} argv - process.argv or similar
- * @returns {CliArgs}
+ * @returns {CliArgs | Error}
  */
 export function parseCliArgs(argv) {
   const args = argv.slice(2);
@@ -115,10 +124,10 @@ export function parseCliArgs(argv) {
     // Interactive mode (default)
     /** @type {string[]} */
     const config = [];
-    /** @type {string | null} */
-    let model = null;
-    /** @type {string | null} */
-    let session = null;
+    /** @type {string | undefined} */
+    let model;
+    /** @type {string | undefined} */
+    let session;
 
     for (let i = 0; i < args.length; i++) {
       if (args[i] === "-m" || args[i] === "--model") {
@@ -149,12 +158,16 @@ export function parseCliArgs(argv) {
 
     /** @type {string[]} */
     const config = [];
-    /** @type {string | null} */
-    let model = null;
-    /** @type {string | null} */
-    let session = null;
-    /** @type {string | null} */
-    let prompt = null;
+    /** @type {string | undefined} */
+    let model;
+    /** @type {string | undefined} */
+    let session;
+    /** @type {string | undefined} */
+    let prompt;
+    /** @type {string | undefined} */
+    let budgetRaw;
+    /** @type {string | undefined} */
+    let promptOnBudgetExceed;
 
     for (let i = 0; i < batchArgs.length; i++) {
       if (batchArgs[i] === "-m" || batchArgs[i] === "--model") {
@@ -172,8 +185,49 @@ export function parseCliArgs(argv) {
           session = batchArgs[i + 1];
           i++;
         }
+      } else if (batchArgs[i] === "--budget-soft-limit") {
+        if (batchArgs[i + 1]) {
+          budgetRaw = batchArgs[i + 1];
+          i++;
+        }
+      } else if (batchArgs[i] === "--prompt-on-budget-exceed") {
+        if (batchArgs[i + 1]) {
+          promptOnBudgetExceed = batchArgs[i + 1];
+          i++;
+        }
       } else if (!batchArgs[i].startsWith("-") && !prompt) {
         prompt = batchArgs[i];
+      }
+    }
+
+    /** @type {{ type: 'time', seconds: number, promptOnExceed: string } | { type: 'turns', turns: number, promptOnExceed: string } | undefined} */
+    let budgetSoftLimit;
+    if (budgetRaw) {
+      if (!promptOnBudgetExceed) {
+        return new Error(
+          "Missing --prompt-on-budget-exceed when using --budget-soft-limit",
+        );
+      }
+
+      const secondsMatch = budgetRaw.match(/^time:(\d+)s$/);
+      const turnsMatch = budgetRaw.match(/^turns:(\d+)$/);
+
+      if (secondsMatch) {
+        budgetSoftLimit = {
+          type: "time",
+          seconds: Number.parseInt(secondsMatch[1], 10),
+          promptOnExceed: promptOnBudgetExceed,
+        };
+      } else if (turnsMatch) {
+        budgetSoftLimit = {
+          type: "turns",
+          turns: Number.parseInt(turnsMatch[1], 10),
+          promptOnExceed: promptOnBudgetExceed,
+        };
+      } else {
+        return new Error(
+          "Invalid --budget-soft-limit format. Use 'time:<seconds>s' or 'turns:<turns>'",
+        );
       }
     }
 
@@ -184,6 +238,7 @@ export function parseCliArgs(argv) {
         config,
         model,
         session,
+        budgetSoftLimit,
       },
     };
   }
@@ -252,8 +307,10 @@ export function parseCliArgs(argv) {
 
   if (subcommandName === "cost") {
     const costArgs = args.slice(1);
-    let from = null;
-    let to = null;
+    /** @type {string | undefined} */
+    let from;
+    /** @type {string | undefined} */
+    let to;
     for (let i = 0; i < costArgs.length; i++) {
       if (costArgs[i] === "--from") {
         if (costArgs[i + 1]) {

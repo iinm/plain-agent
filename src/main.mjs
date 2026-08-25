@@ -49,6 +49,10 @@ import { createToolUseApprover } from "./toolUseApprover.mjs";
  */
 export async function main(argv = process.argv) {
   const cliArgs = parseCliArgs(argv);
+  if (cliArgs instanceof Error) {
+    console.error(cliArgs.message);
+    process.exit(1);
+  }
 
   // Ensure PLAIN_AGENT_SESSION_ID is set for $env resolution in config files.
   process.env.PLAIN_AGENT_SESSION_ID = generateSessionId();
@@ -456,6 +460,11 @@ export async function main(argv = process.argv) {
     costTracker.restoreUsageHistory(resumedState.tokenUsageHistory);
   }
 
+  const budgetSoftLimit =
+    cliArgs.subcommand.type === "batch" && cliArgs.subcommand.budgetSoftLimit
+      ? cliArgs.subcommand.budgetSoftLimit
+      : undefined;
+
   const agent = createAgent({
     callModel: async (input) => {
       const output = await agentCallModel(input);
@@ -477,6 +486,16 @@ export async function main(argv = process.argv) {
     initialState: resumedState,
     contextSoftLimit,
     inputTokensKeys,
+    budget: budgetSoftLimit
+      ? {
+          softLimits: [
+            budgetSoftLimit.type === "time"
+              ? { type: "time", seconds: budgetSoftLimit.seconds }
+              : { type: "turns", turns: budgetSoftLimit.turns },
+          ],
+          promptOnSoftLimitExceeded: budgetSoftLimit.promptOnExceed,
+        }
+      : undefined,
   });
 
   const sessionOptions = {
