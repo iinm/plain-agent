@@ -14,17 +14,17 @@
     "execCommand": {
       "env": {
         "GH_TOKEN": { "$env": "GH_TOKEN" }
-      },
-      "webSearch": {
-        "provider": "command",
-        "command": "bash",
-        "args": ["-c", "w3m -dump -o display_link_number=1 \"https://lite.duckduckgo.com/lite/?q=$*\"", "-"]
-      },
-      "webFetch": {
-        "provider": "command",
-        "command": "w3m",
-        "args": ["-dump", "-o", "display_link_number=1"]
       }
+    },
+    "webSearch": {
+      "provider": "command",
+      "command": "bash",
+      "args": ["-c", "w3m -dump -o display_link_number=1 \"https://lite.duckduckgo.com/lite/?q=$*\"", "-"]
+    },
+    "webFetch": {
+      "provider": "command",
+      "command": "w3m",
+      "args": ["-dump", "-o", "display_link_number=1"]
     }
   },
 
@@ -130,6 +130,10 @@
       },
       {
         "toolName": { "$regex": "^(web_search|web_fetch)$" },
+        "action": "allow"
+      },
+      {
+        "toolName": "compact_context",
         "action": "allow"
       },
 

@@ -72,6 +72,7 @@ jobs:
         run: |
           set -eu
 
+          # Build Prompt
           if test "$EVENT_NAME" = "workflow_dispatch"; then
             PROMPT="$INPUT_PROMPT"
           elif test "$EVENT_NAME" = "issue_comment"; then
@@ -82,6 +83,10 @@ jobs:
             exit 1
           fi
 
+          # Test Approval Rules
+          plain test-approval -c .plain-agent/config.github-actions.json
+
+          # Run Agent
           plain batch \
             -c .plain-agent/config.github-actions.json \
             --budget-soft-limit "$BUDGET_SOFT_LIMIT" \
@@ -105,7 +110,8 @@ jobs:
           echo "---"
           echo "$cost"
 
-          if [ "$EVENT_NAME" = "issue_comment" ]; then
+          # Post result
+          if test "$EVENT_NAME" = "issue_comment"; then
             cat > result.md <<EOF
           $agent_message
           
