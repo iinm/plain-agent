@@ -14,6 +14,7 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
+  actions: read
 
 jobs:
   agent-session:
@@ -36,6 +37,7 @@ jobs:
 
       - name: Install Agent Tools
         run: |
+          set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y fd-find ripgrep w3m
           ln -s $(which fdfind) /usr/local/bin/fd
@@ -56,7 +58,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
-          set -eu
+          set -euo pipefail
           SESSION_ID=""
           if test "$EVENT_NAME" = "issue_comment"; then
             if echo "$COMMENT_BODY" | grep -qE '^/agent:[0-9]+'; then
@@ -67,16 +69,15 @@ jobs:
 
       - name: Restore Agent Session
         if: steps.parse-agent-session.outputs.session_id != ''
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          path: |
-            .plain-agent/sessions
-            .plain-agent/memory
-          key: plain-agent-session-${{ steps.parse-agent-session.outputs.session_id }}
-          fail-on-cache-miss: true
+          name: plain-agent-session
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.parse-agent-session.outputs.session_id }}
 
       - name: Setup Environment
         run: |
+          set -euo pipefail
           echo -e "[tools]\nnode = '22'" > mise.local.toml
           plain-sandbox --allow-write --allow-net 0.0.0.0/0 --verbose \
             bash -c 'mise trust mise.local.toml && mise install'
@@ -100,7 +101,7 @@ jobs:
             Provide the most important results, findings, changes made,
             and any remaining issues or next steps.
         run: |
-          set -eu
+          set -euo pipefail
 
           # Build Prompt
           if test "$EVENT_NAME" = "workflow_dispatch"; then
@@ -137,7 +138,7 @@ jobs:
           echo "$agent_message"
 
           cost_details=$(jq -r 'select(.type == "session_end") | .cost' events.jsonl)
-          cost_total=$(echo "$cost_details" | jq -r '.totalCost // 0')
+          cost_total=$(echo "$cost_details" | jq -r '.totalCost // 0' | xargs printf '%.3f')
           echo "---"
           echo "$cost_details"
 
@@ -149,15 +150,16 @@ jobs:
           ---
 
           ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-          Resume with \`/agent:${GITHUB_RUN_ID}\`
 
           <details>
-          <summary>💸 $cost_total USD</summary>
+          <summary>Token cost: $cost_total USD</summary>
 
           \`\`\`
           $cost_details
           \`\`\`
           </details>
+
+          Resume with \`/agent:${GITHUB_RUN_ID}\`
           EOF
             gh issue comment "$ISSUE_NUMBER" --body-file result.md
           fi
@@ -169,7 +171,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          set -eu
+          set -euo pipefail
 
           if test "$EVENT_NAME" = "issue_comment"; then
             cat > result.md <<EOF
@@ -183,9 +185,10 @@ jobs:
 
       - name: Save Agent Session
         if: always()
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
+          name: plain-agent-session
           path: |
             .plain-agent/sessions
             .plain-agent/memory
-          key: plain-agent-session-${{ github.run_id }}
+          include-hidden-files: true
