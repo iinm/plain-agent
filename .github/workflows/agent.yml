@@ -11,16 +11,20 @@ on:
     types: [created]
 
 permissions:
-  contents: read
-  issues: read
-  pull-requests: read
+  contents: write
+  issues: write
+  pull-requests: write
 
 jobs:
   agent-session:
     if: |
-      github.event.comment.body == '/agent'
-      && github.event.comment.user.login == 'iinm'
+      github.event_name == 'workflow_dispatch'
+      || (
+        startsWith(github.event.comment.body, '/agent')
+        && github.event.comment.user.login == 'iinm'
+      )
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -42,12 +46,11 @@ jobs:
 
       - name: Setup Environment
         run: |
-          echo -e '[tools]\nnode = 22' > mise.local.toml
-          plain-sandbox \
-            --allow-write \
-            --allow-net 0.0.0.0/0 \
-            --verbose \
-            bash -c 'mise trust mise.local.toml && mise install && npm ci'
+          echo -e "[tools]\nnode = '22'" > mise.local.toml
+          plain-sandbox --allow-write --allow-net 0.0.0.0/0 --verbose \
+            bash -c 'mise trust mise.local.toml && mise install'
+          plain-sandbox --allow-write --allow-net 0.0.0.0/0 --verbose \
+            bash -c 'npm ci'
 
       - name: Run Agent
         env:
@@ -60,16 +63,18 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           # Agent Config
-          BUDGET_SOFT_LIMIT: turn:20
+          BUDGET_SOFT_LIMIT: turns:100
           BUDGET_PROMPT: |
             System: Budget limit approaching.
             Stop further exploration and finalize the current task.
             Provide the most important results, findings, changes made,
             and any remaining issues or next steps.
         run: |
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+          set -eu
+
+          if test "$EVENT_NAME" = "workflow_dispatch"; then
             PROMPT="$INPUT_PROMPT"
-          elif [ "$EVENT_NAME" = "issue_comment" ]; then
+          elif test "$EVENT_NAME" = "issue_comment"; then
             COMMENT="$(printf '%s' "$COMMENT_BODY" | sed '1s,^/agent[[:space:]]*,,')"
             PROMPT="Issue/PR: #$ISSUE_NUMBER $COMMENT"
           else
@@ -96,7 +101,7 @@ jobs:
           echo "---"
           echo "$agent_message"
 
-          cost=$(jq -r 'select(.type == "session_end") | .cost' events.jsonl)
+          cost=$(jq -cr 'select(.type == "session_end") | .cost' events.jsonl)
           echo "---"
           echo "$cost"
 
