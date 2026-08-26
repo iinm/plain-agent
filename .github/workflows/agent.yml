@@ -101,19 +101,23 @@ jobs:
           echo "---"
           echo "$agent_message"
 
-          cost=$(jq -cr 'select(.type == "session_end") | .cost' events.jsonl)
+          cost=$(jq -r 'select(.type == "session_end") | .cost' events.jsonl)
           echo "---"
           echo "$cost"
-
-          # TODO: push working branch
 
           if [ "$EVENT_NAME" = "issue_comment" ]; then
             cat > result.md <<EOF
           $agent_message
           
-          ---
-          
-          Cost: \`$cost\`
+          <details>
+          <summary>Cost</summary>
+
+          \`\`\`
+          $cost
+          \`\`\`
+          </details>
+
+          ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
           EOF
             gh issue comment "$ISSUE_NUMBER" --body-file result.md
           fi
