@@ -7,3 +7,5 @@ tmp/
 !.plain-agent/setup.sh
 !.plain-agent/sandbox/
 !.plain-agent/prompts/
+
+mise.local.toml

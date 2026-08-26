@@ -1,0 +1,114 @@
+name: Agent
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: "Prompt"
+        required: true
+        type: string
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  agent-session:
+    if: |
+      github.event.comment.body == '/agent'
+      && github.event.comment.user.login == 'iinm'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Agent Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fd-find ripgrep w3m
+          ln -s $(which fdfind) /usr/local/bin/fd
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Install Agent
+        run: |
+          # npm install -g @iinm/plain-agent
+          npm install -g .
+
+      - name: Setup Environment
+        run: |
+          echo -e '[tools]\nnode = 22' > mise.local.toml
+          plain-sandbox \
+            --allow-write \
+            --allow-net 0.0.0.0/0 \
+            --verbose \
+            bash -c 'mise trust mise.local.toml && mise install && npm ci'
+
+      - name: Run Agent
+        env:
+          # Secrets
+          FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          # Input from GitHub Actions
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_PROMPT: ${{ inputs.prompt }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          # Agent Config
+          BUDGET_SOFT_LIMIT: turn:20
+          BUDGET_PROMPT: |
+            System: Budget limit approaching.
+            Stop further exploration and finalize the current task.
+            Provide the most important results, findings, changes made,
+            and any remaining issues or next steps.
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            PROMPT="$INPUT_PROMPT"
+          elif [ "$EVENT_NAME" = "issue_comment" ]; then
+            COMMENT="$(printf '%s' "$COMMENT_BODY" | sed '1s,^/agent[[:space:]]*,,')"
+            PROMPT="Issue/PR: #$ISSUE_NUMBER $COMMENT"
+          else
+            echo "Unsupported event: $EVENT_NAME" >&2
+            exit 1
+          fi
+
+          plain batch \
+            -c .plain-agent/config.github-actions.json \
+            --budget-soft-limit "$BUDGET_SOFT_LIMIT" \
+            --prompt-on-budget-exceed "$BUDGET_PROMPT" \
+            "$PROMPT" \
+          | tee events.jsonl \
+          | jq .
+
+          agent_message=$(jq -sr '
+            map(select(.message.role == "assistant"))
+            | last
+            | .message.content[]
+            | select(.type == "text")
+            | .text
+          ' events.jsonl)
+
+          echo "---"
+          echo "$agent_message"
+
+          cost=$(jq -r 'select(.type == "session_end") | .cost' events.jsonl)
+          echo "---"
+          echo "$cost"
+
+          # TODO: push working branch
+
+          if [ "$EVENT_NAME" = "issue_comment" ]; then
+            cat > result.md <<EOF
+          $agent_message
+          
+          ---
+          
+          Cost: \`$cost\`
+          EOF
+            gh issue comment "$ISSUE_NUMBER" --body-file result.md
+          fi

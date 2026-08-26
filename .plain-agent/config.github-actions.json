@@ -14,12 +14,74 @@
     "execCommand": {
       "env": {
         "GH_TOKEN": { "$env": "GH_TOKEN" }
+      },
+      "webSearch": {
+        "provider": "command",
+        "command": "bash",
+        "args": ["-c", "w3m -dump -o display_link_number=1 \"https://lite.duckduckgo.com/lite/?q=$*\"", "-"]
+      },
+      "webFetch": {
+        "provider": "command",
+        "command": "w3m",
+        "args": ["-dump", "-o", "display_link_number=1"]
       }
     }
   },
 
+  "sandbox": {
+    "command": "plain-sandbox",
+    "args": ["--allow-write", "--mount-readonly", ".plain-agent/config.github-actions.json", "--keep-alive", "30"],
+    "separator": "--",
+
+    "rules": [
+      {
+        "pattern": {
+          "command": { "$regex": "^(gh|git)$" }
+        },
+        "mode": "unsandboxed"
+      }
+    ]
+  },
+
   "autoApproval": {
     "defaultAction": "deny",
-    "maxApprovals": 100
+    "maxApprovals": 100,
+    "patterns": [
+      {
+        "toolName": "exec_command",
+        "input": {
+          "command": "git",
+          "args": [{ "$regex": "^(status|diff|log|show|ls-remote|rev-parse)$" }]
+        },
+        "action": "allow"
+      },
+      {
+        "toolName": "exec_command",
+        "input": {
+          "command": "git",
+          "args": [{ "$regex": "^(checkout|commit|reset|revert)$" }]
+        },
+        "action": "allow"
+      },
+      {
+        "toolName": "exec_command",
+        "input": { "command": "git" },
+        "action": "deny"
+      },
+
+      {
+        "toolName": { "$regex": "^(write_file|patch_file)$" },
+        "action": "allow"
+      },
+      {
+        "toolName": { "$regex": "^(web_search|web_fetch)$" },
+        "action": "allow"
+      },
+
+      {
+        "toolName": "exec_command",
+        "action": "allow"
+      }
+    ]
   }
 }
