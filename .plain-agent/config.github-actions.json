@@ -30,7 +30,7 @@
 
   "sandbox": {
     "command": "plain-sandbox",
-    "args": ["--allow-write", "--mount-readonly", ".plain-agent/config.github-actions.json", "--keep-alive", "30"],
+    "args": ["--allow-write", "--mount-readonly", ".git", "--mount-readonly", ".plain-agent/config.github-actions.json", "--keep-alive", "30"],
     "separator": "--",
 
     "rules": [
@@ -51,7 +51,9 @@
         "toolName": "exec_command",
         "input": {
           "command": "git",
-          "args": [{ "$regex": "^(status|diff|log|show|ls-remote|rev-parse)$" }]
+          "args": [
+            { "$regex": "^(status|diff|log|show|ls-remote|rev-parse|switch|checkout|add|commit|reset|revert)$" }
+          ]
         },
         "action": "allow"
       },
@@ -59,13 +61,66 @@
         "toolName": "exec_command",
         "input": {
           "command": "git",
-          "args": [{ "$regex": "^(checkout|commit|reset|revert)$" }]
+          "args": ["push", "https://github.com/iinm/plain-agent"]
         },
         "action": "allow"
       },
       {
         "toolName": "exec_command",
+        "input": {
+          "command": "git",
+          "args": ["push", { "$not": "https://github.com/iinm/plain-agent" }]
+        },
+        "action": "deny",
+        "reason": "Use push https://github.com/iinm/plain-agent ..."
+      },
+      {
+        "toolName": "exec_command",
         "input": { "command": "git" },
+        "action": "deny"
+      },
+
+      {
+        "toolName": "exec_command",
+        "input": {
+          "command": "gh",
+          "args": [{ "$regex": "^(pr|issue)$" }]
+        },
+        "action": "allow"
+      },
+      {
+        "toolName": "exec_command",
+        "input": {
+          "command": "gh",
+          "args": ["run", { "$regex": "^(list|view)$" }]
+        },
+        "action": "allow"
+      },
+      {
+        "toolName": "exec_command",
+        "input": {
+          "command": "gh",
+          "args": [
+            "api",
+            "--method",
+            "GET",
+            { "$regex": "^repos/[^/]+/[^/]+/(pulls|issues)/" }
+          ]
+        },
+        "action": "allow"
+      },
+      {
+        "toolName": "exec_command",
+        "input": {
+          "command": "gh",
+          "args": ["api", { "$not": { "$regex": "^--(method|help)" } }]
+        },
+        "action": "deny",
+        "reason": "--method must be specified right after 'api'"
+      },
+      {
+        "toolName": "exec_command",
+        "input": { "command": "gh" },
         "action": "deny"
       },
 
@@ -81,6 +136,25 @@
       {
         "toolName": "exec_command",
         "action": "allow"
+      }
+    ],
+
+    "tests": [
+      {
+        "desc": "git push unknown origin should be denied",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "git", "args": ["push", "https://github.com/iinm/unknown-repo"] }
+        },
+        "expectedAction": "deny"
+      },
+      {
+        "desc": "git push with https://... should be allowed",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "git", "args": ["push", "https://github.com/iinm/plain-agent"] }
+        },
+        "expectedAction": "allow"
       }
     ]
   }
