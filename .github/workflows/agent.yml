@@ -25,6 +25,12 @@ jobs:
       )
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    concurrency:
+      group: >-
+        ${{ github.event_name == 'issue_comment'
+          && format('agent-{0}', github.event.issue.number)
+          || format('agent-dispatch-{0}', github.run_id) }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -44,13 +50,37 @@ jobs:
           # npm install -g @iinm/plain-agent
           npm install -g .
 
+      - name: Parse Agent Session
+        id: parse-agent-session
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          set -eu
+          SESSION_ID=""
+          if test "$EVENT_NAME" = "issue_comment"; then
+            if echo "$COMMENT_BODY" | grep -qE '^/agent:[0-9]+'; then
+              SESSION_ID="$(echo "$COMMENT_BODY" | sed -E 's,^/agent:([0-9]+).*,\1,')"
+            fi
+          fi
+          echo "session_id=$SESSION_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Agent Session
+        if: steps.parse-agent-session.outputs.session_id != ''
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .plain-agent/sessions
+            .plain-agent/memory
+          key: plain-agent-session-${{ steps.parse-agent-session.outputs.session_id }}
+          fail-on-cache-miss: true
+
       - name: Setup Environment
         run: |
           echo -e "[tools]\nnode = '22'" > mise.local.toml
           plain-sandbox --allow-write --allow-net 0.0.0.0/0 --verbose \
             bash -c 'mise trust mise.local.toml && mise install'
-          plain-sandbox --allow-write --allow-net 0.0.0.0/0 --verbose \
-            bash -c 'npm ci'
+          plain-sandbox --allow-write --allow-net 0.0.0.0/0 --verbose npm ci
 
       - name: Run Agent
         env:
@@ -76,8 +106,7 @@ jobs:
           if test "$EVENT_NAME" = "workflow_dispatch"; then
             PROMPT="$INPUT_PROMPT"
           elif test "$EVENT_NAME" = "issue_comment"; then
-            COMMENT="$(printf '%s' "$COMMENT_BODY" | sed '1s,^/agent[[:space:]]*,,')"
-            PROMPT="Issue/PR: #$ISSUE_NUMBER $COMMENT"
+            PROMPT="Issue/PR: #$ISSUE_NUMBER $COMMENT_BODY"
           else
             echo "Unsupported event: $EVENT_NAME" >&2
             exit 1
@@ -87,43 +116,76 @@ jobs:
           plain test-approval -c .plain-agent/config.github-actions.json
 
           # Run Agent
-          plain batch \
-            -c .plain-agent/config.github-actions.json \
-            --budget-soft-limit "$BUDGET_SOFT_LIMIT" \
-            --prompt-on-budget-exceed "$BUDGET_PROMPT" \
-            "$PROMPT" \
-          | tee events.jsonl \
-          | jq .
+          options=(
+            -c .plain-agent/config.github-actions.json
+            --budget-soft-limit "$BUDGET_SOFT_LIMIT"
+            --prompt-on-budget-exceed "$BUDGET_PROMPT"
+          )
+          if test -d ".plain-agent/sessions" && test -n "$(find .plain-agent/sessions -type f -print -quit)"; then
+            options+=(-s -)
+          fi
+
+          plain batch "${options[@]}" "$PROMPT" | tee events.jsonl | jq .
 
           agent_message=$(jq -sr '
-            map(select(.message.role == "assistant"))
-            | last
-            | .message.content[]
-            | select(.type == "text")
+            map(select(.message.role == "assistant")) | last
+            | .message.content[] | select(.type == "text")
             | .text
           ' events.jsonl)
 
           echo "---"
           echo "$agent_message"
 
-          cost=$(jq -r 'select(.type == "session_end") | .cost' events.jsonl)
+          cost_details=$(jq -r 'select(.type == "session_end") | .cost' events.jsonl)
+          cost_total=$(echo "$cost_details" | jq -r '.totalCost // 0')
           echo "---"
-          echo "$cost"
+          echo "$cost_details"
 
           # Post result
           if test "$EVENT_NAME" = "issue_comment"; then
             cat > result.md <<EOF
           $agent_message
-          
-          <details>
-          <summary>Cost</summary>
 
-          \`\`\`
-          $cost
-          \`\`\`
-          </details>
+          ---
 
           ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          Resume with \`/agent:${GITHUB_RUN_ID}\`
+
+          <details>
+          <summary>💸 $cost_total USD</summary>
+
+          \`\`\`
+          $cost_details
+          \`\`\`
+          </details>
           EOF
             gh issue comment "$ISSUE_NUMBER" --body-file result.md
           fi
+
+      - name: Report failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -eu
+
+          if test "$EVENT_NAME" = "issue_comment"; then
+            cat > result.md <<EOF
+          :warning: Agent failed to process your request.
+
+          ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          Resume with \`/agent:${GITHUB_RUN_ID}\`
+          EOF
+            gh issue comment "$ISSUE_NUMBER" --body-file result.md
+          fi
+
+      - name: Save Agent Session
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            .plain-agent/sessions
+            .plain-agent/memory
+          key: plain-agent-session-${{ github.run_id }}
