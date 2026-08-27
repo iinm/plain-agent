@@ -37,8 +37,7 @@ jobs:
 
       - name: Install Agent
         run: |
-          # npm install -g @iinm/plain-agent
-          npm install -g .
+          npm install -g @iinm/plain-agent
 
       - name: Parse Agent Session
         id: parse-agent-session
