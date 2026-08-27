@@ -530,7 +530,7 @@ plain batch \
       "Add tests for ..."
 ```
 
-Batch mode enables unattended runs, e.g. on GitHub Actions. This repository's workflow ([.github/workflows/agent.yml](https://github.com/iinm/plain-agent/blob/main/.github/workflows/agent.yml)) triggers the agent manually or by an `/agent` comment on an issue/PR and posts the result back as a comment. A session can be resumed with `/agent:<run-id>`.
+Batch mode enables unattended runs, e.g. on GitHub Actions. This repository's workflow ([.github/workflows/agent.yml](https://github.com/iinm/plain-agent/blob/main/.github/workflows/agent.yml)) triggers the agent by an `/agent` comment on an issue/PR and posts the result back as a comment. A session can be resumed with `/agent:<run-id>`.
 
 Show daily token cost. `plain cost` reads
 `~/.local/share/plain-agent/usage.jsonl`; use `--from` / `--to` to set the
