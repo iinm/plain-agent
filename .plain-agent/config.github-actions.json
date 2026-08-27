@@ -1,5 +1,5 @@
 {
-  "model": "qwen3.8-max+fireworks",
+  "model": "glm-5.2+fireworks",
 
   "platforms": [
     {

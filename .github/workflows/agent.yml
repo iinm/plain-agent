@@ -91,7 +91,7 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           # Agent Config
-          BUDGET_SOFT_LIMIT: turns:100
+          BUDGET_SOFT_LIMIT: turns:80
           BUDGET_PROMPT: |
             System: Budget limit approaching.
             Stop further exploration and finalize the current task.
