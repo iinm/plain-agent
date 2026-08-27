@@ -23,7 +23,6 @@ A lightweight terminal-based coding agent focused on safety and low token cost
 - [Prompts](#prompts)
 - [Subagents](#subagents)
 - [Claude Code Plugin Support](#claude-code-plugin-support)
-- [GitHub Actions](#github-actions)
 - [Appendix: Creating Least-Privilege Users for Cloud Providers](#appendix-creating-least-privilege-users-for-cloud-providers)
 - [Developer Notes](#developer-notes)
 
@@ -531,6 +530,8 @@ plain batch \
       "Add tests for ..."
 ```
 
+Batch mode enables unattended runs, e.g. on GitHub Actions. This repository's workflow ([.github/workflows/agent.yml](https://github.com/iinm/plain-agent/blob/main/.github/workflows/agent.yml)) triggers the agent manually or by an `/agent` comment on an issue/PR and posts the result back as a comment. A session can be resumed with `/agent:<run-id>`.
+
 Show daily token cost. `plain cost` reads
 `~/.local/share/plain-agent/usage.jsonl`; use `--from` / `--to` to set the
 period. Costs are shown separately by currency.
@@ -718,11 +719,8 @@ Files are loaded in the following order. Settings in later files override earlie
         "MY_VAR": "my-value"
       },
 
-      // Like env, but values are masked with "***" in command output
-      // (stdout, stderr, and error messages), so secrets do not leak into
-      // the agent's context. Common derived forms (base64 including URL-safe
-      // and unpadded, URL-encoded, JSON-escaped, space-as-plus) are also
-      // masked.
+      // Like env, but values are masked with "***" in command output,
+      // so secrets do not leak into the agent's context.
       "secrets": {
         "GH_TOKEN": { "$env": "GH_TOKEN" }
       }
@@ -803,7 +801,7 @@ The agent can use the following tools:
 - **read_file**: Read a file with line numbers (1-indexed). Supports `offset` and `limit` to read a specific range.
 - **write_file**: Write a file.
 - **patch_file**: Patch a file.
-- **exec_command**: Run a command without shell interpretation. Supports the `env` and `secrets` options; `secrets` values are masked with `***` in command output (see [Configuration](#configuration)).
+- **exec_command**: Run a command without shell interpretation.
 - **tmux_command**: Run a tmux command. It is disabled by default.
 - **web_search**: Search the web with one or more keyword sets and answer a question based on the combined results (requires Google API key, Vertex AI configuration, or the `command` provider with a local search command).
 - **web_fetch**: Fetch the contents of a single URL and answer a question based on it (requires Google API key, Vertex AI configuration, or the `command` provider with a local fetch command such as `w3m`, `curl`, or `lynx`).
@@ -897,226 +895,6 @@ Example:
 ```sh
 plain install-claude-code-plugins
 ```
-
-## GitHub Actions
-
-The agent can run on GitHub Actions, triggered manually or by an `/agent` comment on an issue/PR. The workflow below is a working example used by this repository ([.github/workflows/agent.yml](https://github.com/iinm/plain-agent/blob/main/.github/workflows/agent.yml)):
-
-- **Manual run** (`workflow_dispatch`): run the agent from the Actions tab with a custom prompt.
-- **Issue/PR comment** (`issue_comment`): a comment starting with `/agent` runs the agent with the comment body as the prompt. The trigger is restricted to a specific user.
-- **Session resume**: the result comment includes `Resume with /agent:<run-id>`. Commenting `/agent:<run-id>` restores the session and memory files from that run's artifact and continues where it left off.
-- **Result posting**: the agent's final message is posted as an issue comment, along with the workflow run link and the token cost.
-- **Session persistence**: `.plain-agent/sessions/` and `.plain-agent/memory/` are uploaded as an artifact after every run, enabling resume.
-- **Approval rule validation**: `plain test-approval` runs before the agent starts, failing fast if the auto-approval rules are misconfigured.
-
-To adapt this workflow to your repository:
-
-- Replace the comment trigger's user allowlist (`github.event.comment.user.login == 'iinm'`) with your GitHub username.
-- Replace `npm install -g .` with `npm install -g @iinm/plain-agent`.
-- Add your LLM provider's API key as a repository secret and pass it to the job (the example uses `FIREWORKS_API_KEY`).
-- Prepare an agent config for unattended runs (`.plain-agent/config.github-actions.json` in this repository): define auto-approval rules, and pass tokens such as `GH_TOKEN` via `tools.execCommand.secrets` so they are masked in command output.
-
-<details>
-<summary><b>.github/workflows/agent.yml</b></summary>
-
-```yaml
-name: Agent
-
-on:
-  workflow_dispatch:
-    inputs:
-      prompt:
-        description: "Prompt"
-        required: true
-        type: string
-  issue_comment:
-    types: [created]
-
-permissions:
-  contents: write
-  issues: write
-  pull-requests: write
-  actions: read
-
-jobs:
-  agent-session:
-    if: |
-      github.event_name == 'workflow_dispatch'
-      || (
-        startsWith(github.event.comment.body, '/agent')
-        && github.event.comment.user.login == 'iinm'
-      )
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    concurrency:
-      group: >-
-        ${{ github.event_name == 'issue_comment'
-          && format('agent-{0}', github.event.issue.number)
-          || format('agent-dispatch-{0}', github.run_id) }}
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Install Agent Tools
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y fd-find ripgrep w3m
-          ln -s $(which fdfind) /usr/local/bin/fd
-
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Install Agent
-        run: |
-          # npm install -g @iinm/plain-agent
-          npm install -g .
-
-      - name: Parse Agent Session
-        id: parse-agent-session
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          COMMENT_BODY: ${{ github.event.comment.body }}
-        run: |
-          set -euo pipefail
-          SESSION_ID=""
-          if test "$EVENT_NAME" = "issue_comment"; then
-            if echo "$COMMENT_BODY" | grep -qE '^/agent:[0-9]+'; then
-              SESSION_ID="$(echo "$COMMENT_BODY" | sed -E 's,^/agent:([0-9]+).*,\1,')"
-            fi
-          fi
-          echo "session_id=$SESSION_ID" >> "$GITHUB_OUTPUT"
-
-      - name: Restore Agent Session
-        if: steps.parse-agent-session.outputs.session_id != ''
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          name: plain-agent-session
-          github-token: ${{ github.token }}
-          run-id: ${{ steps.parse-agent-session.outputs.session_id }}
-
-      - name: Setup Environment
-        run: |
-          set -euo pipefail
-          echo -e "[tools]\nnode = '22'" > mise.local.toml
-          plain-sandbox --allow-write --allow-net 0.0.0.0/0 --verbose \
-            bash -c 'mise trust mise.local.toml && mise install'
-          plain-sandbox --allow-write --allow-net 0.0.0.0/0 --verbose npm ci
-
-      - name: Run Agent
-        env:
-          # Secrets
-          FIREWORKS_API_KEY: ${{ secrets.FIREWORKS_API_KEY }}
-          GH_TOKEN: ${{ github.token }}
-          # Input from GitHub Actions
-          EVENT_NAME: ${{ github.event_name }}
-          INPUT_PROMPT: ${{ inputs.prompt }}
-          COMMENT_BODY: ${{ github.event.comment.body }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          # Agent Config
-          BUDGET_SOFT_LIMIT: turns:100
-          BUDGET_PROMPT: |
-            System: Budget limit approaching.
-            Stop further exploration and finalize the current task.
-            Provide the most important results, findings, changes made,
-            and any remaining issues or next steps.
-        run: |
-          set -euo pipefail
-
-          # Build Prompt
-          if test "$EVENT_NAME" = "workflow_dispatch"; then
-            PROMPT="$INPUT_PROMPT"
-          elif test "$EVENT_NAME" = "issue_comment"; then
-            PROMPT="Issue/PR: #$ISSUE_NUMBER $COMMENT_BODY"
-          else
-            echo "Unsupported event: $EVENT_NAME" >&2
-            exit 1
-          fi
-
-          # Test Approval Rules
-          plain test-approval -c .plain-agent/config.github-actions.json
-
-          # Run Agent
-          options=(
-            -c .plain-agent/config.github-actions.json
-            --budget-soft-limit "$BUDGET_SOFT_LIMIT"
-            --prompt-on-budget-exceed "$BUDGET_PROMPT"
-          )
-          if test -d ".plain-agent/sessions" && test -n "$(find .plain-agent/sessions -type f -print -quit)"; then
-            options+=(-s -)
-          fi
-
-          plain batch "${options[@]}" "$PROMPT" | tee events.jsonl | jq .
-
-          agent_message=$(jq -sr '
-            map(select(.message.role == "assistant")) | last
-            | .message.content[] | select(.type == "text")
-            | .text
-          ' events.jsonl)
-
-          echo "---"
-          echo "$agent_message"
-
-          cost_details=$(jq -r 'select(.type == "session_end") | .cost' events.jsonl)
-          cost_total=$(echo "$cost_details" | jq -r '.totalCost // 0' | xargs printf '%.3f')
-          echo "---"
-          echo "$cost_details"
-
-          # Post result
-          if test "$EVENT_NAME" = "issue_comment"; then
-            cat > result.md <<EOF
-          $agent_message
-
-          ---
-
-          ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-
-          <details>
-          <summary>Token cost: $cost_total USD</summary>
-
-          \`\`\`
-          $cost_details
-          \`\`\`
-          </details>
-
-          Resume with \`/agent:${GITHUB_RUN_ID}\`
-          EOF
-            gh issue comment "$ISSUE_NUMBER" --body-file result.md
-          fi
-
-      - name: Report failure
-        if: failure()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EVENT_NAME: ${{ github.event_name }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: |
-          set -euo pipefail
-
-          if test "$EVENT_NAME" = "issue_comment"; then
-            cat > result.md <<EOF
-          :warning: Agent failed to process your request.
-
-          ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-          Resume with \`/agent:${GITHUB_RUN_ID}\`
-          EOF
-            gh issue comment "$ISSUE_NUMBER" --body-file result.md
-          fi
-
-      - name: Save Agent Session
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: plain-agent-session
-          path: |
-            .plain-agent/sessions
-            .plain-agent/memory
-          include-hidden-files: true
-```
-
-</details>
 
 ## Appendix: Creating Least-Privilege Users for Cloud Providers
 
