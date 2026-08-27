@@ -62,6 +62,7 @@ jobs:
           name: plain-agent-session
           github-token: ${{ github.token }}
           run-id: ${{ steps.parse-agent-session.outputs.session_id }}
+          path: .plain-agent
 
       - name: Setup Environment
         run: |
