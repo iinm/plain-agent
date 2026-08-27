@@ -92,10 +92,46 @@ Examples:
                 HOME: process.env.HOME,
                 LANG: process.env.LANG,
                 ...(config?.env ?? {}),
+                ...(config?.secrets ?? {}),
               },
               timeout: 5 * 60 * 1000,
             },
-            async (err, stdout, stderr) => {
+            async (err, stdoutRaw, stderrRaw) => {
+              /**
+               * @param {string} commandOutput
+               * @returns {string}
+               */
+              const maskSecrets = (commandOutput) => {
+                return Object.values(config?.secrets ?? {}).reduce(
+                  (acc, secret) => {
+                    if (typeof secret !== "string" || secret.length === 0) {
+                      return acc;
+                    }
+
+                    const variants = new Set([
+                      secret,
+                      Buffer.from(secret, "utf8").toString("base64"),
+                      Buffer.from(secret, "utf8")
+                        .toString("base64")
+                        .replace(/=+$/, ""),
+                      Buffer.from(secret, "utf8").toString("base64url"),
+                      encodeURIComponent(secret),
+                      encodeURI(secret),
+                      JSON.stringify(secret).slice(1, -1),
+                      secret.replace(/ /g, "+"),
+                    ]);
+
+                    return [...variants].reduce(
+                      (masked, variant) => masked.replaceAll(variant, "***"),
+                      acc,
+                    );
+                  },
+                  commandOutput,
+                );
+              };
+              const stdout = maskSecrets(stdoutRaw);
+              const stderr = maskSecrets(stderrRaw);
+
               /**
                * @param {string} content
                * @param {string} type
@@ -165,9 +201,11 @@ Examples:
                     "",
                   ].join(" ");
 
-                  const errMessageMasked = sandboxStr
-                    ? err.message.replaceAll(sandboxStr, "")
-                    : err.message;
+                  const errMessageMasked = maskSecrets(
+                    sandboxStr
+                      ? err.message.replaceAll(sandboxStr, "")
+                      : err.message,
+                  );
 
                   const errMessageTruncated = errMessageMasked.slice(
                     0,
