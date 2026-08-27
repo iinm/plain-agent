@@ -10,6 +10,16 @@
     }
   ],
 
+  "systemPrompt": {
+    "userPreferences": [
+      "- Keep all outputs, including responses, notes, reports, and code comments, concise, focused, and written in plain language",
+      "- Limit code comments to the following purposes:",
+      "  1. Specifications for public APIs/functions",
+      "  2. Design decisions that cannot be understood from the code itself",
+      "  3. Incomplete work: TODO/FIXME"
+    ]
+  },
+
   "tools": {
     "execCommand": {
       "secrets": {

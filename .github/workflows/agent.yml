@@ -35,18 +35,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install Agent Tools
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y fd-find ripgrep w3m
-          ln -s $(which fdfind) /usr/local/bin/fd
-
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
       - name: Install Agent
         run: |
           # npm install -g @iinm/plain-agent
@@ -62,7 +50,7 @@ jobs:
           SESSION_ID=""
           if test "$EVENT_NAME" = "issue_comment"; then
             if echo "$COMMENT_BODY" | grep -qE '^/agent:[0-9]+'; then
-              SESSION_ID="$(echo "$COMMENT_BODY" | sed -E 's,^/agent:([0-9]+).*,\1,')"
+              SESSION_ID="$(echo "$COMMENT_BODY" | head -1 | sed -E 's,^/agent:([0-9]+).*,\1,')"
             fi
           fi
           echo "session_id=$SESSION_ID" >> "$GITHUB_OUTPUT"
@@ -78,6 +66,14 @@ jobs:
       - name: Setup Environment
         run: |
           set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          sudo apt-get update
+          sudo apt-get install -y fd-find ripgrep w3m
+          ln -s $(which fdfind) /usr/local/bin/fd
+
           echo -e "[tools]\nnode = '22'" > mise.local.toml
           plain-sandbox --allow-write --allow-net 0.0.0.0/0 --verbose \
             bash -c 'mise trust mise.local.toml && mise install'
@@ -178,7 +174,6 @@ jobs:
           :warning: Agent failed to process your request.
 
           ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-          Resume with \`/agent:${GITHUB_RUN_ID}\`
           EOF
             gh issue comment "$ISSUE_NUMBER" --body-file result.md
           fi
