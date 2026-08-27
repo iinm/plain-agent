@@ -530,6 +530,8 @@ plain batch \
       "Add tests for ..."
 ```
 
+Batch mode enables unattended runs, e.g. on GitHub Actions. This repository's workflow ([.github/workflows/agent.yml](https://github.com/iinm/plain-agent/blob/main/.github/workflows/agent.yml)) triggers the agent by an `/agent` comment on an issue/PR and posts the result back as a comment. A session can be resumed with `/agent:<run-id>`.
+
 Show daily token cost. `plain cost` reads
 `~/.local/share/plain-agent/usage.jsonl`; use `--from` / `--to` to set the
 period. Costs are shown separately by currency.
@@ -714,6 +716,12 @@ Files are loaded in the following order. Settings in later files override earlie
       // Additional environment variables passed to executed commands.
       // By default, PWD, PATH, HOME, LANG are passed.
       "env": {
+        "MY_VAR": "my-value"
+      },
+
+      // Like env, but values are masked with "***" in command output,
+      // so secrets do not leak into the agent's context.
+      "secrets": {
         "GH_TOKEN": { "$env": "GH_TOKEN" }
       }
     }
