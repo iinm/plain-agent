@@ -164,15 +164,7 @@ String values in tool inputs are treated as file paths and validated against the
 - Symlinks are resolved to their real path before validation: a symlink inside the working directory that points outside is rejected. Broken and circular symlinks are also rejected.
 - The file must be tracked by Git (not ignored)
 
-Compound arguments are decomposed before validation; embedded paths are extracted and checked individually:
-
-| Pattern | Example | Extracted |
-|---|---|---|
-| `@<path>` | `@data.json` | `data.json` |
-| `--opt=<val>` | `--prefix=/tmp/foo` | `/tmp/foo` |
-| `-X<val>` | `-I/usr/include` | `/usr/include` |
-| `VAR=<val>` | `OUTPUT=/etc/passwd` | `/etc/passwd` |
-| `proto://…` | `file:///etc/passwd` | `/etc/passwd` (only `file:` is treated as a local path; `http(s)://` URLs are always allowed) |
+Compound arguments (e.g., `@file`, `--prefix=/path`, `VAR=/path`) are decomposed before validation; embedded paths are extracted and checked individually. `file://` URLs are validated as local paths, while `http(s)://` URLs are always allowed.
 
 **Note**: Validation only applies when the agent explicitly passes file paths to tools. It cannot catch file access inside scripts the agent writes: something like `bash -c "rm -rf /"` is beyond its reach. Always use a sandbox when auto-approving script execution.
 
@@ -234,7 +226,7 @@ A few design choices keep token usage low:
 
 Claude Code has a plugin ecosystem and is widely used across teams. plain-agent supports `.claude/` commands, subagents, and skills so you can share project skills with Claude Code users. Plugins can also be installed.
 
-**Limitation:** Subagents run sequentially, not in parallel. The upside is that their activity is fully observable and they don't spike token usage. They also inherit the main context rather than starting fresh, a simplification chosen for ease of implementation, which also avoids redundant file reads and reduces the chance of losing context between handoffs.
+**Limitation:** Subagents run sequentially, not in parallel. Their activity is fully observable and token usage stays predictable. They also inherit the main context rather than starting fresh, which avoids redundant file reads and reduces the chance of losing context between handoffs.
 
 ## Requirements
 
@@ -534,7 +526,7 @@ Batch mode enables unattended runs, e.g. on GitHub Actions. This repository's wo
 
 Show daily token cost. `plain cost` reads
 `~/.local/share/plain-agent/usage.jsonl`; use `--from` / `--to` to set the
-period. Costs are shown separately by currency.
+period.
 
 ```sh
 plain cost
@@ -547,12 +539,14 @@ Resume a previously interrupted interactive session.
 Sessions are automatically saved to `.plain-agent/sessions/`.
 
 ```sh
-# Resume the most recently updated session:
-plain -s -
-
 # List resumable sessions:
 plain sessions
+
+# Resume session:
 plain -s 2026-05-10-0803-a7k
+
+# Resume the most recently updated session:
+plain -s -
 ```
 
 Launch the sandbox command using the app config's sandbox settings.
@@ -561,9 +555,6 @@ config file). Arguments after `--` are passed through to the sandbox command as-
 
 ```sh
 plain sandbox -- --allow-net 0.0.0.0/0 --tty --verbose zsh
-
-# Or specify a config file explicitly
-plain sandbox -c .plain-agent/config.sandbox.json -- --allow-net 0.0.0.0/0 --tty --verbose zsh
 ```
 
 ## Configuration
