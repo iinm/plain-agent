@@ -349,6 +349,7 @@ export async function main(argv = process.argv) {
 
   const execCommandTool = createExecCommandTool({
     env: appConfig.tools?.execCommand?.env,
+    secrets: appConfig.tools?.execCommand?.secrets,
     sandbox: appConfig.sandbox,
   });
   const builtinTools = [

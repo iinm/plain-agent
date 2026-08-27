@@ -12,7 +12,7 @@
 
   "tools": {
     "execCommand": {
-      "env": {
+      "secrets": {
         "GH_TOKEN": { "$env": "GH_TOKEN" }
       }
     },

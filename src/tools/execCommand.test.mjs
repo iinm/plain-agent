@@ -44,6 +44,89 @@ Hello from stderr</stderr>
     );
   });
 
+  it("masks secrets in stdout", async () => {
+    // given:
+    const execCommandTool = createExecCommandTool({
+      secrets: {
+        SECRET: "secret-value",
+      },
+    });
+
+    // when:
+    const result = await execCommandTool.impl({
+      command: "echo",
+      args: ["secret-value", Buffer.from("secret-value").toString("base64")],
+    });
+
+    // then:
+    assert.equal(
+      result,
+      `
+<stdout>
+*** ***
+</stdout>
+
+<stderr></stderr>
+`.trim(),
+    );
+  });
+
+  it("masks secrets in stderr", async () => {
+    // given:
+    const execCommandTool = createExecCommandTool({
+      secrets: {
+        SECRET: "secret-value",
+      },
+    });
+
+    // when:
+    const result = await execCommandTool.impl({
+      command: "node",
+      args: [
+        "-e",
+        'process.stderr.write("Hello from stderr, including secret-value")',
+      ],
+    });
+
+    // then:
+    assert.equal(
+      result,
+      `
+<stdout></stdout>
+
+<stderr>
+Hello from stderr, including ***</stderr>
+`.trim(),
+    );
+  });
+
+  it("masks secrets in error", async () => {
+    // given:
+    const execCommandTool = createExecCommandTool({
+      secrets: {
+        SECRET: "secret-value",
+      },
+    });
+
+    // when:
+    const result = await execCommandTool.impl({
+      command: "secret-value",
+    });
+
+    // then:
+    assert.equal(
+      result,
+      `
+<stdout></stdout>
+
+<stderr></stderr>
+
+<error code="ENOENT" killed="undefined" signal="undefined">
+Error: spawn *** ENOENT</error>
+`.trim(),
+    );
+  });
+
   it("captures error", async () => {
     // when:
     const result = await execCommandTool.impl({
