@@ -78,7 +78,7 @@
         "toolName": "exec_command",
         "input": {
           "command": "git",
-          "args": [{ "$regex": "^(status|diff|log|show|ls-remote|rev-parse)$" }]
+          "args": [{ "$regex": "^(status|diff|log|show|rev-parse)$" }]
         },
         "action": "allow"
       },
