@@ -62,27 +62,28 @@
         "input": {
           "command": "git",
           "args": [
-            { "$regex": "^(status|diff|log|show|ls-remote|rev-parse|switch|checkout|add|commit|reset|revert)$" }
+            { "$regex": "^(status|diff|log|show|rev-parse|switch|checkout|add|commit|reset|revert)$" }
           ]
         },
         "action": "allow"
       },
+
       {
         "toolName": "exec_command",
         "input": {
           "command": "git",
-          "args": ["push", "https://github.com/iinm/plain-agent"]
+          "args": { "$has": { "$regex": "^(https?|git|ssh)://|^git@" } }
         },
-        "action": "allow"
+        "action": "deny",
+        "reason": "URL arguments are not allowed; use configured remotes"
       },
       {
         "toolName": "exec_command",
         "input": {
           "command": "git",
-          "args": ["push", { "$not": "https://github.com/iinm/plain-agent" }]
+          "args": [{ "$regex": "^(ls-remote|fetch|pull|push)$" }]
         },
-        "action": "deny",
-        "reason": "Use push https://github.com/iinm/plain-agent ..."
+        "action": "allow"
       },
       {
         "toolName": "exec_command",
@@ -119,14 +120,10 @@
         "toolName": "exec_command",
         "input": {
           "command": "gh",
-          "args": [
-            "api",
-            "--method",
-            "GET",
-            { "$regex": "^repos/[^/]+/[^/]+/(pulls|issues)/" }
-          ]
+          "args": { "$count": { "of": { "$regex": "(--method|^-[a-zA-Z]*X)" }, "max": 1 } }
         },
-        "action": "allow"
+        "action": "deny",
+        "reason": "--method/-X must appear at most once"
       },
       {
         "toolName": "exec_command",
@@ -136,6 +133,19 @@
         },
         "action": "deny",
         "reason": "--method must be specified right after 'api'"
+      },
+      {
+        "toolName": "exec_command",
+        "input": {
+          "command": "gh",
+          "args": [
+            "api",
+            "--method",
+            "GET",
+            { "$regex": "^repos/[^/]+/[^/]+/(pulls|issues)/" }
+          ]
+        },
+        "action": "allow"
       },
       {
         "toolName": "exec_command",
@@ -164,7 +174,7 @@
 
     "tests": [
       {
-        "desc": "git push unknown origin should be denied",
+        "desc": "git push with URL should be denied",
         "toolUse": {
           "toolName": "exec_command",
           "input": { "command": "git", "args": ["push", "https://github.com/iinm/unknown-repo"] }
@@ -172,18 +182,18 @@
         "expectedAction": "deny"
       },
       {
-        "desc": "git push with https://... should be allowed",
-        "toolUse": {
-          "toolName": "exec_command",
-          "input": { "command": "git", "args": ["push", "https://github.com/iinm/plain-agent"] }
-        },
-        "expectedAction": "allow"
-      },
-      {
         "desc": "gh with --hostname should be denied",
         "toolUse": {
           "toolName": "exec_command",
           "input": { "command": "gh", "args": ["pr", "list", "--hostname", "github.example.com"] }
+        },
+        "expectedAction": "deny"
+      },
+      {
+        "desc": "gh api --method GET ... -X DELETE should be denied",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "gh", "args": ["api", "--method", "GET", "repos/iinm/plain-agent/issues/224", "-X", "DELETE"] }
         },
         "expectedAction": "deny"
       }

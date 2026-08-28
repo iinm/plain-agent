@@ -77,6 +77,28 @@ export function evalJSONConfig(configItem) {
       };
     }
 
+    if (Object.keys(configItem).length === 1 && "$count" in configItem) {
+      const { of, max } = /** @type {{ of: unknown; max: number }} */ (
+        configItem.$count
+      );
+      const pattern = evalJSONConfig(of);
+      /** @param {unknown} value */
+      return (value) => {
+        if (!Array.isArray(value)) return false;
+        let count = 0;
+        for (const item of value) {
+          if (typeof pattern === "string") {
+            if (item === pattern) count++;
+          } else if (pattern instanceof RegExp) {
+            if (typeof item === "string" && pattern.test(item)) count++;
+          } else if (typeof pattern === "function") {
+            if (pattern(item)) count++;
+          }
+        }
+        return count > max;
+      };
+    }
+
     /** @type {Record<string,unknown>} */
     const clone = {};
     for (const [k, v] of Object.entries(configItem)) {

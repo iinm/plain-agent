@@ -109,6 +109,15 @@
         "toolName": "exec_command",
         "input": {
           "command": "gh",
+          "args": { "$has": { "$regex": "^--hostname($|=)" } }
+        },
+        "action": "deny",
+        "reason": "--hostname is not allowed; gh must target the default host (github.com)"
+      },
+      {
+        "toolName": "exec_command",
+        "input": {
+          "command": "gh",
           "args": ["pr", { "$regex": "^(list|view|diff)$" }]
         },
         "action": "allow"
@@ -133,14 +142,15 @@
         "toolName": "exec_command",
         "input": {
           "command": "gh",
-          "args": [
-            "api",
-            "--method",
-            "GET",
-            { "$regex": "^repos/[^/]+/[^/]+/(pulls|issues)/" }
-          ]
+          "args": {
+            "$count": {
+              "of": { "$regex": "(--method|^-[a-zA-Z]*X)" },
+              "max": 1
+            }
+          }
         },
-        "action": "allow"
+        "action": "deny",
+        "reason": "--method/-X must appear at most once"
       },
       {
         "toolName": "exec_command",
@@ -150,6 +160,19 @@
         },
         "action": "deny",
         "reason": "--method must be specified right after 'api'"
+      },
+      {
+        "toolName": "exec_command",
+        "input": {
+          "command": "gh",
+          "args": [
+            "api",
+            "--method",
+            "GET",
+            { "$regex": "^repos/[^/]+/[^/]+/(pulls|issues)/" }
+          ]
+        },
+        "action": "allow"
       }
     ],
     "tests": [
@@ -364,6 +387,17 @@
         "expectedAction": "allow"
       },
       {
+        "desc": "gh with --hostname should be denied",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": {
+            "command": "gh",
+            "args": ["pr", "list", "--hostname", "github.example.com"]
+          }
+        },
+        "expectedAction": "deny"
+      },
+      {
         "desc": "gh api for PR comments should be allowed",
         "toolUse": {
           "toolName": "exec_command",
@@ -400,6 +434,24 @@
           }
         },
         "expectedAction": null
+      },
+      {
+        "desc": "gh api --method GET ... -X DELETE should be denied",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": {
+            "command": "gh",
+            "args": [
+              "api",
+              "--method",
+              "GET",
+              "repos/owner/repo/issues/1",
+              "-X",
+              "DELETE"
+            ]
+          }
+        },
+        "expectedAction": "deny"
       },
       {
         "desc": "bash -c without shell features should be denied",
