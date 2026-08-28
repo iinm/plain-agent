@@ -149,4 +149,29 @@ describe("evalJSONConfig", () => {
     assert.strictEqual(fn([["foo", "bar"], ["baz"]]), true);
     assert.strictEqual(fn([["bar"], ["baz"]]), false);
   });
+  it("should convert {$count: {of, max}} to a function that denies duplicates", () => {
+    // given:
+    const fn = /** @type {(value: unknown) => boolean} */ (
+      evalJSONConfig({ $count: { of: { $regex: "^(--method|-X)$" }, max: 1 } })
+    );
+
+    // when: / then:
+    assert.strictEqual(typeof fn, "function");
+    assert.strictEqual(
+      fn(["api", "--method", "GET", "repos/x/y/issues/1"]),
+      false,
+    );
+    assert.strictEqual(
+      fn([
+        "api",
+        "--method",
+        "GET",
+        "repos/x/y/issues/1",
+        "--method",
+        "DELETE",
+      ]),
+      true,
+    );
+    assert.strictEqual(fn("not-an-array"), false);
+  });
 });
