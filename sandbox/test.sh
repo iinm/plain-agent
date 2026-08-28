@@ -99,6 +99,18 @@ out=$(plain-sandbox --dry-run --dockerfile Dockerfile.minimum --env-file .env tr
 # then:
 grep -qE "DRY_RUN: docker run .+ --env-file .env" <<< "$out"
 
+echo "case: --env option passes environment variables to docker run"
+# when:
+out=$(plain-sandbox --dry-run --dockerfile Dockerfile.minimum --env FOO=bar true)
+# then:
+grep -qE "DRY_RUN: docker run .+ --env FOO=bar" <<< "$out"
+
+echo "case: --env option can be specified multiple times"
+# when:
+out=$(plain-sandbox --dry-run --dockerfile Dockerfile.minimum --env FOO=bar --env BAZ=qux true)
+# then:
+grep -qE "DRY_RUN: docker run .+ --env FOO=bar" <<< "$out"
+grep -qE "DRY_RUN: docker run .+ --env BAZ=qux" <<< "$out"
 
 echo "case: --volume option creates and mounts volume"
 # when:
