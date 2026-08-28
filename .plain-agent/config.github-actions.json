@@ -94,6 +94,15 @@
         "toolName": "exec_command",
         "input": {
           "command": "gh",
+          "args": { "$has": { "$regex": "^--hostname($|=)" } }
+        },
+        "action": "deny",
+        "reason": "--hostname is not allowed; gh must target the default host (github.com)"
+      },
+      {
+        "toolName": "exec_command",
+        "input": {
+          "command": "gh",
           "args": [{ "$regex": "^(pr|issue)$" }]
         },
         "action": "allow"
@@ -169,6 +178,14 @@
           "input": { "command": "git", "args": ["push", "https://github.com/iinm/plain-agent"] }
         },
         "expectedAction": "allow"
+      },
+      {
+        "desc": "gh with --hostname should be denied",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "gh", "args": ["pr", "list", "--hostname", "github.example.com"] }
+        },
+        "expectedAction": "deny"
       }
     ]
   }
