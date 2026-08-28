@@ -15,6 +15,7 @@ $SCRIPT_NAME - Run a command in a sandboxed Docker environment
 
 Usage: $SCRIPT_NAME [--dockerfile FILE]
            [--platform PLATFORM]
+           [--env KEY=VALUE]
            [--env-file FILE]
            [--allow-write] [--allow-net [DESTINATIONS|--]]
            [--volume [NAME:]PATH]
@@ -35,6 +36,7 @@ Options:
                             and network policy is used.
                             The container must include busybox, bash, iptables, ipset,
                             dnsmasq, and dig commands.
+  --env KEY=VALUE          Set environment variables in the container (repeatable).
   --env-file FILE           Path to a .env file to load environment variables from.
   --platform                Specify the platform for image building and container execution
                             (e.g., linux/arm64 or linux/amd64).
@@ -155,6 +157,7 @@ main() {
   local writable_mounts=()
   local publish_ports=()
   local env_file=""
+  local env_vars=()
   local allocate_tty="no"
   local no_cache="no"
   local rebuild="no"
@@ -209,6 +212,7 @@ main() {
         shift 2
         ;;
       --env-file   ) env_file="$2"; shift 2 ;;
+      --env        ) env_vars+=("$2"); shift 2 ;;
       --tty        ) allocate_tty="yes"; shift ;;
       --no-cache   ) no_cache="yes"; shift ;;
       --rebuild    ) rebuild="yes"; shift ;;
@@ -259,6 +263,7 @@ main() {
     "${writable_mounts[@]:-}"
     "${publish_ports[@]:-}"
     "$env_file"
+    "${env_vars[@]:-}"
     "$platform"
   )
   
@@ -382,6 +387,11 @@ main() {
   
   if test -n "$env_file"; then
     docker_run_opts+=(--env-file "$env_file")
+  fi
+  if test "${#env_vars[@]}" -gt 0; then
+    for env_var in "${env_vars[@]}"; do
+      docker_run_opts+=(--env "$env_var")
+    done
   fi
   
   if test "$allow_write" = "yes"; then
