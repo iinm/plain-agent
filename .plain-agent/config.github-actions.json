@@ -62,12 +62,21 @@
         "input": {
           "command": "git",
           "args": [
-            { "$regex": "^(status|diff|log|show|rev-parse|switch|checkout|add|commit|reset|revert)$" }
+            { "$regex": "^(status|diff|log|show|rev-parse)$" }
           ]
         },
         "action": "allow"
       },
-
+      {
+        "toolName": "exec_command",
+        "input": {
+          "command": "git",
+          "args": [
+            { "$regex": "^(switch|checkout|add|commit|reset|revert)$" }
+          ]
+        },
+        "action": "allow"
+      },
       {
         "toolName": "exec_command",
         "input": {
