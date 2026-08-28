@@ -68,19 +68,17 @@ jobs:
         run: |
           set -euo pipefail
 
-          sudo apt-get update
-          sudo apt-get install -y w3m
-
-          echo -e "[tools]\nnode = '22'\ngh = 'latest'" > mise.local.toml
-          plain-sandbox --allow-write --allow-net 0.0.0.0/0 --verbose \
-            bash -c 'mise trust mise.local.toml && mise install'
-          plain-sandbox --allow-write --allow-net 0.0.0.0/0 --verbose npm ci
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          mkdir -p .plain-agent/memory
-          mkdir -p .plain-agent/tmp
+          sudo apt-get update
+          sudo apt-get install -y fd-find ripgrep w3m
+          ln -s $(which fdfind) /usr/local/bin/fd
+
+          echo -e "[tools]\nnode = '22'" > mise.local.toml
+          plain-sandbox --allow-write --allow-net 0.0.0.0/0 --verbose \
+            bash -c 'mise trust mise.local.toml && mise install'
+          plain-sandbox --allow-write --allow-net 0.0.0.0/0 --verbose npm ci
 
       - name: Run Agent
         env:
