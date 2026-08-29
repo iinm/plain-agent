@@ -8,6 +8,7 @@ SCRIPT_NAME=$(basename "${BASH_SOURCE[0]}")
 MOUNTABLE_SCRIPT_PATH="$HOME/.cache/$SCRIPT_NAME/$SCRIPT_NAME"
 CONTAINER_SCRIPT_PATH="/sandbox/bin/$SCRIPT_NAME"
 PRESET_BASE_IMAGE="public.ecr.aws/docker/library/debian:stable-20260803-slim"
+CONTAINER_NETWORK_ALLOW_LIST=allow_list
 
 help() {
   cat << HELP
@@ -618,6 +619,10 @@ EOF
       log "Setting up firewall."
       run docker exec --user 0:0 "$container_name" \
         "$CONTAINER_SCRIPT_PATH" setup_container_firewall "${allow_net_destinations[@]}"
+      run docker exec --user 0:0 --env ONESHOT=yes "$container_name" \
+        "$CONTAINER_SCRIPT_PATH" start_container_firewall_updater "${allow_net_destinations[@]}"
+      run docker exec --detach --user 0:0 "$container_name" \
+        "$CONTAINER_SCRIPT_PATH" start_container_firewall_updater "${allow_net_destinations[@]}"
     fi
 
     log "Setting up container user to match host user ($host_user_id:$host_group_id) for file access."
@@ -627,7 +632,7 @@ EOF
   fi
 
   run docker exec --detach --user 0:0 "$container_name" \
-    "$CONTAINER_SCRIPT_PATH" terminate_idle_container "$keep_alive_seconds"
+    "$CONTAINER_SCRIPT_PATH" start_container_terminator "$keep_alive_seconds"
 
   # restore stdout, stderr
   exec 1>&3
@@ -637,14 +642,14 @@ EOF
     "$CONTAINER_SCRIPT_PATH" container_exec "$container_project_root" "$@"
 }
 
-terminate_idle_container() {
+start_container_terminator() {
   local keep_alive_seconds="$1"
 
   local last_activity_time
   last_activity_time=$(date +%s)
 
   # stop existing watchdog process
-  for pid in $(busybox ps -o pid=,user=,comm=,args= | awk '$1 > 1 && $0 ~ /terminate_idle_container/ && $3 !~ /awk/ { print $1 }'); do
+  for pid in $(busybox ps -o pid=,user=,comm=,args= | awk '$1 > 1 && $0 ~ /start_container_terminator/ && $3 !~ /awk/ { print $1 }'); do
     if test "$pid" -ne "$$"; then
       kill "$pid" || true
     fi
@@ -696,17 +701,14 @@ container_exec() {
 }
 
 start_container_dnsmasq() {
-  local servers=()
-  IFS=$'\n' read -r -a servers < <(grep nameserver /etc/resolv.conf | awk '{print $2}')
-
   mkdir -p /sandbox/etc
   cat > /sandbox/etc/dnsmasq.conf << 'EOF'
 log-queries
 listen-address=127.0.0.1
 EOF
-  for server in "${servers[@]}"; do
+  while read -r server; do
     echo "server=$server" >> /sandbox/etc/dnsmasq.conf
-  done
+  done < <(awk '$1 == "nameserver" {print $2}' /etc/resolv.conf)
   echo "nameserver 127.0.0.1" > /etc/resolv.conf
 
   exec dnsmasq -k -C /sandbox/etc/dnsmasq.conf --log-facility /dev/stdout
@@ -724,54 +726,7 @@ setup_container_volume_owner() {
 
 setup_container_firewall() {
   local destinations=("$@")
-  local addresses=()
 
-  local address_pattern='^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(/[0-9]{1,2})?$'
-  
-  for destination in "${destinations[@]}"; do
-    local host="$destination"
-    local port=''
-    if grep -q ':' <<< "$destination"; then
-      host=$(cut -d: -f1 <<< "$destination")
-      port=$(cut -d: -f2 <<< "$destination")
-    fi
-
-    # address
-    if grep -qE "$address_pattern" <<< "$host"; then
-      echo "Allow outgoing connections to $destination"
-      if test -n "$port"; then
-        addresses+=("$host:$port")
-      else
-        addresses+=("$host")
-      fi
-      continue
-    fi
-
-    # domain
-    local domain_address_count=0
-    for address in $(getent hosts "$host" | awk '{print $1}'; dig +short A "$host"); do
-      if ! grep -qE "$address_pattern" <<< "$address"; then
-        log "Warning: Ignoring invalid address $address of $host"
-        continue
-      fi
-
-      if test -n "$port"; then
-        log "Allow outgoing connections to $destination $address:$port"
-        addresses+=("$address:$port")
-      else
-        log "Allow outgoing connections to $destination $address"
-        addresses+=("$address")
-      fi
-
-      domain_address_count=$((domain_address_count + 1))
-    done
-
-    if test "$domain_address_count" = 0; then
-      echo "Error: Failed to resolve any address for $host" >&2
-      return 1
-    fi
-  done
-  
   local docker_host_address
   docker_host_address=$(busybox ip route | grep default | cut -d" " -f3)
   if test -z "$docker_host_address"; then
@@ -792,12 +747,14 @@ setup_container_firewall() {
   ip6tables -t mangle -F
   ip6tables -t mangle -X
 
-  ipset create allow_list hash:net,port -exist
-  ipset flush allow_list
-  
-  # allow dns
-  iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
-  iptables -A INPUT -p udp --sport 53 -j ACCEPT
+  local dns_server_pattern='^[0-9]{1,3}(\.[0-9]{1,3}){3}$'
+  while read -r server; do
+    if ! grep -qE "$dns_server_pattern" <<< "$server"; then
+      continue
+    fi
+    iptables -A OUTPUT -p udp -d "$server" --dport 53 -j ACCEPT
+    iptables -A INPUT  -p udp -s "$server" --sport 53 -j ACCEPT
+  done < <(awk -F= '$1=="server" && $2!="" {n=$2; sub(/.*\//,"",n); print n}' /sandbox/etc/dnsmasq.conf)
   
   # allow localhost
   iptables -A INPUT -i lo -j ACCEPT
@@ -829,29 +786,133 @@ setup_container_firewall() {
   ip6tables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
   ip6tables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
   
-  # allow given addresses
-  for address in "${addresses[@]}"; do
-    local address_part
-    local port
-    if grep -q ':' <<< "$address"; then
-      IFS=':' read -r address_part port <<< "$address"
-    else
-      address_part="$address"
-      port=443
-    fi
+  # apply allow list
+  ipset create "$CONTAINER_NETWORK_ALLOW_LIST" hash:net,port -exist
+  ipset flush "$CONTAINER_NETWORK_ALLOW_LIST"
+  iptables -A OUTPUT -p tcp -m set --match-set "$CONTAINER_NETWORK_ALLOW_LIST" dst,dst -j ACCEPT
 
-    if test "$address_part" = "0.0.0.0/0"; then
-      iptables -A OUTPUT -d "$address_part" -p tcp --dport "$port" -j ACCEPT
-    else
-      ipset add allow_list "${address_part},tcp:${port}" -exist
+  for destination in "${destinations[@]}"; do
+    local host="$destination"
+    local port="443"
+    if grep -q ':' <<< "$destination"; then
+      IFS=':' read -r host port <<< "$destination"
+    fi
+    if test "$host" = "0.0.0.0/0"; then
+      log "Allow outgoing connections to $host:$port"
+      iptables -A OUTPUT -d "$host" -p tcp --dport "$port" -j ACCEPT
     fi
   done
-  iptables -A OUTPUT -p tcp -m set --match-set allow_list dst,dst -j ACCEPT
 
   # Reject unauthorized TCP connections immediately with RST
   # instead of silently dropping and causing timeout
   iptables -A OUTPUT -p tcp -j REJECT --reject-with tcp-reset
   ip6tables -A OUTPUT -p tcp -j REJECT --reject-with tcp-reset
+}
+
+start_container_firewall_updater() {
+  : "${ONESHOT:="no"}"
+
+  if test "$ONESHOT" = "no"; then
+    mkdir -p /sandbox/log
+    exec > /sandbox/log/container_firewall_updater.stdout
+    exec 2> /sandbox/log/container_firewall_updater.stderr
+  fi
+
+  local destinations=("$@")
+
+  local address_pattern='^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(/[0-9]{1,2})?$'
+  local min_ttl=5
+  local max_ttl=3600
+
+  local allow_list_new="${CONTAINER_NETWORK_ALLOW_LIST}_new"
+  ipset create "$allow_list_new" hash:net,port -exist
+
+  while true; do
+    ipset flush "$allow_list_new"
+    local addresses=()
+    local shortest_ttl="$max_ttl"
+    local failed=no
+
+    for destination in "${destinations[@]}"; do
+      local host="$destination"
+      local port="443"
+      if grep -q ':' <<< "$destination"; then
+        IFS=':' read -r host port <<< "$destination"
+      fi
+
+      # address
+      if grep -qE "$address_pattern" <<< "$host"; then
+        if test "$host" = "0.0.0.0/0"; then
+          continue
+        fi
+        log "Allow outgoing connections to $host:$port"
+        addresses+=("$host:$port")
+        continue
+      fi
+
+      # domain
+      log "Resolving domain $host"
+      local domain_address_count=0
+      while read -r name ttl class type address; do
+        log "dig -> $name\t$ttl\t$class\t$type\t$address"
+
+        if test "$type" != "A"; then
+          continue;
+        fi
+
+        if ! grep -qE "$address_pattern" <<< "$address"; then
+          log "Skipping non-IPv4 address $address of $host"
+          continue
+        fi
+
+        log "Allow outgoing connections to $destination $address:$port"
+        addresses+=("$address:$port")
+
+        if test "$ttl" -lt "$shortest_ttl"; then
+          shortest_ttl="$ttl"
+        fi
+
+        domain_address_count=$((domain_address_count + 1))
+      done < <(dig A "$host" | awk '/ANSWER SECTION:/{show=1; next} /^$/{show=0} show')
+
+      if test "$domain_address_count" = 0; then
+        log "Warning: Failed to resolve any address for $host"
+        failed=yes
+      fi
+    done
+
+    if test "$failed" = "yes"; then
+      if test "$ONESHOT" = "yes"; then
+        log "Error: Failed to update network allow list"
+        return 1
+      fi
+
+      log "Warning: Failed to update network allow list; retry in ${min_ttl}"
+      sleep "$min_ttl"
+      continue
+    fi
+
+    for address in "${addresses[@]}"; do
+      local address_part="$address"
+      local port="443"
+      if grep -q ':' <<< "$address"; then
+        IFS=':' read -r address_part port <<< "$address"
+      fi
+      ipset add "$allow_list_new" "${address_part},tcp:${port}" -exist
+    done
+
+    ipset create "$CONTAINER_NETWORK_ALLOW_LIST" hash:net,port -exist
+    ipset swap "$CONTAINER_NETWORK_ALLOW_LIST" "$allow_list_new"
+
+    if test "$ONESHOT" = "yes"; then
+      break
+    fi
+
+    if test "$shortest_ttl" -lt "$min_ttl"; then
+      shortest_ttl="$min_ttl"
+    fi
+    sleep "$shortest_ttl"
+  done
 }
 
 setup_container_user() {
@@ -1010,8 +1071,9 @@ if test "$#" -gt 0; then
     start_container_dnsmasq \
       | setup_container_volume_owner \
       | setup_container_firewall \
+      | start_container_firewall_updater \
       | setup_container_user \
-      | terminate_idle_container \
+      | start_container_terminator \
       | container_exec \
       | print_preset_dockerfile )
       "$@"
