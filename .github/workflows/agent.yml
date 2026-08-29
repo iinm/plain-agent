@@ -47,21 +47,21 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
           set -euo pipefail
-          SESSION_ID=""
+          RUN_ID=""
           if test "$EVENT_NAME" = "issue_comment"; then
             if echo "$COMMENT_BODY" | grep -qE '^/agent:[0-9]+'; then
-              SESSION_ID="$(echo "$COMMENT_BODY" | head -1 | sed -E 's,^/agent:([0-9]+).*,\1,')"
+              RUN_ID="$(echo "$COMMENT_BODY" | head -1 | sed -E 's,^/agent:([0-9]+).*,\1,')"
             fi
           fi
-          echo "session_id=$SESSION_ID" >> "$GITHUB_OUTPUT"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
 
       - name: Restore Agent Session
-        if: steps.parse-agent-session.outputs.session_id != ''
+        if: steps.parse-agent-session.outputs.run_id != ''
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: plain-agent-session
           github-token: ${{ github.token }}
-          run-id: ${{ steps.parse-agent-session.outputs.session_id }}
+          run-id: ${{ steps.parse-agent-session.outputs.run_id }}
           path: .plain-agent
 
       - name: Setup Environment
@@ -127,17 +127,24 @@ jobs:
 
           plain batch "${options[@]}" "$PROMPT" | tee events.jsonl | jq .
 
+          # Format result
           agent_message=$(jq -sr '
             map(select(.message.role == "assistant")) | last
             | .message.content[] | select(.type == "text")
             | .text
           ' events.jsonl)
 
+          echo
           echo "---"
           echo "$agent_message"
 
-          cost_details=$(jq -r 'select(.type == "session_end") | .cost' events.jsonl)
-          cost_total=$(echo "$cost_details" | jq -r '.totalCost // 0' | xargs printf '%.3f')
+          session_file=".plain-agent/sessions/$(ls -1t .plain-agent/sessions | head -1)"
+          cost_details=$(jq -sr 'map(select(.type == "session_end")) | last | .cost' "$session_file")
+          cost_total=$(echo "$cost_details" | jq -r '.totalCost // 0')
+          previous_cost_total=$(jq -sr 'map(select(.type == "session_end")) | .[-2] | .cost.totalCost // 0' "$session_file")
+          cost_total_diff=$(echo "$cost_total - $previous_cost_total" | bc | xargs printf '%.3f')
+
+          echo
           echo "---"
           echo "$cost_details"
 
@@ -151,7 +158,7 @@ jobs:
           ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
 
           <details>
-          <summary>Token cost: $cost_total USD</summary>
+          <summary>Token cost: +$cost_total_diff USD</summary>
 
           \`\`\`
           $cost_details
