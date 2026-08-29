@@ -619,6 +619,8 @@ EOF
       log "Setting up firewall."
       run docker exec --user 0:0 "$container_name" \
         "$CONTAINER_SCRIPT_PATH" setup_container_firewall "${allow_net_destinations[@]}"
+      run docker exec --user 0:0 --env ONESHOT=yes "$container_name" \
+        "$CONTAINER_SCRIPT_PATH" start_container_firewall_updater "${allow_net_destinations[@]}"
       run docker exec --detach --user 0:0 "$container_name" \
         "$CONTAINER_SCRIPT_PATH" start_container_firewall_updater "${allow_net_destinations[@]}"
     fi
@@ -745,9 +747,6 @@ setup_container_firewall() {
   ip6tables -t mangle -F
   ip6tables -t mangle -X
 
-  # allow dns to the upstream servers dnsmasq forwards to.
-  # resolv.conf is already rewritten to 127.0.0.1 by start_container_dnsmasq,
-  # so the real upstreams are read from the dnsmasq config it produced.
   local dns_server_pattern='^[0-9]{1,3}(\.[0-9]{1,3}){3}$'
   while read -r server; do
     if ! grep -qE "$dns_server_pattern" <<< "$server"; then
@@ -756,9 +755,6 @@ setup_container_firewall() {
     iptables -A OUTPUT -p udp -d "$server" --dport 53 -j ACCEPT
     iptables -A INPUT  -p udp -s "$server" --sport 53 -j ACCEPT
   done < <(awk -F= '$1=="server" && $2!="" {n=$2; sub(/.*\//,"",n); print n}' /sandbox/etc/dnsmasq.conf)
-  # allow dnsmasq on loopback
-  iptables -A OUTPUT -p udp -d 127.0.0.1 --dport 53 -j ACCEPT
-  iptables -A INPUT -p udp -s 127.0.0.1 --sport 53 -j ACCEPT
   
   # allow localhost
   iptables -A INPUT -i lo -j ACCEPT
@@ -802,6 +798,7 @@ setup_container_firewall() {
       IFS=':' read -r host port <<< "$destination"
     fi
     if test "$host" = "0.0.0.0/0"; then
+      log "Allow outgoing connections to $host:$port"
       iptables -A OUTPUT -d "$host" -p tcp --dport "$port" -j ACCEPT
     fi
   done
@@ -813,13 +810,17 @@ setup_container_firewall() {
 }
 
 start_container_firewall_updater() {
-  mkdir -p /sandbox/log
-  exec > /sandbox/log/container_firewall_updater.stdout
-  exec 2> /sandbox/log/container_firewall_updater.stderr
+  : "${ONESHOT:="no"}"
+
+  if test "$ONESHOT" = "no"; then
+    mkdir -p /sandbox/log
+    exec > /sandbox/log/container_firewall_updater.stdout
+    exec 2> /sandbox/log/container_firewall_updater.stderr
+  fi
 
   local destinations=("$@")
-  local address_pattern='^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(/[0-9]{1,2})?$'
 
+  local address_pattern='^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}(/[0-9]{1,2})?$'
   local min_ttl=5
   local max_ttl=3600
 
@@ -834,44 +835,24 @@ start_container_firewall_updater() {
 
     for destination in "${destinations[@]}"; do
       local host="$destination"
-      local port=''
+      local port="443"
       if grep -q ':' <<< "$destination"; then
         IFS=':' read -r host port <<< "$destination"
       fi
 
       # address
       if grep -qE "$address_pattern" <<< "$host"; then
-        echo "Allow outgoing connections to $destination"
-        if test -n "$port"; then
-          addresses+=("$host:$port")
-        else
-          addresses+=("$host")
+        if test "$host" = "0.0.0.0/0"; then
+          continue
         fi
+        log "Allow outgoing connections to $host:$port"
+        addresses+=("$host:$port")
         continue
       fi
 
       # domain
       log "Resolving domain $host"
       local domain_address_count=0
-      for address in $(getent hosts "$host" | awk '{print $1}'); do
-        log "getent hosts -> $address"
-
-        if ! grep -qE "$address_pattern" <<< "$address"; then
-          log "Warning: Ignoring invalid address $address of $host"
-          continue
-        fi
-
-        if test -n "$port"; then
-          log "Allow outgoing connections to $destination $address:$port"
-          addresses+=("$address:$port")
-        else
-          log "Allow outgoing connections to $destination $address"
-          addresses+=("$address")
-        fi
-
-        domain_address_count=$((domain_address_count + 1))
-      done
-
       while read -r name ttl class type address; do
         log "dig -> $name\t$ttl\t$class\t$type\t$address"
 
@@ -880,17 +861,12 @@ start_container_firewall_updater() {
         fi
 
         if ! grep -qE "$address_pattern" <<< "$address"; then
-          log "Warning: Ignoring invalid address $address of $host"
+          log "Skipping non-IPv4 address $address of $host"
           continue
         fi
 
-        if test -n "$port"; then
-          log "Allow outgoing connections to $destination $address:$port"
-          addresses+=("$address:$port")
-        else
-          log "Allow outgoing connections to $destination $address"
-          addresses+=("$address")
-        fi
+        log "Allow outgoing connections to $destination $address:$port"
+        addresses+=("$address:$port")
 
         if test "$ttl" -lt "$shortest_ttl"; then
           shortest_ttl="$ttl"
@@ -906,30 +882,31 @@ start_container_firewall_updater() {
     done
 
     if test "$failed" = "yes"; then
+      if test "$ONESHOT" = "yes"; then
+        log "Error: Failed to update network allow list"
+        return 1
+      fi
+
       log "Warning: Failed to update network allow list; retry in ${min_ttl}"
       sleep "$min_ttl"
       continue
     fi
 
     for address in "${addresses[@]}"; do
-      local address_part
-      local port
+      local address_part="$address"
+      local port="443"
       if grep -q ':' <<< "$address"; then
         IFS=':' read -r address_part port <<< "$address"
-      else
-        address_part="$address"
-        port=443
       fi
-
-      if test "$address_part" = "0.0.0.0/0"; then
-        continue
-      else
-        ipset add "$allow_list_new" "${address_part},tcp:${port}" -exist
-      fi
+      ipset add "$allow_list_new" "${address_part},tcp:${port}" -exist
     done
 
     ipset create "$CONTAINER_NETWORK_ALLOW_LIST" hash:net,port -exist
     ipset swap "$CONTAINER_NETWORK_ALLOW_LIST" "$allow_list_new"
+
+    if test "$ONESHOT" = "yes"; then
+      break
+    fi
 
     if test "$shortest_ttl" -lt "$min_ttl"; then
       shortest_ttl="$min_ttl"
