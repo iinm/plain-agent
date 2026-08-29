@@ -745,12 +745,18 @@ setup_container_firewall() {
   ip6tables -t mangle -F
   ip6tables -t mangle -X
 
-  # allow dns
+  # allow dns to the upstream servers dnsmasq forwards to.
+  # resolv.conf is already rewritten to 127.0.0.1 by start_container_dnsmasq,
+  # so the real upstreams are read from the dnsmasq config it produced.
+  local dns_server_pattern='^[0-9]{1,3}(\.[0-9]{1,3}){3}$'
   while read -r server; do
+    if ! grep -qE "$dns_server_pattern" <<< "$server"; then
+      continue
+    fi
     iptables -A OUTPUT -p udp -d "$server" --dport 53 -j ACCEPT
     iptables -A INPUT  -p udp -s "$server" --sport 53 -j ACCEPT
-  done < <(awk '$1 == "nameserver" {print $2}' /etc/resolv.conf)
-  # allow dnsmasq
+  done < <(awk -F= '$1=="server" && $2!="" {n=$2; sub(/.*\//,"",n); print n}' /sandbox/etc/dnsmasq.conf)
+  # allow dnsmasq on loopback
   iptables -A OUTPUT -p udp -d 127.0.0.1 --dport 53 -j ACCEPT
   iptables -A INPUT -p udp -s 127.0.0.1 --sport 53 -j ACCEPT
   
@@ -819,9 +825,9 @@ start_container_firewall_updater() {
 
   local allow_list_new="${CONTAINER_NETWORK_ALLOW_LIST}_new"
   ipset create "$allow_list_new" hash:net,port -exist
-  ipset flush "$allow_list_new"
 
   while true; do
+    ipset flush "$allow_list_new"
     local addresses=()
     local shortest_ttl="$max_ttl"
     local failed=no
@@ -887,9 +893,6 @@ start_container_firewall_updater() {
         fi
 
         if test "$ttl" -lt "$shortest_ttl"; then
-          if test "$min_ttl" -le "$ttl"; then
-            shortest_ttl="$min_ttl"
-          fi
           shortest_ttl="$ttl"
         fi
 
@@ -928,6 +931,9 @@ start_container_firewall_updater() {
     ipset create "$CONTAINER_NETWORK_ALLOW_LIST" hash:net,port -exist
     ipset swap "$CONTAINER_NETWORK_ALLOW_LIST" "$allow_list_new"
 
+    if test "$shortest_ttl" -lt "$min_ttl"; then
+      shortest_ttl="$min_ttl"
+    fi
     sleep "$shortest_ttl"
   done
 }
