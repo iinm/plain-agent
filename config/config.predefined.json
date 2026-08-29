@@ -1977,6 +1977,56 @@
     },
 
     {
+      "name": "glm-5.3",
+      "variant": "fireworks",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "fireworks"
+      },
+      "model": {
+        "format": "openai-chat-completions",
+        "config": {
+          "model": "accounts/fireworks/models/glm-5p3"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "prompt_tokens": 1.4,
+          "prompt_tokens_details.cached_tokens": -1.14,
+          "completion_tokens": 4.4
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
+    },
+
+    {
+      "name": "glm-5.3-flash",
+      "variant": "fireworks",
+      "platform": {
+        "name": "openai-compatible",
+        "variant": "fireworks"
+      },
+      "model": {
+        "format": "openai-chat-completions",
+        "config": {
+          "model": "accounts/fireworks/models/glm-5p3-flash"
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "prompt_tokens": 0.15,
+          "prompt_tokens_details.cached_tokens": -0.121,
+          "completion_tokens": 0.5
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
+    },
+
+    {
       "name": "kimi-k2.7-code",
       "variant": "fireworks",
       "platform": {
