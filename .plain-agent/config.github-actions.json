@@ -45,7 +45,6 @@
       "--mount-readonly", ".plain-agent",
       "--mount-writable", ".plain-agent/memory",
       "--mount-writable", ".plain-agent/tmp",
-      "--env", "GH_TOKEN",
       "--keep-alive", "30"
     ],
     "separator": "--",
@@ -55,7 +54,8 @@
           "command": { "$regex": "^(gh|git)$" }
         },
         "mode": "sandbox",
-        "additionalArgs": ["--allow-net", "github.com,api.github.com"]
+        "additionalArgs": ["--env", "GH_TOKEN", "--allow-net", "github.com,api.github.com"]
+      
       }
     ]
   },
