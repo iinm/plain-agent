@@ -53,7 +53,7 @@ export function createToolUseApprover({
 
       if (!["allow", "deny", "ask"].includes(action)) {
         return {
-          action: "ask",
+          action: defaultAction,
         };
       }
 

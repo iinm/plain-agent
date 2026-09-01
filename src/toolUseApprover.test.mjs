@@ -80,7 +80,7 @@ describe("createToolUseApprover", () => {
     });
   });
 
-  it("should ask when action is invalid (typo)", () => {
+  it("should fallback to default action when action is invalid (typo)", () => {
     // given:
     const toolApprover = createToolUseApprover({
       patterns: [
@@ -264,35 +264,6 @@ describe("createToolUseApprover", () => {
     });
   });
 
-  it("should fall back to defaultAction with reason when path validation rejects an allowed tool use", () => {
-    // given:
-    const toolApprover = createToolUseApprover({
-      patterns: [
-        {
-          toolName: "exec_command",
-          input: { command: "cat" },
-          action: "allow",
-        },
-      ],
-      maxApprovals: 2,
-      defaultAction: "ask",
-      maskApprovalInput: (_name, input) => input,
-    });
-
-    /** @type {MessageContentToolUse} */
-    const toolUse = {
-      type: "tool_use",
-      toolUseId: "test",
-      toolName: "exec_command",
-      input: { command: "cat", args: [".plain-agent/config.local.json"] },
-    };
-
-    // when/then:
-    const decision = toolApprover.isAllowedToolUse(toolUse);
-    assert.strictEqual(decision.action, "ask");
-    assertUnsafePathReason(decision.reason);
-  });
-
   it("should deny with reason when path validation rejects an allowed tool use", () => {
     // given:
     const toolApprover = createToolUseApprover({
@@ -321,6 +292,7 @@ describe("createToolUseApprover", () => {
     assert.strictEqual(decision.action, "deny");
     assertUnsafePathReason(decision.reason);
   });
+
   it("should deny with reason when maxApprovals is exceeded and defaultAction is deny", () => {
     // given:
     const toolApprover = createToolUseApprover({

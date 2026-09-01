@@ -42,7 +42,7 @@ describe("findUnsafeToolInputReason", () => {
     },
     {
       desc: "function (not allowed)",
-      arg: /** @type {any} */ (() => {}),
+      arg: () => {},
       expected: "unsupported input type",
     },
   ];
