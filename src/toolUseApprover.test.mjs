@@ -261,7 +261,7 @@ describe("createToolUseApprover", () => {
     });
   });
 
-  it("should take default action when git-ignored file is specified", () => {
+  it("should fall back to defaultAction with reason when path validation rejects an allowed tool use", () => {
     // given:
     const toolApprover = createToolUseApprover({
       patterns: [
@@ -285,8 +285,49 @@ describe("createToolUseApprover", () => {
     };
 
     // when/then:
-    assert.deepStrictEqual(toolApprover.isAllowedToolUse(toolUse), {
-      action: "ask",
+    const decision = toolApprover.isAllowedToolUse(toolUse);
+    assert.strictEqual(decision.action, "ask");
+    assertUnsafePathReason(decision.reason);
+  });
+
+  it("should deny with reason when path validation rejects an allowed tool use", () => {
+    // given:
+    const toolApprover = createToolUseApprover({
+      patterns: [
+        {
+          toolName: "exec_command",
+          input: { command: "cat" },
+          action: "allow",
+        },
+      ],
+      maxApprovals: 2,
+      defaultAction: "deny",
+      maskApprovalInput: (_name, input) => input,
     });
+
+    /** @type {MessageContentToolUse} */
+    const toolUse = {
+      type: "tool_use",
+      toolUseId: "test",
+      toolName: "exec_command",
+      input: { command: "cat", args: ["../parent-file"] },
+    };
+
+    // when/then:
+    const decision = toolApprover.isAllowedToolUse(toolUse);
+    assert.strictEqual(decision.action, "deny");
+    assertUnsafePathReason(decision.reason);
   });
 });
+
+/**
+ * @param {string | undefined} reason
+ * @returns {void}
+ */
+function assertUnsafePathReason(reason) {
+  assert.match(
+    reason ?? "",
+    /^Path validation failed: /,
+    "decision should carry the path validation failure reason",
+  );
+}
