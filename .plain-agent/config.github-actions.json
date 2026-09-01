@@ -78,6 +78,27 @@
       },
       {
         "toolName": "exec_command",
+        "input": { "command": "find" },
+        "action": "deny",
+        "reason": "Use fd instead; fd respects .gitignore by default"
+      },
+      {
+        "toolName": "exec_command",
+        "input": { "command": "grep" },
+        "action": "deny",
+        "reason": "Use rg instead; rg respects .gitignore by default"
+      },
+      {
+        "toolName": "exec_command",
+        "input": {
+          "command": "bash",
+          "args": ["-c", { "$not": { "$regex": "[|><&;$`]" } }]
+        },
+        "action": "deny",
+        "reason": "Use bash -c only when shell features (|, >, <, &, ;, $, `) are required"
+      },
+      {
+        "toolName": "exec_command",
         "action": "allow"
       }
     ]
