@@ -6,7 +6,7 @@
 
 A lightweight terminal-based coding agent focused on safety and low token cost
 
-[🚀 Quick Start](#quick-start)
+🚀 [Quick Start](#quick-start)
 
 ## Table of Contents
 
