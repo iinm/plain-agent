@@ -6,6 +6,8 @@
 
 A lightweight terminal-based coding agent focused on safety and low token cost
 
+[🚀 Quick Start](#quick-start)
+
 ## Table of Contents
 
 - [Design](#design)
@@ -30,14 +32,13 @@ A lightweight terminal-based coding agent focused on safety and low token cost
 
 ### Multi-Provider Support
 
-Supports Claude, OpenAI, Gemini, and any OpenAI-compatible provider. Bedrock, Vertex AI, and Azure are also supported for teams working in environments restricted to managed cloud providers.
+Supports Claude, OpenAI, Gemini, and any OpenAI-compatible provider.
+Each model definition has two parts:
 
-Each model definition has two independent parts:
-
-- **`platform.name`**: where to send the request and how to authenticate (`anthropic`, `gemini`, `openai`, `openai-compatible`, `azure`, `bedrock`, `vertex-ai`, etc.)
+- **`platform.name`**: where to send the request and how to authenticate (`anthropic`, `gemini`, `openai`, `openai-compatible`, `azure`, `bedrock`, `vertex-ai`)
 - **`model.format`**: which API format to use (`anthropic`, `gemini`, `openai-responses`, `openai-chat-completions`, `bedrock-converse`)
 
-Because these are separate, the same API format works across different platforms. For example, Claude models use the `anthropic` format whether you call Anthropic directly or through Bedrock.
+The same API format works across different platforms.
 
 ```js
 // Anthropic direct
@@ -52,9 +53,7 @@ Because these are separate, the same API format works across different platforms
     "format": "anthropic",
     "config": {
       "model": "claude-sonnet-5",
-      "max_tokens": 32768,
-      "thinking": { "type": "adaptive" },
-      "output_config": { "effort": "high" }
+      // ...
     }
   }
 }
@@ -71,9 +70,7 @@ Because these are separate, the same API format works across different platforms
     "format": "anthropic",
     "config": {
       "model": "jp.anthropic.claude-sonnet-5",
-      "max_tokens": 32768,
-      "thinking": { "type": "adaptive" },
-      "output_config": { "effort": "high" }
+      // ...
     }
   }
 }
@@ -81,18 +78,16 @@ Because these are separate, the same API format works across different platforms
 
 Models are identified by `name+variant` (e.g., `claude-sonnet-5+thinking-high`). You can define multiple variants of the same model with different settings, such as thinking budget or region.
 
-You can also add entries to `platforms` and `models` to use any OpenAI-compatible endpoint, such as Ollama or Fireworks. See the Quick Start section for examples.
-
 ### Auto-Approval
 
-Configure what the agent can do automatically using a small DSL with regex matching. Below is an excerpt from the [default config](https://github.com/iinm/plain-agent/blob/main/config/config.predefined.json).
+Configure what the agent can do automatically using a small DSL with regex matching.
 
-**Note**: Commands are executed without a shell. Shell operators like `|`, `>`, `;`, and `&&` are not interpreted unless the agent explicitly uses `bash -c`. This makes each argument a discrete token that can be validated individually.
+**Note**: Commands are executed without a shell. Shell operators are not interpreted unless the agent explicitly uses `bash -c`. This makes each argument a discrete token that can be validated individually.
 
 ```js
 {
   "autoApproval": {
-    // What to do when no pattern matches: ask - prompt the user, deny - reject automatically
+    // What to do when no pattern matches: ask or deny
     "defaultAction": "ask",
 
     // Patterns are evaluated top-to-bottom; first match wins
@@ -113,24 +108,6 @@ Configure what the agent can do automatically using a small DSL with regex match
         "input": { "command": "fd" },
         "action": "allow"
       },
-
-      // GitHub CLI example:
-      // Allow read access to PRs and issues
-      {
-        "toolName": "exec_command",
-        "input": {
-          "command": "gh",
-          "args": ["api", "--method", "GET", { "$regex": "^repos/[^/]+/[^/]+/(pulls|issues)/" }]
-        },
-        "action": "allow"
-      },
-      // Require --method to be explicit, so GET calls can be safely auto-approved
-      {
-        "toolName": "exec_command",
-        "input": { "command": "gh", "args": ["api", { "$not": { "$regex": "^--(method|help)" } }] },
-        "action": "deny",
-        "reason": "--method must be specified right after 'api'"
-      }
     ],
 
     // Test cases for verifying patterns. Run: plain test-approval
@@ -144,11 +121,6 @@ Configure what the agent can do automatically using a small DSL with regex match
         "desc": "fd with --exec should require approval",
         "toolUse": { "toolName": "exec_command", "input": { "command": "fd", "args": [".env", "./", "--exec", "cat", "{}"] } },
         "expectedAction": "ask"
-      },
-      {
-        "desc": "gh api without --method should be denied",
-        "toolUse": { "toolName": "exec_command", "input": { "command": "gh", "args": ["api", "/repos/owner/repo/pulls"] } },
-        "expectedAction": "deny"
       }
     ]
   }
@@ -161,10 +133,10 @@ String values in tool inputs are treated as file paths and validated against the
 
 - The path must be under the working directory or a path listed in `autoApproval.allowedPaths`
 - No directory traversal (`..` is not allowed)
-- Symlinks are resolved to their real path before validation: a symlink inside the working directory that points outside is rejected. Broken and circular symlinks are also rejected.
+- Symlinks pointing outside the working directory, or broken/circular links, are not allowed.
 - The file must be tracked by Git (not ignored)
 
-Compound arguments (e.g., `@file`, `--prefix=/path`, `VAR=/path`) are decomposed before validation; embedded paths are extracted and checked individually. `file://` URLs are validated as local paths, while `http(s)://` URLs are always allowed.
+Compound arguments (e.g., `@file`, `--prefix=/path`, `VAR=/path`, `file:///path`) are decomposed before validation.
 
 **Note**: Validation only applies when the agent explicitly passes file paths to tools. It cannot catch file access inside scripts the agent writes: something like `bash -c "rm -rf /"` is beyond its reach. Always use a sandbox when auto-approving script execution.
 
@@ -178,8 +150,8 @@ A Docker-based wrapper called `plain-sandbox` is included, but the interface is 
   "sandbox": {
     // Commands are wrapped and executed with this command
     "command": "plain-sandbox",
+    // --mount-readonly prevents the agent from modifying its own config
     "args": ["--allow-write", "--mount-readonly", ".plain-agent/config.json", "--keep-alive", "30"],
-    // ↑ --mount-readonly: prevents the agent from overwriting its own config
     // separator is inserted between sandbox flags and the user command to prevent bypasses
     "separator": "--",
 
@@ -195,7 +167,7 @@ A Docker-based wrapper called `plain-sandbox` is included, but the interface is 
       {
         "pattern": {
           "command": "npm",
-          "args": [{ "$regex": "^(install|ci)$" }]
+          "args": ["ci"]
         },
         "mode": "sandbox",
         "additionalArgs": ["--allow-net", "registry.npmjs.org"]
@@ -209,9 +181,9 @@ A Docker-based wrapper called `plain-sandbox` is included, but the interface is 
 
 The agent maintains a memory file (`.plain-agent/memory/`) for each session to:
 
-- Keep task state human-readable: you can open the file to see exactly where things stand.
-- Resume cleanly: the agent can restart a task from the memory file with a clean context.
-- Pass information between dependent tasks: subagents write their results to the memory file, which the main agent or a follow-up session reads to continue.
+- Keep task state human-readable: you can open the file to see the current state of the task.
+- Resume after context compaction or restart: the agent can restart a task from the memory file with a clean context.
+- Report subagent result: subagents write their results to their memory files as a report for the main agent.
 
 ### Token Efficiency
 
@@ -224,7 +196,7 @@ A few design choices keep token usage low:
 
 ### Claude Code Compatibility
 
-Claude Code has a plugin ecosystem and is widely used across teams. plain-agent supports `.claude/` commands, subagents, and skills so you can share project skills with Claude Code users. Plugins can also be installed.
+Claude Code has a plugin ecosystem and is widely used across teams. plain-agent supports commands, subagents, and skills in `.claude/` so you can share project skills with Claude Code users. Plugins can also be installed.
 
 **Limitation:** Subagents run sequentially, not in parallel. Their activity is fully observable and token usage stays predictable. They also inherit the main context rather than starting fresh, which avoids redundant file reads and reduces the chance of losing context between handoffs.
 
@@ -274,39 +246,7 @@ Create a configuration file.
       "variant": "default",
       "apiKey": "<OPENAI_API_KEY>"
     }
-  ],
-
-  // Optional: enable web tools
-  "tools": {
-    "webSearch": {
-      "provider": "gemini",
-      "apiKey": "<GEMINI_API_KEY>",
-      "model": "gemini-3.6-flash"
-
-      // Or use Vertex AI (requires the gcloud CLI for authentication)
-      // "provider": "gemini-vertex-ai",
-      // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
-      // "model": "gemini-3.6-flash"
-
-      // Or use a custom command
-      // "provider": "command",
-      // "command": "bash",
-      // "args": ["-c", "w3m -dump -o display_link_number=1 \"https://lite.duckduckgo.com/lite?q=$*\"", "-"]
-    },
-
-    "webFetch": {
-      "provider": "gemini",
-      "apiKey": "<GEMINI_API_KEY>",
-      "model": "gemini-3.6-flash"
-
-      // Or use Vertex AI (requires the gcloud CLI for authentication)
-
-      // Or use a custom command
-      // "provider": "command",
-      // "command": "w3m",
-      // "args": ["-dump", "-o", "display_link_number=1"]
-    }
-  }
+  ]
 }
 ```
 
@@ -316,7 +256,7 @@ Create a configuration file.
 ```js
 {
   "platforms": [
-    // Bedrock: Requires the AWS CLI for authentication
+    // Bedrock: Requires the AWS CLI
     {
       "name": "bedrock",
       "variant": "default",
@@ -330,7 +270,7 @@ Create a configuration file.
       "awsProfile": "<AWS_PROFILE>"
     },
 
-    // Vertex AI: Requires the gcloud CLI for authentication
+    // Vertex AI: Requires the gcloud CLI
     {
       "name": "vertex-ai",
       "variant": "default",
@@ -339,7 +279,7 @@ Create a configuration file.
       "account": "<SERVICE_ACCOUNT_EMAIL>"
     },
 
-    // Azure: Requires the Azure CLI for authentication
+    // Azure: Requires the Azure CLI
     {
       "name": "azure",
       "variant": "default",
@@ -422,40 +362,6 @@ Create a configuration file.
   ],
   "models": [
     {
-      "name": "claude-haiku-4-5",
-      "variant": "thinking-16k-bedrock-jp",
-      "platform": {
-        "name": "bedrock",
-        "variant": "jp"
-      },
-      "model": {
-        "format": "anthropic",
-        "config": {
-          "model": "jp.anthropic.claude-haiku-4-5-20251001-v1:0",
-          "max_tokens": 32768,
-          "thinking": { "type": "enabled", "budget_tokens": 16384 }
-        }
-      },
-      "cost": {
-        "currency": "USD",
-        "unit": "1M",
-        "prices": {
-          "input_tokens": 1.1,
-          "output_tokens": 5.5,
-          "cache_read_input_tokens": 0.11,
-          "cache_creation_input_tokens": 1.375
-        }
-      },
-      // Required for soft limit (auto-compact) to work
-      "autoCompact": {
-        "inputTokensKeys": [
-          "input_tokens",
-          "cache_read_input_tokens",
-          "cache_creation_input_tokens"
-        ]
-      }
-    },
-    {
       "name": "claude-sonnet-5",
       "variant": "thinking-high-bedrock-jp",
       "platform": {
@@ -504,7 +410,7 @@ plain
 plain -m <model+variant>
 ```
 
-Press **Ctrl-C** to pause auto-approval. The agent will finish the current tool call, then return to the prompt.
+Press **Ctrl-C** to pause auto-approval.
 
 Show the help message.
 
@@ -512,30 +418,7 @@ Show the help message.
 /help
 ```
 
-Run in non-interactive batch mode.
-In batch mode, configuration files are not loaded automatically. Only the files specified with `-c` are loaded.
-
-```sh
-plain batch \
-      -c ~/.config/plain-agent/config.local.json \
-      -c .plain-agent/config.json \
-      "Add tests for ..."
-```
-
-Batch mode enables unattended runs, e.g. on GitHub Actions. This repository's workflow ([.github/workflows/agent.yml](https://github.com/iinm/plain-agent/blob/main/.github/workflows/agent.yml)) triggers the agent by an `/agent` comment on an issue/PR and posts the result back as a comment. A session can be resumed with `/agent:<run-id>`.
-
-Show daily token cost. `plain cost` reads
-`~/.local/share/plain-agent/usage.jsonl`; use `--from` / `--to` to set the
-period.
-
-```sh
-plain cost
-
-# Or
-plain cost --from 2026-04-01 --to 2026-04-30
-```
-
-Resume a previously interrupted interactive session.
+Resume a previously interrupted session.
 Sessions are automatically saved to `.plain-agent/sessions/`.
 
 ```sh
@@ -549,7 +432,28 @@ plain -s 2026-05-10-0803-a7k
 plain -s -
 ```
 
-Launch the sandbox command using the app config's sandbox settings.
+Run in non-interactive batch mode.
+In batch mode, user configuration files are not loaded automatically. Only the files specified with `-c` are loaded.
+
+```sh
+plain batch \
+      -c ~/.config/plain-agent/config.local.json \
+      -c .plain-agent/config.json \
+      "Add tests for ..."
+```
+
+Batch mode enables unattended runs, e.g. on GitHub Actions. This repository's workflow ([.github/workflows/agent.yml](https://github.com/iinm/plain-agent/blob/main/.github/workflows/agent.yml)) triggers the agent by an `/agent` comment on an issue/PR and posts the result back as a comment. A session can be resumed with `/agent:<run-id>`.
+
+Show daily token cost. `plain cost` reads `~/.local/share/plain-agent/usage.jsonl`; use `--from` / `--to` to set the period.
+
+```sh
+plain cost
+
+# Or
+plain cost --from 2026-04-01 --to 2026-04-30
+```
+
+Launch the sandbox command using the agent sandbox config.
 Arguments before `--` are flags for the `plain` CLI itself (e.g. `-c` to load a
 config file). Arguments after `--` are passed through to the sandbox command as-is.
 
@@ -633,7 +537,6 @@ Files are loaded in the following order. Settings in later files override earlie
   "sandbox": {
     "command": "plain-sandbox",
     "args": ["--allow-write", "--mount-readonly", ".plain-agent/config.json", "--keep-alive", "30"],
-    // ↑ --mount-readonly: prevents the agent from overwriting its own config
     "separator": "--"
   }
 }
@@ -646,7 +549,9 @@ Files are loaded in the following order. Settings in later files override earlie
 ```js
 {
   // Preferences the agent should respect, appended to its system prompt.
-  "systemPrompt": { "userPreferences": ["Communication style: ...", "Code style: ..."] },
+  "systemPrompt": {
+    "userPreferences": ["Communication style: ...", "Code style: ..."]
+  },
 
   "autoApproval": {
     // Absolute paths outside the working directory that are allowed. Relative paths are ignored.
@@ -666,7 +571,7 @@ Files are loaded in the following order. Settings in later files override earlie
         "action": "allow"
       },
 
-      // ⚠️ When auto-approving execution, scripts can access unauthorized files and networks. Always use a sandbox.
+      // ⚠️ Auto-approved commands may access unauthorized files or networks. Always use a sandbox.
       {
         "toolName": "exec_command",
         "input": { "command": "npm", "args": ["run", { "$regex": "^(lint|test)$" }] },
@@ -696,9 +601,35 @@ Files are loaded in the following order. Settings in later files override earlie
   },
 
   "tools": {
-    // Enable web tools. See Quick Start section.
-    "webSearch": {},
-    "webFetch": {},
+    // Enable web tools
+    "webSearch": {
+      "provider": "gemini",
+      "apiKey": "<GEMINI_API_KEY>",
+      "model": "gemini-3.6-flash"
+
+      // Or use Vertex AI (requires the gcloud CLI)
+      // "provider": "gemini-vertex-ai",
+      // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
+      // "model": "gemini-3.6-flash"
+
+      // Or use a custom command
+      // "provider": "command",
+      // "command": "bash",
+      // "args": ["-c", "w3m -dump -o display_link_number=1 \"https://lite.duckduckgo.com/lite?q=$*\"", "-"]
+    },
+
+    "webFetch": {
+      "provider": "gemini",
+      "apiKey": "<GEMINI_API_KEY>",
+      "model": "gemini-3.6-flash"
+
+      // Or use Vertex AI (requires the gcloud CLI)
+
+      // Or use a custom command
+      // "provider": "command",
+      // "command": "w3m",
+      // "args": ["-dump", "-o", "display_link_number=1"]
+    },
 
     // Enable the tmux tool
     "tmux": { "enabled": true },
@@ -722,8 +653,8 @@ Files are loaded in the following order. Settings in later files override earlie
   "sandbox": {
     // Commands are wrapped and executed with this command
     "command": "plain-sandbox",
+    // --mount-readonly prevents the agent from overwriting its own config
     "args": ["--allow-write", "--mount-readonly", ".plain-agent/config.json", "--keep-alive", "30"],
-    // ↑ --mount-readonly: prevents the agent from overwriting its own config
     // separator is inserted between sandbox flags and the user command to prevent bypasses
     "separator": "--",
 
@@ -739,7 +670,7 @@ Files are loaded in the following order. Settings in later files override earlie
       {
         "pattern": {
           "command": "npm",
-          "args": [{ "$regex": "^(install|ci)$" }]
+          "args": ["ci"]
         },
         "mode": "sandbox",
         "additionalArgs": ["--allow-net", "registry.npmjs.org"]
@@ -770,7 +701,6 @@ Files are loaded in the following order. Settings in later files override earlie
 
   // Auto-compact: when input tokens exceed the soft limit after a tool execution,
   // the agent is prompted to update the memory file and call compact_context.
-  // Reduces noise and token costs before hitting the model's hard limit.
   "autoCompact": {
     "softLimit": 120000,
     // Optional: override per model (prefix match on name+variant)
@@ -794,11 +724,11 @@ The agent can use the following tools:
 - **patch_file**: Patch a file.
 - **exec_command**: Run a command without shell interpretation.
 - **tmux_command**: Run a tmux command. It is disabled by default.
-- **web_search**: Search the web with one or more keyword sets and answer a question based on the combined results (requires Google API key, Vertex AI configuration, or the `command` provider with a local search command).
-- **web_fetch**: Fetch the contents of a single URL and answer a question based on it (requires Google API key, Vertex AI configuration, or the `command` provider with a local fetch command such as `w3m`, `curl`, or `lynx`).
+- **web_search**: Search the web with one or more keyword sets and answer a question based on the combined results.
+- **web_fetch**: Fetch the contents of a single URL and answer a question based on it.
 - **switch_to_subagent**: Switch to a subagent role within the same conversation, focusing on the specified goal.
 - **switch_to_main_agent**: Switch back to the main agent role and report the result. After reporting, the subagent's conversation history is removed from the context.
-- **compact_context**: Compact the conversation context by discarding earlier messages and reloading task state from a memory file. Use this when the context has grown large but the task is not yet complete. You can also invoke it with the `/compact` slash command.
+- **compact_context**: Compact the conversation context by discarding earlier messages and reloading task state from a memory file. Use this when the context has grown large but the task is not yet complete. You can also invoke it with the `/compact` command.
 
 ## Prompts
 
@@ -858,7 +788,7 @@ You are a web content reader and analyzer. Given a URL and a question, you:
 
 ## Claude Code Plugin Support
 
-Plugins are installed under `.plain-agent/claude-code-plugins/` and must be installed per project by running `plain install-claude-code-plugins` from the project root. Global installation (e.g., under `~/.plain-agent`) is not supported because plugins may include skills the agent invokes autonomously. Keeping them scoped to the project keeps approval rules and permission management straightforward.
+Plugins are installed under `.plain-agent/claude-code-plugins/` and must be installed per project by running `plain install-claude-code-plugins` from the project root. Global installation (e.g., under `~/.config/plain-agent`) is not supported because plugins may include skills the agent invokes autonomously. Keeping them scoped to the project directory keeps approval rules and permission management straightforward.
 
 Example:
 
@@ -1054,4 +984,3 @@ gh release create $(git describe --tags) --generate-notes
 npm publish --access public
 ```
 </details>
-
