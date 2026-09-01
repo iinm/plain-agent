@@ -3,7 +3,7 @@
  * @import { MessageContentToolUse } from './model'
  */
 
-import { isSafeToolInput } from "./toolInputValidator.mjs";
+import { findUnsafeToolInputReason } from "./toolInputValidator.mjs";
 import { matchValue } from "./utils/matchValue.mjs";
 
 /**
@@ -53,7 +53,7 @@ export function createToolUseApprover({
 
       if (!["allow", "deny", "ask"].includes(action)) {
         return {
-          action: "ask",
+          action: defaultAction,
         };
       }
 
@@ -66,15 +66,24 @@ export function createToolUseApprover({
 
       if (action === "allow") {
         const maskedInput = maskApprovalInput(toolUse.toolName, toolUse.input);
-        if (
-          isSafeToolInput(maskedInput, allowedPaths, allowGitUnmanagedFiles)
-        ) {
-          state.approvalCount += 1;
-          return state.approvalCount <= max
-            ? { action: "allow" }
-            : { action: "ask" };
+        const unsafeReason = findUnsafeToolInputReason(
+          maskedInput,
+          allowedPaths,
+          allowGitUnmanagedFiles,
+        );
+        if (unsafeReason !== null) {
+          return {
+            action: defaultAction,
+            reason: `Path validation failed: ${unsafeReason}`,
+          };
         }
-        return { action: defaultAction };
+        state.approvalCount += 1;
+        return state.approvalCount <= max
+          ? { action: "allow" }
+          : {
+              action: defaultAction,
+              reason: `Auto-approval limit exceeded (${max})`,
+            };
       }
 
       return { action };

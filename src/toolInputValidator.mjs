@@ -16,49 +16,71 @@ const BUILTIN_ALLOWED_PATHS = [
 ];
 
 /**
+ * Check tool input for unsafe file access. String values are treated as file
+ * paths and validated: working directory / allowedPaths confinement, no ".."
+ * traversal, no .plain-agent/ metadata access, git-managed files only.
+ * Compound arguments (@file, --opt=val, -Xval, VAR=val, file://) are
+ * decomposed before validation.
+ *
  * @param {unknown} input
  * @param {string[]} [allowedPaths=[]] - Additional allowed paths (outside working directory)
  * @param {boolean} [allowGitUnmanagedFiles=false] - Allow access to git-unmanaged files
- * @returns {boolean}
+ * @returns {string | null} Rejection reason, or null when the input is safe
  */
-export function isSafeToolInput(
+export function findUnsafeToolInputReason(
   input,
   allowedPaths = [],
   allowGitUnmanagedFiles = false,
 ) {
   if (["number", "boolean", "undefined"].includes(typeof input)) {
-    return true;
+    return null;
   }
 
   if (typeof input === "string") {
-    return isSafeToolInputItem(input, allowedPaths, allowGitUnmanagedFiles);
+    return findUnsafeItemReason(input, allowedPaths, allowGitUnmanagedFiles);
   }
 
   if (Array.isArray(input)) {
-    return input.every((item) =>
-      isSafeToolInput(item, allowedPaths, allowGitUnmanagedFiles),
-    );
+    for (const item of input) {
+      const reason = findUnsafeToolInputReason(
+        item,
+        allowedPaths,
+        allowGitUnmanagedFiles,
+      );
+      if (reason !== null) {
+        return reason;
+      }
+    }
+    return null;
   }
 
   if (typeof input === "object") {
     if (input === null) {
-      return true;
+      return null;
     }
-    return Object.values(input).every((value) =>
-      isSafeToolInput(value, allowedPaths, allowGitUnmanagedFiles),
-    );
+    for (const value of Object.values(input)) {
+      const reason = findUnsafeToolInputReason(
+        value,
+        allowedPaths,
+        allowGitUnmanagedFiles,
+      );
+      if (reason !== null) {
+        return reason;
+      }
+    }
+    return null;
   }
 
-  return false;
+  return `unsupported input type: ${typeof input}`;
 }
 
 /**
  * @param {string} arg
  * @param {string[]} [allowedPaths=[]] - Additional allowed paths (outside working directory)
  * @param {boolean} [allowGitUnmanagedFiles=false] - Allow access to git-unmanaged files
- * @returns {boolean}
+ * @returns {string | null}
  */
-export function isSafeToolInputItem(
+function findUnsafeItemReason(
   arg,
   allowedPaths = [],
   allowGitUnmanagedFiles = false,
@@ -67,8 +89,8 @@ export function isSafeToolInputItem(
   if (arg.startsWith("@")) {
     const pathPart = arg.slice(1);
     return (
-      isSafeToolInputItemRaw(arg, allowedPaths, allowGitUnmanagedFiles) &&
-      isSafeToolInputItemRaw(pathPart, allowedPaths, allowGitUnmanagedFiles)
+      findUnsafeItemRawReason(arg, allowedPaths, allowGitUnmanagedFiles) ??
+      findUnsafeItemRawReason(pathPart, allowedPaths, allowGitUnmanagedFiles)
     );
   }
 
@@ -76,8 +98,12 @@ export function isSafeToolInputItem(
   const longOptMatch = arg.match(/^--[^=]+=(.+)$/);
   if (longOptMatch) {
     return (
-      isSafeToolInputItemRaw(arg, allowedPaths, allowGitUnmanagedFiles) &&
-      isSafeToolInputItem(longOptMatch[1], allowedPaths, allowGitUnmanagedFiles)
+      findUnsafeItemRawReason(arg, allowedPaths, allowGitUnmanagedFiles) ??
+      findUnsafeItemReason(
+        longOptMatch[1],
+        allowedPaths,
+        allowGitUnmanagedFiles,
+      )
     );
   }
 
@@ -85,8 +111,8 @@ export function isSafeToolInputItem(
   const shortOptMatch = arg.match(/^-[a-zA-Z](.+)$/);
   if (shortOptMatch) {
     return (
-      isSafeToolInputItemRaw(arg, allowedPaths, allowGitUnmanagedFiles) &&
-      isSafeToolInputItem(
+      findUnsafeItemRawReason(arg, allowedPaths, allowGitUnmanagedFiles) ??
+      findUnsafeItemReason(
         shortOptMatch[1],
         allowedPaths,
         allowGitUnmanagedFiles,
@@ -101,8 +127,8 @@ export function isSafeToolInputItem(
   const keyValueMatch = arg.match(/^[^-@][^=\s]*=(.+)$/);
   if (keyValueMatch) {
     return (
-      isSafeToolInputItemRaw(arg, allowedPaths, allowGitUnmanagedFiles) &&
-      isSafeToolInputItem(
+      findUnsafeItemRawReason(arg, allowedPaths, allowGitUnmanagedFiles) ??
+      findUnsafeItemReason(
         keyValueMatch[1],
         allowedPaths,
         allowGitUnmanagedFiles,
@@ -114,24 +140,24 @@ export function isSafeToolInputItem(
   const fileMatch = arg.match(/^file:\/\/(.+)$/i);
   if (fileMatch) {
     return (
-      isSafeToolInputItemRaw(arg, allowedPaths, allowGitUnmanagedFiles) &&
-      isSafeToolInputItemRaw(
+      findUnsafeItemRawReason(arg, allowedPaths, allowGitUnmanagedFiles) ??
+      findUnsafeItemRawReason(
         `/${fileMatch[1]}`,
         allowedPaths,
         allowGitUnmanagedFiles,
       )
     );
   }
-  return isSafeToolInputItemRaw(arg, allowedPaths, allowGitUnmanagedFiles);
+  return findUnsafeItemRawReason(arg, allowedPaths, allowGitUnmanagedFiles);
 }
 
 /**
  * @param {string} arg
  * @param {string[]} [allowedPaths=[]] - Additional allowed paths (outside working directory)
  * @param {boolean} [allowGitUnmanagedFiles=false] - Allow access to git-unmanaged files
- * @returns {boolean}
+ * @returns {string | null}
  */
-function isSafeToolInputItemRaw(
+function findUnsafeItemRawReason(
   arg,
   allowedPaths = [],
   allowGitUnmanagedFiles = false,
@@ -144,7 +170,7 @@ function isSafeToolInputItemRaw(
 
   const realPath = resolveRealPath(absPath, workingDir);
   if (!realPath) {
-    return false;
+    return `cannot resolve path (broken or circular symlink): ${arg}`;
   }
 
   // Disallow any input that contains ".." as a path segment (directory traversal)
@@ -153,20 +179,20 @@ function isSafeToolInputItemRaw(
   // - "safe-dir/../unsafe-path" should be disallowed
   // This check must happen before allowedPaths check for security
   if (arg.split(path.sep).includes("..")) {
-    return false;
+    return `path traversal (..) is not allowed: ${arg}`;
   }
 
   // Built-in allowed paths (memory, tmp, claude-code-plugins) are always safe.
   // This check must come before the .plain-agent/ block below.
   if (isInBuiltinAllowedPath(realPath)) {
-    return true;
+    return null;
   }
 
   // Any other path under .plain-agent/ is unsafe and cannot be overridden
   // by allowedPaths. This prevents privilege escalation via sandbox scripts
   // or config files even when explicitly listed in allowedPaths.
   if (isInsideProjectMetadataDir(realPath)) {
-    return false;
+    return `path is inside the project metadata directory (${AGENT_PROJECT_METADATA_DIR}/): ${arg}`;
   }
 
   // Path must be inside the working directory or in user-configured allowed paths
@@ -174,15 +200,15 @@ function isSafeToolInputItemRaw(
     !isInsideWorkingDirectory(realPath, workingDir) &&
     !isInUserAllowedPath(realPath, allowedPaths)
   ) {
-    return false;
+    return `path is outside the working directory and not in allowedPaths: ${arg}`;
   }
 
   // Deny git-unmanaged files (outside git repo or git-ignored)
   if (!allowGitUnmanagedFiles && !isGitManaged(realPath)) {
-    return false;
+    return `path is not managed by git (ignored or outside a repository): ${arg}`;
   }
 
-  return true;
+  return null;
 }
 
 /**
