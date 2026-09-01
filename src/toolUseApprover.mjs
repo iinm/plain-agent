@@ -80,7 +80,10 @@ export function createToolUseApprover({
         state.approvalCount += 1;
         return state.approvalCount <= max
           ? { action: "allow" }
-          : { action: "ask" };
+          : {
+              action: defaultAction,
+              reason: `Auto-approval limit exceeded (${max})`,
+            };
       }
 
       return { action };

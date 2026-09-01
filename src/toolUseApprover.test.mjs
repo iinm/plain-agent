@@ -39,7 +39,10 @@ describe("createToolUseApprover", () => {
     );
     assert.deepStrictEqual(
       toolApprover.isAllowedToolUse(allowedToolUse),
-      { action: "ask" },
+      {
+        action: "ask",
+        reason: "Auto-approval limit exceeded (2)",
+      },
       "should not approve on third use (exceeds maxApprovals)",
     );
 
@@ -317,6 +320,40 @@ describe("createToolUseApprover", () => {
     const decision = toolApprover.isAllowedToolUse(toolUse);
     assert.strictEqual(decision.action, "deny");
     assertUnsafePathReason(decision.reason);
+  });
+  it("should deny with reason when maxApprovals is exceeded and defaultAction is deny", () => {
+    // given:
+    const toolApprover = createToolUseApprover({
+      patterns: [
+        {
+          toolName: "exec_command",
+          input: { command: "cat" },
+          action: "allow",
+        },
+      ],
+      maxApprovals: 1,
+      defaultAction: "deny",
+      maskApprovalInput: (_name, input) => input,
+    });
+
+    /** @type {MessageContentToolUse} */
+    const toolUse = {
+      type: "tool_use",
+      toolUseId: "test",
+      toolName: "exec_command",
+      input: { command: "cat", args: ["README.md"] },
+    };
+
+    // when/then:
+    assert.deepStrictEqual(toolApprover.isAllowedToolUse(toolUse), {
+      action: "allow",
+    });
+
+    // when/then:
+    assert.deepStrictEqual(toolApprover.isAllowedToolUse(toolUse), {
+      action: "deny",
+      reason: "Auto-approval limit exceeded (1)",
+    });
   });
 });
 
