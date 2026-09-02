@@ -870,7 +870,7 @@
       }
     },
     {
-      "name": "claude-fable-5",
+      "name": "claude-fable-5-1",
       "variant": "thinking-high",
       "platform": {
         "name": "anthropic",
@@ -880,7 +880,7 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "claude-fable-5",
+          "model": "claude-fable-5-1",
           "max_tokens": 32768,
           "thinking": { "type": "adaptive" },
           "output_config": { "effort": "high" }
@@ -892,7 +892,7 @@
         "prices": {
           "input_tokens": 10,
           "output_tokens": 50,
-          "cache_read_input_tokens": 1,
+          "cache_read_input_tokens": 0.25,
           "cache_creation_input_tokens": 12.5
         }
       },
@@ -905,7 +905,7 @@
       }
     },
     {
-      "name": "claude-fable-5",
+      "name": "claude-fable-5-1",
       "variant": "thinking-max",
       "platform": {
         "name": "anthropic",
@@ -915,7 +915,7 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "claude-fable-5",
+          "model": "claude-fable-5-1",
           "max_tokens": 64000,
           "thinking": { "type": "adaptive" },
           "output_config": { "effort": "max" }
@@ -927,7 +927,7 @@
         "prices": {
           "input_tokens": 10,
           "output_tokens": 50,
-          "cache_read_input_tokens": 1,
+          "cache_read_input_tokens": 0.25,
           "cache_creation_input_tokens": 12.5
         }
       },
@@ -1279,7 +1279,7 @@
       }
     },
     {
-      "name": "claude-fable-5",
+      "name": "claude-fable-5-1",
       "variant": "thinking-high-bedrock",
       "platform": {
         "name": "bedrock",
@@ -1288,7 +1288,7 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "global.anthropic.claude-fable-5",
+          "model": "global.anthropic.claude-fable-5-1",
           "max_tokens": 32768,
           "thinking": { "type": "adaptive" },
           "output_config": { "effort": "high" }
@@ -1300,7 +1300,7 @@
         "prices": {
           "input_tokens": 10,
           "output_tokens": 50,
-          "cache_read_input_tokens": 1,
+          "cache_read_input_tokens": 0.25,
           "cache_creation_input_tokens": 12.5
         }
       },
@@ -1313,7 +1313,7 @@
       }
     },
     {
-      "name": "claude-fable-5",
+      "name": "claude-fable-5-1",
       "variant": "thinking-max-bedrock",
       "platform": {
         "name": "bedrock",
@@ -1322,7 +1322,7 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "global.anthropic.claude-fable-5",
+          "model": "global.anthropic.claude-fable-5-1",
           "max_tokens": 64000,
           "thinking": { "type": "adaptive" },
           "output_config": { "effort": "max" }
@@ -1334,7 +1334,7 @@
         "prices": {
           "input_tokens": 10,
           "output_tokens": 50,
-          "cache_read_input_tokens": 1,
+          "cache_read_input_tokens": 0.25,
           "cache_creation_input_tokens": 12.5
         }
       },
