@@ -35,6 +35,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Checkout PR branch
+        if: github.event_name == 'issue_comment' && github.event.issue.pull_request != null
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr checkout "${{ github.event.issue.number }}"
+
       - name: Install Agent
         run: |
           # npm install -g @iinm/plain-agent
@@ -125,18 +132,24 @@ jobs:
             options+=(-s -)
           fi
 
-          plain batch "${options[@]}" "$PROMPT" | tee events.jsonl | jq .
+          plain batch "${options[@]}" "$PROMPT" | tee .plain-agent/events.jsonl | jq .
 
           # Format result
           agent_message=$(jq -sr '
             map(select(.message.role == "assistant")) | last
             | .message.content[] | select(.type == "text")
             | .text
-          ' events.jsonl)
+          ' .plain-agent/events.jsonl)
 
           echo
           echo "---"
           echo "$agent_message"
+
+          turns=$(jq -c 'select(.type == "message" and .message.role == "assistant")' .plain-agent/events.jsonl | wc -l)
+
+          echo
+          echo "---"
+          echo "turns: $turns"
 
           session_file=".plain-agent/sessions/$(ls -1t .plain-agent/sessions | head -1)"
           cost_details=$(jq -sr 'map(select(.type == "session_end")) | last | .cost' "$session_file")
@@ -158,7 +171,7 @@ jobs:
           ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
 
           <details>
-          <summary>Token cost: +$cost_total_diff USD</summary>
+          <summary>+$cost_total_diff USD / $turns turns</summary>
 
           \`\`\`
           $cost_details
