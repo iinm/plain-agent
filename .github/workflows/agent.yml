@@ -35,13 +35,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Checkout PR branch
-        if: github.event_name == 'issue_comment' && github.event.issue.pull_request != null
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh pr checkout "${{ github.event.issue.number }}"
-
       - name: Install Agent
         run: |
           # npm install -g @iinm/plain-agent
@@ -78,10 +71,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y w3m
 
-          echo -e "[tools]\nnode = '22'\ngh = 'latest'" > mise.local.toml
-          plain-sandbox --allow-write --allow-net 0.0.0.0/0 --verbose \
-            bash -c 'mise trust mise.local.toml && mise install'
-          plain-sandbox --allow-write --allow-net 0.0.0.0/0 --verbose npm ci
+          cat > mise.local.toml <<EOF
+          [tools]
+          node = '22'
+          gh = 'latest'
+          EOF
+
+          sandbox() {
+            plain-sandbox --allow-write --allow-net 0.0.0.0/0 --verbose "$@"
+          }
+          sandbox mise trust mise.local.toml
+          sandbox mise install
+          sandbox npm ci
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -109,20 +110,20 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Build Prompt
+          # Build prompt
+          branch=$(git branch --show-current)
+          session_start_prompt="(System: Session started or resumed. The branch has been reset to $branch)"
+
           if test "$EVENT_NAME" = "workflow_dispatch"; then
-            PROMPT="$INPUT_PROMPT"
+            prompt="$session_start_prompt $INPUT_PROMPT"
           elif test "$EVENT_NAME" = "issue_comment"; then
-            PROMPT="Issue/PR: #$ISSUE_NUMBER $COMMENT_BODY"
+            prompt="$session_start_prompt Issue/PR: #$ISSUE_NUMBER $COMMENT_BODY"
           else
             echo "Unsupported event: $EVENT_NAME" >&2
             exit 1
           fi
 
-          # Test Approval Rules
-          plain test-approval -c .plain-agent/config.github-actions.json
-
-          # Run Agent
+          # Run agent
           options=(
             -c .plain-agent/config.github-actions.json
             --budget-soft-limit "$BUDGET_SOFT_LIMIT"
@@ -132,7 +133,7 @@ jobs:
             options+=(-s -)
           fi
 
-          plain batch "${options[@]}" "$PROMPT" | tee .plain-agent/events.jsonl | jq .
+          plain batch "${options[@]}" "$prompt" | tee .plain-agent/events.jsonl | jq .
 
           # Format result
           agent_message=$(jq -sr '
