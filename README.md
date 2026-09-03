@@ -605,12 +605,12 @@ Files are loaded in the following order. Settings in later files override earlie
     "webSearch": {
       "provider": "gemini",
       "apiKey": "<GEMINI_API_KEY>",
-      "model": "gemini-3.6-flash"
+      "model": "gemini-3.8-flash"
 
       // Or use Vertex AI (requires the gcloud CLI)
       // "provider": "gemini-vertex-ai",
       // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
-      // "model": "gemini-3.6-flash"
+      // "model": "gemini-3.8-flash"
 
       // Or use a custom command
       // "provider": "command",
@@ -621,7 +621,7 @@ Files are loaded in the following order. Settings in later files override earlie
     "webFetch": {
       "provider": "gemini",
       "apiKey": "<GEMINI_API_KEY>",
-      "model": "gemini-3.6-flash"
+      "model": "gemini-3.8-flash"
 
       // Or use Vertex AI (requires the gcloud CLI)
 

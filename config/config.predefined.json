@@ -1372,9 +1372,9 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "promptTokenCount": 0.75,
-          "cachedContentTokenCount": -0.675,
-          "candidatesTokenCount": 3.75
+          "promptTokenCount": 1.5,
+          "cachedContentTokenCount": -1.35,
+          "candidatesTokenCount": 7.5
         }
       },
       "autoCompact": { "inputTokensKeys": ["promptTokenCount"] }
@@ -1404,9 +1404,9 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "promptTokenCount": 0.75,
-          "cachedContentTokenCount": -0.675,
-          "candidatesTokenCount": 3.75
+          "promptTokenCount": 1.5,
+          "cachedContentTokenCount": -1.35,
+          "candidatesTokenCount": 7.5
         }
       },
       "autoCompact": { "inputTokensKeys": ["promptTokenCount"] }
@@ -1436,9 +1436,9 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "promptTokenCount": 0.75,
-          "cachedContentTokenCount": -0.675,
-          "candidatesTokenCount": 3.75
+          "promptTokenCount": 1.5,
+          "cachedContentTokenCount": -1.35,
+          "candidatesTokenCount": 7.5
         }
       },
       "autoCompact": { "inputTokensKeys": ["promptTokenCount"] }
@@ -1467,9 +1467,9 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "promptTokenCount": 0.75,
-          "cachedContentTokenCount": -0.675,
-          "candidatesTokenCount": 3.75
+          "promptTokenCount": 1.5,
+          "cachedContentTokenCount": -1.35,
+          "candidatesTokenCount": 7.5
         }
       },
       "autoCompact": { "inputTokensKeys": ["promptTokenCount"] }

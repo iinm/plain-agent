@@ -264,7 +264,7 @@ async function webFetchViaCommand(config, input) {
  * @returns {Promise<string | Error>}
  */
 async function webFetchViaGemini(config, input, retryCount) {
-  const model = config.model ?? "gemini-3.6-flash";
+  const model = config.model ?? "gemini-3.8-flash";
   const url =
     config.provider === "gemini-vertex-ai"
       ? `${config.baseURL}/publishers/google/models/${config.model}:generateContent`
