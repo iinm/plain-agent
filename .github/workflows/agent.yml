@@ -103,9 +103,9 @@ jobs:
           BUDGET_SOFT_LIMIT: turns:80
           BUDGET_PROMPT: |
             System: Budget limit approaching.
-            Stop further exploration and finalize the current task.
-            Provide the most important results, findings, changes made,
-            and any remaining issues or next steps.
+            The current environment will be cleared when this session ends.
+            - If you made changes, commit and push them, and create or update a PR.
+            - If this was only a question and no changes were made, just provide the answer.
         run: |
           set -euo pipefail
 
