@@ -196,18 +196,18 @@ rm -f test
 echo "case: network is disabled by default"
 # given:
 if test "$(uname)" = "Darwin"; then
-  nc -l 8000 &> /dev/null &
+  nc -l 18080 &> /dev/null &
 else
-  nc -l -p 8000 &> /dev/null &
+  nc -l -p 18080 &> /dev/null &
 fi
 nc_pid=$!
 # when:
-out=$(plain-sandbox --dockerfile Dockerfile.minimum --rebuild busybox nc -w 2 host.docker.internal 8000 < /dev/null 2>&1) || status=$?
+out=$(plain-sandbox --dockerfile Dockerfile.minimum --rebuild busybox nc -w 2 host.docker.internal 18080 < /dev/null 2>&1) || status=$?
 # then:
 test "$status" -ne 0
 grep -qE "nc: bad address" <<< "$out"
 # cleanup:
-if lsof -i:8000 | grep -q "$nc_pid"; then
+if lsof -i:18080 | grep -q "$nc_pid"; then
   kill "$nc_pid"
 fi
 
@@ -215,17 +215,17 @@ fi
 echo "case: --allow-net allows access to domain but only 443"
 # given:
 if test "$(uname)" = "Darwin"; then
-  nc -l 8000 &> /dev/null &
+  nc -l 18080 &> /dev/null &
 else
-  nc -l -p 8000 &> /dev/null &
+  nc -l -p 18080 &> /dev/null &
 fi
 nc_pid=$!
 # when:
-out=$(plain-sandbox --dockerfile Dockerfile.minimum --rebuild --allow-net host.docker.internal busybox nc -w 2 host.docker.internal 8000 < /dev/null 2>&1) || status=$?
+out=$(plain-sandbox --dockerfile Dockerfile.minimum --rebuild --allow-net host.docker.internal busybox nc -w 2 host.docker.internal 18080 < /dev/null 2>&1) || status=$?
 # then:
 grep -qE "Connection refused" <<< "$out"
 # cleanup:
-if lsof -i:8000 | grep -q "$nc_pid"; then
+if lsof -i:18080 | grep -q "$nc_pid"; then
   kill "$nc_pid"
 fi
 
@@ -233,15 +233,15 @@ fi
 echo "case: --allow-net allows access to host:port"
 # given:
 if test "$(uname)" = "Darwin"; then
-  nc -l 8000 &> /dev/null &
+  nc -l 18080 &> /dev/null &
 else
-  nc -l -p 8000 &> /dev/null &
+  nc -l -p 18080 &> /dev/null &
 fi
 nc_pid=$!
 # when:
-plain-sandbox --dockerfile Dockerfile.minimum --rebuild --allow-net host.docker.internal:8000 busybox nc -w 2 host.docker.internal 8000 < /dev/null
+plain-sandbox --dockerfile Dockerfile.minimum --rebuild --allow-net host.docker.internal:18080 busybox nc -w 2 host.docker.internal 18080 < /dev/null
 # cleanup:
-if lsof -i:8000 | grep -q "$nc_pid"; then
+if lsof -i:18080 | grep -q "$nc_pid"; then
   kill "$nc_pid"
 fi
 
@@ -249,17 +249,37 @@ fi
 echo "case: --allow-net allows access to ip range"
 # given:
 if test "$(uname)" = "Darwin"; then
-  nc -l 8000 &> /dev/null &
+  nc -l 18080 &> /dev/null &
 else
-  nc -l -p 8000 &> /dev/null &
+  nc -l -p 18080 &> /dev/null &
 fi
 nc_pid=$!
 # when:
 plain-sandbox --dockerfile Dockerfile.minimum --rebuild --allow-net 0.0.0.0/0 busybox nc -w 2 8.8.8.8 443 < /dev/null
 # cleanup:
-if lsof -i:8000 | grep -q "$nc_pid"; then
+if lsof -i:18080 | grep -q "$nc_pid"; then
   kill "$nc_pid"
 fi
+
+
+echo "case: --allow-net allows DNS resolution of allowed domains"
+# when/then:
+plain-sandbox --dockerfile Dockerfile.minimum --rebuild --allow-net example.com dig +time=3 +tries=1 +short example.com | grep -qE "([0-9]{1,3}\.){3}[0-9]{1,3}"
+
+
+echo "case: --allow-net rejects DNS resolution of non-allowed domains"
+# when:
+out=$(plain-sandbox --dockerfile Dockerfile.minimum --rebuild --allow-net example.com dig +time=3 +tries=1 google.com 2>&1) || status=$?
+# then:
+grep -qE "status: NXDOMAIN" <<< "$out"
+
+
+echo "case: --allow-net blocks direct queries to DNS servers"
+# when:
+out=$(plain-sandbox --dockerfile Dockerfile.minimum --rebuild --allow-net example.com bash -c 'dig +time=3 +tries=1 @127.0.0.11 google.com; dig +time=3 +tries=1 @8.8.8.8 google.com' 2>&1) || status=$?
+# then:
+test "$status" -ne 0
+test "$(grep -c "connection refused" <<< "$out")" -eq 2
 
 
 echo "case: reuse existing container (image and container reuse on second run)"
