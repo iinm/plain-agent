@@ -38,6 +38,8 @@ log "egress: ${EGRESS_IF} (default via ${EGRESS_GW})"
   # to 0.0.0.0 and silently drops the rest. Do not set listen-address
   echo "no-resolv"
   echo "no-poll"
+  echo "log-queries"
+  echo "log-facility=-"
   # allow-only DNS: listed names are forwarded, anything else gets SERVFAIL.
   # The list comes from the same env vars as the connection filters, so queries
   # can never name an attacker-controlled zone (closes DNS exfiltration)
