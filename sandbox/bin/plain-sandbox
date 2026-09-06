@@ -47,6 +47,8 @@ Options:
   --allow-net DESTINATIONS  Allow connections to specified domains or IP addresses.
                             Separate multiple destinations with commas.
                             If no port is given, only HTTPS (443) is allowed.
+                            DNS is restricted to the allowed domains unless
+                            0.0.0.0/0 is included.
   --volume [NAME:]PATH      Mount a writable Docker volume at PATH inside the container.
                             If PATH is absolute, it is used as-is inside the container.
                             if PATH is relative, it is mounted relative to the project root
@@ -607,7 +609,7 @@ EOF
 
     log "Starting container."
     run docker run "${docker_run_opts[@]}" "${IMAGE_NAME}:${image_tag}" \
-      "$CONTAINER_SCRIPT_PATH" start_container_dnsmasq
+      "$CONTAINER_SCRIPT_PATH" start_container_dnsmasq "${allow_net_destinations[@]:-}"
 
     if test "${#volume_mount_paths[@]}" -gt 0; then
       log "Setting up volume ownership to match host user ($host_user_id:$host_group_id)."
@@ -701,14 +703,59 @@ container_exec() {
 }
 
 start_container_dnsmasq() {
+  local destinations=("$@")
   mkdir -p /sandbox/etc
   cat > /sandbox/etc/dnsmasq.conf << 'EOF'
 log-queries
 listen-address=127.0.0.1
+no-resolv
+user=nobody
 EOF
+
+  local upstream_servers=()
   while read -r server; do
-    echo "server=$server" >> /sandbox/etc/dnsmasq.conf
+    upstream_servers+=("$server")
   done < <(awk '$1 == "nameserver" {print $2}' /etc/resolv.conf)
+
+  local unrestricted="no"
+  local allow_domains=()
+  local destination
+  local host
+  local port
+  for destination in "${destinations[@]:-}"; do
+    test -n "$destination" || continue
+    host="$destination"
+    port=""
+    if grep -q ':' <<< "$destination"; then
+      IFS=':' read -r host port <<< "$destination"
+    fi
+    if test "$host" = "0.0.0.0/0"; then
+      unrestricted="yes"
+    elif grep -qE '^([a-zA-Z0-9](-*[a-zA-Z0-9])*\.)+[a-zA-Z]{2,}$' <<< "$host"; then
+      allow_domains+=("$host")
+    elif grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$' <<< "$host"; then
+      : # IP destinations do not need DNS
+    else
+      echo "Warning: skip non-domain DNS destination: $destination" >&2
+    fi
+  done
+
+  # local=/#/ answers unmatched domains locally (NXDOMAIN) so they never leave the container
+  if test "$unrestricted" = "yes"; then
+    for server in "${upstream_servers[@]:-}"; do
+      echo "server=$server" >> /sandbox/etc/dnsmasq.conf
+    done
+  else
+    echo "local=/#/" >> /sandbox/etc/dnsmasq.conf
+    if test "${#allow_domains[@]}" -gt 0; then
+      for domain in "${allow_domains[@]}"; do
+        echo "server=/$domain/${upstream_servers[0]:-127.0.0.11}" >> /sandbox/etc/dnsmasq.conf
+      done
+    else
+      echo "Warning: no domains allowed for DNS resolution" >&2
+    fi
+  fi
+
   echo "nameserver 127.0.0.1" > /etc/resolv.conf
 
   exec dnsmasq -k -C /sandbox/etc/dnsmasq.conf --log-facility /dev/stdout
@@ -747,14 +794,19 @@ setup_container_firewall() {
   ip6tables -t mangle -F
   ip6tables -t mangle -X
 
-  local dns_server_pattern='^[0-9]{1,3}(\.[0-9]{1,3}){3}$'
-  while read -r server; do
-    if ! grep -qE "$dns_server_pattern" <<< "$server"; then
-      continue
-    fi
-    iptables -A OUTPUT -p udp -d "$server" --dport 53 -j ACCEPT
-    iptables -A INPUT  -p udp -s "$server" --sport 53 -j ACCEPT
-  done < <(awk -F= '$1=="server" && $2!="" {n=$2; sub(/.*\//,"",n); print n}' /sandbox/etc/dnsmasq.conf)
+  # All DNS must go through dnsmasq (runs as nobody); others are rejected on port 53.
+  # The docker embedded DNS (127.0.0.11) is blocked by destination: its DNAT hides port 53.
+  local dnsmasq_uid
+  dnsmasq_uid=$(id -u nobody 2> /dev/null || echo 65534)
+  iptables -A OUTPUT -o lo -d 127.0.0.1 -p udp --dport 53 -j ACCEPT
+  iptables -A OUTPUT -o lo -d 127.0.0.1 -p tcp --dport 53 -j ACCEPT
+  iptables -A OUTPUT -p udp --dport 53 -m owner ! --uid-owner "$dnsmasq_uid" -j REJECT --reject-with icmp-port-unreachable
+  iptables -A OUTPUT -p tcp --dport 53 -m owner ! --uid-owner "$dnsmasq_uid" -j REJECT --reject-with tcp-reset
+  iptables -A OUTPUT -o lo -d 127.0.0.11 -m owner ! --uid-owner "$dnsmasq_uid" -j REJECT
+
+  # dnsmasq alone may query upstreams (e.g. 127.0.0.11); replies return via lo accept / ESTABLISHED
+  iptables -A OUTPUT -p udp --dport 53 -m owner --uid-owner "$dnsmasq_uid" -j ACCEPT
+  iptables -A OUTPUT -p tcp --dport 53 -m owner --uid-owner "$dnsmasq_uid" -j ACCEPT
   
   # allow localhost
   iptables -A INPUT -i lo -j ACCEPT
