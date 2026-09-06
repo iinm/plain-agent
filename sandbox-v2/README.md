@@ -13,8 +13,8 @@ dind ────┼─ internal network ── gateway ── egress network �
   run only images built from this repo, so the egress filter never runs agent code
 - sandbox / dind sit on the internal network only. If the gateway is down, traffic is
   blocked, not bypassed.
-- The only exit is the gateway: 443 is matched by SNI (Envoy), 80 by pinned IPs (ipset),
-  DNS only via the gateway's dnsmasq (allow-only)
+- The only exit is the gateway: 443 is matched by SNI (Envoy), 80 by Host header
+  (Envoy), DNS only via the gateway's dnsmasq (allow-only)
 
 
 - sandbox / dind have no NET_ADMIN; route-keeper-* sidecars hold it and keep the
@@ -91,8 +91,8 @@ Then `docker compose up -d --wait` (recreates the gateway with the new list).
 
 | Variable | Scope | How it matches |
 |---|---|---|
-| `ALLOWED_HTTPS_DOMAINS` | HTTPS (443) | Envoy matches by SNI. Unaffected by IP changes |
-| `ALLOWED_HTTP_HOSTS` | Plain HTTP (80) | All A records are pinned into ipset at startup |
+| `ALLOWED_HTTPS_DOMAINS` | HTTPS (443) | Envoy matches by SNI. |
+| `ALLOWED_HTTP_HOSTS` | Plain HTTP (80) | Envoy matches the Host header. |
 Both lists also drive the gateway's dnsmasq (allow-only DNS): one edit updates the
 connection filters and name resolution together. Names outside the lists get SERVFAIL,
 which closes DNS exfiltration (and diagnostic lookups of non-allowed names fail too).
@@ -127,7 +127,6 @@ The positive tests in verify.sh use `github.com` (HTTPS) and `archive.ubuntu.com
   all egress stays filtered. Acceptable on disposable hosts without long-lived
   secrets (a dev laptop, a GitHub-hosted runner with minimal token scope);
   not on self-hosted or shared runners
-- **Port 80 IPs are pinned at gateway startup**. The ipset allow-list holds the
-  A records resolved at startup; if the DNS records later change (CDN rotation),
-  port-80 access breaks until the gateway restarts. 443 is unaffected (Envoy
-  matches by SNI, not by IP)
+- **Plain HTTP (80) is terminated at the gateway**. Envoy matches the Host header and
+  re-originates the request, so the gateway sees the HTTP contents. 443 stays
+  SNI-passthrough and opaque (inherent to filtering plain HTTP)

@@ -1,10 +1,5 @@
 #!/bin/bash
-# ============================================================
 # gateway: the only exit from the sandbox internal network
-#   443: REDIRECT to Envoy (matched by SNI). 80: ipset (pinned A records).
-#   53: dnsmasq (allow-only; the list is generated from the env allow lists). else: FORWARD DROP.
-# SNI matching needs no IPs in ipset (immune to IP changes); only plain 80 pins IPs
-# ============================================================
 set -euo pipefail
 
 log() { echo "[gateway] $*" >&2; }
@@ -60,39 +55,12 @@ for _ in $(seq 1 20); do
   fi
   sleep 1
 done
-
-ipset create allow_list hash:net,port -exist
-
-# CDN domains resolve to several IPs; pin all of them, not just one
-resolve_all_a() {
-  dig @127.0.0.1 "$1" +short +time=2 +tries=2 2>/dev/null \
-    | grep -E '^[0-9]+(\.[0-9]+){3}$' || true
-}
-
-for host in $ALLOWED_HTTP_HOSTS; do
-  ips=""
-  for _ in $(seq 1 10); do
-    ips=$(resolve_all_a "$host")
-    if [ -n "$ips" ]; then break; fi
-    log "waiting for DNS resolution: ${host}"
-    sleep 3
-  done
-  if [ -z "$ips" ]; then
-    log "ERROR: cannot resolve ${host} (check DNS_UPSTREAM reachability)"
-    exit 1
-  fi
-  for ip in $ips; do
-    ipset add allow_list "${ip},tcp:80" -exist
-  done
-  log "ipset: ${host} -> $(echo "$ips" | tr '\n' ' ') (tcp:80)"
-done
-
 iptables -t nat -A POSTROUTING -o "$EGRESS_IF" -j MASQUERADE
 # Envoy's own upstream connections leave via OUTPUT, so this REDIRECT cannot recurse
 iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 10443
+iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 10080
 iptables -A FORWARD -p udp --dport 53 -j DROP
 iptables -A FORWARD -p tcp --dport 53 -j DROP
-iptables -A FORWARD -m set --match-set allow_list dst,dst -j ACCEPT
 iptables -A FORWARD -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 iptables -P FORWARD DROP
 # IPv6 is disabled; this DROP is a fail-closed backstop against a future leak
@@ -132,6 +100,41 @@ generate_envoy_config() {
         "          stat_prefix: ${cluster}" \
         "          cluster: ${cluster}"
     done
+    # port 80 is plain HTTP: match the request Host header
+    printf '%s\n' \
+      '  - name: http_listener' \
+      '    address:' \
+      '      socket_address: { address: 0.0.0.0, port_value: 10080 }' \
+      '    filter_chains:' \
+      '    - filters:' \
+      '      - name: envoy.filters.network.http_connection_manager' \
+      '        typed_config:' \
+      '          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager' \
+      '          stat_prefix: http80' \
+      '          codec_type: AUTO' \
+      '          route_config:' \
+      '            virtual_hosts:'
+    for domain in $ALLOWED_HTTP_HOSTS; do
+      cluster="$(cluster_name "$domain")_http_cluster"
+      printf '%s\n' \
+        "            - name: ${cluster}" \
+        "              domains: [\"${domain}\"]" \
+        "              routes:" \
+        "              - match: { prefix: \"/\" }" \
+        "                route: { cluster: ${cluster} }"
+    done
+    printf '%s\n' \
+      '            - name: deny' \
+      '              domains: ["*"]' \
+      '              routes:' \
+      '              - match: { prefix: "/" }' \
+      '                direct_response:' \
+      '                  status: 403' \
+      '                  body: { inline_string: "host not allowed" }' \
+      '          http_filters:' \
+      '          - name: envoy.filters.http.router' \
+      '            typed_config:' \
+      '              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router'
     printf '%s\n' '  clusters:'
     for domain in $ALLOWED_HTTPS_DOMAINS; do
       cluster="$(cluster_name "$domain")_cluster"
@@ -149,11 +152,27 @@ generate_envoy_config() {
         '            address:' \
         "              socket_address: { address: ${domain}, port_value: 443 }"
     done
+    for domain in $ALLOWED_HTTP_HOSTS; do
+      cluster="$(cluster_name "$domain")_http_cluster"
+      printf '%s\n' \
+        "  - name: ${cluster}" \
+        '    type: STRICT_DNS' \
+        '    connect_timeout: 5s' \
+        '    dns_lookup_family: V4_ONLY' \
+        '    lb_policy: ROUND_ROBIN' \
+        '    load_assignment:' \
+        "      cluster_name: ${cluster}" \
+        '      endpoints:' \
+        '      - lb_endpoints:' \
+        '        - endpoint:' \
+        '            address:' \
+        "              socket_address: { address: ${domain}, port_value: 80 }"
+    done
   } > "$out"
 }
 
 generate_envoy_config /envoy-shared/envoy.yaml
-log "envoy.yaml generated (allowed: ${ALLOWED_HTTPS_DOMAINS})"
+log "envoy.yaml generated (https: ${ALLOWED_HTTPS_DOMAINS} / http: ${ALLOWED_HTTP_HOSTS})"
 
 touch /gateway-ready
 log "ready"

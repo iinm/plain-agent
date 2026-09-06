@@ -94,13 +94,11 @@ if docker exec "${COMPOSE_PROJECT_NAME}-gateway" iptables -t nat -S PREROUTING 2
 else
   fail "no redirect rule for 443"
 fi
-if docker exec "${COMPOSE_PROJECT_NAME}-gateway" ipset list allow_list 2>/dev/null | sed -n '/^Members:/,$p' | grep '[0-9]' >/dev/null; then
-  pass "ipset allow_list holds pinned entries (port-80 allows)"
+if docker exec "${COMPOSE_PROJECT_NAME}-gateway" iptables -t nat -S PREROUTING 2>/dev/null | grep 'REDIRECT.*10080' >/dev/null; then
+  pass "80 is redirected to Envoy (10080)"
 else
-  fail "ipset allow_list has no pinned entries"
+  fail "no redirect rule for 80"
 fi
-info "ipset allow_list members:"
-docker exec "${COMPOSE_PROJECT_NAME}-gateway" ipset list allow_list 2>/dev/null | sed -n '/^Members:/,$p' | sed 's/^/    /'
 
 section "Allowed domain (HTTPS)"
 code=$(docker exec "${COMPOSE_PROJECT_NAME}-sandbox" curl -sS -o /dev/null -m 8 -w '%{http_code}' "https://${ALLOW_HOST}" 2>/dev/null || echo fail)
@@ -147,18 +145,26 @@ else
 fi
 
 section "Plain HTTP (port 80)"
-# ALLOW_HOST's IP is not in ipset (only ALLOWED_HTTP_HOSTS are pinned): a direct-IP
-# probe isolates the port-80 pin check from name resolution
+# ALLOW_HOST resolves (it is in the DNS allow-list) but is not an HTTP vhost:
+# a direct-IP request isolates the Host-header check from name resolution
 deny_ip=$(docker exec "${COMPOSE_PROJECT_NAME}-sandbox" dig "@$GATEWAY_IP" "$ALLOW_HOST" +short 2>/dev/null | grep -E '^[0-9]+\.' | head -1)
-if docker exec "${COMPOSE_PROJECT_NAME}-sandbox" curl -sS -o /dev/null -m 8 "http://${deny_ip}" >/dev/null 2>&1; then
-  fail "sandbox -> http://${deny_ip} (80) went through. Check the port-80 ipset entries"
+code=$(docker exec "${COMPOSE_PROJECT_NAME}-sandbox" curl -sS -o /dev/null -m 8 -w '%{http_code}' "http://${deny_ip}" 2>/dev/null || echo fail)
+if [ "$code" = "403" ]; then
+  pass "sandbox -> http://${deny_ip} (80, Host header not allow-listed) gets 403 from Envoy"
 else
-  pass "sandbox -> http://${deny_ip} (80, direct IP not in ipset) is rejected"
+  fail "sandbox -> http://${deny_ip} (80) returned ${code} (expected 403)"
+fi
+
+code=$(docker exec "${COMPOSE_PROJECT_NAME}-sandbox" curl -sS -o /dev/null -m 8 -w '%{http_code}' "http://${ALLOW_HOST}" 2>/dev/null || echo fail)
+if [ "$code" = "403" ]; then
+  pass "sandbox -> http://${ALLOW_HOST} (80, resolvable but not in ALLOWED_HTTP_HOSTS) gets 403"
+else
+  fail "sandbox -> http://${ALLOW_HOST} (80) returned ${code} (expected 403)"
 fi
 
 code=$(docker exec "${COMPOSE_PROJECT_NAME}-sandbox" curl -sS -o /dev/null -m 8 -w '%{http_code}' "http://${HTTP_ALLOW_HOST}" 2>/dev/null || echo fail)
 if echo "$code" | grep -qE '^[23]'; then
-  pass "sandbox -> http://${HTTP_ALLOW_HOST} (port-80 exception) is reachable"
+  pass "sandbox -> http://${HTTP_ALLOW_HOST} (Host-header allow) is reachable"
 else
   fail "port-80 allow for http://${HTTP_ALLOW_HOST} is not working (${code})"
 fi
