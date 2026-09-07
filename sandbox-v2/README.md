@@ -111,8 +111,8 @@ The positive tests in verify.sh use `github.com` (HTTPS) and `archive.ubuntu.com
   (both tested in verify.sh)
 - **CAP_NET_RAW removed from sandbox/dind/route-keeper containers**.
   AF_PACKET needs this capability, so removing it closes L2 spoofing
-  (e.g. ARP spoofing). dind is privileged, but `cap_drop` still applies,
-  and dockerd works fine without the capability
+  (e.g. ARP spoofing). dind runs unprivileged, so `cap_drop` is effective;
+  rootless dockerd does not need the capability
 - **gateway ip6tables FORWARD is also DROP**. IPv6 is disabled, but if that
   ever stops being true, egress is still blocked (fail-closed backstop)
 - **Traffic to the host's bridge IP (the .1 address) bypasses the gateway**.
@@ -121,12 +121,12 @@ The positive tests in verify.sh use `github.com` (HTTPS) and `archive.ubuntu.com
   5355/LLMNR was reachable; 53/22/2375/2376 were closed)
 - **DNS queries for allow-listed zones are visible to those zones' operators** (the
   gateway resolver forwards them upstream; inherent to using DNS at all)
-- **dind is privileged** (required for rootless dockerd userns operation).
-  This removes kernel-level guardrails: a kernel or dockerd bug could lead to
-  host escape. Agent containers still run under rootless dockerd (userns) and
-  all egress stays filtered. Acceptable on disposable hosts without long-lived
-  secrets (a dev laptop, a GitHub-hosted runner with minimal token scope);
-  not on self-hosted or shared runners
+- **dind runs unprivileged** (rootless dockerd creates its own userns via
+  rootlesskit). The container only grants `/dev/net/tun` plus a seccomp/AppArmor
+  relaxation for userns creation and mounts; no kernel-level guardrails are
+  removed. Agent containers still run under rootless dockerd (userns) and
+  all egress stays filtered. Residual risk: kernel userns bugs, inherent to
+  any rootless-docker setup
 - **Plain HTTP (80) is terminated at the gateway**. Envoy matches the Host header and
   re-originates the request, so the gateway sees the HTTP contents. 443 stays
   SNI-passthrough and opaque (inherent to filtering plain HTTP)

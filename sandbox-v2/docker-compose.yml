@@ -77,8 +77,20 @@ services:
   dind:
     image: docker:dind-rootless@sha256:e17fa54c2ffd511d8407c746eec77f7814e6f74fe20caf822dad1870599984c0
     container_name: ${COMPOSE_PROJECT_NAME:-agent}-dind
-    privileged: true  # required for rootless dockerd (userns)
-    cap_drop: [NET_RAW]  # L2-spoofing block, even though privileged
+    # Unprivileged: cap_drop below is ignored on privileged containers, so this
+    # is what makes NET_RAW actually dropped. Relaxations kept to the minimum
+    # rootless dockerd needs:
+    #   seccomp=unconfined - default profile denies clone/unshare with
+    #     CLONE_NEWUSER, which rootlesskit needs to create its userns
+    #   apparmor=unconfined - docker-default denies mount, which rootlesskit's
+    #     copy-up and child mounts need
+    security_opt:
+      - seccomp=unconfined
+      - apparmor=unconfined
+    devices:
+      # tap device for slirp4netns networking
+      - /dev/net/tun
+    cap_drop: [NET_RAW]  # effective because unprivileged; engine ignores cap_drop on privileged
     networks:
       sandbox-internal:
         ipv4_address: ${DIND_IP:-172.28.200.20}

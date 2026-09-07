@@ -67,7 +67,12 @@ if [ "$internal" = "true" ]; then
 else
   fail "internal network is not internal"
 fi
-info "dind is --privileged=$(docker inspect "${COMPOSE_PROJECT_NAME}-dind" --format '{{.HostConfig.Privileged}}') (known trade-off for rootless dockerd)"
+privileged=$(docker inspect "${COMPOSE_PROJECT_NAME}-dind" --format '{{.HostConfig.Privileged}}')
+if [ "$privileged" = "false" ]; then
+  pass "dind runs unprivileged (cap_drop is honored; no kernel guardrails removed)"
+else
+  fail "dind is privileged (cap_drop is silently ignored on privileged containers)"
+fi
 info "Only gateway and route-keeper-* hold NET_ADMIN (they set sandbox/dind routes from outside)"
 
 section "Default gateway"
@@ -195,7 +200,9 @@ section "L2/L3 bypass countermeasures"
 
 for s in sandbox dind route-keeper-sandbox route-keeper-dind; do
   c="${COMPOSE_PROJECT_NAME}-${s}"
-  cap=$(docker exec "$c" sh -c 'grep CapEff /proc/self/status' 2>/dev/null | awk '{print $2}')
+  # CapBnd, not CapEff: exec'd dind processes run as uid 1000 and have CapEff=0
+  # even when cap_drop is ignored, so only the bounding set proves the drop
+  cap=$(docker exec "$c" sh -c 'grep CapBnd /proc/self/status' 2>/dev/null | awk '{print $2}')
   if [ -n "$cap" ] && [ "$((16#$cap & 16#2000))" -eq 0 ]; then
     pass "$c has no CAP_NET_RAW (cannot spoof L2 frames via AF_PACKET)"
   else
