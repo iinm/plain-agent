@@ -122,11 +122,12 @@ The positive tests in verify.sh use `github.com` (HTTPS) and `archive.ubuntu.com
 - **DNS queries for allow-listed zones are visible to those zones' operators** (the
   gateway resolver forwards them upstream; inherent to using DNS at all)
 - **dind runs unprivileged** (rootless dockerd creates its own userns via
-  rootlesskit). The container only grants `/dev/net/tun` plus a seccomp/AppArmor
-  relaxation for userns creation and mounts; no kernel-level guardrails are
-  removed. Agent containers still run under rootless dockerd (userns) and
-  all egress stays filtered. Residual risk: kernel userns bugs, inherent to
-  any rootless-docker setup
+  rootlesskit). It only adds what rootless dockerd needs: `/dev/net/tun`,
+  seccomp/AppArmor relaxed for userns creation and mounts, and `/proc`
+  unmasked (`systempaths=unconfined`; the default masking blocks the proc
+  mount runc needs to start containers). Agent containers still run under
+  rootless dockerd (userns) and all egress stays filtered. Residual risk:
+  kernel userns bugs, inherent to any rootless-docker setup
 - **Plain HTTP (80) is terminated at the gateway**. Envoy matches the Host header and
   re-originates the request, so the gateway sees the HTTP contents. 443 stays
   SNI-passthrough and opaque (inherent to filtering plain HTTP)

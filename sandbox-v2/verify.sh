@@ -193,7 +193,7 @@ section "Image pull via dind"
 if docker exec "${COMPOSE_PROJECT_NAME}-sandbox" docker run --rm hello-world 2>/dev/null | grep "Hello from Docker" >/dev/null; then
   pass "sandbox -> dind pulled and ran hello-world (registry traffic passed Envoy's SNI allow)"
 else
-  fail "image pull on dind failed. Check ALLOWED_HTTPS_DOMAINS registry settings"
+  fail "docker run hello-world on dind failed (pull: registry allow-list; start: proc mount). Check dind logs"
 fi
 
 section "L2/L3 bypass countermeasures"
