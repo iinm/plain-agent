@@ -1,0 +1,157 @@
+name: ${COMPOSE_PROJECT_NAME:-agent}
+
+services:
+
+  gateway:
+    build: ./gateway
+    image: ${COMPOSE_PROJECT_NAME:-agent}/gateway:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-agent}-gateway
+    cap_add: [NET_ADMIN]
+    sysctls:
+      net.ipv4.ip_forward: "1"
+      net.ipv6.conf.all.disable_ipv6: "1"
+      net.ipv6.conf.default.disable_ipv6: "1"
+    networks:
+      sandbox-internal:
+        ipv4_address: ${GATEWAY_IP:-172.28.200.100}
+      sandbox-egress: {}
+    environment:
+
+      ALLOWED_HTTPS_DOMAINS: "${ALLOWED_HTTPS_DOMAINS:-github.com api.github.com registry-1.docker.io auth.docker.io production.cloudfront.docker.com}"
+      ALLOWED_HTTP_HOSTS: "${ALLOWED_HTTP_HOSTS:-archive.ubuntu.com security.ubuntu.com}"
+      DNS_UPSTREAM: "${DNS_UPSTREAM:-8.8.8.8 8.8.4.4}"
+      # DNS canary: entrypoint adds it to the dnsmasq allow-list, but to no connection list
+      HEALTHCHECK_DOMAIN: example.com
+      INTERNAL_SUBNET: "${INTERNAL_SUBNET:-172.28.200.0/24}"
+      EGRESS_GW: "${EGRESS_GW:-172.28.201.1}"
+    volumes:
+      - envoy-config:/envoy-shared
+    healthcheck:
+      test: ["CMD", "/healthcheck.sh"]
+      interval: 5s
+      timeout: 4s
+      retries: 36
+      start_period: 10s
+    restart: unless-stopped
+
+
+  envoy:
+    image: envoyproxy/envoy:v1.39.1@sha256:57e14a549d7bd43c8d3f6d03e8cfa653e037d4b38e133acd9b54f38c524401b4
+
+    container_name: ${COMPOSE_PROJECT_NAME:-agent}-envoy
+    network_mode: "service:gateway"
+    entrypoint: ["envoy", "-c", "/etc/envoy/envoy.yaml"]
+    volumes:
+      - envoy-config:/etc/envoy:ro
+    depends_on:
+      gateway:
+        condition: service_healthy
+    restart: unless-stopped
+
+
+  sandbox:
+    build: ./sandbox
+    image: ${COMPOSE_PROJECT_NAME:-agent}/sandbox:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-agent}-sandbox
+    cap_drop: [NET_RAW]  # blocks AF_PACKET (L2 frame spoofing)
+    networks:
+      sandbox-internal:
+        ipv4_address: ${SANDBOX_IP:-172.28.200.10}
+    dns: ["${GATEWAY_IP:-172.28.200.100}"]
+    environment:
+      DOCKER_HOST: tcp://${DIND_IP:-172.28.200.20}:2376
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /certs/client
+    volumes:
+      - dind-certs:/certs:ro
+    depends_on:
+      gateway:
+        condition: service_healthy
+      envoy:
+        condition: service_started
+      dind:
+        condition: service_started
+    restart: unless-stopped
+
+
+  dind:
+    image: docker:dind-rootless@sha256:e17fa54c2ffd511d8407c746eec77f7814e6f74fe20caf822dad1870599984c0
+    container_name: ${COMPOSE_PROJECT_NAME:-agent}-dind
+    # Unprivileged so cap_drop below is effective (ignored on privileged).
+    # Relaxations are the minimum rootless dockerd needs:
+    #   seccomp/apparmor - userns creation and mounts (rootlesskit)
+    #   systempaths - default /proc masking blocks the proc mount runc
+    #     needs to start containers
+    security_opt:
+      - seccomp=unconfined
+      - apparmor=unconfined
+      - systempaths=unconfined
+    devices:
+      # slirp4netns (rootless networking) needs it
+      - /dev/net/tun
+    cap_drop: [NET_RAW]
+    networks:
+      sandbox-internal:
+        ipv4_address: ${DIND_IP:-172.28.200.20}
+    dns: ["${GATEWAY_IP:-172.28.200.100}"]
+    volumes:
+      - dind-data:/home/rootless/.local/share/docker
+      - dind-certs:/certs
+    depends_on:
+      gateway:
+        condition: service_healthy
+    healthcheck:
+      # the rootlesskit port forward (127.0.0.1:2376) works once dockerd starts listening
+      test: ["CMD", "nc", "-w", "2", "127.0.0.1", "2376"]
+      interval: 5s
+      timeout: 3s
+      retries: 36
+      start_period: 10s
+    restart: unless-stopped
+
+
+  route-keeper-sandbox:
+    build: ./gateway
+    image: ${COMPOSE_PROJECT_NAME:-agent}/gateway:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-agent}-route-keeper-sandbox
+    network_mode: "service:sandbox"
+    cap_add: [NET_ADMIN]
+    cap_drop: [NET_RAW]  # shares the sandbox's netns: NET_RAW dropped there too
+    entrypoint: ["/route-keeper.sh", "${GATEWAY_IP:-172.28.200.100}"]
+    depends_on:
+      sandbox:
+        condition: service_started
+    restart: unless-stopped
+
+  route-keeper-dind:
+    build: ./gateway
+    image: ${COMPOSE_PROJECT_NAME:-agent}/gateway:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-agent}-route-keeper-dind
+    network_mode: "service:dind"
+    cap_add: [NET_ADMIN]
+    cap_drop: [NET_RAW]  # shares the dind's netns: NET_RAW dropped there too
+    entrypoint: ["/route-keeper.sh", "${GATEWAY_IP:-172.28.200.100}"]
+    depends_on:
+      dind:
+        condition: service_started
+    restart: unless-stopped
+
+networks:
+  sandbox-internal:
+    name: ${COMPOSE_PROJECT_NAME:-agent}-internal
+    internal: true
+    ipam:
+      config:
+        - subnet: ${INTERNAL_SUBNET:-172.28.200.0/24}
+          gateway: ${INTERNAL_GW:-172.28.200.1}
+  sandbox-egress:
+    name: ${COMPOSE_PROJECT_NAME:-agent}-egress
+    ipam:
+      config:
+        - subnet: ${EGRESS_SUBNET:-172.28.201.0/24}
+          gateway: ${EGRESS_GW:-172.28.201.1}
+
+volumes:
+  envoy-config: {}
+  dind-data: {}
+  dind-certs: {}
