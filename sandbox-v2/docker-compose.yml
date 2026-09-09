@@ -64,6 +64,7 @@ services:
       DOCKER_CERT_PATH: /certs/client
     volumes:
       - dind-certs:/certs:ro
+      - ${WORKSPACE_DIR:-$PWD}:${WORKSPACE_DIR:-$PWD}
     depends_on:
       gateway:
         condition: service_healthy
@@ -97,6 +98,7 @@ services:
     volumes:
       - dind-data:/home/rootless/.local/share/docker
       - dind-certs:/certs
+      - ${WORKSPACE_DIR:-$PWD}:${WORKSPACE_DIR:-$PWD}
     depends_on:
       gateway:
         condition: service_healthy
