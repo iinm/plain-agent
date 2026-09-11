@@ -1950,7 +1950,7 @@
     },
 
     {
-      "name": "deepseek-v4-flash-0731",
+      "name": "deepseek-v4.1-flash",
       "variant": "fireworks",
       "platform": {
         "name": "openai-compatible",
@@ -1959,7 +1959,7 @@
       "model": {
         "format": "openai-chat-completions",
         "config": {
-          "model": "accounts/fireworks/models/deepseek-v4-flash-0731"
+          "model": "accounts/fireworks/models/deepseek-v4p1-flash"
         }
       },
       "cost": {
