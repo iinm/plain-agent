@@ -99,6 +99,15 @@
       },
       {
         "toolName": "exec_command",
+        "input": {
+          "command": "bash",
+          "args": { "$has": { "$regex": "^(--login|-[^-]*l)" } }
+        },
+        "action": "deny",
+        "reason": "Login shell options (-l, --login) are not necessary"
+      },
+      {
+        "toolName": "exec_command",
         "action": "allow"
       }
     ]
