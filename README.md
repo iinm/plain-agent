@@ -621,7 +621,12 @@ Files are loaded in the following order. Settings in later files override earlie
     "webFetch": {
       "provider": "gemini",
       "apiKey": "<GEMINI_API_KEY>",
-      "model": "gemini-3.8-flash"
+      "model": "gemini-3.8-flash",
+
+      // Optional host allow list. Omit to allow any host; an empty array denies
+      // every fetch. "example.com" also matches subdomains, while
+      // "*.example.com" matches subdomains only.
+      "allowedDomains": ["example.com", "*.wikipedia.org"]
 
       // Or use Vertex AI (requires the gcloud CLI)
 

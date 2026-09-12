@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   createWebFetchTool,
   extractOrigin,
+  isUrlAllowed,
   truncateText,
 } from "./webFetch.mjs";
 
@@ -131,6 +132,136 @@ describe("extractOrigin", () => {
     assert.equal(extractOrigin("not a url"), "");
     assert.equal(extractOrigin(undefined), "");
     assert.equal(extractOrigin(123), "");
+  });
+});
+
+describe("isUrlAllowed", () => {
+  it("allows every URL when no allow list is configured", () => {
+    // given/when/then:
+    assert.equal(isUrlAllowed("https://any.example.org/x", undefined), true);
+  });
+
+  it("denies every URL when the allow list is empty", () => {
+    // given/when/then:
+    assert.equal(isUrlAllowed("https://example.com", []), false);
+  });
+
+  it("matches an exact host and any subdomain", () => {
+    // given:
+    const allowedDomains = ["example.com"];
+
+    // when/then:
+    assert.equal(isUrlAllowed("https://example.com/a", allowedDomains), true);
+    assert.equal(isUrlAllowed("https://a.b.example.com", allowedDomains), true);
+  });
+
+  it("supports wildcard entries that exclude the apex domain", () => {
+    // given:
+    const allowedDomains = ["*.example.com"];
+
+    // when/then:
+    assert.equal(isUrlAllowed("https://a.example.com", allowedDomains), true);
+    assert.equal(isUrlAllowed("https://example.com", allowedDomains), false);
+  });
+
+  it("does not match lookalike hosts", () => {
+    // given:
+    const allowedDomains = ["example.com"];
+
+    // when/then:
+    assert.equal(
+      isUrlAllowed("https://evil-example.com", allowedDomains),
+      false,
+    );
+  });
+
+  it("ignores case, scheme, port, path, and query", () => {
+    // given/when/then:
+    assert.equal(
+      isUrlAllowed("http://EXAMPLE.com:8080/p?q=1", ["example.com"]),
+      true,
+    );
+  });
+
+  it("denies non-http(s) or malformed URLs when a list is configured", () => {
+    // given/when/then:
+    assert.equal(isUrlAllowed("file:///etc/passwd", ["example.com"]), false);
+    assert.equal(isUrlAllowed("not a url", ["example.com"]), false);
+  });
+});
+
+describe("createWebFetchTool#allowedDomains", () => {
+  it("blocks a fetch to a host outside the allow list without calling the provider", async () => {
+    // given:
+    let modelCallerCalled = false;
+    const tool = createWebFetchTool({
+      provider: "command",
+      command: "true",
+      args: [],
+      allowedDomains: ["example.com"],
+      modelCaller: async () => {
+        modelCallerCalled = true;
+        return {
+          message: { role: "assistant", content: [{ type: "text", text: "" }] },
+        };
+      },
+    });
+
+    // when:
+    const result = await tool.impl({ url: "https://other.com", question: "?" });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /Blocked by allowedDomains/);
+    assert.equal(modelCallerCalled, false);
+  });
+
+  it("exposes validateInput that rejects blocked URLs", () => {
+    // given:
+    const tool = createWebFetchTool({
+      provider: "command",
+      command: "true",
+      args: [],
+      allowedDomains: [],
+      modelCaller: async () => ({
+        message: { role: "assistant", content: [{ type: "text", text: "" }] },
+      }),
+    });
+
+    // when:
+    const error = tool.validateInput?.({
+      url: "https://example.com",
+      question: "?",
+    });
+
+    // then:
+    assert.ok(error instanceof Error);
+    assert.match(error.message, /Blocked by allowedDomains/);
+  });
+
+  it("allows a fetch to a listed host", async () => {
+    // given:
+    const tool = createWebFetchTool({
+      provider: "command",
+      command: "true",
+      args: [],
+      allowedDomains: ["example.com"],
+      modelCaller: async () => ({
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: "ok" }],
+        },
+      }),
+    });
+
+    // when:
+    const result = await tool.impl({
+      url: "https://example.com/x",
+      question: "?",
+    });
+
+    // then:
+    assert.equal(result, "ok\n\n- [1] https://example.com/x");
   });
 });
 

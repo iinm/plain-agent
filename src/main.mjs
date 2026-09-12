@@ -410,6 +410,7 @@ export async function main(argv = process.argv) {
           args: webFetchConfig.args,
           timeoutMs: webFetchConfig.timeoutMs,
           env: webFetchConfig.env,
+          allowedDomains: webFetchConfig.allowedDomains,
           modelCaller: webFetchCallModel,
           maxLength: webFetchConfig.maxLength,
         }),
