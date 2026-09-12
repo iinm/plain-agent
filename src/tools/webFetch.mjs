@@ -114,12 +114,19 @@ export function createWebFetchTool(config) {
         if (validationError) {
           return validationError;
         }
+        // Canonicalize once so validation, approval masking, and the fetch all
+        // see the same URL: fetchers such as curl parse `\` and userinfo
+        // differently from WHATWG `URL`.
+        const canonicalInput = {
+          ...input,
+          url: canonicalizeUrl(input.url),
+        };
         switch (config.provider) {
           case "gemini":
           case "gemini-vertex-ai":
-            return webFetchViaGemini(config, input, 0);
+            return webFetchViaGemini(config, canonicalInput, 0);
           case "command":
-            return webFetchViaCommand(config, input);
+            return webFetchViaCommand(config, canonicalInput);
         }
       }),
 
@@ -178,18 +185,8 @@ export function truncateText(content, maxLength) {
  * @returns {string}
  */
 export function extractOrigin(url) {
-  if (typeof url !== "string") {
-    return "";
-  }
-  try {
-    const u = new URL(url);
-    if (u.protocol !== "http:" && u.protocol !== "https:") {
-      return "";
-    }
-    return `${u.protocol}//${u.host}`;
-  } catch {
-    return "";
-  }
+  const u = parseHttpUrl(url);
+  return u ? `${u.protocol}//${u.host}` : "";
 }
 
 /**
@@ -223,7 +220,7 @@ function validateInput(input, allowedDomains) {
   if (!input.url || typeof input.url !== "string") {
     return new Error("`url` is required and must be a string.");
   }
-  if (!/^https?:\/\//.test(input.url)) {
+  if (canonicalizeUrl(input.url) === "") {
     return new Error(
       `Invalid URL: \`${input.url}\` must start with http(s)://`,
     );
@@ -245,18 +242,23 @@ function validateInput(input, allowedDomains) {
  * @returns {string} Lowercased hostname, or an empty string when unparseable.
  */
 function extractHostname(url) {
-  if (typeof url !== "string") {
-    return "";
-  }
-  try {
-    const u = new URL(url);
-    if (u.protocol !== "http:" && u.protocol !== "https:") {
-      return "";
-    }
-    return u.hostname.toLowerCase();
-  } catch {
-    return "";
-  }
+  const u = parseHttpUrl(url);
+  return u ? u.hostname.toLowerCase() : "";
+}
+
+/**
+ * Return the canonical serialization (WHATWG `URL.href`) of `url`, or an empty
+ * string when it is not a parseable http(s) URL. Validation, approval masking,
+ * and the fetch all use this so their URL parsers cannot disagree (e.g. curl
+ * treats `\` as an ordinary character while WHATWG `URL` treats it as a path
+ * separator).
+ *
+ * @param {unknown} url
+ * @returns {string}
+ */
+function canonicalizeUrl(url) {
+  const u = parseHttpUrl(url);
+  return u ? u.href : "";
 }
 
 /**
@@ -273,6 +275,28 @@ function matchesDomain(hostname, domain) {
     return hostname.endsWith(`.${normalized.slice(2)}`);
   }
   return hostname === normalized || hostname.endsWith(`.${normalized}`);
+}
+
+/**
+ * Parse `url` as an http(s) URL, or return null when unparseable or another
+ * scheme. Shared by the URL helpers above so they agree on what is fetchable.
+ *
+ * @param {unknown} url
+ * @returns {URL | null}
+ */
+function parseHttpUrl(url) {
+  if (typeof url !== "string") {
+    return null;
+  }
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "http:" && u.protocol !== "https:") {
+      return null;
+    }
+    return u;
+  } catch {
+    return null;
+  }
 }
 
 /**
