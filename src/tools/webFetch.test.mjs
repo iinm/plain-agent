@@ -263,6 +263,52 @@ describe("createWebFetchTool#allowedDomains", () => {
     // then:
     assert.equal(result, "ok\n\n- [1] https://example.com/x");
   });
+
+  it("passes the canonical URL to the fetch command so the allowed host is the fetched host", async () => {
+    // given: a URL whose authority Node's WHATWG `URL` and line-based fetchers
+    // parse differently. `new URL` treats `\` in a special scheme as a path
+    // separator (host `example.com`), while curl treats `\` as a normal
+    // character and the `@` as the userinfo separator (host `evil.example`).
+    // `isUrlAllowed` sees `example.com`, so the URL must not be handed to the
+    // fetch command unchanged.
+    const craftedUrl = "https://example.com\\@evil.example/";
+    /** @type {string | undefined} */
+    let contentSeenByModel;
+    const tool = createWebFetchTool({
+      provider: "command",
+      // Echo back the URL argument the tool would fetch.
+      command: process.execPath,
+      args: ["-e", "console.log(process.argv[1])"],
+      allowedDomains: ["example.com"],
+      modelCaller: async (request) => {
+        const lastMessage = request.messages.at(-1);
+        contentSeenByModel = lastMessage?.content
+          .map((part) => ("text" in part ? part.text : ""))
+          .join("");
+        return {
+          message: {
+            role: "assistant",
+            content: [{ type: "text", text: "ok" }],
+          },
+        };
+      },
+    });
+
+    // when:
+    const result = await tool.impl({ url: craftedUrl, question: "?" });
+
+    // then: the command (and the prompt) must see the canonical URL, so the
+    // validated host and the fetched host agree.
+    assert.ok(!(result instanceof Error), String(result));
+    assert.ok(
+      !contentSeenByModel?.includes(craftedUrl),
+      "the raw crafted URL reached the fetch command",
+    );
+    assert.ok(
+      contentSeenByModel?.includes("https://example.com/@evil.example/"),
+      "expected the canonical URL to reach the fetch command",
+    );
+  });
 });
 
 describe("truncateText", () => {
