@@ -11,10 +11,11 @@ import { noThrow } from "../utils/noThrow.mjs";
 /**
  * Options shared by every `webFetch` provider.
  *
- * `allowedDomains` is a host allow list. When defined (even as an empty array),
- * a URL may be fetched only if its hostname matches one of the entries, so an
- * empty array denies every URL. Matching is case-insensitive on the hostname
- * alone (scheme, port, and path are ignored):
+ * `allowedDomains` is a host allow list. A URL may be fetched only if its
+ * hostname matches one of the entries, so an omitted (or empty) list denies
+ * every URL. Matching is case-insensitive on the hostname alone (scheme, port,
+ * and path are ignored):
+ * - `*` matches any host.
  * - `example.com` matches the domain and any subdomain.
  * - `*.example.com` matches subdomains only.
  *
@@ -192,22 +193,19 @@ export function extractOrigin(url) {
 /**
  * Return whether `url` is permitted by an `allowedDomains` host allow list.
  *
- * Matching rules are documented on `WebFetchToolCommonOptions`. `undefined`
- * disables the check; an empty array denies every URL. Malformed or
- * non-http(s) URLs are denied whenever a list is configured.
+ * Matching rules are documented on `WebFetchToolCommonOptions`. An omitted or
+ * empty list denies every URL; use `["*"]` to allow any host. Malformed or
+ * non-http(s) URLs are always denied.
  *
  * @param {unknown} url
  * @param {string[] | undefined} allowedDomains
  * @returns {boolean}
  */
 export function isUrlAllowed(url, allowedDomains) {
-  if (allowedDomains === undefined) {
-    return true;
-  }
   const hostname = extractHostname(url);
   return (
     hostname !== "" &&
-    allowedDomains.some((domain) => matchesDomain(hostname, domain))
+    (allowedDomains ?? []).some((domain) => matchesDomain(hostname, domain))
   );
 }
 
@@ -268,8 +266,11 @@ function canonicalizeUrl(url) {
  */
 function matchesDomain(hostname, domain) {
   const normalized = domain.trim().toLowerCase();
-  if (normalized === "") {
+  if (normalized === "" || hostname === "") {
     return false;
+  }
+  if (normalized === "*") {
+    return true;
   }
   if (normalized.startsWith("*.")) {
     return hostname.endsWith(`.${normalized.slice(2)}`);

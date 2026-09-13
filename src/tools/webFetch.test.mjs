@@ -55,6 +55,7 @@ describe("createWebFetchTool", () => {
       provider: "command",
       command: "true",
       args: [],
+      allowedDomains: ["*"],
       modelCaller: async () => ({
         message: { role: "assistant", content: [{ type: "text", text: "" }] },
       }),
@@ -136,14 +137,26 @@ describe("extractOrigin", () => {
 });
 
 describe("isUrlAllowed", () => {
-  it("allows every URL when no allow list is configured", () => {
+  it("denies every URL when no allow list is configured", () => {
     // given/when/then:
-    assert.equal(isUrlAllowed("https://any.example.org/x", undefined), true);
+    assert.equal(isUrlAllowed("https://any.example.org/x", undefined), false);
   });
 
   it("denies every URL when the allow list is empty", () => {
     // given/when/then:
     assert.equal(isUrlAllowed("https://example.com", []), false);
+  });
+
+  it("allows any host when the allow list contains '*'", () => {
+    // given/when/then:
+    assert.equal(isUrlAllowed("https://any.example.org/x", ["*"]), true);
+    assert.equal(isUrlAllowed("http://192.168.1.1/", ["*"]), true);
+  });
+
+  it("still denies malformed or non-http(s) URLs with '*'", () => {
+    // given/when/then:
+    assert.equal(isUrlAllowed("file:///etc/passwd", ["*"]), false);
+    assert.equal(isUrlAllowed("not a url", ["*"]), false);
   });
 
   it("matches an exact host and any subdomain", () => {
@@ -246,6 +259,58 @@ describe("createWebFetchTool#allowedDomains", () => {
       command: "true",
       args: [],
       allowedDomains: ["example.com"],
+      modelCaller: async () => ({
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: "ok" }],
+        },
+      }),
+    });
+
+    // when:
+    const result = await tool.impl({
+      url: "https://example.com/x",
+      question: "?",
+    });
+
+    // then:
+    assert.equal(result, "ok\n\n- [1] https://example.com/x");
+  });
+
+  it("denies every fetch when the allow list is omitted", async () => {
+    // given:
+    let modelCallerCalled = false;
+    const tool = createWebFetchTool({
+      provider: "command",
+      command: "true",
+      args: [],
+      modelCaller: async () => {
+        modelCallerCalled = true;
+        return {
+          message: { role: "assistant", content: [{ type: "text", text: "" }] },
+        };
+      },
+    });
+
+    // when:
+    const result = await tool.impl({
+      url: "https://example.com",
+      question: "?",
+    });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /Blocked by allowedDomains/);
+    assert.equal(modelCallerCalled, false);
+  });
+
+  it("allows a fetch to any host when the allow list is ['*']", async () => {
+    // given:
+    const tool = createWebFetchTool({
+      provider: "command",
+      command: "true",
+      args: [],
+      allowedDomains: ["*"],
       modelCaller: async () => ({
         message: {
           role: "assistant",

@@ -623,9 +623,10 @@ Files are loaded in the following order. Settings in later files override earlie
       "apiKey": "<GEMINI_API_KEY>",
       "model": "gemini-3.8-flash",
 
-      // Optional host allow list. Omit to allow any host; an empty array denies
-      // every fetch. "example.com" also matches subdomains, while
-      // "*.example.com" matches subdomains only.
+      // Host allow list. Fetches are denied unless the host matches an entry,
+      // so an omitted list denies every fetch. Use ["*"] to allow any host.
+      // "example.com" also matches subdomains, while "*.example.com" matches
+      // subdomains only.
       "allowedDomains": ["example.com", "*.wikipedia.org"]
 
       // Or use Vertex AI (requires the gcloud CLI)

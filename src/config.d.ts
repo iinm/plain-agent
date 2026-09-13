@@ -20,10 +20,11 @@ import {
  * based on the dumped output. The runtime tool factory receives a resolved
  * `modelCaller` instead — see `WebFetchToolOptions` in `tools/webFetch.mjs`.
  *
- * `allowedDomains` is a host allow list honored by every provider: when set,
- * only URLs whose hostname matches an entry may be fetched (an empty array
- * denies all). `example.com` also matches subdomains; `*.example.com` matches
- * subdomains only. Later config files override this field entirely.
+ * `allowedDomains` is a host allow list honored by every provider: only URLs
+ * whose hostname matches an entry may be fetched, so an omitted (or empty)
+ * list denies every URL and `["*"]` must be set to allow any host.
+ * `example.com` also matches subdomains; `*.example.com` matches subdomains
+ * only. Later config files override this field entirely.
  */
 export type WebFetchToolConfig = WebFetchToolCommonOptions &
   (
