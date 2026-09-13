@@ -14,8 +14,8 @@ import { noThrow } from "../utils/noThrow.mjs";
  * `allowedDomains` is a host allow list: a fetch is allowed only if the URL's
  * hostname matches an entry, so an omitted or empty list denies everything.
  * Entries match the hostname alone, case-insensitively (scheme, port, and path
- * are ignored): `*` matches any host, `example.com` matches the domain and its
- * subdomains, and `*.example.com` matches subdomains only.
+ * are ignored): `*` matches any host, `example.com` matches only that exact
+ * domain, and `*.example.com` matches any subdomain of `example.com`.
  *
  * Entries are matched as written, so use the hostname's own form: lowercase
  * ASCII, no trailing dot, and punycode for internationalized names
@@ -154,8 +154,9 @@ export function createWebFetchTool(config) {
      */
     maskApprovalInput: (input) => {
       const webFetchInput = /** @type {Partial<WebFetchInput>} */ (input);
-      const origin = extractOrigin(webFetchInput.url);
-      return { url: origin };
+      const parsed = parseHttpUrl(webFetchInput.url);
+      const url = parsed ? `${parsed.protocol}//${parsed.host}` : "";
+      return { url };
     },
   };
 }
@@ -179,18 +180,6 @@ export function truncateText(content, maxLength) {
     truncated: true,
     originalLength: content.length,
   };
-}
-
-/**
- * Return the URL's origin (`<scheme>//<host>`), or an empty string when
- * unparseable.
- *
- * @param {unknown} url
- * @returns {string}
- */
-function extractOrigin(url) {
-  const u = parseHttpUrl(url);
-  return u ? `${u.protocol}//${u.host}` : "";
 }
 
 /**
@@ -275,7 +264,7 @@ function matchesDomain(hostname, domain) {
   if (normalized.startsWith("*.")) {
     return hostname.endsWith(`.${normalized.slice(2)}`);
   }
-  return hostname === normalized || hostname.endsWith(`.${normalized}`);
+  return hostname === normalized;
 }
 
 /**

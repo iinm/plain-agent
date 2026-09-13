@@ -625,6 +625,7 @@ Files are loaded in the following order. Settings in later files override earlie
 
       // Host allow list. Omitted denies every fetch; ["*"] allows any host.
       // Only the initial URL's host is checked, not redirect targets.
+      // "example.com" matches only that domain; "*.example.com" matches subdomains.
       "allowedDomains": ["example.com", "*.wikipedia.org"]
 
       // Or use Vertex AI (requires the gcloud CLI)
