@@ -39,6 +39,7 @@
       "allowedDomains": [
         "github.com",
         "docs.github.com",
+        "github.blog",
         "nodejs.org",
         "fireworks.ai",
         "developers.openai.com",
