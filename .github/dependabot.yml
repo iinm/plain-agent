@@ -28,3 +28,34 @@ updates:
         update-types:
           - minor
           - patch
+  - package-ecosystem: docker
+    directories:
+      - /.plain-agent/sandbox
+      - /sandbox
+      - /sandbox/examples/nodejs-monorepo
+      - /sandbox-templates/dind-egress-proxy/gateway
+      - /sandbox-templates/dind-egress-proxy/sandbox
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      docker-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: docker-compose
+    directory: /sandbox-templates/dind-egress-proxy
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      docker-compose-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
