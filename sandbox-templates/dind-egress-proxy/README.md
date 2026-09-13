@@ -1,4 +1,4 @@
-# agent-sandbox
+# Agent Sandbox (DinD and egress proxy)
 
 A runtime environment for coding agents with default-deny network egress.
 The agent (sandbox) can reach only explicitly allowed external resources.
