@@ -12,11 +12,12 @@
 
   "systemPrompt": {
     "userPreferences": [
-      "- Keep all outputs, including responses, notes, reports, and code comments, concise, focused, and written in plain language",
-      "- Limit code comments to the following purposes:",
-      "  1. Specifications for public APIs/functions",
-      "  2. Design decisions that cannot be understood from the code itself",
-      "  3. Incomplete work: TODO/FIXME"
+      "Concise, plain language with concrete examples",
+      "",
+      "Rules:",
+      "- Code comments are prohibited by default. Exceptions:",
+      "  1. Public API / function specifications",
+      "  2. Design decisions not apparent from the code"
     ]
   },
 
@@ -34,7 +35,20 @@
     "webFetch": {
       "provider": "command",
       "command": "w3m",
-      "args": ["-dump", "-o", "display_link_number=1"]
+      "args": ["-dump", "-o", "display_link_number=1"],
+      "allowedDomains": [
+        "github.com",
+        "docs.github.com",
+        "nodejs.org",
+        "fireworks.ai",
+        "developers.openai.com",
+        "platform.claude.com",
+        "ai.google.dev",
+        "docs.aws.amazon.com",
+        "docs.cloud.google.com",
+        "developer.mozilla.org",
+        "stackoverflow.com"
+      ]
     }
   },
 
