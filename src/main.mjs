@@ -405,14 +405,8 @@ export async function main(argv = process.argv) {
       });
       builtinTools.push(
         createWebFetchTool({
-          provider: "command",
-          command: webFetchConfig.command,
-          args: webFetchConfig.args,
-          timeoutMs: webFetchConfig.timeoutMs,
-          env: webFetchConfig.env,
-          allowedDomains: webFetchConfig.allowedDomains,
+          ...webFetchConfig,
           modelCaller: webFetchCallModel,
-          maxLength: webFetchConfig.maxLength,
         }),
       );
     } else {

@@ -11,13 +11,18 @@ import { noThrow } from "../utils/noThrow.mjs";
 /**
  * Options shared by every `webFetch` provider.
  *
- * `allowedDomains` is a host allow list. A URL may be fetched only if its
- * hostname matches one of the entries, so an omitted (or empty) list denies
- * every URL. Matching is case-insensitive on the hostname alone (scheme, port,
- * and path are ignored):
- * - `*` matches any host.
- * - `example.com` matches the domain and any subdomain.
- * - `*.example.com` matches subdomains only.
+ * `allowedDomains` is a host allow list: a fetch is allowed only if the URL's
+ * hostname matches an entry, so an omitted or empty list denies everything.
+ * Entries match the hostname alone, case-insensitively (scheme, port, and path
+ * are ignored): `*` matches any host, `example.com` matches the domain and its
+ * subdomains, and `*.example.com` matches subdomains only.
+ *
+ * Entries are matched as written, so use the hostname's own form: lowercase
+ * ASCII, no trailing dot, and punycode for internationalized names
+ * (`xn--mnchen-3ya.example`, not `münchen.example`).
+ *
+ * Only the initial URL's host is checked, not redirect targets, so this limits
+ * what the agent requests rather than where network traffic can go.
  *
  * @typedef {Object} WebFetchToolCommonOptions
  * @property {string[]=} allowedDomains
@@ -115,9 +120,8 @@ export function createWebFetchTool(config) {
         if (validationError) {
           return validationError;
         }
-        // Canonicalize once so validation, approval masking, and the fetch all
-        // see the same URL: fetchers such as curl parse `\` and userinfo
-        // differently from WHATWG `URL`.
+        // Canonicalize once so validation, approval masking, and the fetch see
+        // the same URL (WHATWG `URL` and curl parse `\` differently).
         const canonicalInput = {
           ...input,
           url: canonicalizeUrl(input.url),
@@ -142,9 +146,8 @@ export function createWebFetchTool(config) {
       ) ?? undefined,
 
     /**
-     * Reduce the URL to its origin so that approving one URL on a host
-     * effectively approves any path on the same host. Pairs with the
-     * in-session matcher applying the mask to both sides.
+     * Reduce the URL to its origin so approving one URL approves any path on
+     * the same host. The in-session matcher applies the mask to both sides.
      *
      * @param {Record<string, unknown>} input
      * @returns {Record<string, unknown>}
@@ -179,33 +182,34 @@ export function truncateText(content, maxLength) {
 }
 
 /**
- * Return the URL's origin (`<scheme>//<host>`) when parseable, otherwise an
- * empty string. Used so per-domain auto-approval works regardless of path.
+ * Return the URL's origin (`<scheme>//<host>`), or an empty string when
+ * unparseable.
  *
  * @param {unknown} url
  * @returns {string}
  */
-export function extractOrigin(url) {
+function extractOrigin(url) {
   const u = parseHttpUrl(url);
   return u ? `${u.protocol}//${u.host}` : "";
 }
 
 /**
- * Return whether `url` is permitted by an `allowedDomains` host allow list.
- *
- * Matching rules are documented on `WebFetchToolCommonOptions`. An omitted or
- * empty list denies every URL; use `["*"]` to allow any host. Malformed or
- * non-http(s) URLs are always denied.
+ * Return whether `url` is permitted by the `allowedDomains` allow list. Rules
+ * and matching are described on `WebFetchToolCommonOptions`; non-http(s) URLs
+ * are always denied.
  *
  * @param {unknown} url
  * @param {string[] | undefined} allowedDomains
  * @returns {boolean}
  */
-export function isUrlAllowed(url, allowedDomains) {
+function isUrlAllowed(url, allowedDomains) {
   const hostname = extractHostname(url);
+  const domains = Array.isArray(allowedDomains) ? allowedDomains : [];
   return (
     hostname !== "" &&
-    (allowedDomains ?? []).some((domain) => matchesDomain(hostname, domain))
+    domains.some(
+      (domain) => typeof domain === "string" && matchesDomain(hostname, domain),
+    )
   );
 }
 
@@ -245,11 +249,7 @@ function extractHostname(url) {
 }
 
 /**
- * Return the canonical serialization (WHATWG `URL.href`) of `url`, or an empty
- * string when it is not a parseable http(s) URL. Validation, approval masking,
- * and the fetch all use this so their URL parsers cannot disagree (e.g. curl
- * treats `\` as an ordinary character while WHATWG `URL` treats it as a path
- * separator).
+ * Return `URL.href` for a parseable http(s) URL, or an empty string otherwise.
  *
  * @param {unknown} url
  * @returns {string}
@@ -279,8 +279,8 @@ function matchesDomain(hostname, domain) {
 }
 
 /**
- * Parse `url` as an http(s) URL, or return null when unparseable or another
- * scheme. Shared by the URL helpers above so they agree on what is fetchable.
+ * Parse `url` as an http(s) URL; return null for other schemes or invalid
+ * input.
  *
  * @param {unknown} url
  * @returns {URL | null}

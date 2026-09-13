@@ -1,11 +1,24 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
-import {
-  createWebFetchTool,
-  extractOrigin,
-  isUrlAllowed,
-  truncateText,
-} from "./webFetch.mjs";
+import { createWebFetchTool, truncateText } from "./webFetch.mjs";
+
+/**
+ * @param {string} url
+ * @param {string[] | undefined} allowedDomains
+ * @returns {Error | undefined}
+ */
+function validateUrl(url, allowedDomains) {
+  const tool = createWebFetchTool({
+    provider: "command",
+    command: "true",
+    args: [],
+    allowedDomains,
+    modelCaller: async () => ({
+      message: { role: "assistant", content: [{ type: "text", text: "" }] },
+    }),
+  });
+  return tool.validateInput?.({ url, question: "?" });
+}
 
 describe("createWebFetchTool", () => {
   it("rejects input that is missing a URL", async () => {
@@ -82,17 +95,20 @@ describe("createWebFetchTool#maskApprovalInput", () => {
       }),
     });
 
-    // when:
-    const masked = tool.maskApprovalInput?.({
-      url: "https://example.com/some/path?query=1#frag",
-      question: "What is this?",
-    });
-
-    // then:
-    assert.deepStrictEqual(masked, { url: "https://example.com" });
+    // when/then:
+    assert.deepStrictEqual(
+      tool.maskApprovalInput?.({
+        url: "https://example.com/some/path?query=1",
+      }),
+      { url: "https://example.com" },
+    );
+    assert.deepStrictEqual(
+      tool.maskApprovalInput?.({ url: "http://example.com:8080/x" }),
+      { url: "http://example.com:8080" },
+    );
   });
 
-  it("returns an empty origin for non-http(s) URLs", () => {
+  it("returns an empty origin for non-http(s) or malformed URLs", () => {
     // given:
     const tool = createWebFetchTool({
       provider: "command",
@@ -103,103 +119,119 @@ describe("createWebFetchTool#maskApprovalInput", () => {
       }),
     });
 
-    // when:
-    const masked = tool.maskApprovalInput?.({
-      url: "file:///etc/passwd",
-      question: "?",
+    // when/then:
+    assert.deepStrictEqual(
+      tool.maskApprovalInput?.({ url: "file:///etc/passwd" }),
+      { url: "" },
+    );
+    assert.deepStrictEqual(tool.maskApprovalInput?.({ url: "not a url" }), {
+      url: "",
     });
-
-    // then:
-    assert.deepStrictEqual(masked, { url: "" });
+    assert.deepStrictEqual(tool.maskApprovalInput?.({}), { url: "" });
   });
 });
 
-describe("extractOrigin", () => {
-  it("returns scheme + host for http(s) URLs", () => {
-    // given/when/then:
-    assert.equal(
-      extractOrigin("https://example.com/path"),
-      "https://example.com",
-    );
-    assert.equal(
-      extractOrigin("http://example.com:8080/x"),
-      "http://example.com:8080",
-    );
-  });
-
-  it("returns empty string for non-http(s) or malformed URLs", () => {
-    // given/when/then:
-    assert.equal(extractOrigin("file:///x"), "");
-    assert.equal(extractOrigin("not a url"), "");
-    assert.equal(extractOrigin(undefined), "");
-    assert.equal(extractOrigin(123), "");
-  });
-});
-
-describe("isUrlAllowed", () => {
+describe("createWebFetchTool#validateInput", () => {
   it("denies every URL when no allow list is configured", () => {
     // given/when/then:
-    assert.equal(isUrlAllowed("https://any.example.org/x", undefined), false);
+    assert.ok(
+      validateUrl("https://any.example.org/x", undefined) instanceof Error,
+    );
   });
 
   it("denies every URL when the allow list is empty", () => {
     // given/when/then:
-    assert.equal(isUrlAllowed("https://example.com", []), false);
+    assert.ok(validateUrl("https://example.com", []) instanceof Error);
+  });
+
+  it("treats a non-array allow list as empty instead of throwing", () => {
+    // given/when/then:
+    assert.ok(
+      validateUrl(
+        "https://example.com",
+        /** @type {any} */ ("example.com"),
+      ) instanceof Error,
+    );
+  });
+
+  it("ignores non-string entries", () => {
+    // given/when/then:
+    assert.equal(
+      validateUrl(
+        "https://example.com",
+        /** @type {any} */ ([42, null, "example.com"]),
+      ),
+      undefined,
+    );
   });
 
   it("allows any host when the allow list contains '*'", () => {
     // given/when/then:
-    assert.equal(isUrlAllowed("https://any.example.org/x", ["*"]), true);
-    assert.equal(isUrlAllowed("http://192.168.1.1/", ["*"]), true);
+    assert.equal(validateUrl("https://any.example.org/x", ["*"]), undefined);
+    assert.equal(validateUrl("http://192.168.1.1/", ["*"]), undefined);
   });
 
   it("still denies malformed or non-http(s) URLs with '*'", () => {
     // given/when/then:
-    assert.equal(isUrlAllowed("file:///etc/passwd", ["*"]), false);
-    assert.equal(isUrlAllowed("not a url", ["*"]), false);
+    assert.ok(validateUrl("file:///etc/passwd", ["*"]) instanceof Error);
+    assert.ok(validateUrl("not a url", ["*"]) instanceof Error);
   });
 
   it("matches an exact host and any subdomain", () => {
-    // given:
-    const allowedDomains = ["example.com"];
-
-    // when/then:
-    assert.equal(isUrlAllowed("https://example.com/a", allowedDomains), true);
-    assert.equal(isUrlAllowed("https://a.b.example.com", allowedDomains), true);
+    // given/when/then:
+    assert.equal(
+      validateUrl("https://example.com/a", ["example.com"]),
+      undefined,
+    );
+    assert.equal(
+      validateUrl("https://a.b.example.com", ["example.com"]),
+      undefined,
+    );
   });
 
   it("supports wildcard entries that exclude the apex domain", () => {
-    // given:
-    const allowedDomains = ["*.example.com"];
-
-    // when/then:
-    assert.equal(isUrlAllowed("https://a.example.com", allowedDomains), true);
-    assert.equal(isUrlAllowed("https://example.com", allowedDomains), false);
+    // given/when/then:
+    assert.equal(
+      validateUrl("https://a.example.com", ["*.example.com"]),
+      undefined,
+    );
+    assert.ok(
+      validateUrl("https://example.com", ["*.example.com"]) instanceof Error,
+    );
   });
 
   it("does not match lookalike hosts", () => {
-    // given:
-    const allowedDomains = ["example.com"];
-
-    // when/then:
-    assert.equal(
-      isUrlAllowed("https://evil-example.com", allowedDomains),
-      false,
+    // given/when/then:
+    assert.ok(
+      validateUrl("https://evil-example.com", ["example.com"]) instanceof Error,
     );
   });
 
   it("ignores case, scheme, port, path, and query", () => {
     // given/when/then:
     assert.equal(
-      isUrlAllowed("http://EXAMPLE.com:8080/p?q=1", ["example.com"]),
-      true,
+      validateUrl("http://EXAMPLE.com:8080/p?q=1", ["example.com"]),
+      undefined,
     );
   });
 
-  it("denies non-http(s) or malformed URLs when a list is configured", () => {
+  it("matches the host even when the URL carries userinfo", () => {
     // given/when/then:
-    assert.equal(isUrlAllowed("file:///etc/passwd", ["example.com"]), false);
-    assert.equal(isUrlAllowed("not a url", ["example.com"]), false);
+    assert.equal(
+      validateUrl("https://user:pass@example.com/", ["example.com"]),
+      undefined,
+    );
+  });
+
+  it("does not match a trailing dot or an internationalized name", () => {
+    // given/when/then:
+    assert.ok(
+      validateUrl("https://example.com./", ["example.com"]) instanceof Error,
+    );
+    assert.ok(
+      validateUrl("https://münchen.example/", ["münchen.example"]) instanceof
+        Error,
+    );
   });
 });
 
@@ -330,12 +362,11 @@ describe("createWebFetchTool#allowedDomains", () => {
   });
 
   it("passes the canonical URL to the fetch command so the allowed host is the fetched host", async () => {
-    // given: a URL whose authority Node's WHATWG `URL` and line-based fetchers
-    // parse differently. `new URL` treats `\` in a special scheme as a path
-    // separator (host `example.com`), while curl treats `\` as a normal
-    // character and the `@` as the userinfo separator (host `evil.example`).
-    // `isUrlAllowed` sees `example.com`, so the URL must not be handed to the
-    // fetch command unchanged.
+    // given: a URL whose authority WHATWG `URL` and curl read differently:
+    // `URL` treats `\` as a path separator (host `example.com`), while curl
+    // treats it literally and takes `@` as the userinfo separator (host
+    // `evil.example`). The allow list sees `example.com`, so the URL must not
+    // reach the fetch command as-is.
     const craftedUrl = "https://example.com\\@evil.example/";
     /** @type {string | undefined} */
     let contentSeenByModel;
@@ -362,8 +393,8 @@ describe("createWebFetchTool#allowedDomains", () => {
     // when:
     const result = await tool.impl({ url: craftedUrl, question: "?" });
 
-    // then: the command (and the prompt) must see the canonical URL, so the
-    // validated host and the fetched host agree.
+    // then: the command and the prompt must see the canonical URL, so the
+    // checked host is the fetched host.
     assert.ok(!(result instanceof Error), String(result));
     assert.ok(
       !contentSeenByModel?.includes(craftedUrl),
