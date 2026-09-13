@@ -13,6 +13,7 @@ const provider = process.argv[2] ?? "gemini";
       provider: "gemini",
       apiKey: process.env.GEMINI_API_KEY ?? "",
       model: "gemini-3.8-flash",
+      allowedDomains: ["*"],
     });
 
     const answer = await webFetchTool.impl({ url: URL, question: QUESTION });
@@ -37,6 +38,7 @@ const provider = process.argv[2] ?? "gemini";
       provider: "command",
       command: process.env.WEB_FETCH_COMMAND ?? "w3m",
       args: (process.env.WEB_FETCH_ARGS ?? "-dump").split(" ").filter(Boolean),
+      allowedDomains: ["*"],
       modelCaller: (input) =>
         callAnthropicModel(platformConfig, modelConfig, input),
     });

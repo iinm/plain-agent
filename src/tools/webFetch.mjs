@@ -9,9 +9,30 @@ import { getGoogleCloudAccessToken } from "../providers/platform/googleCloud.mjs
 import { noThrow } from "../utils/noThrow.mjs";
 
 /**
- * @typedef {WebFetchToolGeminiOptions
- *   | WebFetchToolGeminiVertexAIOptions
- *   | WebFetchToolCommandOptions} WebFetchToolOptions
+ * Options shared by every `webFetch` provider.
+ *
+ * `allowedDomains` is a host allow list: a fetch is allowed only if the URL's
+ * hostname matches an entry, so an omitted or empty list denies everything.
+ * Entries match the hostname alone, case-insensitively (scheme, port, and path
+ * are ignored): `*` matches any host, `example.com` matches the domain and its
+ * subdomains, and `*.example.com` matches subdomains only.
+ *
+ * Entries are matched as written, so use the hostname's own form: lowercase
+ * ASCII, no trailing dot, and punycode for internationalized names
+ * (`xn--mnchen-3ya.example`, not `münchen.example`).
+ *
+ * Only the initial URL's host is checked, not redirect targets, so this limits
+ * what the agent requests rather than where network traffic can go.
+ *
+ * @typedef {Object} WebFetchToolCommonOptions
+ * @property {string[]=} allowedDomains
+ */
+
+/**
+ * @typedef {WebFetchToolCommonOptions
+ *   & (WebFetchToolGeminiOptions
+ *     | WebFetchToolGeminiVertexAIOptions
+ *     | WebFetchToolCommandOptions)} WebFetchToolOptions
  */
 
 /**
@@ -95,23 +116,38 @@ export function createWebFetchTool(config) {
      */
     impl: async (input) =>
       await noThrow(async () => {
-        const validationError = validateInput(input);
+        const validationError = validateInput(input, config.allowedDomains);
         if (validationError) {
           return validationError;
         }
+        // Canonicalize once so validation, approval masking, and the fetch see
+        // the same URL (WHATWG `URL` and curl parse `\` differently).
+        const canonicalInput = {
+          ...input,
+          url: canonicalizeUrl(input.url),
+        };
         switch (config.provider) {
           case "gemini":
           case "gemini-vertex-ai":
-            return webFetchViaGemini(config, input, 0);
+            return webFetchViaGemini(config, canonicalInput, 0);
           case "command":
-            return webFetchViaCommand(config, input);
+            return webFetchViaCommand(config, canonicalInput);
         }
       }),
 
     /**
-     * Reduce the URL to its origin so that approving one URL on a host
-     * effectively approves any path on the same host. Pairs with the
-     * in-session matcher applying the mask to both sides.
+     * @param {Record<string, unknown>} input
+     * @returns {Error | undefined}
+     */
+    validateInput: (input) =>
+      validateInput(
+        /** @type {WebFetchInput} */ (input),
+        config.allowedDomains,
+      ) ?? undefined,
+
+    /**
+     * Reduce the URL to its origin so approving one URL approves any path on
+     * the same host. The in-session matcher applies the mask to both sides.
      *
      * @param {Record<string, unknown>} input
      * @returns {Record<string, unknown>}
@@ -146,44 +182,122 @@ export function truncateText(content, maxLength) {
 }
 
 /**
- * Return the URL's origin (`<scheme>//<host>`) when parseable, otherwise an
- * empty string. Used so per-domain auto-approval works regardless of path.
+ * Return the URL's origin (`<scheme>//<host>`), or an empty string when
+ * unparseable.
  *
  * @param {unknown} url
  * @returns {string}
  */
-export function extractOrigin(url) {
-  if (typeof url !== "string") {
-    return "";
-  }
-  try {
-    const u = new URL(url);
-    if (u.protocol !== "http:" && u.protocol !== "https:") {
-      return "";
-    }
-    return `${u.protocol}//${u.host}`;
-  } catch {
-    return "";
-  }
+function extractOrigin(url) {
+  const u = parseHttpUrl(url);
+  return u ? `${u.protocol}//${u.host}` : "";
+}
+
+/**
+ * Return whether `url` is permitted by the `allowedDomains` allow list. Rules
+ * and matching are described on `WebFetchToolCommonOptions`; non-http(s) URLs
+ * are always denied.
+ *
+ * @param {unknown} url
+ * @param {string[] | undefined} allowedDomains
+ * @returns {boolean}
+ */
+function isUrlAllowed(url, allowedDomains) {
+  const hostname = extractHostname(url);
+  const domains = Array.isArray(allowedDomains) ? allowedDomains : [];
+  return (
+    hostname !== "" &&
+    domains.some(
+      (domain) => typeof domain === "string" && matchesDomain(hostname, domain),
+    )
+  );
 }
 
 /**
  * @param {WebFetchInput} input
+ * @param {string[] | undefined} allowedDomains
  * @returns {Error | null}
  */
-function validateInput(input) {
+function validateInput(input, allowedDomains) {
   if (!input.url || typeof input.url !== "string") {
     return new Error("`url` is required and must be a string.");
   }
-  if (!/^https?:\/\//.test(input.url)) {
+  if (canonicalizeUrl(input.url) === "") {
     return new Error(
       `Invalid URL: \`${input.url}\` must start with http(s)://`,
+    );
+  }
+  if (!isUrlAllowed(input.url, allowedDomains)) {
+    const hostname = extractHostname(input.url);
+    return new Error(
+      `Blocked by allowedDomains: \`${hostname}\` is not in the allow list.`,
     );
   }
   if (!input.question || typeof input.question !== "string") {
     return new Error("`question` is required and must be a string.");
   }
   return null;
+}
+
+/**
+ * @param {unknown} url
+ * @returns {string} Lowercased hostname, or an empty string when unparseable.
+ */
+function extractHostname(url) {
+  const u = parseHttpUrl(url);
+  return u ? u.hostname.toLowerCase() : "";
+}
+
+/**
+ * Return `URL.href` for a parseable http(s) URL, or an empty string otherwise.
+ *
+ * @param {unknown} url
+ * @returns {string}
+ */
+function canonicalizeUrl(url) {
+  const u = parseHttpUrl(url);
+  return u ? u.href : "";
+}
+
+/**
+ * @param {string} hostname Lowercased hostname.
+ * @param {string} domain
+ * @returns {boolean}
+ */
+function matchesDomain(hostname, domain) {
+  const normalized = domain.trim().toLowerCase();
+  if (normalized === "" || hostname === "") {
+    return false;
+  }
+  if (normalized === "*") {
+    return true;
+  }
+  if (normalized.startsWith("*.")) {
+    return hostname.endsWith(`.${normalized.slice(2)}`);
+  }
+  return hostname === normalized || hostname.endsWith(`.${normalized}`);
+}
+
+/**
+ * Parse `url` as an http(s) URL; return null for other schemes or invalid
+ * input.
+ *
+ * @param {unknown} url
+ * @returns {URL | null}
+ */
+function parseHttpUrl(url) {
+  if (typeof url !== "string") {
+    return null;
+  }
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "http:" && u.protocol !== "https:") {
+      return null;
+    }
+    return u;
+  } catch {
+    return null;
+  }
 }
 
 /**

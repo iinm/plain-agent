@@ -3,6 +3,7 @@ import { ModelDefinition, PlatformConfig } from "./model.definition";
 import { ToolUsePattern } from "./tool";
 import { ExecCommandSanboxConfig } from "./tools/execCommand";
 import {
+  WebFetchToolCommonOptions,
   WebFetchToolGeminiOptions,
   WebFetchToolGeminiVertexAIOptions,
 } from "./tools/webFetch.mjs";
@@ -18,11 +19,16 @@ import {
  * download a URL's content; the agent's main model is then used to answer
  * based on the dumped output. The runtime tool factory receives a resolved
  * `modelCaller` instead — see `WebFetchToolOptions` in `tools/webFetch.mjs`.
+ *
+ * `allowedDomains` is a host allow list for every provider; matching rules live
+ * on `WebFetchToolCommonOptions`. Later config files replace the whole field.
  */
-export type WebFetchToolConfig =
-  | WebFetchToolGeminiOptions
-  | WebFetchToolGeminiVertexAIOptions
-  | WebFetchToolCommandJsonConfig;
+export type WebFetchToolConfig = WebFetchToolCommonOptions &
+  (
+    | WebFetchToolGeminiOptions
+    | WebFetchToolGeminiVertexAIOptions
+    | WebFetchToolCommandJsonConfig
+  );
 
 export type WebFetchToolCommandJsonConfig = {
   provider: "command";
