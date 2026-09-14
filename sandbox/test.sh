@@ -19,6 +19,12 @@ on_exit() {
 trap 'on_exit' EXIT
 
 
+echo "case: preset base image follows the example kept up to date by Dependabot"
+actual=$(plain-sandbox print_preset_dockerfile | grep FROM | awk '{ print $2 }')
+expected=$(grep FROM "$minial_dockerfile" | awk '{ print $2 }')
+test "$actual" = "$expected"
+
+
 echo "case: --help option displays help message"
 # when/then:
 plain-sandbox --help | grep -qE "^Usage"
