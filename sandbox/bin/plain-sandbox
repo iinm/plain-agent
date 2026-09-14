@@ -7,7 +7,7 @@ SCRIPT_NAME=$(basename "${BASH_SOURCE[0]}")
 
 MOUNTABLE_SCRIPT_PATH="$HOME/.cache/$SCRIPT_NAME/$SCRIPT_NAME"
 CONTAINER_SCRIPT_PATH="/sandbox/bin/$SCRIPT_NAME"
-PRESET_BASE_IMAGE="public.ecr.aws/docker/library/debian:stable-20260803-slim"
+PRESET_BASE_IMAGE="public.ecr.aws/debian/debian:stable-slim@sha256:6f215363c2547a2d34585f3cfa806048b0a766d1dcc9195f06125740f2c60bd1"
 CONTAINER_NETWORK_ALLOW_LIST=allow_list
 
 help() {
