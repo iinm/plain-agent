@@ -36,8 +36,7 @@ services:
 
 
   envoy:
-    image: envoyproxy/envoy:v1.39.1@sha256:57e14a549d7bd43c8d3f6d03e8cfa653e037d4b38e133acd9b54f38c524401b4
-
+    image: envoyproxy/envoy:v1.39-latest@sha256:57e14a549d7bd43c8d3f6d03e8cfa653e037d4b38e133acd9b54f38c524401b4
     container_name: ${COMPOSE_PROJECT_NAME:-agent}-envoy
     network_mode: "service:gateway"
     entrypoint: ["envoy", "-c", "/etc/envoy/envoy.yaml"]
@@ -76,7 +75,7 @@ services:
 
 
   dind:
-    image: docker:dind-rootless@sha256:e17fa54c2ffd511d8407c746eec77f7814e6f74fe20caf822dad1870599984c0
+    image: docker:29-dind-rootless@sha256:e17fa54c2ffd511d8407c746eec77f7814e6f74fe20caf822dad1870599984c0
     container_name: ${COMPOSE_PROJECT_NAME:-agent}-dind
     # Unprivileged so cap_drop below is effective (ignored on privileged).
     # Relaxations are the minimum rootless dockerd needs:

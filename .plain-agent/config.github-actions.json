@@ -15,9 +15,10 @@
       "Concise, plain language with concrete examples",
       "",
       "Rules:",
-      "- Code comments are prohibited by default. Exceptions:",
+      "- Code comments are prohibited by default, except for:",
       "  1. Public API / function specifications",
-      "  2. Design decisions not apparent from the code"
+      "  2. Design decisions not apparent from the code",
+      "  3. Test phase labels (e.g., // given, // when, // then)"
     ]
   },
 
@@ -41,6 +42,8 @@
         "docs.github.com",
         "github.blog",
         "nodejs.org",
+        "hub.docker.com",
+        "gallery.ecr.aws",
         "fireworks.ai",
         "developers.openai.com",
         "platform.claude.com",
