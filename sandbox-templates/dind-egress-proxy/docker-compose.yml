@@ -78,20 +78,20 @@ services:
     image: docker:29-dind-rootless@sha256:e17fa54c2ffd511d8407c746eec77f7814e6f74fe20caf822dad1870599984c0
     container_name: ${COMPOSE_PROJECT_NAME:-agent}-dind
 
-    privileged: true
+    # ⚠️ Cannot start on GitHub Actions
     # Unprivileged so cap_drop below is effective (ignored on privileged).
     # Relaxations are the minimum rootless dockerd needs:
     #   seccomp/apparmor - userns creation and mounts (rootlesskit)
     #   systempaths - default /proc masking blocks the proc mount runc
     #     needs to start containers
-    # security_opt:
-    #   - seccomp=unconfined
-    #   - apparmor=unconfined
-    #   - systempaths=unconfined
-    # devices:
-    #   # slirp4netns (rootless networking) needs it
-    #   - /dev/net/tun
-    # cap_drop: [NET_RAW]
+    security_opt:
+      - seccomp=unconfined
+      - apparmor=unconfined
+      - systempaths=unconfined
+    devices:
+      # slirp4netns (rootless networking) needs it
+      - /dev/net/tun
+    cap_drop: [NET_RAW]
 
     networks:
       sandbox-internal:
