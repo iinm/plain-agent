@@ -1,0 +1,25 @@
+name: Sandbox Test (dind and egress proxy)
+
+on:
+  pull_request:
+    paths:
+      - "sandbox-templates/dind-egress-proxy/**"
+  push:
+    branches: [main]
+    paths:
+      - "sandbox-templates/dind-egress-proxy/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - run: |
+          cd sandbox-templates/dind-egress-proxy
+          docker compose up -d --build --wait
+          bash verify.sh
