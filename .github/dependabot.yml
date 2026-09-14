@@ -39,17 +39,9 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
-    groups:
-      docker-image:
-        patterns:
-          - "*"
   - package-ecosystem: docker-compose
     directory: /sandbox-templates/dind-egress-proxy
     schedule:
       interval: weekly
     cooldown:
       default-days: 7
-    groups:
-      docker-image:
-        patterns:
-          - "*"
