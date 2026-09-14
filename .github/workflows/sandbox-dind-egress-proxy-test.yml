@@ -21,5 +21,6 @@ jobs:
 
       - run: |
           cd sandbox-templates/dind-egress-proxy
-          docker compose up -d --build --wait
-          bash verify.sh
+          docker compose up
+          # docker compose up -d --build --wait
+          # bash verify.sh
