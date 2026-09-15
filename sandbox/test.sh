@@ -334,6 +334,23 @@ out=$(plain-sandbox --dockerfile "$minial_dockerfile" --rebuild --env-file no-su
 test "$status" -ne 0
 grep -qE "Removing network" <<< "$out"
 
+echo "case: rebuild image automatically when the Dockerfile content changes"
+# given:
+workdir=$(mktemp -d)
+cp "$minial_dockerfile" "$workdir/Dockerfile"
+(cd "$workdir" && plain-sandbox --dockerfile Dockerfile --verbose true &> /dev/null)
+echo "RUN echo changed" >> "$workdir/Dockerfile"
+# when:
+out=$(cd "$workdir" && plain-sandbox --dockerfile Dockerfile --verbose true 2>&1)
+# then:
+grep -qE "Building docker image" <<< "$out"
+# when:
+out=$(cd "$workdir" && plain-sandbox --dockerfile Dockerfile --verbose true 2>&1)
+# then:
+grep -qE "Image already exists, skipping build:" <<< "$out"
+# cleanup:
+rm -rf "$workdir"
+
 
 echo "case: run basic command with preset configuration"
 # when/then:
