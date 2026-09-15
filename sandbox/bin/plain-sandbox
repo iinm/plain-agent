@@ -329,7 +329,8 @@ main() {
   local project_id
   project_id="$(sha256_short 8 <<< "$(pwd)")"
 
-  IMAGE_NAME="${SCRIPT_NAME}--$(basename "$(pwd)")-$project_id"
+  # Docker repository names must be lowercase.
+  IMAGE_NAME="$(printf '%s' "${SCRIPT_NAME}--$(basename "$(pwd)")-$project_id" | tr '[:upper:]' '[:lower:]')"
 
   local image_tag
   image_tag="latest"

@@ -336,10 +336,7 @@ grep -qE "Removing network" <<< "$out"
 
 echo "case: rebuild image automatically when the Dockerfile content changes"
 # given:
-# Docker image names must be lowercase, so use a fixed directory name.
-tmpdir=$(mktemp -d)
-workdir="$tmpdir/project"
-mkdir "$workdir"
+workdir=$(mktemp -d)
 cp "$minial_dockerfile" "$workdir/Dockerfile"
 (cd "$workdir" && plain-sandbox --dockerfile Dockerfile --verbose true &> /dev/null)
 echo "RUN echo changed" >> "$workdir/Dockerfile"
@@ -352,7 +349,7 @@ out=$(cd "$workdir" && plain-sandbox --dockerfile Dockerfile --verbose true 2>&1
 # then:
 grep -qE "Image already exists, skipping build:" <<< "$out"
 # cleanup:
-rm -rf "$tmpdir"
+rm -rf "$workdir"
 
 
 echo "case: run basic command with preset configuration"
