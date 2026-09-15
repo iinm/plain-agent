@@ -349,6 +349,7 @@ out=$(cd "$workdir" && plain-sandbox --dockerfile Dockerfile --verbose true 2>&1
 # then:
 grep -qE "Image already exists, skipping build:" <<< "$out"
 # cleanup:
+docker image ls --format '{{.Repository}}:{{.Tag}}' --filter 'reference=plain-sandbox--tmp.*' | xargs docker image rm -f &> /dev/null || true
 rm -rf "$workdir"
 
 

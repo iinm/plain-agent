@@ -82,7 +82,9 @@ Options:
   --no-cache                Disables cache when building the image (forces rebuild).
   --rebuild                 Rebuild the image even if it already exists (cache is still used).
                             The image is rebuilt automatically when the Dockerfile or
-                            preset configuration changes.
+                            preset configuration changes. Only the Dockerfile content is
+                            hashed, so changes to files copied via COPY/ADD do not trigger
+                            a rebuild.
   --verbose                 Output verbose logs to stderr.
   --dry-run                 Does not execute the command; just prints it to stdout.
   --keep-alive SECONDS      Keep the container running after COMMAND finishes, so it can be reused.
@@ -358,9 +360,13 @@ main() {
     )
   fi
 
-  # Platform is part of the identity so the same tag is not shared across platforms.
+  # Platform is folded into the hash so an image built for one platform is not reused for another.
   local image_hash
   if test -n "$dockerfile"; then
+    if test ! -f "$dockerfile"; then
+      echo "Error: Dockerfile not found: $dockerfile" >&2
+      return 1
+    fi
     image_hash="$(sha256_short 16 < "$dockerfile")"
   else
     image_hash="$("$SCRIPT_PATH" print_preset_dockerfile | sha256_short 16)"
