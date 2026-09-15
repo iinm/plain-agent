@@ -81,6 +81,10 @@ Options:
   --tty                     Allocate a pseudo-TTY for the container.
   --no-cache                Disables cache when building the image (forces rebuild).
   --rebuild                 Rebuild the image even if it already exists (cache is still used).
+                            The image is rebuilt automatically when the Dockerfile or
+                            preset configuration changes. Only the Dockerfile content is
+                            hashed, so changes to files copied via COPY/ADD do not trigger
+                            a rebuild.
   --verbose                 Output verbose logs to stderr.
   --dry-run                 Does not execute the command; just prints it to stdout.
   --keep-alive SECONDS      Keep the container running after COMMAND finishes, so it can be reused.
@@ -141,6 +145,18 @@ HELP
 
 log() {
   echo -e "[$(date "+%Y-%m-%d %H:%M:%S%z")][$(hostname)] $*"
+}
+
+sha256_short() {
+  local length="${1:-16}"
+  if which shasum &> /dev/null; then
+    shasum -a 256 | head -c "$length"
+  elif which sha256sum &> /dev/null; then
+    sha256sum | head -c "$length"
+  else
+    echo "Error: Neither shasum nor sha256sum found. Please install one of them." >&2
+    return 1
+  fi
 }
 
 # These variables are global because they are accessed in the on_exit trap after main() returns.
@@ -313,29 +329,16 @@ main() {
   container_workdir=$(pwd)
 
   local project_id
-  if which shasum &> /dev/null; then
-    project_id="$(shasum -a 256 <<< "$(pwd)" | head -c 8)"
-  elif which sha256sum &> /dev/null; then
-    project_id="$(sha256sum <<< "$(pwd)" | head -c 8)"
-  else
-    echo "Error: Neither shasum nor sha256sum found. Please install one of them." >&2
-    return 1
-  fi
+  project_id="$(sha256_short 8 <<< "$(pwd)")"
 
-  IMAGE_NAME="${SCRIPT_NAME}--$(basename "$(pwd)")-$project_id"
+  # Docker repository names must be lowercase.
+  IMAGE_NAME="$(printf '%s' "${SCRIPT_NAME}--$(basename "$(pwd)")-$project_id" | tr '[:upper:]' '[:lower:]')"
 
   local image_tag
   image_tag="latest"
 
   local container_id
-  if which shasum &> /dev/null; then
-    container_id="$(shasum -a 256 <<< "${sandbox_args[@]}" | head -c 8)"
-  elif which sha256sum &> /dev/null; then
-    container_id="$(sha256sum <<< "${sandbox_args[@]}" | head -c 8)"
-  else
-    echo "Error: Neither shasum nor sha256sum found. Please install one of them." >&2
-    return 1
-  fi
+  container_id="$(sha256_short 8 <<< "${sandbox_args[*]}")"
 
   local container_name="${IMAGE_NAME}--${container_id}"
   local network_name="${container_name}"
@@ -357,8 +360,26 @@ main() {
     )
   fi
 
+  # Platform is folded into the hash so an image built for one platform is not reused for another.
+  local image_hash
+  if test -n "$dockerfile"; then
+    if test ! -f "$dockerfile"; then
+      echo "Error: Dockerfile not found: $dockerfile" >&2
+      return 1
+    fi
+    image_hash="$(sha256_short 16 < "$dockerfile")"
+  else
+    image_hash="$("$SCRIPT_PATH" print_preset_dockerfile | sha256_short 16)"
+  fi
+  if test -n "$platform"; then
+    image_hash="$(sha256_short 16 <<< "$image_hash:$platform")"
+  fi
+
   # docker options
-  local docker_build_opts=(--tag "$IMAGE_NAME:$image_tag")
+  local docker_build_opts=(
+    --tag "$IMAGE_NAME:$image_tag"
+    --label "plain-sandbox.image-hash=${image_hash}"
+  )
   local docker_run_opts=(
     --detach
     --rm
@@ -560,10 +581,17 @@ EOF
  
   trap 'on_exit' EXIT
 
+  local existing_image_hash=""
+  if test "$DRY_RUN" = "no"; then
+    existing_image_hash=$(docker image inspect \
+      --format '{{ index .Config.Labels "plain-sandbox.image-hash" }}' \
+      "${IMAGE_NAME}:${image_tag}" 2> /dev/null || true)
+  fi
+
   local should_build="yes"
   if test "$no_cache" = "yes" -o "$rebuild" = "yes"; then
     should_build="yes"
-  elif test "$DRY_RUN" = "no" && docker image inspect "${IMAGE_NAME}:${image_tag}" &> /dev/null; then
+  elif test "$existing_image_hash" = "$image_hash"; then
     should_build="no"
   fi
 
