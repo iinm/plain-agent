@@ -1,4 +1,4 @@
-FROM public.ecr.aws/debian/debian:stable-slim@sha256:6f215363c2547a2d34585f3cfa806048b0a766d1dcc9195f06125740f2c60bd1
+FROM public.ecr.aws/debian/debian:stable-slim@sha256:b44c88c7a0d6e09b8e0699794338fc414da364e1a6eba03fc945f753eb346860
 
 RUN apt update && apt install -y \
       busybox bash \
