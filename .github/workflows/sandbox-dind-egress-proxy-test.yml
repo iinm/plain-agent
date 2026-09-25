@@ -16,10 +16,18 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./sandbox-templates/dind-egress-proxy
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - run: |
-          cd sandbox-templates/dind-egress-proxy
-          docker compose up -d --build --wait
-          bash verify.sh
+      - name: Allow unprivileged user namespaces (Ubuntu 24.04 AppArmor restriction)
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      - name: Start sandbox
+        run: docker compose up -d --build --wait
+
+      - name: Run test
+        run: bash verify.sh
