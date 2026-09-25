@@ -1,13 +1,13 @@
 name: Sandbox Test (dind and egress proxy)
 
 on:
-  # pull_request:
-  #   paths:
-  #     - "sandbox-templates/dind-egress-proxy/**"
-  # push:
-  #   branches: [main]
-  #   paths:
-  #     - "sandbox-templates/dind-egress-proxy/**"
+  pull_request:
+    paths:
+      - "sandbox-templates/dind-egress-proxy/**"
+  push:
+    branches: [main]
+    paths:
+      - "sandbox-templates/dind-egress-proxy/**"
   workflow_dispatch:
 
 permissions:
