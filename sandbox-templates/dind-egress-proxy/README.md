@@ -104,9 +104,11 @@ The positive tests in verify.sh use `github.com` (HTTPS) and `archive.ubuntu.com
 
 ## Known holes and remaining risks
 
-- **No L2/L3 escape**. `internal: true` is enforced by the host's
-  DOCKER-INTERNAL chain: traffic from the internal bridge is dropped unless its
-  destination is inside the internal subnet. So a container cannot escape by
+- **No L2/L3 escape**. `internal: true` is enforced by a Docker-managed chain in
+  the host filter table: traffic from the internal bridge is dropped unless its
+  destination is inside the internal subnet. The chain name depends on the Docker
+  version (`DOCKER-INTERNAL` on 29+, `DOCKER-ISOLATION-STAGE-1` on 28 and earlier),
+  so verify.sh matches the rule in any chain. A container cannot escape by
   re-pointing its route at the host, or by sending raw frames (AF_PACKET)
   (both tested in verify.sh)
 - **CAP_NET_RAW removed from sandbox/dind/route-keeper containers**.
