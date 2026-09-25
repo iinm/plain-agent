@@ -9,16 +9,20 @@ dind ────┼─ internal network ── gateway ── egress network �
                             (envoy shares the gateway netns)
 ```
 
-- The agent runs code only in the sandbox and in dind containers. The gateway and Envoy
-  run only images built from this repo, so the egress filter never runs agent code
-- sandbox / dind sit on the internal network only. If the gateway is down, traffic is
-  blocked, not bypassed.
+## Security model
+
+- The agent runs code only inside the sandbox and dind containers. The gateway and
+  Envoy share nothing writable with it: only the generated `envoy.yaml` (one-way,
+  mounted read-only into Envoy), so agent input cannot change the egress rules
+- The sandbox and dind sit on the internal network only. If the gateway is down,
+  traffic is blocked, not bypassed.
 - The only exit is the gateway: 443 is matched by SNI (Envoy), 80 by Host header
   (Envoy), DNS only via the gateway's dnsmasq (allow-only)
 
+## How it works
 
-- sandbox / dind have no NET_ADMIN; route-keeper-* sidecars hold it and keep the
-  default route pointed at the gateway
+- The sandbox and dind have no NET_ADMIN; route-keeper-* sidecars hold it and keep
+  the default route pointed at the gateway
 - The gateway generates `envoy.yaml` from the allow list. The sandbox talks to the dind
   docker daemon over `DOCKER_HOST=tcp://<dind IP>:2376` (TLS), so image pulls also pass
   the SNI check

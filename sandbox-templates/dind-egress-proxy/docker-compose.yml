@@ -78,7 +78,9 @@ services:
     image: docker:29-dind-rootless@sha256:e17fa54c2ffd511d8407c746eec77f7814e6f74fe20caf822dad1870599984c0
     container_name: ${COMPOSE_PROJECT_NAME:-agent}-dind
 
-    # ⚠️ Cannot start on GitHub Actions
+    # Needs an unprivileged user namespace (rootlesskit); hosts that restrict it
+    # (Ubuntu 24.04's AppArmor default does) must allow it:
+    #   sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
     # Unprivileged so cap_drop below is effective (ignored on privileged).
     # Relaxations are the minimum rootless dockerd needs:
     #   seccomp/apparmor - userns creation and mounts (rootlesskit)
