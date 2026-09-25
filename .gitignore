@@ -2,7 +2,7 @@ node_modules/
 tmp/
 
 .plain-agent/*
-!.plain-agent/config.json
+!.plain-agent/config.sandbox.json
 !.plain-agent/config.github-actions.json
 !.plain-agent/setup.sh
 !.plain-agent/sandbox/
