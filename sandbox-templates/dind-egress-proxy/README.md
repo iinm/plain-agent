@@ -9,16 +9,20 @@ dind ────┼─ internal network ── gateway ── egress network �
                             (envoy shares the gateway netns)
 ```
 
-- The agent runs code only in the sandbox and in dind containers. The gateway and Envoy
-  run only images built from this repo, so the egress filter never runs agent code
-- sandbox / dind sit on the internal network only. If the gateway is down, traffic is
-  blocked, not bypassed.
+## Security model
+
+- The agent runs code only inside the sandbox and dind containers. The gateway and
+  Envoy share nothing writable with it: only the generated `envoy.yaml` (one-way,
+  mounted read-only into Envoy), so agent input cannot change the egress rules
+- The sandbox and dind sit on the internal network only. If the gateway is down,
+  traffic is blocked, not bypassed.
 - The only exit is the gateway: 443 is matched by SNI (Envoy), 80 by Host header
   (Envoy), DNS only via the gateway's dnsmasq (allow-only)
 
+## How it works
 
-- sandbox / dind have no NET_ADMIN; route-keeper-* sidecars hold it and keep the
-  default route pointed at the gateway
+- The sandbox and dind have no NET_ADMIN; route-keeper-* sidecars hold it and keep
+  the default route pointed at the gateway
 - The gateway generates `envoy.yaml` from the allow list. The sandbox talks to the dind
   docker daemon over `DOCKER_HOST=tcp://<dind IP>:2376` (TLS), so image pulls also pass
   the SNI check
@@ -104,9 +108,11 @@ The positive tests in verify.sh use `github.com` (HTTPS) and `archive.ubuntu.com
 
 ## Known holes and remaining risks
 
-- **No L2/L3 escape**. `internal: true` is enforced by the host's
-  DOCKER-INTERNAL chain: traffic from the internal bridge is dropped unless its
-  destination is inside the internal subnet. So a container cannot escape by
+- **No L2/L3 escape**. `internal: true` is enforced by a Docker-managed chain in
+  the host filter table: traffic from the internal bridge is dropped unless its
+  destination is inside the internal subnet. The chain name depends on the Docker
+  version (`DOCKER-INTERNAL` on 29+, `DOCKER-ISOLATION-STAGE-1` on 28 and earlier),
+  so verify.sh matches the rule in any chain. A container cannot escape by
   re-pointing its route at the host, or by sending raw frames (AF_PACKET)
   (both tested in verify.sh)
 - **CAP_NET_RAW removed from sandbox/dind/route-keeper containers**.

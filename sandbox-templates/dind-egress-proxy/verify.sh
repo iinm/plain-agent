@@ -216,14 +216,16 @@ else
   fail "gateway ip6tables FORWARD policy is not DROP"
 fi
 
-# internal: true is implemented by the host DOCKER-INTERNAL chain (see README)
+# internal: true is enforced by a Docker-managed chain in the host filter table.
+# The chain name differs by Docker version (DOCKER-INTERNAL on 29+,
+# DOCKER-ISOLATION-STAGE-1 on 28 and earlier), so match the rule in any chain
 brname="br-$(docker network inspect "${COMPOSE_PROJECT_NAME}-internal" --format '{{.Id}}' | cut -c1-12)"
 # iptables -S option order varies by version; match 3 conditions instead of exact text
 host_rule=$(docker run --rm --net host --cap-add NET_ADMIN \
-  --entrypoint iptables "${COMPOSE_PROJECT_NAME}/gateway:latest" -S DOCKER-INTERNAL 2>/dev/null \
+  --entrypoint iptables "${COMPOSE_PROJECT_NAME}/gateway:latest" -S 2>/dev/null \
   | grep -- "-i ${brname}" | grep -- "! -d ${INTERNAL_SUBNET}" | grep -- '-j DROP')
 if [ -n "$host_rule" ]; then
-  pass "host DOCKER-INTERNAL blocks the internal bridge -> outside (second layer against L2/L3 direct hits)"
+  pass "host filter table drops the internal bridge -> outside (second layer against L2/L3 direct hits)"
 else
   fail "host-side internal block rule not found (check Docker behavior)"
 fi
@@ -238,7 +240,7 @@ docker exec "${COMPOSE_PROJECT_NAME}-sandbox" curl -sS -m 3 -o /dev/null "http:/
 sleep 8
 route_after=$(docker exec "${COMPOSE_PROJECT_NAME}-sandbox" ip route show default 2>/dev/null)
 if [ "$dns_rc" -ne 0 ] && [ "$web_rc" -ne 0 ]; then
-  pass "denied traffic still fails with the route pointed at the host (DOCKER-INTERNAL blocks it)"
+  pass "denied traffic still fails with the route pointed at the host (host-side block rule)"
   info "route during test: ${route_at}"
   info "route after test: ${route_after} <- repaired by route-keeper"
 else
