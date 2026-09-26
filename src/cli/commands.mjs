@@ -23,7 +23,6 @@ import { formatCostSummary } from "./formatter.mjs";
  * @typedef {"prompt" | "continue"} CommandResult
  * - "prompt": return control to prompt (state.turn = true; cli.prompt())
  * - "continue": agent is now running, do nothing
- * - "continue": agent is now running, do nothing
  */
 
 /**
