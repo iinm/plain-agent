@@ -1,5 +1,5 @@
 /**
- * @import { Agent, AgentConfig, AgentEvent, AgentInput } from "./agent"
+ * @import { Agent, AgentConfig, AgentEvent, AgentInput, ToolApprovalDecision } from "./agent"
  * @import { PauseSignal } from "./agentLoop.mjs";
  * @import { SystemMessage } from "./model"
  * @import { Tool, ToolDefinition } from "./tool"
@@ -23,6 +23,13 @@ import { switchToSubagentToolName } from "./tools/switchToSubagent.mjs";
 import { createAsyncQueue } from "./utils/createAsyncQueue.mjs";
 
 /**
+ * @typedef {{ type: "message"; content: AgentInput }} MessageIntent
+ * @typedef {{ type: "tool_approval"; decision: ToolApprovalDecision }} ToolApprovalIntent
+ * @typedef {{ type: "resume" }} ResumeIntent
+ * @typedef {MessageIntent | ToolApprovalIntent | ResumeIntent} AgentIntent
+ */
+
+/**
  * @param {AgentConfig} config
  * @returns {Agent}
  */
@@ -38,7 +45,7 @@ export function createAgent({
   inputTokensKeys,
   budget,
 }) {
-  /** @type {AsyncQueue<AgentInput>} */
+  /** @type {AsyncQueue<AgentIntent>} */
   const inputQueue = createAsyncQueue();
   /** @type {AsyncQueue<AgentEvent>} */
   const eventQueue = createAsyncQueue();
@@ -190,8 +197,18 @@ export function createAgent({
     if (inputLoopStarted) return;
     inputLoopStarted = true;
     (async () => {
-      for await (const input of inputQueue) {
-        await agentLoop.handleUserInput(input);
+      for await (const intent of inputQueue) {
+        switch (intent.type) {
+          case "message":
+            await agentLoop.handleUserInput(intent.content);
+            break;
+          case "tool_approval":
+            await agentLoop.respondToToolApproval(intent.decision);
+            break;
+          case "resume":
+            await agentLoop.resume();
+            break;
+        }
       }
     })().catch((err) => {
       eventQueue.push({
@@ -209,7 +226,13 @@ export function createAgent({
     },
     send(input) {
       emitSessionStartOnce();
-      inputQueue.push(input);
+      inputQueue.push({ type: "message", content: input });
+    },
+    respondToToolApproval(decision) {
+      inputQueue.push({ type: "tool_approval", decision });
+    },
+    resume() {
+      inputQueue.push({ type: "resume" });
     },
     stop() {
       inputQueue.close();
