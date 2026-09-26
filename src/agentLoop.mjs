@@ -1,5 +1,5 @@
 /**
- * @import { AgentEventSink, AgentBudgetConfig } from "./agent"
+ * @import { AgentEventSink, AgentBudgetConfig, ToolApprovalDecision, ToolApprovalRequest } from "./agent"
  * @import { StateManager } from "./agentState.mjs"
  * @import { CallModel, MessageContentText, MessageContentImage, MessageContentToolResult, PartialMessageContent, UserMessage, MessageContentToolUse, ProviderTokenUsage } from "./model"
  * @import { ToolDefinition, ToolUseApprover } from "./tool"
@@ -30,6 +30,7 @@ import { compactContextToolName } from "./tools/compactContext.mjs";
  * @property {number} [contextSoftLimit] - Soft limit on input tokens for auto-compact
  * @property {string[]} [inputTokensKeys] - Keys in providerTokenUsage to sum for input token count
  * @property {AgentBudgetConfig} [budget]
+ * @property {(request: ToolApprovalRequest) => Promise<ToolApprovalDecision>} [requestToolApproval] - Asked when a tool call needs approval. When omitted, the loop falls back to the text protocol (`tool_use_request` + next input).
  */
 
 /**
@@ -52,6 +53,7 @@ export function createAgentLoop({
   contextSoftLimit,
   inputTokensKeys,
   budget,
+  requestToolApproval,
 }) {
   const loopCreatedAt = new Date();
   const state = {
@@ -192,7 +194,7 @@ export function createAgentLoop({
           const decision = decisions[index];
           const rejectionMessage =
             decision.action === "deny"
-              ? `Tool call rejected. ${decision.reason || ""}`.trim()
+              ? buildRejectionText(decision.reason)
               : "Tool call rejected due to other denied tool calls";
 
           return {
@@ -208,24 +210,60 @@ export function createAgentLoop({
       }
 
       const isAllToolUseApproved = decisions.every((d) => d.action === "allow");
-      if (!isAllToolUseApproved) {
-        emitEvent({
-          timestamp: new Date(),
-          type: "tool_use_request",
-          toolUseCount: toolUseParts.length,
-        });
-        break;
-      }
 
-      // Ctrl-C during model call: skip execution and ask for approval
-      if (pauseSignal.isPaused()) {
+      // Ctrl-C during model call also lands here: skip execution and ask.
+      const needsApproval = !isAllToolUseApproved || pauseSignal.isPaused();
+      if (needsApproval) {
         pauseSignal.reset();
-        emitEvent({
-          timestamp: new Date(),
-          type: "tool_use_request",
-          toolUseCount: toolUseParts.length,
-        });
-        break;
+
+        if (!requestToolApproval) {
+          emitEvent({
+            timestamp: new Date(),
+            type: "tool_use_request",
+            toolUseCount: toolUseParts.length,
+          });
+          break;
+        }
+
+        const decision = await requestToolApproval({ toolUses: toolUseParts });
+
+        if (decision.action === "allowSession") {
+          for (const toolUse of toolUseParts) {
+            toolUseApprover.allowToolUse(toolUse);
+          }
+        }
+
+        if (decision.action === "deny" || decision.action === "feedback") {
+          stateManager.appendMessages([
+            {
+              role: "user",
+              content: toolUseParts.map((toolUse) => ({
+                type: "tool_result",
+                toolUseId: toolUse.toolUseId,
+                toolName: toolUse.toolName,
+                content: [
+                  {
+                    type: "text",
+                    text:
+                      decision.action === "deny"
+                        ? buildRejectionText(decision.reason)
+                        : "Tool call rejected",
+                  },
+                ],
+                isError: true,
+              })),
+            },
+          ]);
+          if (decision.action === "feedback") {
+            stateManager.appendMessages([
+              {
+                role: "user",
+                content: [{ type: "text", text: decision.text }],
+              },
+            ]);
+          }
+          continue;
+        }
       }
 
       const executionResult = await toolExecutor.executeBatch(toolUseParts);
@@ -604,4 +642,12 @@ export function extractInputTokenCount(usage, inputTokensKeys) {
   }
 
   return found ? total : undefined;
+}
+
+/**
+ * @param {string} [reason]
+ * @returns {string}
+ */
+function buildRejectionText(reason) {
+  return reason ? `Tool call rejected. ${reason}` : "Tool call rejected";
 }

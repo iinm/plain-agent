@@ -5,6 +5,7 @@ import type {
   Message,
   MessageContentImage,
   MessageContentText,
+  MessageContentToolUse,
   PartialMessageContent,
   ProviderTokenUsage,
 } from "./model";
@@ -66,6 +67,28 @@ export type AgentEvent = { timestamp: Date } & (
 /** Sink used by the agent loop to push events onto the output stream. */
 export type AgentEventSink = (event: AgentEvent) => void;
 
+/**
+ * A batch of tool calls awaiting human approval, passed to
+ * `requestToolApproval`.
+ */
+export type ToolApprovalRequest = {
+  toolUses: MessageContentToolUse[];
+};
+
+/**
+ * Outcome of an approval request, applied to the whole batch.
+ * - `allow`: run the tools once
+ * - `allowSession`: run now and auto-approve the same calls for the rest of
+ *   the session
+ * - `deny`: reject the tools; `reason` is reported to the model
+ * - `feedback`: reject the tools and pass `text` to the model as instruction
+ */
+export type ToolApprovalDecision =
+  | { action: "allow" }
+  | { action: "allowSession" }
+  | { action: "deny"; reason?: string }
+  | { action: "feedback"; text: string };
+
 export type AgentConfig = {
   callModel: CallModel;
   prompt: string;
@@ -86,6 +109,14 @@ export type AgentConfig = {
   /** Keys in providerTokenUsage to sum for input token count. */
   inputTokensKeys?: string[];
   budget?: AgentBudgetConfig;
+  /**
+   * Called when a tool call needs approval (`ask`) or auto-approval was
+   * paused. When omitted, the loop falls back to the legacy text protocol:
+   * it emits `tool_use_request` and waits for the next `send()` input.
+   */
+  requestToolApproval?: (
+    request: ToolApprovalRequest,
+  ) => Promise<ToolApprovalDecision>;
 };
 
 export type AgentBudgetConfig = {

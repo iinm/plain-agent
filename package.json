@@ -11,6 +11,22 @@
   "keywords": [
     "coding-agent"
   ],
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.mjs"
+    },
+    "./agent": {
+      "types": "./src/agent.d.ts",
+      "default": "./src/agent.mjs"
+    },
+    "./agentSession": {
+      "types": "./src/agentSession.d.ts",
+      "default": "./src/agentSession.mjs"
+    },
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
   "bin": {
     "plain": "bin/plain",
     "plain-sandbox": "sandbox/bin/plain-sandbox"

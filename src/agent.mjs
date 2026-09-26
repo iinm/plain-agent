@@ -37,6 +37,7 @@ export function createAgent({
   contextSoftLimit,
   inputTokensKeys,
   budget,
+  requestToolApproval,
 }) {
   /** @type {AsyncQueue<AgentInput>} */
   const inputQueue = createAsyncQueue();
@@ -163,6 +164,7 @@ export function createAgent({
     contextSoftLimit,
     inputTokensKeys,
     budget,
+    requestToolApproval,
   });
 
   let sessionStartEmitted = false;

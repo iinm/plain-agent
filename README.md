@@ -20,6 +20,7 @@ A lightweight terminal-based coding agent focused on safety and low token cost
   - [Claude Code Compatibility](#claude-code-compatibility)
 - [Requirements](#requirements)
 - [Quick Start](#quick-start)
+- [Library Usage](#library-usage)
 - [Configuration](#configuration)
 - [Available Tools](#available-tools)
 - [Prompts](#prompts)
@@ -460,6 +461,44 @@ config file). Arguments after `--` are passed through to the sandbox command as-
 ```sh
 plain sandbox -- --allow-net 0.0.0.0/0 --tty --verbose zsh
 ```
+
+## Library Usage
+
+`@iinm/plain-agent` also exposes the agent loop as a library.
+
+```sh
+npm install @iinm/plain-agent
+```
+
+```js
+import { createAgentSession } from "@iinm/plain-agent";
+
+const session = createAgentSession({
+  callModel,
+  tools,
+  // Return one of:
+  //   { action: "allow" }                      run the tools once
+  //   { action: "allowSession" }               run now and auto-approve the same calls for the session
+  //   { action: "deny", reason }               reject; reason is reported to the model
+  //   { action: "feedback", text }             reject and pass text to the model as instruction
+  requestToolApproval: async ({ toolUses }) => ({ action: "allow" }),
+});
+
+session.send([{ type: "text", text: "List the files" }]);
+for await (const event of session.start()) {
+  // handle AgentEvent: message, tool_use_request, turn_end, ...
+}
+```
+
+Tool calls require approval by default. Provide `requestToolApproval` to decide them, or pass a pattern-based approver (`createToolUseApprover`) as `toolUseApprover`. When `requestToolApproval` is omitted, the loop emits a `tool_use_request` event and waits for the next `send()` instead of running the tools.
+
+Entry points:
+
+| Import | Contents |
+| --- | --- |
+| `@iinm/plain-agent` | `createAgent`, `createAgentSession`, tool factories, public types |
+| `@iinm/plain-agent/agent` | Agent loop core (`createAgent`, `AgentConfig`, approval types) |
+| `@iinm/plain-agent/agentSession` | `createAgentSession` and its options |
 
 ## Configuration
 

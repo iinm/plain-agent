@@ -4,7 +4,6 @@
  */
 
 import { spawn } from "node:child_process";
-import { randomInt } from "node:crypto";
 import { styleText } from "node:util";
 import { createAgent } from "./agent.mjs";
 import {
@@ -40,6 +39,7 @@ import { createWebFetchTool } from "./tools/webFetch.mjs";
 import { createWebSearchTool } from "./tools/webSearch.mjs";
 import { writeFileTool } from "./tools/writeFile.mjs";
 import { createToolUseApprover } from "./toolUseApprover.mjs";
+import { generateSessionId } from "./utils/sessionId.mjs";
 
 /**
  * CLI entry point. Separated from top-level so that importing this module
@@ -529,26 +529,6 @@ export async function main(argv = process.argv) {
     notifyCmd: appConfig.notifyCmd,
     claudeCodePlugins: resolvePluginPaths(appConfig.claudeCodePlugins ?? []),
   });
-}
-
-/**
- * Generate a session id of the form `YYYY-MM-DD-HHMM-<3 random base36 chars>`.
- * The random suffix avoids collisions when multiple `plain` processes start
- * within the same minute. `randomInt` is uniform over `[0, 36 ** 3)`, so
- * each suffix character is unbiased.
- *
- * @param {Date} [now]
- * @returns {string}
- */
-function generateSessionId(now = new Date()) {
-  const date = [
-    `${now.getFullYear()}-${`0${now.getMonth() + 1}`.slice(-2)}-${`0${now.getDate()}`.slice(-2)}`,
-    `0${now.getHours()}`.slice(-2) + `0${now.getMinutes()}`.slice(-2),
-  ].join("-");
-  const suffix = randomInt(36 ** 3)
-    .toString(36)
-    .padStart(3, "0");
-  return `${date}-${suffix}`;
 }
 
 /**
