@@ -28,3 +28,4 @@ jobs:
           name: plain-agent-test-coverage
           path: |
             coverage
+          retention-days: 7
