@@ -13,6 +13,19 @@ import type { Tool, ToolUseApprover } from "./tool";
 
 export type AgentInput = (MessageContentText | MessageContentImage)[];
 
+/**
+ * Outcome of a pending tool-approval request, applied to the whole batch.
+ * - `allow`: run the tools once
+ * - `allowSession`: run now and auto-approve the same calls for the rest of
+ *   the session
+ * - `deny`: reject the tools; `content` is appended as a user message so the
+ *   model receives it as an instruction
+ */
+export type ToolApprovalDecision =
+  | { action: "allow" }
+  | { action: "allowSession" }
+  | { action: "deny"; content: AgentInput };
+
 export type Agent = {
   /**
    * Start the agent loop and return the async event stream. Consume with
@@ -23,9 +36,18 @@ export type Agent = {
   /**
    * Send user input to the agent. Input is pushed onto an internal async
    * queue and consumed by the agent loop; may be called from multiple places
-   * (plain input, slash commands, tool approval).
+   * (plain input, slash commands).
    */
   send: (input: AgentInput) => void;
+  /**
+   * Answer a pending tool-approval request (emitted as `tool_use_request`).
+   */
+  respondToToolApproval: (decision: ToolApprovalDecision) => void;
+  /**
+   * Resume the conversation without adding new user input, e.g. after a
+   * model provider error.
+   */
+  resume: () => void;
   stop: () => void;
   pauseAutoApprove: () => void;
   /** Subagent currently active for this session, or null. */

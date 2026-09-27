@@ -89,6 +89,7 @@ export function startInteractiveSession({
     subagentName: agent.getActiveSubagent()?.name ?? "",
     spinnerIndex: 0,
     spinnerLastTime: 0,
+    awaitingToolApproval: false,
     isExiting: false,
 
     /** Double-press Ctrl-D exit confirmation */
@@ -306,7 +307,12 @@ export function startInteractiveSession({
 
     cli.setPrompt(currentCliPrompt);
 
-    const result = await handleCommand(inputTrimmed);
+    const result = await handleCommand(inputTrimmed, {
+      awaitingToolApproval: state.awaitingToolApproval,
+    });
+    if (result === "continue" && state.awaitingToolApproval) {
+      state.awaitingToolApproval = false;
+    }
     if (result === "prompt") {
       state.turn = true;
       cli.prompt();
@@ -423,6 +429,7 @@ export function startInteractiveSession({
           break;
 
         case "tool_use_request": {
+          state.awaitingToolApproval = true;
           const toolText =
             event.toolUseCount === 1 ? "tool call" : "tool calls";
           cli.setPrompt(

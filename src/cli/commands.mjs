@@ -1,7 +1,8 @@
 /**
- * @import { Agent } from "../agent"
+ * @import { Agent, ToolApprovalDecision } from "../agent"
  * @import { CostTracker } from "../metrics/costTracker.mjs";
  * @import { ClaudeCodePlugin } from "../claudeCodePlugin.mjs"
+ * @import { MessageContentText, MessageContentImage } from "../model"
  */
 
 import { execFileSync } from "node:child_process";
@@ -22,6 +23,11 @@ import { formatCostSummary } from "./formatter.mjs";
  * @typedef {"prompt" | "continue"} CommandResult
  * - "prompt": return control to prompt (state.turn = true; cli.prompt())
  * - "continue": agent is now running, do nothing
+ */
+
+/**
+ * @typedef {object} CommandHandlerOptions
+ * @property {boolean} [awaitingToolApproval] - True while a tool approval is pending
  */
 
 /**
@@ -48,10 +54,22 @@ export function matchAgentsCommand(input) {
 }
 
 /**
+ * Interpret raw user input as a tool-approval decision.
+ * `Y`/`YES` allow for the session, `y`/`yes`/`ｙ` allow once.
+ * @param {string} input
+ * @returns {ToolApprovalDecision | null}
+ */
+export function parseToolApprovalInput(input) {
+  if (/^(YES|Y)$/.test(input)) return { action: "allowSession" };
+  if (/^(yes|y|ｙ)$/i.test(input)) return { action: "allow" };
+  return null;
+}
+
+/**
  * Create command handler function for processing slash commands.
  *
  * @param {CommandHandlerDeps} deps
- * @returns {(input: string) => Promise<CommandResult>}
+ * @returns {(input: string, options?: CommandHandlerOptions) => Promise<CommandResult>}
  */
 export function createCommandHandler({
   agent,
@@ -60,12 +78,26 @@ export function createCommandHandler({
   helpMessage,
 }) {
   /**
+   * @param {(MessageContentText | MessageContentImage)[]} content
+   * @param {boolean} awaitingToolApproval
+   * @returns {CommandResult}
+   */
+  function sendToAgent(content, awaitingToolApproval) {
+    if (awaitingToolApproval) {
+      agent.respondToToolApproval({ action: "deny", content });
+    } else {
+      agent.send(content);
+    }
+    return "continue";
+  }
+  /**
    * Invoke an agent with the given id and goal.
    * @param {string} id
    * @param {string} goal
+   * @param {boolean} awaitingToolApproval
    * @returns {Promise<CommandResult>}
    */
-  async function invokeAgent(id, goal) {
+  async function invokeAgent(id, goal, awaitingToolApproval) {
     const agentRoles = await loadAgentRoles(claudeCodePlugins);
     const agentRole = agentRoles.get(id);
     const name = agentRole ? id : `custom:${id}`;
@@ -75,8 +107,10 @@ export function createCommandHandler({
       goalTextContent?.type === "text" ? goalTextContent.text : goal;
 
     const messageText = `Switch to "${name}" subagent with goal: ${goalText}`;
-    agent.send([{ type: "text", text: messageText }, ...goalImages]);
-    return "continue";
+    return sendToAgent(
+      [{ type: "text", text: messageText }, ...goalImages],
+      awaitingToolApproval,
+    );
   }
 
   /**
@@ -84,9 +118,15 @@ export function createCommandHandler({
    * @param {string} id
    * @param {string} args
    * @param {string} displayInvocation
+   * @param {boolean} awaitingToolApproval
    * @returns {Promise<CommandResult>}
    */
-  async function invokePrompt(id, args, displayInvocation) {
+  async function invokePrompt(
+    id,
+    args,
+    displayInvocation,
+    awaitingToolApproval,
+  ) {
     const prompts = await loadPrompts(claudeCodePlugins);
     const prompt = prompts.get(id);
 
@@ -109,16 +149,34 @@ export function createCommandHandler({
       ? `System: This prompt was invoked as "${invocation}".\nPrompt path: ${prompt.filePath}\n\n${promptContent}`
       : `System: This prompt was invoked as "${invocation}".\n\n${promptContent}`;
 
-    agent.send([{ type: "text", text: message }, ...argsImages]);
-    return "continue";
+    return sendToAgent(
+      [{ type: "text", text: message }, ...argsImages],
+      awaitingToolApproval,
+    );
   }
 
   /**
    * Handle a complete user input string and return a CommandResult.
    * @param {string} inputTrimmed
+   * @param {CommandHandlerOptions} [options]
    * @returns {Promise<CommandResult>}
    */
-  return async function handleCommand(inputTrimmed) {
+  return async function handleCommand(inputTrimmed, options = {}) {
+    const awaitingToolApproval = options.awaitingToolApproval ?? false;
+
+    if (awaitingToolApproval) {
+      const decision = parseToolApprovalInput(inputTrimmed);
+      if (decision) {
+        agent.respondToToolApproval(decision);
+        return "continue";
+      }
+    }
+
+    // /resume — resume without adding new user input
+    if (!awaitingToolApproval && inputTrimmed.toLowerCase() === "/resume") {
+      agent.resume();
+      return "continue";
+    }
     // /help or help
     if (["/help", "help"].includes(inputTrimmed.toLowerCase())) {
       console.log(`\n${helpMessage}`);
@@ -140,8 +198,7 @@ export function createCommandHandler({
       }
 
       const messageWithContext = await loadUserMessageContext(fileContent);
-      agent.send(messageWithContext);
-      return "continue";
+      return sendToAgent(messageWithContext, awaitingToolApproval);
     }
 
     // /cost
@@ -157,8 +214,10 @@ export function createCommandHandler({
         invocation: inputTrimmed,
         isSubagent: agent.getActiveSubagent() !== null,
       });
-      agent.send([{ type: "text", text: message }]);
-      return "continue";
+      return sendToAgent(
+        [{ type: "text", text: message }],
+        awaitingToolApproval,
+      );
     }
 
     // /agents or /agents:id
@@ -187,7 +246,7 @@ export function createCommandHandler({
         console.error(styleText("red", "\nInvalid agent invocation format."));
         return "prompt";
       }
-      return await invokeAgent(match[1], match[2] || "");
+      return await invokeAgent(match[1], match[2] || "", awaitingToolApproval);
     }
 
     // /prompts or /prompts:id
@@ -223,6 +282,7 @@ export function createCommandHandler({
           match[1],
           match[2] || "",
           `/prompts:${match[1]}`,
+          awaitingToolApproval,
         );
       }
     }
@@ -260,8 +320,7 @@ export function createCommandHandler({
 
       const combinedInput = prompt ? `${prompt}\n\n${clipboard}` : clipboard;
       const messageWithContext = await loadUserMessageContext(combinedInput);
-      agent.send(messageWithContext);
-      return "continue";
+      return sendToAgent(messageWithContext, awaitingToolApproval);
     }
 
     // /<id> — shortcut for prompts in shortcuts/ directory
@@ -273,14 +332,18 @@ export function createCommandHandler({
         const prompt = prompts.get(id);
 
         if (prompt?.isShortcut) {
-          return await invokePrompt(id, match[2] || "", `/${id}`);
+          return await invokePrompt(
+            id,
+            match[2] || "",
+            `/${id}`,
+            awaitingToolApproval,
+          );
         }
       }
     }
 
     // Default: emit as plain user input
     const messageWithContext = await loadUserMessageContext(inputTrimmed);
-    agent.send(messageWithContext);
-    return "continue";
+    return sendToAgent(messageWithContext, awaitingToolApproval);
   };
 }

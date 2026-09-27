@@ -211,3 +211,4 @@ jobs:
             .plain-agent/sessions
             .plain-agent/memory
           include-hidden-files: true
+          retention-days: 14

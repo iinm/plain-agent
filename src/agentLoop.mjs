@@ -1,7 +1,7 @@
 /**
- * @import { AgentEventSink, AgentBudgetConfig } from "./agent"
+ * @import { AgentEventSink, AgentBudgetConfig, ToolApprovalDecision } from "./agent"
  * @import { StateManager } from "./agentState.mjs"
- * @import { CallModel, MessageContentText, MessageContentImage, MessageContentToolResult, PartialMessageContent, UserMessage, MessageContentToolUse, ProviderTokenUsage } from "./model"
+ * @import { CallModel, MessageContentText, MessageContentImage, MessageContentToolResult, PartialMessageContent, MessageContentToolUse, ProviderTokenUsage } from "./model"
  * @import { ToolDefinition, ToolUseApprover } from "./tool"
  * @import { ToolExecutor } from "./toolExecutor.mjs";
  * @import { SubagentManager } from "./subagent.mjs"
@@ -59,24 +59,50 @@ export function createAgentLoop({
     turnsAfterBudgetSoftLimitPrompt: -1,
   };
 
-  const inputHandler = createInputHandler({
-    stateManager,
-    toolExecutor,
-    subagentManager,
-    toolUseApprover,
-  });
+  /**
+   * Reset per-turn signals, apply a state mutation, then run the turn loop.
+   * @param {() => void | Promise<void>} mutate
+   * @returns {Promise<void>}
+   */
+  async function runTurn(mutate) {
+    pauseSignal.reset();
+    toolUseApprover.resetApprovalCount();
+    await mutate();
+    await runTurnLoop();
+    emitEvent({ timestamp: new Date(), type: "turn_end" });
+  }
 
   /**
-   * Handle user input and run the agent turn loop
+   * Append user input and run the agent turn loop
    * @param {(MessageContentText | MessageContentImage)[]} input - User input content
    * @returns {Promise<void>}
    */
   async function handleUserInput(input) {
-    pauseSignal.reset();
-    toolUseApprover.resetApprovalCount();
-    await inputHandler.handle(input);
-    await runTurnLoop();
-    emitEvent({ timestamp: new Date(), type: "turn_end" });
+    await runTurn(() => {
+      stateManager.appendMessages([{ role: "user", content: input }]);
+    });
+  }
+
+  /**
+   * Answer a pending tool-approval request and run the agent turn loop.
+   * @param {ToolApprovalDecision} decision
+   * @returns {Promise<void>}
+   */
+  async function respondToToolApproval(decision) {
+    await runTurn(() =>
+      applyToolApprovalDecision(
+        { stateManager, toolExecutor, subagentManager, toolUseApprover },
+        decision,
+      ),
+    );
+  }
+
+  /**
+   * Resume the conversation without adding new user input.
+   * @returns {Promise<void>}
+   */
+  async function resume() {
+    await runTurn(() => {});
   }
 
   /**
@@ -386,11 +412,13 @@ export function createAgentLoop({
 
   return {
     handleUserInput,
+    respondToToolApproval,
+    resume,
   };
 }
 
 /**
- * @typedef {Object} InputHandlerContext
+ * @typedef {Object} ToolApprovalContext
  * @property {StateManager} stateManager
  * @property {ToolExecutor} toolExecutor
  * @property {SubagentManager} subagentManager
@@ -398,157 +426,78 @@ export function createAgentLoop({
  */
 
 /**
- * @typedef {ReturnType<typeof createInputHandler>} InputHandler
- */
-
-/**
- * Create an input handler.
+ * Apply a tool-approval decision to the pending tool uses on the last message.
  *
- * @param {InputHandlerContext} context
+ * On approval, execute the batch and feed the results back into the
+ * conversation (including compact/subagent handling). On denial, reject the
+ * tool uses and append the decision's content as a user message.
+ *
+ * @param {ToolApprovalContext} context
+ * @param {ToolApprovalDecision} decision
+ * @returns {Promise<void>}
  */
-export function createInputHandler(context) {
+async function applyToolApprovalDecision(context, decision) {
   const { stateManager, toolExecutor, subagentManager, toolUseApprover } =
     context;
 
-  /**
-   * Determine input type based on current state and input.
-   * @param {UserMessage["content"]} input
-   * @returns {'toolApproval' | 'resume' | 'text'}
-   */
-  function determineInputType(input) {
-    const lastMessage = stateManager.getMessageAt(-1);
-
-    // Check if there's a pending tool call
-    if (lastMessage?.content.some((part) => part.type === "tool_use")) {
-      return "toolApproval";
-    }
-
-    if (
-      input.length === 1 &&
-      input[0].type === "text" &&
-      input[0].text.toLowerCase() === "/resume"
-    ) {
-      return "resume";
-    }
-
-    return "text";
+  /** @type {MessageContentToolUse[]} */
+  const toolUseParts = (stateManager.getMessageAt(-1)?.content ?? []).filter(
+    (part) => part.type === "tool_use",
+  );
+  if (toolUseParts.length === 0) {
+    throw new Error("No pending tool uses found");
   }
 
-  /**
-   * Handle tool approval/rejection input.
-   * @param {UserMessage["content"]} input
-   */
-  async function handleToolApproval(input) {
-    const lastMessage = stateManager.getMessageAt(-1);
-    if (!lastMessage) return;
-
-    /** @type {MessageContentToolUse[]} */
-    const toolUseParts = lastMessage.content.filter(
-      (part) => part.type === "tool_use",
-    );
-
-    const isApproval =
-      input.length === 1 &&
-      input[0].type === "text" &&
-      input[0].text.toLocaleLowerCase().match(/^(yes|y|ｙ)$/i);
-
-    if (isApproval) {
-      if (
-        /** @type {MessageContentText} */ (input[0]).text.match(/^(YES|Y)$/)
-      ) {
-        for (const toolUse of toolUseParts) {
-          toolUseApprover.allowToolUse(toolUse);
-        }
-      }
-
-      const executionResult = await toolExecutor.executeBatch(toolUseParts);
-      if (!executionResult.success) {
-        stateManager.appendMessages([
-          { role: "user", content: executionResult.errors },
-        ]);
-        return;
-      }
-
-      const toolResults = executionResult.results;
-
-      if (
-        applyCompactContextIfCalled(stateManager, toolUseParts, toolResults)
-      ) {
-        return;
-      }
-
-      const result = subagentManager.processToolResults(
-        toolUseParts,
-        toolResults,
-        stateManager.getMessages(),
-      );
-      if (result.state.type === "replaceMessages") {
-        stateManager.replaceMessages(result.state.messages);
-      }
-
-      if (result.newMessage) {
-        stateManager.appendMessages([result.newMessage]);
-      } else {
-        stateManager.appendMessages([{ role: "user", content: toolResults }]);
-      }
-    } else {
-      // Rejected
-      /** @type {MessageContentToolResult[]} */
-      const toolResults = toolUseParts.map((toolUse) => ({
-        type: "tool_result",
-        toolUseId: toolUse.toolUseId,
-        toolName: toolUse.toolName,
-        content: [{ type: "text", text: "Tool call rejected" }],
-        isError: true,
-      }));
-
-      stateManager.appendMessages([
-        { role: "user", content: toolResults },
-        {
-          role: "user",
-          content: input,
-        },
-      ]);
-    }
-  }
-
-  async function handleResume() {
-    // Resume the conversation stopped by unexpected error, etc.
-    // No state changes needed
-  }
-
-  /**
-   * @param {UserMessage["content"]} input
-   */
-  async function handleText(input) {
+  if (decision.action === "deny") {
+    /** @type {MessageContentToolResult[]} */
+    const toolResults = toolUseParts.map((toolUse) => ({
+      type: "tool_result",
+      toolUseId: toolUse.toolUseId,
+      toolName: toolUse.toolName,
+      content: [{ type: "text", text: "Tool call rejected" }],
+      isError: true,
+    }));
     stateManager.appendMessages([
-      {
-        role: "user",
-        content: input,
-      },
+      { role: "user", content: toolResults },
+      { role: "user", content: decision.content },
     ]);
+    return;
   }
 
-  return {
-    /**
-     * @param {UserMessage["content"]} input
-     */
-    async handle(input) {
-      const inputType = determineInputType(input);
+  if (decision.action === "allowSession") {
+    for (const toolUse of toolUseParts) {
+      toolUseApprover.allowToolUse(toolUse);
+    }
+  }
 
-      switch (inputType) {
-        case "toolApproval":
-          await handleToolApproval(input);
-          break;
-        case "resume":
-          await handleResume();
-          break;
-        case "text":
-          await handleText(input);
-          break;
-      }
-    },
-  };
+  const executionResult = await toolExecutor.executeBatch(toolUseParts);
+  if (!executionResult.success) {
+    stateManager.appendMessages([
+      { role: "user", content: executionResult.errors },
+    ]);
+    return;
+  }
+
+  const toolResults = executionResult.results;
+
+  if (applyCompactContextIfCalled(stateManager, toolUseParts, toolResults)) {
+    return;
+  }
+
+  const result = subagentManager.processToolResults(
+    toolUseParts,
+    toolResults,
+    stateManager.getMessages(),
+  );
+  if (result.state.type === "replaceMessages") {
+    stateManager.replaceMessages(result.state.messages);
+  }
+
+  if (result.newMessage) {
+    stateManager.appendMessages([result.newMessage]);
+  } else {
+    stateManager.appendMessages([{ role: "user", content: toolResults }]);
+  }
 }
 
 /**
