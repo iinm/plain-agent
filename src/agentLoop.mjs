@@ -1,7 +1,7 @@
 /**
  * @import { AgentEventSink, AgentBudgetConfig, ToolApprovalDecision } from "./agent"
  * @import { StateManager } from "./agentState.mjs"
- * @import { CallModel, MessageContentText, MessageContentImage, MessageContentToolResult, PartialMessageContent, UserMessage, MessageContentToolUse, ProviderTokenUsage } from "./model"
+ * @import { CallModel, MessageContentText, MessageContentImage, MessageContentToolResult, PartialMessageContent, MessageContentToolUse, ProviderTokenUsage } from "./model"
  * @import { ToolDefinition, ToolUseApprover } from "./tool"
  * @import { ToolExecutor } from "./toolExecutor.mjs";
  * @import { SubagentManager } from "./subagent.mjs"
@@ -444,7 +444,9 @@ async function applyToolApprovalDecision(context, decision) {
   const toolUseParts = (stateManager.getMessageAt(-1)?.content ?? []).filter(
     (part) => part.type === "tool_use",
   );
-  if (toolUseParts.length === 0) return;
+  if (toolUseParts.length === 0) {
+    throw new Error("No pending tool uses found");
+  }
 
   if (decision.action === "deny") {
     /** @type {MessageContentToolResult[]} */

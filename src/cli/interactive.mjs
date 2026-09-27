@@ -307,11 +307,10 @@ export function startInteractiveSession({
 
     cli.setPrompt(currentCliPrompt);
 
-    const awaiting = state.awaitingToolApproval;
     const result = await handleCommand(inputTrimmed, {
-      awaitingToolApproval: awaiting,
+      awaitingToolApproval: state.awaitingToolApproval,
     });
-    if (result === "continue" && awaiting) {
+    if (result === "continue" && state.awaitingToolApproval) {
       state.awaitingToolApproval = false;
     }
     if (result === "prompt") {

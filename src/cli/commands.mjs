@@ -78,8 +78,6 @@ export function createCommandHandler({
   helpMessage,
 }) {
   /**
-   * Send content to the agent. While a tool approval is pending, the content
-   * is passed as a denial decision so the model receives it as feedback.
    * @param {(MessageContentText | MessageContentImage)[]} content
    * @param {boolean} awaitingToolApproval
    * @returns {CommandResult}

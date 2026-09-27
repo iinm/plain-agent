@@ -139,26 +139,34 @@ describe("parseToolApprovalInput", () => {
   });
 });
 
-/** @returns {any} */
 function createStubAgent() {
-  /** @type {{ send: any[]; respondToToolApproval: any[]; resume: number }} */
+  /**
+   * @typedef {Object} AgentCalls
+   * @property {import("../agent").AgentInput[]} send
+   * @property {import("../agent").ToolApprovalDecision[]} respondToToolApproval
+   * @property {number} resume
+   */
+  /** @type {AgentCalls} */
   const calls = { send: [], respondToToolApproval: [], resume: 0 };
-  return {
-    calls,
-    send: (/** @type {any} */ input) => calls.send.push(input),
-    respondToToolApproval: (/** @type {any} */ decision) =>
-      calls.respondToToolApproval.push(decision),
-    resume: () => {
-      calls.resume += 1;
-    },
-    getActiveSubagent: () => null,
-  };
+  return /** @type {import("../agent").Agent & {calls: AgentCalls}} */ (
+    /** @type {unknown} */
+    ({
+      calls,
+      send: (/** @type {any} */ input) => calls.send.push(input),
+      respondToToolApproval: (/** @type {any} */ decision) =>
+        calls.respondToToolApproval.push(decision),
+      resume: () => {
+        calls.resume += 1;
+      },
+      getActiveSubagent: () => null,
+    })
+  );
 }
 
-/** @param {any} agent */
+/** @param {import("../agent").Agent} agent */
 function createStubHandler(agent) {
   return createCommandHandler(
-    /** @type {any} */ ({
+    /** @type {import("./commands.mjs").CommandHandlerDeps} */ ({
       agent,
       costTracker: { calculateCost: () => ({}) },
       claudeCodePlugins: undefined,
