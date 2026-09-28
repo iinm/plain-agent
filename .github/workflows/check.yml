@@ -10,19 +10,37 @@ permissions:
 
 jobs:
   check:
+    name: node-${{ matrix.node-version }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [22, 24, 26]
+        include:
+          - node-version: 24
+            primary: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: ${{ matrix.node-version }}
           cache: npm
+
       - run: npm ci
+
       - run: npm run lint
+        if: matrix.primary
+
       - run: npx tsc
+        if: matrix.primary
+
       - run: npm run test:coverage
+
       - run: npm run test:config
+
       - name: Save test coverage
+        if: matrix.primary
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: plain-agent-test-coverage
