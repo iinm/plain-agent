@@ -88,7 +88,7 @@ Domains are separated by spaces on one line:
 ```sh
 # .env example
 ALLOWED_HTTPS_DOMAINS=github.com api.github.com
-ALLOWED_HTTP_HOSTS=archive.ubuntu.com
+ALLOWED_HTTP_HOSTS=deb.debian.org
 ```
 
 Then `docker compose up -d --wait` (recreates the gateway with the new list).
@@ -102,7 +102,7 @@ connection filters and name resolution together. Names outside the lists get SER
 which closes DNS exfiltration (and diagnostic lookups of non-allowed names fail too).
 
 
-The positive tests in verify.sh use `github.com` (HTTPS) and `archive.ubuntu.com`
+The positive tests in verify.sh use `github.com` (HTTPS) and `deb.debian.org`
 (HTTP). If your list drops them, point the tests at hosts you allow:
 `ALLOW_HOST=<https-host> HTTP_ALLOW_HOST=<http-host> ./verify.sh`
 

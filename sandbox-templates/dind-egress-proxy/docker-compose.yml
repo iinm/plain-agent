@@ -18,7 +18,7 @@ services:
     environment:
 
       ALLOWED_HTTPS_DOMAINS: "${ALLOWED_HTTPS_DOMAINS:-github.com api.github.com registry-1.docker.io auth.docker.io production.cloudfront.docker.com}"
-      ALLOWED_HTTP_HOSTS: "${ALLOWED_HTTP_HOSTS:-archive.ubuntu.com security.ubuntu.com}"
+      ALLOWED_HTTP_HOSTS: "${ALLOWED_HTTP_HOSTS:-deb.debian.org security.debian.org}"
       DNS_UPSTREAM: "${DNS_UPSTREAM:-8.8.8.8 8.8.4.4}"
       # DNS canary: entrypoint adds it to the dnsmasq allow-list, but to no connection list
       HEALTHCHECK_DOMAIN: example.com

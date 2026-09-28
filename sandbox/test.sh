@@ -179,7 +179,7 @@ plain-sandbox --dockerfile "$minial_dockerfile" --rebuild bash -c 'echo $(id -u)
 
 echo "case: working directory is mounted and readable"
 # when/then:
-plain-sandbox --dockerfile "$minial_dockerfile" --rebuild cat "$minial_dockerfile" | grep -qE "FROM .+debian"
+plain-sandbox --dockerfile "$minial_dockerfile" --rebuild cat "$minial_dockerfile" | grep -qE "FROM debian"
 
 
 echo "case: working directory owner is sandbox user"

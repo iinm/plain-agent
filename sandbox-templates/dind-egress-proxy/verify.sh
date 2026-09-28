@@ -21,7 +21,7 @@ ERR=$(mktemp "${COMPOSE_PROJECT_NAME}-verify.XXXXXX")
 trap 'rm -f "$ERR"' EXIT
 
 ALLOW_HOST=${ALLOW_HOST:-github.com}  # in ALLOWED_HTTPS_DOMAINS (positive test)
-HTTP_ALLOW_HOST=${HTTP_ALLOW_HOST:-archive.ubuntu.com}  # in ALLOWED_HTTP_HOSTS (positive test)
+HTTP_ALLOW_HOST=${HTTP_ALLOW_HOST:-deb.debian.org}  # in ALLOWED_HTTP_HOSTS (positive test)
 DENY_HOST=${DENY_HOST:-example.org}  # in no allow list
 
 PASS=0 FAIL=0
