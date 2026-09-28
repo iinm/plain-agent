@@ -73,7 +73,7 @@ jobs:
 
           cat > mise.local.toml <<EOF
           [tools]
-          node = '22'
+          node = '24'
           gh = 'latest'
           EOF
 
