@@ -7,7 +7,7 @@ SCRIPT_NAME=$(basename "${BASH_SOURCE[0]}")
 
 MOUNTABLE_SCRIPT_PATH="$HOME/.cache/$SCRIPT_NAME/$SCRIPT_NAME"
 CONTAINER_SCRIPT_PATH="/sandbox/bin/$SCRIPT_NAME"
-PRESET_BASE_IMAGE="debian:stable-slim@sha256:5bc3287b25407c965a30f38e32603dc253a3869e1b12a21ac09bfc27fd8b13ce"
+PLAIN_SANDBOX_PRESET_BASE_IMAGE="${PLAIN_SANDBOX_PRESET_BASE_IMAGE:-debian:stable-slim@sha256:5bc3287b25407c965a30f38e32603dc253a3869e1b12a21ac09bfc27fd8b13ce}"
 CONTAINER_NETWORK_ALLOW_LIST=allow_list
 
 help() {
@@ -124,6 +124,8 @@ Preset Configuration:
   - mise package manager for additional runtime installations
   - Persistent storage for shell history, git config
   - Default editor: busybox vi
+  Set the PLAIN_SANDBOX_PRESET_BASE_IMAGE environment variable to override
+  the base image of the preset Dockerfile.
 
 
 How to view DNS query log:
@@ -1081,7 +1083,7 @@ setup_container_user() {
 }
 
 print_preset_dockerfile() {
-  echo "FROM $PRESET_BASE_IMAGE"
+  echo "FROM $PLAIN_SANDBOX_PRESET_BASE_IMAGE"
   cat << 'EOF'
 
 RUN apt-get update \
