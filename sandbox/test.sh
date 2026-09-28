@@ -25,6 +25,13 @@ expected=$(grep FROM "$minial_dockerfile" | awk '{ print $2 }')
 test "$actual" = "$expected"
 
 
+echo "case: preset base image can be overridden by an environment variable"
+# when:
+actual=$(PLAIN_SANDBOX_PRESET_BASE_IMAGE="debian:bookworm-slim" plain-sandbox print_preset_dockerfile | grep FROM | awk '{ print $2 }')
+# then:
+test "$actual" = "debian:bookworm-slim"
+
+
 echo "case: --help option displays help message"
 # when/then:
 plain-sandbox --help | grep -qE "^Usage"
