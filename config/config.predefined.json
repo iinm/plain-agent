@@ -1260,7 +1260,7 @@
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
-      "name": "gpt-6-sol",
+      "name": "gpt-6.1-sol",
       "variant": "thinking-medium",
       "platform": {
         "name": "openai",
@@ -1270,7 +1270,7 @@
       "model": {
         "format": "openai-responses",
         "config": {
-          "model": "gpt-6-sol",
+          "model": "gpt-6.1-sol",
           "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "medium", "summary": "auto" },
           "store": false,
@@ -1282,7 +1282,7 @@
         "unit": "1M",
         "prices": {
           "input_tokens": 2,
-          "input_tokens_details.cached_tokens": -1.8,
+          "input_tokens_details.cached_tokens": -1.9,
           "input_tokens_details.cache_write_tokens": 0.5,
           "output_tokens": 10
         }
@@ -1290,7 +1290,7 @@
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
-      "name": "gpt-6-sol",
+      "name": "gpt-6.1-sol",
       "variant": "thinking-high",
       "platform": {
         "name": "openai",
@@ -1300,7 +1300,7 @@
       "model": {
         "format": "openai-responses",
         "config": {
-          "model": "gpt-6-sol",
+          "model": "gpt-6.1-sol",
           "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "high", "summary": "auto" },
           "store": false,
@@ -1312,7 +1312,7 @@
         "unit": "1M",
         "prices": {
           "input_tokens": 2,
-          "input_tokens_details.cached_tokens": -1.8,
+          "input_tokens_details.cached_tokens": -1.9,
           "input_tokens_details.cache_write_tokens": 0.5,
           "output_tokens": 10
         }
@@ -1437,7 +1437,7 @@
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
-      "name": "gpt-6-sol",
+      "name": "gpt-6.1-sol",
       "variant": "thinking-medium-azure",
       "platform": {
         "name": "azure",
@@ -1446,7 +1446,7 @@
       "model": {
         "format": "openai-responses",
         "config": {
-          "model": "gpt-6-sol",
+          "model": "gpt-6.1-sol",
           "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "medium", "summary": "auto" },
           "store": false,
@@ -1458,14 +1458,14 @@
         "unit": "1M",
         "prices": {
           "input_tokens": 2.5,
-          "input_tokens_details.cached_tokens": -2.3,
+          "input_tokens_details.cached_tokens": -2.4,
           "output_tokens": 10
         }
       },
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
-      "name": "gpt-6-sol",
+      "name": "gpt-6.1-sol",
       "variant": "thinking-high-azure",
       "platform": {
         "name": "azure",
@@ -1474,7 +1474,7 @@
       "model": {
         "format": "openai-responses",
         "config": {
-          "model": "gpt-6-sol",
+          "model": "gpt-6.1-sol",
           "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "high", "summary": "auto" },
           "store": false,
@@ -1486,7 +1486,7 @@
         "unit": "1M",
         "prices": {
           "input_tokens": 2.5,
-          "input_tokens_details.cached_tokens": -2.3,
+          "input_tokens_details.cached_tokens": -2.4,
           "output_tokens": 10
         }
       },
