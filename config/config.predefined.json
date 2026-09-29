@@ -590,7 +590,7 @@
       }
     },
     {
-      "name": "claude-sonnet-5",
+      "name": "claude-sonnet-5-5",
       "variant": "thinking-high",
       "platform": {
         "name": "anthropic",
@@ -600,7 +600,7 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "claude-sonnet-5",
+          "model": "claude-sonnet-5-5",
           "max_tokens": 32768,
           "thinking": { "type": "adaptive" },
           "output_config": { "effort": "high" }
@@ -610,10 +610,10 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 3,
-          "output_tokens": 15,
-          "cache_read_input_tokens": 0.3,
-          "cache_creation_input_tokens": 3.75
+          "input_tokens": 2,
+          "output_tokens": 10,
+          "cache_read_input_tokens": 0.2,
+          "cache_creation_input_tokens": 2.5
         }
       },
       "autoCompact": {
@@ -625,7 +625,7 @@
       }
     },
     {
-      "name": "claude-sonnet-5",
+      "name": "claude-sonnet-5-5",
       "variant": "thinking-max",
       "platform": {
         "name": "anthropic",
@@ -635,7 +635,7 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "claude-sonnet-5",
+          "model": "claude-sonnet-5-5",
           "max_tokens": 64000,
           "thinking": { "type": "adaptive" },
           "output_config": { "effort": "max" }
@@ -645,10 +645,10 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 3,
-          "output_tokens": 15,
-          "cache_read_input_tokens": 0.3,
-          "cache_creation_input_tokens": 3.75
+          "input_tokens": 2,
+          "output_tokens": 10,
+          "cache_read_input_tokens": 0.2,
+          "cache_creation_input_tokens": 2.5
         }
       },
       "autoCompact": {
@@ -867,7 +867,7 @@
       }
     },
     {
-      "name": "claude-sonnet-5",
+      "name": "claude-sonnet-5-5",
       "variant": "thinking-high-bedrock",
       "platform": {
         "name": "bedrock",
@@ -876,7 +876,7 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "global.anthropic.claude-sonnet-5",
+          "model": "global.anthropic.claude-sonnet-5-5",
           "max_tokens": 32768,
           "thinking": { "type": "adaptive" },
           "output_config": { "effort": "high" }
@@ -886,10 +886,10 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 3,
-          "output_tokens": 15,
-          "cache_read_input_tokens": 0.3,
-          "cache_creation_input_tokens": 3.75
+          "input_tokens": 2,
+          "output_tokens": 10,
+          "cache_read_input_tokens": 0.2,
+          "cache_creation_input_tokens": 2.5
         }
       },
       "autoCompact": {
@@ -901,7 +901,7 @@
       }
     },
     {
-      "name": "claude-sonnet-5",
+      "name": "claude-sonnet-5-5",
       "variant": "thinking-max-bedrock",
       "platform": {
         "name": "bedrock",
@@ -910,7 +910,7 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "global.anthropic.claude-sonnet-5",
+          "model": "global.anthropic.claude-sonnet-5-5",
           "max_tokens": 64000,
           "thinking": { "type": "adaptive" },
           "output_config": { "effort": "max" }
@@ -920,10 +920,10 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 3,
-          "output_tokens": 15,
-          "cache_read_input_tokens": 0.3,
-          "cache_creation_input_tokens": 3.75
+          "input_tokens": 2,
+          "output_tokens": 10,
+          "cache_read_input_tokens": 0.2,
+          "cache_creation_input_tokens": 2.5
         }
       },
       "autoCompact": {

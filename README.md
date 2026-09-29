@@ -43,7 +43,7 @@ The same API format works across different platforms.
 ```js
 // Anthropic direct
 {
-  "name": "claude-sonnet-5",
+  "name": "claude-sonnet-5-5",
   "variant": "thinking-high",
   "platform": {
     "name": "anthropic",
@@ -52,7 +52,7 @@ The same API format works across different platforms.
   "model": {
     "format": "anthropic",
     "config": {
-      "model": "claude-sonnet-5",
+      "model": "claude-sonnet-5-5",
       // ...
     }
   }
@@ -60,7 +60,7 @@ The same API format works across different platforms.
 
 // Bedrock: same format, different platform
 {
-  "name": "claude-sonnet-5",
+  "name": "claude-sonnet-5-5",
   "variant": "thinking-high-bedrock-jp",
   "platform": {
     "name": "bedrock",
@@ -69,14 +69,14 @@ The same API format works across different platforms.
   "model": {
     "format": "anthropic",
     "config": {
-      "model": "jp.anthropic.claude-sonnet-5",
+      "model": "jp.anthropic.claude-sonnet-5-5",
       // ...
     }
   }
 }
 ```
 
-Models are identified by `name+variant` (e.g., `claude-sonnet-5+thinking-high`). You can define multiple variants of the same model with different settings, such as thinking budget or region.
+Models are identified by `name+variant` (e.g., `claude-sonnet-5-5+thinking-high`). You can define multiple variants of the same model with different settings, such as thinking budget or region.
 
 ### Auto-Approval
 
@@ -225,7 +225,7 @@ Create a configuration file.
 // ~/.config/plain-agent/config.local.json
 {
   // Set default model
-  "model": "claude-sonnet-5+thinking-high",
+  "model": "claude-sonnet-5-5+thinking-high",
 
   // Configure the providers you want to use
   "platforms": [
@@ -362,7 +362,7 @@ Create a configuration file.
   ],
   "models": [
     {
-      "name": "claude-sonnet-5",
+      "name": "claude-sonnet-5-5",
       "variant": "thinking-high-bedrock-jp",
       "platform": {
         "name": "bedrock",
@@ -371,7 +371,7 @@ Create a configuration file.
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "jp.anthropic.claude-sonnet-5",
+          "model": "jp.anthropic.claude-sonnet-5-5",
           "max_tokens": 32768,
           "thinking": { "type": "adaptive" },
           "output_config": { "effort": "high" }
@@ -381,10 +381,10 @@ Create a configuration file.
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 3.3,
-          "output_tokens": 16.5,
-          "cache_read_input_tokens": 0.33,
-          "cache_creation_input_tokens": 4.125
+          "input_tokens": 2.2,
+          "output_tokens": 11,
+          "cache_read_input_tokens": 0.22,
+          "cache_creation_input_tokens": 2.75
         }
       },
       // Required for soft limit (auto-compact) to work
@@ -710,7 +710,7 @@ Files are loaded in the following order. Settings in later files override earlie
     "softLimit": 120000,
     // Optional: override per model (prefix match on name+variant)
     "softLimitPerModelPrefix": {
-      "claude-sonnet-5": 120000
+      "claude-sonnet-5-5": 120000
     }
   },
 
