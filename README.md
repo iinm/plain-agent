@@ -381,10 +381,10 @@ Create a configuration file.
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 3.3,
-          "output_tokens": 16.5,
-          "cache_read_input_tokens": 0.33,
-          "cache_creation_input_tokens": 4.125
+          "input_tokens": 2.2,
+          "output_tokens": 11,
+          "cache_read_input_tokens": 0.22,
+          "cache_creation_input_tokens": 2.75
         }
       },
       // Required for soft limit (auto-compact) to work
