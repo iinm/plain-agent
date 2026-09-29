@@ -97,43 +97,39 @@ Then `docker compose up -d --wait` (recreates the gateway with the new list).
 |---|---|---|
 | `ALLOWED_HTTPS_DOMAINS` | HTTPS (443) | Envoy matches by SNI. |
 | `ALLOWED_HTTP_HOSTS` | Plain HTTP (80) | Envoy matches the Host header. |
+
 Both lists also drive the gateway's dnsmasq (allow-only DNS): one edit updates the
 connection filters and name resolution together. Names outside the lists get SERVFAIL,
-which closes DNS exfiltration (and diagnostic lookups of non-allowed names fail too).
+which closes DNS exfiltration.
 
-
-The positive tests in verify.sh use `github.com` (HTTPS) and `deb.debian.org`
-(HTTP). If your list drops them, point the tests at hosts you allow:
-`ALLOW_HOST=<https-host> HTTP_ALLOW_HOST=<http-host> ./verify.sh`
-
-## Known holes and remaining risks
+## Threat mitigations
 
 - **No L2/L3 escape**. `internal: true` is enforced by a Docker-managed chain in
   the host filter table: traffic from the internal bridge is dropped unless its
   destination is inside the internal subnet. The chain name depends on the Docker
-  version (`DOCKER-INTERNAL` on 29+, `DOCKER-ISOLATION-STAGE-1` on 28 and earlier),
-  so verify.sh matches the rule in any chain. A container cannot escape by
-  re-pointing its route at the host, or by sending raw frames (AF_PACKET)
-  (both tested in verify.sh)
-- **CAP_NET_RAW removed from sandbox/dind/route-keeper containers**.
-  AF_PACKET needs this capability, so removing it closes L2 spoofing
-  (e.g. ARP spoofing). dind runs unprivileged, so `cap_drop` is effective;
-  rootless dockerd does not need the capability
-- **gateway ip6tables FORWARD is also DROP**. IPv6 is disabled, but if that
-  ever stops being true, egress is still blocked (fail-closed backstop)
+  version (`DOCKER-INTERNAL` on 29+, `DOCKER-ISOLATION-STAGE-1` on 28 and earlier).
+  A container cannot escape by re-pointing its route at the host, or by sending
+  raw frames (AF_PACKET)
+- **CAP_NET_RAW removed** from sandbox/dind/route-keeper containers. AF_PACKET needs
+  this capability, so removing it closes L2 spoofing (e.g. ARP spoofing). dind runs
+  unprivileged, so `cap_drop` is effective; rootless dockerd does not need the
+  capability
+- **dind runs under rootless dockerd** (its own userns via rootlesskit). It only adds
+  what rootless dockerd needs: `/dev/net/tun`, seccomp/AppArmor relaxed for userns
+  creation and mounts, and `/proc` unmasked (`systempaths=unconfined`; the default
+  masking blocks the proc mount runc needs to start containers). Agent containers
+  still run under rootless dockerd (userns) and all egress stays filtered
+- **gateway ip6tables FORWARD is also DROP**. IPv6 is disabled, but if that ever
+  stops being true, egress is still blocked (fail-closed backstop)
+
+## Limitations
+
 - **Traffic to the host's bridge IP (the .1 address) bypasses the gateway**.
   It is answered by the host itself, via the INPUT chain that this compose
-  cannot filter. Audit the host's own exposure separately (measured: only
-  5355/LLMNR was reachable; 53/22/2375/2376 were closed)
+  cannot filter. Audit the host's own exposure separately: services bound to
+  the bridge IP may be reachable from sandboxes (e.g. LLMNR/mDNS responders,
+  common on distros where systemd-resolved runs). Verify on your host.
 - **DNS queries for allow-listed zones are visible to those zones' operators** (the
   gateway resolver forwards them upstream; inherent to using DNS at all)
-- **dind runs unprivileged** (rootless dockerd creates its own userns via
-  rootlesskit). It only adds what rootless dockerd needs: `/dev/net/tun`,
-  seccomp/AppArmor relaxed for userns creation and mounts, and `/proc`
-  unmasked (`systempaths=unconfined`; the default masking blocks the proc
-  mount runc needs to start containers). Agent containers still run under
-  rootless dockerd (userns) and all egress stays filtered. Residual risk:
-  kernel userns bugs, inherent to any rootless-docker setup
-- **Plain HTTP (80) is terminated at the gateway**. Envoy matches the Host header and
-  re-originates the request, so the gateway sees the HTTP contents. 443 stays
-  SNI-passthrough and opaque (inherent to filtering plain HTTP)
+- **Kernel userns bugs remain** because dind runs rootless; inherent to any
+  rootless-docker setup
