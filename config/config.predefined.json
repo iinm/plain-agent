@@ -590,7 +590,7 @@
       }
     },
     {
-      "name": "claude-sonnet-5",
+      "name": "claude-sonnet-5-5",
       "variant": "thinking-high",
       "platform": {
         "name": "anthropic",
@@ -600,7 +600,7 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "claude-sonnet-5",
+          "model": "claude-sonnet-5-5",
           "max_tokens": 32768,
           "thinking": { "type": "adaptive" },
           "output_config": { "effort": "high" }
@@ -625,7 +625,7 @@
       }
     },
     {
-      "name": "claude-sonnet-5",
+      "name": "claude-sonnet-5-5",
       "variant": "thinking-max",
       "platform": {
         "name": "anthropic",
@@ -635,7 +635,7 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "claude-sonnet-5",
+          "model": "claude-sonnet-5-5",
           "max_tokens": 64000,
           "thinking": { "type": "adaptive" },
           "output_config": { "effort": "max" }
@@ -867,7 +867,7 @@
       }
     },
     {
-      "name": "claude-sonnet-5",
+      "name": "claude-sonnet-5-5",
       "variant": "thinking-high-bedrock",
       "platform": {
         "name": "bedrock",
@@ -876,7 +876,7 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "global.anthropic.claude-sonnet-5",
+          "model": "global.anthropic.claude-sonnet-5-5",
           "max_tokens": 32768,
           "thinking": { "type": "adaptive" },
           "output_config": { "effort": "high" }
@@ -901,7 +901,7 @@
       }
     },
     {
-      "name": "claude-sonnet-5",
+      "name": "claude-sonnet-5-5",
       "variant": "thinking-max-bedrock",
       "platform": {
         "name": "bedrock",
@@ -910,7 +910,7 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "global.anthropic.claude-sonnet-5",
+          "model": "global.anthropic.claude-sonnet-5-5",
           "max_tokens": 64000,
           "thinking": { "type": "adaptive" },
           "output_config": { "effort": "max" }
