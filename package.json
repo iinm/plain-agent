@@ -36,8 +36,7 @@
     "test:coverage": "c8 --reporter=html --reporter=text --exclude='src/**/*.test.mjs' --exclude='e2e/**' node --test --test-reporter=./testReporter.mjs --test-timeout=30000 --test-force-exit",
     "test:config": "bash -c 'set -e; mkdir -p tmp; cd tmp; env HOME=. ../bin/plain test-approval'",
     "lint": "npx @biomejs/biome check",
-    "fix": "npx @biomejs/biome check --fix",
-    "version": "sed -i \"s|badge.socket.dev/npm/package/@iinm/plain-agent/[0-9][0-9.]*|badge.socket.dev/npm/package/@iinm/plain-agent/${npm_package_version}|g\" README.md && git add README.md"
+    "fix": "npx @biomejs/biome check --fix"
   },
   "dependencies": {},
   "devDependencies": {
