@@ -226,8 +226,11 @@ export function createTmuxCommandTool(config) {
      * @returns {SandboxMode}
      */
     getSandboxMode: (_input) => {
+      if (!config?.sandbox) {
+        return undefined;
+      }
       return {
-        mode: config?.sandbox ? "sandbox" : "unsandboxed",
+        mode: "sandbox",
       };
     },
   };
