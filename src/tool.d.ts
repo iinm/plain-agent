@@ -75,7 +75,10 @@ export type ToolUseApproverConfig = {
     input: Record<string, unknown>,
   ) => Record<string, unknown>;
 
-  shouldSkipPathValidation?: (toolName: string) => boolean;
+  shouldSkipPathValidation?: (
+    toolName: string,
+    input: Record<string, unknown>,
+  ) => boolean;
 };
 
 export type ToolUseDecision = {

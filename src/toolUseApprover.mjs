@@ -66,7 +66,10 @@ export function createToolUseApprover({
       }
 
       if (action === "allow") {
-        const unsafeReason = shouldSkipPathValidation(toolUse.toolName)
+        const unsafeReason = shouldSkipPathValidation(
+          toolUse.toolName,
+          toolUse.input,
+        )
           ? null
           : findUnsafeToolInputReason(
               maskApprovalInput(toolUse.toolName, toolUse.input),

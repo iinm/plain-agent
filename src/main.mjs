@@ -1,5 +1,5 @@
 /**
- * @import { Tool } from "./tool";
+ * @import { Tool, SandboxModeProvider } from "./tool";
  * @import { SessionState } from "./sessionStore.mjs";
  */
 
@@ -347,7 +347,7 @@ export async function main(argv = process.argv) {
     userPreferences: appConfig.systemPrompt?.userPreferences ?? [],
   });
 
-  /** @type {string[]} */
+  /** @type {(Tool & SandboxModeProvider)[]} */
   const sandboxedTools = [];
 
   const execCommandTool = createExecCommandTool({
@@ -355,7 +355,7 @@ export async function main(argv = process.argv) {
     secrets: appConfig.tools?.execCommand?.secrets,
     sandbox: appConfig.sandbox,
   });
-  sandboxedTools.push(execCommandTool.def.name);
+  sandboxedTools.push(execCommandTool);
 
   const builtinTools = [
     execCommandTool,
@@ -372,7 +372,7 @@ export async function main(argv = process.argv) {
       sandbox: appConfig.sandbox,
     });
     builtinTools.push(tmuxCommandTool);
-    sandboxedTools.push(tmuxCommandTool.def.name);
+    sandboxedTools.push(tmuxCommandTool);
   }
 
   if (appConfig.tools?.webSearch) {
@@ -439,7 +439,12 @@ export async function main(argv = process.argv) {
       return input;
     },
     shouldSkipPathValidation: appConfig.sandbox
-      ? (toolName) => sandboxedTools.includes(toolName)
+      ? (toolName, input) =>
+          sandboxedTools.some(
+            (tool) =>
+              toolName === tool.def.name &&
+              tool.getSandboxMode(input)?.mode === "sandbox",
+          )
       : undefined,
   });
 
