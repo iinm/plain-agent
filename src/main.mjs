@@ -347,11 +347,16 @@ export async function main(argv = process.argv) {
     userPreferences: appConfig.systemPrompt?.userPreferences ?? [],
   });
 
+  /** @type {string[]} */
+  const sandboxedTools = [];
+
   const execCommandTool = createExecCommandTool({
     env: appConfig.tools?.execCommand?.env,
     secrets: appConfig.tools?.execCommand?.secrets,
     sandbox: appConfig.sandbox,
   });
+  sandboxedTools.push(execCommandTool.def.name);
+
   const builtinTools = [
     execCommandTool,
     readFileTool,
@@ -363,7 +368,11 @@ export async function main(argv = process.argv) {
   ];
 
   if (appConfig.tools?.tmux?.enabled) {
-    builtinTools.push(createTmuxCommandTool({ sandbox: appConfig.sandbox }));
+    const tmuxCommandTool = createTmuxCommandTool({
+      sandbox: appConfig.sandbox,
+    });
+    builtinTools.push(tmuxCommandTool);
+    sandboxedTools.push(tmuxCommandTool.def.name);
   }
 
   if (appConfig.tools?.webSearch) {
@@ -429,6 +438,9 @@ export async function main(argv = process.argv) {
       }
       return input;
     },
+    shouldSkipPathValidation: appConfig.sandbox
+      ? (toolName) => sandboxedTools.includes(toolName)
+      : undefined,
   });
 
   const agentCallModel = createModelCaller({

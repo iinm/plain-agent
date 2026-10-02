@@ -140,6 +140,8 @@ Compound arguments (e.g., `@file`, `--prefix=/path`, `VAR=/path`, `file:///path`
 
 **Note**: Validation only applies when the agent explicitly passes file paths to tools. It cannot catch file access inside scripts the agent writes: something like `bash -c "rm -rf /"` is beyond its reach. Always use a sandbox when auto-approving script execution.
 
+When a `sandbox` is set, path validation is skipped for `exec_command` and `tmux_command`. The sandbox is the boundary instead. All other tools are still validated.
+
 ### Sandbox
 
 The agent can run arbitrary commands via `exec_command` and `tmux_command`. You can configure a wrapper command that intercepts both.

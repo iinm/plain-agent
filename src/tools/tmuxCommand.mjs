@@ -9,10 +9,10 @@ import { noThrow } from "../utils/noThrow.mjs";
 const OUTPUT_MAX_LENGTH = 1024 * 8;
 
 /**
-+ * Sandbox-aware tmux command tool
-+ * @param {TmuxCommandConfig=} config
-+ * @returns {Tool}
-+ */
+ * Sandbox-aware tmux command tool
+ * @param {TmuxCommandConfig=} config
+ * @returns {Tool}
+ */
 export function createTmuxCommandTool(config) {
   /** @type {Tool} */
   return {
