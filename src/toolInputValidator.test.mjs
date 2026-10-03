@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { mkdir, rm, symlink } from "node:fs/promises";
+import { mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import { AGENT_PROJECT_METADATA_DIR } from "./env.mjs";
@@ -81,6 +81,9 @@ describe("findUnsafeToolInputReason for string inputs", () => {
   const circularSymlink = path.resolve(agentTmpDir, "circular-link");
 
   const midLink = path.resolve(TEMP_DIR, "mid-link");
+  const symlinkedGitDir = path.resolve(TEMP_DIR, ".git");
+  const gitSymlinkTarget = path.resolve(TEMP_DIR, "git-dir-target");
+  const symlinkedGitConfig = path.join(symlinkedGitDir, "config");
 
   before(async () => {
     await rm(TEMP_DIR, { force: true, recursive: true });
@@ -92,6 +95,11 @@ describe("findUnsafeToolInputReason for string inputs", () => {
 
     await mkdir(TEMP_DIR, { recursive: true });
     await mkdir(agentTmpDir, { recursive: true });
+
+    // .git as a symlink: the resolved real path drops the .git segment
+    await mkdir(gitSymlinkTarget, { recursive: true });
+    await writeFile(path.join(gitSymlinkTarget, "config"), "");
+    await symlink(gitSymlinkTarget, symlinkedGitDir);
 
     // Valid symlink to outside
     await symlink("/tmp", tmpSymlink);
@@ -118,6 +126,7 @@ describe("findUnsafeToolInputReason for string inputs", () => {
 
   after(async () => {
     await rm(TEMP_DIR, { force: true, recursive: true });
+    await rm(symlinkedGitDir, { force: true });
     await rm(symlinkInAllowedDir, { force: true });
     await rm(brokenSymlinkInAllowedDir, { force: true });
     await rm(safeSymlinkInAllowedDir, { force: true });
@@ -221,6 +230,23 @@ describe("findUnsafeToolInputReason for string inputs", () => {
       expected: ".git directory",
     },
     { desc: ".gitignore is not .git", arg: ".gitignore", expected: null },
+    { desc: ".GITIGNORE is not .git", arg: ".GITIGNORE", expected: null },
+
+    // Case-insensitive matching prevents bypass on case-insensitive
+    // filesystems, where ".GIT" refers to the same directory as ".git".
+    {
+      desc: "uppercase .GIT config",
+      arg: ".GIT/config",
+      expected: ".git directory",
+    },
+
+    // A symlinked .git directory: the real path has no .git segment, so the
+    // original input path must be checked too.
+    {
+      desc: "config under a symlinked .git directory",
+      arg: symlinkedGitConfig,
+      expected: ".git directory",
+    },
 
     // .plain-agent/{tmp,memory,claude-code-plugins} are auto-approvable as
     // tool input even when git-ignored.

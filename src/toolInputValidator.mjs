@@ -185,7 +185,7 @@ function findUnsafeItemRawReason(
   // .git is always unsafe and cannot be overridden by allowedPaths: writing
   // hooks or config there makes the user's later git commands run agent-planted
   // code.
-  if (isInsideGitDirectory(realPath)) {
+  if (isInsideGitDirectory(realPath) || isInsideGitDirectory(absPath)) {
     return `path is inside the .git directory: ${arg}`;
   }
 
@@ -342,7 +342,7 @@ function isInsideProjectMetadataDir(targetPath) {
  * @returns {boolean}
  */
 function isInsideGitDirectory(targetPath) {
-  return targetPath.split(path.sep).includes(".git");
+  return targetPath.toLowerCase().split(path.sep).includes(".git");
 }
 
 /**
