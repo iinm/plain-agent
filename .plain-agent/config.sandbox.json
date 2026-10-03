@@ -95,7 +95,7 @@
     "separator": "--",
     "rules": [
       {
-        "pattern": { "command": { "$regex": "^(git|gh|docker)$" } },
+        "pattern": { "command": { "$regex": "^(gh|docker)$" } },
         "mode": "unsandboxed"
       },
       {
