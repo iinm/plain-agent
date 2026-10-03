@@ -1,5 +1,18 @@
 {
   "autoCompact": { "softLimit": 120000 },
+
+  "tools": {
+    "execCommand": {
+      "env": {
+        "GIT_CONFIG_COUNT": 2,
+        "GIT_CONFIG_KEY_0": "core.fsmonitor",
+        "GIT_CONFIG_VALUE_0": false,
+        "GIT_CONFIG_KEY_1": "core.hooksPath",
+        "GIT_CONFIG_VALUE_1": "/dev/null"
+      }
+    }
+  },
+
   "autoApproval": {
     "defaultAction": "ask",
     "maxApprovals": 50,
