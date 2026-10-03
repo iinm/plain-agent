@@ -199,6 +199,29 @@ describe("findUnsafeToolInputReason for string inputs", () => {
       expected: "not managed by git",
     },
 
+    // The .git directory is always unsafe (hooks, config)
+    {
+      desc: ".git directory itself",
+      arg: ".git",
+      expected: ".git directory",
+    },
+    {
+      desc: ".git config",
+      arg: ".git/config",
+      expected: ".git directory",
+    },
+    {
+      desc: ".git hook script",
+      arg: ".git/hooks/pre-commit",
+      expected: ".git directory",
+    },
+    {
+      desc: "nested repository .git directory",
+      arg: "sub/.git/config",
+      expected: ".git directory",
+    },
+    { desc: ".gitignore is not .git", arg: ".gitignore", expected: null },
+
     // .plain-agent/{tmp,memory,claude-code-plugins} are auto-approvable as
     // tool input even when git-ignored.
     {
@@ -516,6 +539,16 @@ describe("allowedPaths parameter", () => {
     // then: git-ignore check takes precedence over allowedPaths
     assertUnsafeReason(reason, "not managed by git");
   });
+
+  it("should block .git directory even when in allowedPaths", () => {
+    // given: .git is explicitly added to allowedPaths
+    const gitPath = path.resolve(".git");
+    const allowedPaths = [gitPath];
+    // when
+    const reason = findUnsafeToolInputReason(".git/config", allowedPaths);
+    // then: .git restriction takes precedence over allowedPaths
+    assertUnsafeReason(reason, ".git directory");
+  });
 });
 
 describe("allowGitUnmanagedFiles parameter", () => {
@@ -530,6 +563,19 @@ describe("allowGitUnmanagedFiles parameter", () => {
     );
     // then:
     assert.strictEqual(reason, null);
+  });
+
+  it("should block .git directory even when allowGitUnmanagedFiles is true", () => {
+    // given:
+    const allowGitUnmanagedFiles = true;
+    // when
+    const reason = findUnsafeToolInputReason(
+      ".git/hooks/pre-commit",
+      [],
+      allowGitUnmanagedFiles,
+    );
+    // then: .git is unsafe regardless of the git-managed check
+    assertUnsafeReason(reason, ".git directory");
   });
 
   it("should propagate allowGitUnmanagedFiles through findUnsafeToolInputReason", () => {
