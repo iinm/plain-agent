@@ -14,7 +14,8 @@
       "*.json",
       "config/**",
       ".config/config.predefined.json",
-      ".plain-agent/config.json"
+      ".plain-agent/config.json",
+      ".plain-agent/config.sandbox.json"
     ],
     "ignoreUnknown": false
   },

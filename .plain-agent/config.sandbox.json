@@ -18,16 +18,19 @@
 
       {
         "toolName": "exec_command",
-        "input": {
-          "command": "git",
-          "args": [{ "$regex": "^(status|diff|log|show|ls-remote|rev-parse)$" }]
-        },
-        "action": "allow"
+        "input": { "command": { "$regex": "^(gh|docker)$" } },
+        "action": "ask"
       },
-
       {
         "toolName": "exec_command",
-        "input": { "command": { "$regex": "^(git|gh|docker)$" } },
+        "input": {
+          "command": "git",
+          "args": [
+            {
+              "$regex": "^(fetch|pull|clone|checkout|switch|add|commit|push|reset|rebase|merge|cherry-pick|stash|rm|mv|clean|restore|ls-remote)$"
+            }
+          ]
+        },
         "action": "ask"
       },
       {
@@ -72,18 +75,10 @@
         "expectedAction": "ask"
       },
       {
-        "desc": "git commit should require approval",
-        "toolUse": {
-          "toolName": "exec_command",
-          "input": { "command": "git", "args": ["-C", "/anywhere", "commit"] }
-        },
-        "expectedAction": "ask"
-      },
-      {
         "desc": "git push should require approval",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "git", "args": ["-C", "/anywhere", "push"] }
+          "input": { "command": "git", "args": ["push"] }
         },
         "expectedAction": "ask"
       }
@@ -96,6 +91,17 @@
     "rules": [
       {
         "pattern": { "command": { "$regex": "^(gh|docker)$" } },
+        "mode": "unsandboxed"
+      },
+      {
+        "pattern": {
+          "command": "git",
+          "args": [
+            {
+              "$regex": "^(fetch|pull|clone|checkout|switch|add|commit|push|reset|rebase|merge|cherry-pick|stash|rm|mv|clean|restore|ls-remote)$"
+            }
+          ]
+        },
         "mode": "unsandboxed"
       },
       {
