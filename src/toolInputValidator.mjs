@@ -368,7 +368,7 @@ function isGitManaged(absPath) {
   try {
     execFileSync(
       "git",
-      ["-C", gitRoot, "check-ignore", "--no-index", "-q", absPath],
+      ["-C", gitRoot, "check-ignore", "--no-index", "-q", "--", absPath],
       { stdio: ["ignore", "ignore", "ignore"] },
     );
     // File is git-ignored: not managed
