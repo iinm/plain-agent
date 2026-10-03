@@ -1,5 +1,5 @@
 /**
- * @import { Tool } from '../tool'
+ * @import { Tool, SandboxMode, SandboxModeProvider } from '../tool'
  * @import { TmuxCommandConfig, TmuxCommandInput } from './tmuxCommand'
  */
 
@@ -9,12 +9,12 @@ import { noThrow } from "../utils/noThrow.mjs";
 const OUTPUT_MAX_LENGTH = 1024 * 8;
 
 /**
-+ * Sandbox-aware tmux command tool
-+ * @param {TmuxCommandConfig=} config
-+ * @returns {Tool}
-+ */
+ * Sandbox-aware tmux command tool
+ * @param {TmuxCommandConfig=} config
+ * @returns {Tool & SandboxModeProvider}
+ */
 export function createTmuxCommandTool(config) {
-  /** @type {Tool} */
+  /** @type {Tool & SandboxModeProvider} */
   return {
     def: {
       name: "tmux_command",
@@ -220,5 +220,18 @@ export function createTmuxCommandTool(config) {
           );
         });
       }),
+
+    /**
+     * @param {unknown} _input
+     * @returns {SandboxMode}
+     */
+    getSandboxMode: (_input) => {
+      if (!config?.sandbox) {
+        return undefined;
+      }
+      return {
+        mode: "sandbox",
+      };
+    },
   };
 }

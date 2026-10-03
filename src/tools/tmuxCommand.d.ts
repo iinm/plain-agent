@@ -1,4 +1,3 @@
-import type { Tool } from "../tool";
 import type { ExecCommandSanboxConfig } from "./execCommand";
 
 export type TmuxCommandInput = {
@@ -9,6 +8,3 @@ export type TmuxCommandInput = {
 export type TmuxCommandConfig = {
   sandbox?: ExecCommandSanboxConfig;
 };
-
-export function createTmuxCommandTool(config?: TmuxCommandConfig): Tool;
-export const tmuxCommandTool: Tool;

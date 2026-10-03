@@ -293,6 +293,38 @@ describe("createToolUseApprover", () => {
     assertUnsafePathReason(decision.reason);
   });
 
+  it("should skip path validation when shouldSkipPathValidation returns true", () => {
+    // given:
+    const toolApprover = createToolUseApprover({
+      patterns: [
+        {
+          toolName: "exec_command",
+          input: { command: "cat" },
+          action: "allow",
+        },
+      ],
+      maxApprovals: 2,
+      defaultAction: "deny",
+      maskApprovalInput: (_name, input) => input,
+      shouldSkipPathValidation: (toolName) => toolName === "exec_command",
+    });
+
+    /** @type {MessageContentToolUse} */
+    const toolUse = {
+      type: "tool_use",
+      toolUseId: "test",
+      toolName: "exec_command",
+      input: { command: "cat", args: ["../parent-file"] },
+    };
+
+    // when/then:
+    assert.deepStrictEqual(
+      toolApprover.isAllowedToolUse(toolUse),
+      { action: "allow" },
+      "should allow despite an unsafe path when validation is skipped",
+    );
+  });
+
   it("should deny with reason when maxApprovals is exceeded and defaultAction is deny", () => {
     // given:
     const toolApprover = createToolUseApprover({

@@ -17,6 +17,7 @@ export function createToolUseApprover({
   maskApprovalInput,
   allowedPaths = [],
   allowGitUnmanagedFiles = false,
+  shouldSkipPathValidation = () => false,
 }) {
   const state = {
     approvalCount: 0,
@@ -65,18 +66,23 @@ export function createToolUseApprover({
       }
 
       if (action === "allow") {
-        const maskedInput = maskApprovalInput(toolUse.toolName, toolUse.input);
-        const unsafeReason = findUnsafeToolInputReason(
-          maskedInput,
-          allowedPaths,
-          allowGitUnmanagedFiles,
-        );
+        const unsafeReason = shouldSkipPathValidation(
+          toolUse.toolName,
+          toolUse.input,
+        )
+          ? null
+          : findUnsafeToolInputReason(
+              maskApprovalInput(toolUse.toolName, toolUse.input),
+              allowedPaths,
+              allowGitUnmanagedFiles,
+            );
         if (unsafeReason !== null) {
           return {
             action: defaultAction,
             reason: `Path validation failed: ${unsafeReason}`,
           };
         }
+
         state.approvalCount += 1;
         return state.approvalCount <= max
           ? { action: "allow" }
