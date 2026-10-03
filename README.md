@@ -134,7 +134,8 @@ String values in tool inputs are treated as file paths and validated against the
 - The path must be under the working directory or a path listed in `autoApproval.allowedPaths`
 - No directory traversal (`..` is not allowed)
 - Symlinks pointing outside the working directory, or broken/circular links, are not allowed.
-- The file must be tracked by Git (not ignored)
+- The file must be tracked by Git (not ignored), so the agent's changes show up in `git diff` and can be reviewed
+- The `.git` directory is never allowed, even when listed in `autoApproval.allowedPaths`. The agent could plant a hook or config there that runs code when you next execute `git`.
 
 Compound arguments (e.g., `@file`, `--prefix=/path`, `VAR=/path`, `file:///path`) are decomposed before validation.
 

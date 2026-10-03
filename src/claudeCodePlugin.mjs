@@ -114,7 +114,7 @@ export async function installClaudeCodePlugins() {
       await new Promise((resolve, reject) => {
         execFile(
           "git",
-          ["clone", "--depth", "1", repo.source, destPath],
+          ["clone", "--depth", "1", "--", repo.source, destPath],
           (err) => {
             if (err) reject(err);
             else resolve(undefined);

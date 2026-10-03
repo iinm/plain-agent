@@ -18,7 +18,7 @@ const BUILTIN_ALLOWED_PATHS = [
 /**
  * Check tool input for unsafe file access. String values are treated as file
  * paths and validated: working directory / allowedPaths confinement, no ".."
- * traversal, no .plain-agent/ metadata access, git-managed files only.
+ * traversal, no .git/ or .plain-agent/ metadata access, git-managed files only.
  * Compound arguments (@file, --opt=val, -Xval, VAR=val, file://) are
  * decomposed before validation.
  *
@@ -182,6 +182,13 @@ function findUnsafeItemRawReason(
     return `path traversal (..) is not allowed: ${arg}`;
   }
 
+  // .git is always unsafe and cannot be overridden by allowedPaths: writing
+  // hooks or config there makes the user's later git commands run agent-planted
+  // code.
+  if (isInsideGitDirectory(realPath) || isInsideGitDirectory(absPath)) {
+    return `path is inside the .git directory: ${arg}`;
+  }
+
   // Built-in allowed paths (memory, tmp, claude-code-plugins) are always safe.
   // This check must come before the .plain-agent/ block below.
   if (isInBuiltinAllowedPath(realPath)) {
@@ -329,6 +336,16 @@ function isInsideProjectMetadataDir(targetPath) {
 }
 
 /**
+ * Check if the path is inside a .git directory. Matching any ".git" path
+ * segment also covers nested repositories.
+ * @param {string} targetPath - Must be an absolute path.
+ * @returns {boolean}
+ */
+function isInsideGitDirectory(targetPath) {
+  return targetPath.toLowerCase().split(path.sep).includes(".git");
+}
+
+/**
  * Check if the path is managed by git (inside a git repo and not ignored).
  * @param {string} absPath
  * @returns {boolean}
@@ -351,7 +368,7 @@ function isGitManaged(absPath) {
   try {
     execFileSync(
       "git",
-      ["-C", gitRoot, "check-ignore", "--no-index", "-q", absPath],
+      ["-C", gitRoot, "check-ignore", "--no-index", "-q", "--", absPath],
       { stdio: ["ignore", "ignore", "ignore"] },
     );
     // File is git-ignored: not managed
