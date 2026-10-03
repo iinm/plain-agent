@@ -11,6 +11,17 @@ import { noThrow } from "../utils/noThrow.mjs";
 const OUTPUT_MAX_LENGTH = 1024 * 8;
 const OUTPUT_TRUNCATED_LENGTH = 1024 * 2;
 
+const GIT_DIFF_SUBCOMMANDS = new Set(["diff", "log", "show"]);
+const GIT_GLOBAL_OPTIONS_WITH_VALUE = new Set([
+  "-C",
+  "-c",
+  "--git-dir",
+  "--work-tree",
+  "--namespace",
+  "--config-env",
+  "--attr-source",
+]);
+
 /**
  * @param {ExecCommandConfig=} config
  * @returns {Tool & SandboxModeProvider}
@@ -77,9 +88,13 @@ Examples:
      */
     impl: async (input) =>
       await noThrow(async () => {
+        const hardenedInput = {
+          ...input,
+          args: hardenGitDiffArgs(input.command, input.args),
+        };
         const { command, args } = config?.sandbox
-          ? rewriteInputForSandbox(input, config.sandbox)
-          : input;
+          ? rewriteInputForSandbox(hardenedInput, config.sandbox)
+          : hardenedInput;
         return new Promise((resolve, _reject) => {
           const child = execFile(
             command,
@@ -185,12 +200,12 @@ Examples:
 
               if (!stderr && err) {
                 // rg: exit status != 0 when no matches are found.
-                const ignoreError = ["rg"].includes(input.command);
+                const ignoreError = ["rg"].includes(hardenedInput.command);
                 if (!ignoreError) {
                   // mask sandbox details
                   const originalCommand = [
-                    input.command,
-                    ...(input.args ?? []),
+                    hardenedInput.command,
+                    ...(hardenedInput.args ?? []),
                   ];
                   const sandboxedCommand = [command, ...(args ?? [])];
                   const sandboxStr = [
@@ -253,6 +268,67 @@ Examples:
       };
     },
   };
+}
+
+/**
+ * Force `--no-textconv` and `--no-ext-diff` on git commands that render diffs.
+ *
+ * A repository can name an external program through `diff.<driver>.textconv`
+ * (paired with `.gitattributes`) or `diff.external` in its own `.git/config`,
+ * making otherwise read-only commands such as `git diff` execute it. The driver
+ * name is attacker-chosen, so `GIT_CONFIG_*` overrides cannot neutralize it;
+ * these flags are the reliable switch and keep the normal diff output.
+ *
+ * @param {string} command
+ * @param {string[]=} args
+ * @returns {string[]=}
+ */
+function hardenGitDiffArgs(command, args) {
+  if (!args || !/(^|\/)git$/.test(command)) {
+    return args;
+  }
+
+  let subcommandIndex = 0;
+  while (subcommandIndex < args.length) {
+    const token = args[subcommandIndex];
+    if (token === "--") {
+      return args;
+    }
+    if (GIT_GLOBAL_OPTIONS_WITH_VALUE.has(token)) {
+      subcommandIndex += 2;
+      continue;
+    }
+    if (/^-[Cc].+/.test(token)) {
+      subcommandIndex += 1;
+      continue;
+    }
+    if (token.startsWith("-")) {
+      subcommandIndex += 1;
+      continue;
+    }
+    break;
+  }
+
+  if (!GIT_DIFF_SUBCOMMANDS.has(args[subcommandIndex])) {
+    return args;
+  }
+
+  const injected = [];
+  if (!args.includes("--no-textconv")) {
+    injected.push("--no-textconv");
+  }
+  if (!args.includes("--no-ext-diff")) {
+    injected.push("--no-ext-diff");
+  }
+  if (injected.length === 0) {
+    return args;
+  }
+
+  return [
+    ...args.slice(0, subcommandIndex + 1),
+    ...injected,
+    ...args.slice(subcommandIndex + 1),
+  ];
 }
 
 /**

@@ -1,4 +1,8 @@
 import assert from "node:assert";
+import { execFileSync } from "node:child_process";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { describe, it } from "node:test";
 import { createExecCommandTool } from "./execCommand.mjs";
 
@@ -406,5 +410,49 @@ ${expectedContent}</stdout>
 ${expectedContent}</stderr>
 `.trim(),
     );
+  });
+
+  it("blocks textconv execution from repository config in git diff", async () => {
+    // given: a repository whose config runs a program through a diff driver
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "plain-exec-command-"));
+    const marker = path.join(dir, "marker");
+    const driver = path.join(dir, "driver.sh");
+    await fs.writeFile(
+      driver,
+      '#!/bin/sh\necho ran >> "$MARKER"\ncat "$1" 2>/dev/null\n',
+    );
+    await fs.chmod(driver, 0o755);
+
+    /** @param {...string} args */
+    const git = (...args) =>
+      execFileSync("git", ["-C", dir, ...args], { stdio: "pipe" });
+    git("init", "-q");
+    git("config", "user.email", "test@example.com");
+    git("config", "user.name", "test");
+    git("config", "diff.mydrv.textconv", driver);
+    await fs.writeFile(path.join(dir, ".gitattributes"), "*.txt diff=mydrv\n");
+    await fs.writeFile(path.join(dir, "a.txt"), "hello\n");
+    git("add", "a.txt", ".gitattributes");
+    git("commit", "-qm", "init");
+    await fs.appendFile(path.join(dir, "a.txt"), "changed\n");
+
+    // when: the subcommand is invoked directly and behind a global option
+    const direct = await createExecCommandTool({
+      env: {
+        MARKER: marker,
+        GIT_DIR: path.join(dir, ".git"),
+        GIT_WORK_TREE: dir,
+      },
+    }).impl({ command: "git", args: ["diff"] });
+    const withDir = await createExecCommandTool({
+      env: { MARKER: marker },
+    }).impl({ command: "git", args: ["-C", dir, "diff"] });
+
+    // then: the driver never ran and the normal diff is still shown
+    await assert.rejects(fs.access(marker));
+    assert.match(/** @type {string} */ (direct), /\+changed/);
+    assert.match(/** @type {string} */ (withDir), /\+changed/);
+
+    await fs.rm(dir, { recursive: true, force: true });
   });
 });
