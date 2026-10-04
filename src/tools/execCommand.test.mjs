@@ -127,6 +127,21 @@ Error: spawn *** ENOENT</error>
     );
   });
 
+  it("exposes maskSecrets for the tool executor", () => {
+    // given:
+    const tool = createExecCommandTool({
+      secrets: {
+        SECRET: "secret-value",
+      },
+    });
+
+    // when:
+    const masked = tool.maskSecrets?.("secret-value");
+
+    // then:
+    assert.equal(masked, "***");
+  });
+
   it("captures error", async () => {
     // when:
     const result = await execCommandTool.impl({

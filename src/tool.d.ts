@@ -7,6 +7,12 @@ export type Tool = {
   maskApprovalInput?: (
     input: Record<string, unknown>,
   ) => Record<string, unknown>;
+  /**
+   * Mask secrets in tool output and error messages.
+   * Called by `toolExecutor` alongside every other tool's `maskSecrets`; mask
+   * only the secrets this tool owns and return any other text unchanged.
+   */
+  maskSecrets?: (text: string) => string;
   injectImpl?: (impl: ToolImplementation) => void;
 };
 
