@@ -649,8 +649,11 @@ Files are loaded in the following order. Settings in later files override earlie
         "MY_VAR": "my-value"
       },
 
-      // Like env, but values are masked with "***" in command output,
-      // so secrets do not leak into the agent's context.
+      // Like env, but values are masked with "***" in tool output so secrets
+      // do not leak into the agent's context. Masking covers every tool: a
+      // secret written to a file by a command is masked when read with read_file.
+      // It cannot stop deliberate evasion (e.g. splitting the secret), as this
+      // is a guard against accidental leaks, not an attack defense.
       "secrets": {
         "GH_TOKEN": { "$env": "GH_TOKEN" }
       }
