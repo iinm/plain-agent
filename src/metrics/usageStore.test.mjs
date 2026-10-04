@@ -38,7 +38,7 @@ describe("buildUsageRecord", () => {
       },
       now: new Date("2026-04-10T00:00:00.000Z"),
     });
-    assert.equal(record, null);
+    assert.equal(record, undefined);
   });
 
   it("maps breakdown tokens and preserves totalCost=null when missing", () => {

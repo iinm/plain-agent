@@ -12,28 +12,32 @@ describe("findUnsafeToolInputReason", () => {
   const unsafePath = "../parent-file";
 
   const testCases = [
-    { desc: "number", arg: 123, expected: null },
-    { desc: "boolean", arg: true, expected: null },
-    { desc: "undefined", arg: undefined, expected: null },
-    { desc: "null", arg: null, expected: null },
-    { desc: "safe string", arg: safePath, expected: null },
+    { desc: "number", arg: 123, expected: undefined },
+    { desc: "boolean", arg: true, expected: undefined },
+    { desc: "undefined", arg: undefined, expected: undefined },
+    { desc: "null", arg: null, expected: undefined },
+    { desc: "safe string", arg: safePath, expected: undefined },
     {
       desc: "unsafe string",
       arg: unsafePath,
       expected: "path traversal",
     },
-    { desc: "empty array", arg: [], expected: null },
-    { desc: "array of safe items", arg: [safePath, "-l", 1], expected: null },
+    { desc: "empty array", arg: [], expected: undefined },
+    {
+      desc: "array of safe items",
+      arg: [safePath, "-l", 1],
+      expected: undefined,
+    },
     {
       desc: "array with an unsafe item",
       arg: [safePath, unsafePath],
       expected: "path traversal",
     },
-    { desc: "empty object", arg: {}, expected: null },
+    { desc: "empty object", arg: {}, expected: undefined },
     {
       desc: "object with safe values",
       arg: { a: safePath, b: "-l", c: 0 },
-      expected: null,
+      expected: undefined,
     },
     {
       desc: "object with an unsafe nested value",
@@ -52,8 +56,8 @@ describe("findUnsafeToolInputReason", () => {
       // when:
       const reason = findUnsafeToolInputReason(arg);
       // then:
-      if (expected === null) {
-        assert.strictEqual(reason, null);
+      if (expected === undefined) {
+        assert.strictEqual(reason, undefined);
       } else {
         assertUnsafeReason(reason, expected);
       }
@@ -136,15 +140,15 @@ describe("findUnsafeToolInputReason for string inputs", () => {
 
   const testCases = [
     // Non-path
-    { desc: "command option", arg: "-l", expected: null },
+    { desc: "command option", arg: "-l", expected: undefined },
 
     // Safe path
     {
       desc: "file in agent metadata directory",
       arg: `${AGENT_PROJECT_METADATA_DIR}/memory/foo.md`,
-      expected: null,
+      expected: undefined,
     },
-    { desc: "git managed file", arg: "README.md", expected: null },
+    { desc: "git managed file", arg: "README.md", expected: undefined },
 
     // Unsafe path
     {
@@ -180,7 +184,7 @@ describe("findUnsafeToolInputReason for string inputs", () => {
     {
       desc: "symlink in allowed directory pointing inside",
       arg: safeSymlinkInAllowedDir,
-      expected: null,
+      expected: undefined,
     },
     {
       desc: "nested symlink in allowed directory pointing outside (broken)",
@@ -229,8 +233,8 @@ describe("findUnsafeToolInputReason for string inputs", () => {
       arg: "sub/.git/config",
       expected: ".git directory",
     },
-    { desc: ".gitignore is not .git", arg: ".gitignore", expected: null },
-    { desc: ".GITIGNORE is not .git", arg: ".GITIGNORE", expected: null },
+    { desc: ".gitignore is not .git", arg: ".gitignore", expected: undefined },
+    { desc: ".GITIGNORE is not .git", arg: ".GITIGNORE", expected: undefined },
 
     // Case-insensitive matching prevents bypass on case-insensitive
     // filesystems, where ".GIT" refers to the same directory as ".git".
@@ -253,12 +257,12 @@ describe("findUnsafeToolInputReason for string inputs", () => {
     {
       desc: "file in agent tmp directory",
       arg: `${AGENT_PROJECT_METADATA_DIR}/tmp/scratch.txt`,
-      expected: null,
+      expected: undefined,
     },
     {
       desc: "file in claude-code-plugins directory",
       arg: `${AGENT_PROJECT_METADATA_DIR}/claude-code-plugins/feature-dev/foo.md`,
-      expected: null,
+      expected: undefined,
     },
 
     // Everything under .plain-agent/ is unsafe by default, except for
@@ -299,16 +303,20 @@ describe("findUnsafeToolInputReason for string inputs", () => {
     {
       desc: "git revision range (contains ..)",
       arg: "main..HEAD",
-      expected: null,
+      expected: undefined,
     },
     {
       desc: "git triple-dot revision range (contains ...)",
       arg: "feature...main",
-      expected: null,
+      expected: undefined,
     },
 
     // @<path> pattern
-    { desc: "@file pattern with safe path", arg: "@README.md", expected: null },
+    {
+      desc: "@file pattern with safe path",
+      arg: "@README.md",
+      expected: undefined,
+    },
     {
       desc: "@file pattern with parent traversal",
       arg: "@../parent-file",
@@ -324,7 +332,7 @@ describe("findUnsafeToolInputReason for string inputs", () => {
     {
       desc: "--prefix= with safe path",
       arg: "--prefix=README.md",
-      expected: null,
+      expected: undefined,
     },
     {
       desc: "--prefix= with parent traversal",
@@ -341,7 +349,7 @@ describe("findUnsafeToolInputReason for string inputs", () => {
     {
       desc: "-o with safe output file",
       arg: "-oREADME.md",
-      expected: null,
+      expected: undefined,
     },
     {
       desc: "-o with parent traversal",
@@ -363,7 +371,7 @@ describe("findUnsafeToolInputReason for string inputs", () => {
     {
       desc: "VAR=val with safe path",
       arg: "OUTPUT=README.md",
-      expected: null,
+      expected: undefined,
     },
     {
       desc: "VAR=val with parent traversal",
@@ -386,7 +394,7 @@ describe("findUnsafeToolInputReason for string inputs", () => {
     {
       desc: "bash -c script with mid-string VAR=val is not a VAR=val assignment",
       arg: "cd foo && HOME=/tmp npm install",
-      expected: null,
+      expected: undefined,
     },
 
     // proto://path pattern
@@ -403,12 +411,12 @@ describe("findUnsafeToolInputReason for string inputs", () => {
     {
       desc: "http:// URL is not a local path",
       arg: "http://example.com/path",
-      expected: null,
+      expected: undefined,
     },
     {
       desc: "https:// URL is not a local path",
       arg: "https://example.com:8080/some/path?query=1",
-      expected: null,
+      expected: undefined,
     },
   ];
 
@@ -417,8 +425,8 @@ describe("findUnsafeToolInputReason for string inputs", () => {
       // when:
       const reason = findUnsafeToolInputReason(arg);
       // then:
-      if (expected === null) {
-        assert.strictEqual(reason, null);
+      if (expected === undefined) {
+        assert.strictEqual(reason, undefined);
       } else {
         assertUnsafeReason(reason, expected);
       }
@@ -462,7 +470,7 @@ describe("allowedPaths parameter", () => {
       allowGitUnmanagedFiles,
     );
     // then:
-    assert.strictEqual(reason, null);
+    assert.strictEqual(reason, undefined);
   });
 
   it("should not allow access to non-configured path outside working directory", () => {
@@ -496,7 +504,7 @@ describe("allowedPaths parameter", () => {
     // when
     const reason = findUnsafeToolInputReason(agentTmpDir, []);
     // then
-    assert.strictEqual(reason, null);
+    assert.strictEqual(reason, undefined);
   });
 
   it("should block .plain-agent paths even when in allowedPaths", () => {
@@ -588,7 +596,7 @@ describe("allowGitUnmanagedFiles parameter", () => {
       allowGitUnmanagedFiles,
     );
     // then:
-    assert.strictEqual(reason, null);
+    assert.strictEqual(reason, undefined);
   });
 
   it("should block .git directory even when allowGitUnmanagedFiles is true", () => {
@@ -611,13 +619,13 @@ describe("allowGitUnmanagedFiles parameter", () => {
     const reasonAllowed = findUnsafeToolInputReason(input, [], true);
     const reasonBlocked = findUnsafeToolInputReason(input, [], false);
     // then:
-    assert.strictEqual(reasonAllowed, null);
+    assert.strictEqual(reasonAllowed, undefined);
     assertUnsafeReason(reasonBlocked, "not managed by git");
   });
 });
 
 /**
- * @param {string | null} reason
+ * @param {string | undefined} reason
  * @param {string} expectedSubstring
  * @returns {void}
  */

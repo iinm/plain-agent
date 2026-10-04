@@ -145,8 +145,8 @@ export async function main(argv = process.argv) {
     return;
   }
 
-  /** @type {SessionState | null} */
-  let resumedState = null;
+  /** @type {SessionState | undefined} */
+  let resumedState;
   if (
     ["interactive", "batch"].includes(cliArgs.subcommand.type) &&
     cliArgs.subcommand.session
@@ -283,7 +283,7 @@ export async function main(argv = process.argv) {
     cliArgs.subcommand.type === "batch" ||
     cliArgs.subcommand.type === "interactive"
       ? cliArgs.subcommand.model
-      : null;
+      : undefined;
   let modelNameWithVariant = modelFromArgs || modelFromConfig;
 
   if (resumedState) {

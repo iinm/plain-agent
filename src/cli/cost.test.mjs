@@ -258,12 +258,11 @@ describe("aggregateUsage", () => {
     assert.equal(report.byCurrency[0].sessionCount, 1);
   });
 
-  it("excludes records with null, undefined, or invalid timestamps", () => {
+  it("excludes records with missing or invalid timestamps", () => {
     /** @type {any} */
     const recordWithUndefinedTs = makeRecord({ sessionId: "s2", totalCost: 2 });
     delete recordWithUndefinedTs.timestamp;
     const records = [
-      makeRecord({ timestamp: null, sessionId: "s1", totalCost: 1 }),
       recordWithUndefinedTs,
       makeRecord({ timestamp: "not-a-date", sessionId: "s3", totalCost: 3 }),
       makeRecord({
@@ -275,7 +274,7 @@ describe("aggregateUsage", () => {
     const report = aggregateUsage(records, period);
     assert.equal(report.byCurrency.length, 1);
     assert.equal(report.byCurrency[0].totalCost, 4);
-    assert.equal(report.excludedOutOfRange, 3);
+    assert.equal(report.excludedOutOfRange, 2);
   });
 
   it("excludes records with missing or invalid currency", () => {

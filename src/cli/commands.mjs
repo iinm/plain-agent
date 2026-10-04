@@ -57,12 +57,12 @@ export function matchAgentsCommand(input) {
  * Interpret raw user input as a tool-approval decision.
  * `Y`/`YES` allow for the session, `y`/`yes`/`ｙ` allow once.
  * @param {string} input
- * @returns {ToolApprovalDecision | null}
+ * @returns {ToolApprovalDecision | undefined}
  */
 export function parseToolApprovalInput(input) {
   if (/^(YES|Y)$/.test(input)) return { action: "allowSession" };
   if (/^(yes|y|ｙ)$/i.test(input)) return { action: "allow" };
-  return null;
+  return undefined;
 }
 
 /**
@@ -212,7 +212,7 @@ export function createCommandHandler({
     if (/^\/compact( |$)/i.test(inputTrimmed)) {
       const message = buildCompactPrompt({
         invocation: inputTrimmed,
-        isSubagent: agent.getActiveSubagent() !== null,
+        isSubagent: agent.getActiveSubagent() !== undefined,
       });
       return sendToAgent(
         [{ type: "text", text: message }],

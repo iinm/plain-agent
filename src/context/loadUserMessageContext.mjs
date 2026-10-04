@@ -76,13 +76,13 @@ export async function loadUserMessageContext(message) {
 /**
  * @param {string} reference
  * @param {string} workingDir
- * @returns {Promise<string | null>}
+ * @returns {Promise<string | undefined>}
  */
 async function loadContextSnippet(reference, workingDir) {
   const fileRange = parseFileRange(reference);
   if (fileRange instanceof Error) {
     warn(`Failed to parse context reference ${reference}: ${fileRange}`);
-    return null;
+    return undefined;
   }
 
   const absolutePath = path.resolve(fileRange.filePath);
@@ -91,13 +91,13 @@ async function loadContextSnippet(reference, workingDir) {
     warn(
       `Refusing to load context from outside working directory: ${absolutePath}`,
     );
-    return null;
+    return undefined;
   }
 
   const fileContent = await readFileRange(fileRange);
   if (fileContent instanceof Error) {
     warn(`Failed to load context from ${reference}: ${fileContent}`);
-    return null;
+    return undefined;
   }
 
   return [`<context location="${reference}">`, fileContent, "</context>"].join(

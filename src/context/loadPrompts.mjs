@@ -96,15 +96,15 @@ export async function loadPrompts(claudeCodePlugins) {
           const fullPath = path.join(dir, file);
           const content = await fs.readFile(fullPath, "utf-8").catch((err) => {
             console.error(`Failed to read prompt file ${fullPath}:`, err);
-            return null;
+            return undefined;
           });
 
-          if (content === null) return null;
+          if (content === undefined) return undefined;
 
           const prompt = parsePrompt(file, content, fullPath, idPrefix);
 
           if (prompt.userInvocable === false) {
-            return null;
+            return undefined;
           }
           return prompt;
         }),
@@ -131,7 +131,7 @@ async function getMarkdownFiles(dir, baseDir = dir) {
     let isFile = entry.isFile();
 
     if (entry.isSymbolicLink()) {
-      const stat = await fs.stat(fullPath).catch(() => null);
+      const stat = await fs.stat(fullPath).catch(() => undefined);
       if (!stat) continue;
       isDirectory = stat.isDirectory();
       isFile = stat.isFile();

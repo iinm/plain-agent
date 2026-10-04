@@ -129,10 +129,6 @@ export function aggregateUsage(records, period) {
   let excludedOutOfRange = 0;
 
   for (const record of deduplicated) {
-    if (record.timestamp == null) {
-      excludedOutOfRange++;
-      continue;
-    }
     const recordedAt = new Date(record.timestamp);
     if (Number.isNaN(recordedAt.getTime())) {
       excludedOutOfRange++;

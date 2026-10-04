@@ -97,12 +97,12 @@ export async function persistSessionEvent(sessionId, event, options = {}) {
 }
 
 /**
- * Load a session by replaying its JSONL event stream. Returns null when the
+ * Load a session by replaying its JSONL event stream. Returns undefined when the
  * file does not exist. Corrupt event lines are ignored.
  *
  * @param {string} sessionId
  * @param {{ dir?: string }} [options]
- * @returns {Promise<SessionState | null>}
+ * @returns {Promise<SessionState | undefined>}
  */
 export async function loadSession(sessionId, options = {}) {
   const dir = options.dir ?? SESSIONS_DIR;
@@ -115,7 +115,7 @@ export async function loadSession(sessionId, options = {}) {
       err instanceof Error &&
       /** @type {NodeJS.ErrnoException} */ (err).code === "ENOENT"
     ) {
-      return null;
+      return undefined;
     }
     throw err;
   }

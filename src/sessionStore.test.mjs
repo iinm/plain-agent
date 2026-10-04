@@ -200,14 +200,14 @@ describe("persistSessionEvent + loadSession", () => {
     const loaded = await loadSession("not-persisted", { dir: tmpDir });
 
     // then:
-    assert.equal(loaded, null);
+    assert.equal(loaded, undefined);
   });
 
-  it("returns null for a missing stream", async () => {
+  it("returns undefined for a missing stream", async () => {
     // when:
     const loaded = await loadSession("missing", { dir: tmpDir });
     // then:
-    assert.equal(loaded, null);
+    assert.equal(loaded, undefined);
   });
 
   it("throws for a format-version mismatch", async () => {

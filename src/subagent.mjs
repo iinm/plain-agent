@@ -164,9 +164,9 @@ export function createSubagentManager(agentRoles, handlers) {
    * @param {MessageContentToolUse[]} toolUseParts
    * @param {MessageContentToolResult[]} toolResults
    * @param {Message[]} messages
-   * @returns {{ state: { type: "unchanged" } | { type: "replaceMessages", messages: Message[] }, newMessage: Message | null }}
+   * @returns {{ state: { type: "unchanged" } | { type: "replaceMessages", messages: Message[] }, newMessage: Message | undefined }}
    *   - state: Whether the caller must replace its messages
-   *   - newMessage: The user message to add, or null if tool results should be added directly
+   *   - newMessage: The user message to add, or undefined if tool results should be added directly
    */
   function processToolResults(toolUseParts, toolResults, messages) {
     const reportSubagentToolUse = toolUseParts.find(
@@ -178,7 +178,7 @@ export function createSubagentManager(agentRoles, handlers) {
         (res) => res.toolUseId === reportSubagentToolUse.toolUseId,
       );
       if (!reportResult) {
-        return { state: { type: "unchanged" }, newMessage: null };
+        return { state: { type: "unchanged" }, newMessage: undefined };
       }
       return handleSubagentReport(
         reportSubagentToolUse,
@@ -187,7 +187,7 @@ export function createSubagentManager(agentRoles, handlers) {
       );
     }
 
-    return { state: { type: "unchanged" }, newMessage: null };
+    return { state: { type: "unchanged" }, newMessage: undefined };
   }
 
   /**
@@ -197,16 +197,16 @@ export function createSubagentManager(agentRoles, handlers) {
    * @param {MessageContentToolUse} reportToolUse
    * @param {MessageContentToolResult} reportResult
    * @param {Message[]} messages
-   * @returns {{ state: { type: "unchanged" } | { type: "replaceMessages", messages: Message[] }, newMessage: Message | null }}
+   * @returns {{ state: { type: "unchanged" } | { type: "replaceMessages", messages: Message[] }, newMessage: Message | undefined }}
    */
   function handleSubagentReport(reportToolUse, reportResult, messages) {
     if (reportResult.isError) {
-      return { state: { type: "unchanged" }, newMessage: null };
+      return { state: { type: "unchanged" }, newMessage: undefined };
     }
 
     const currentSubagent = subagents.pop();
     if (!currentSubagent) {
-      return { state: { type: "unchanged" }, newMessage: null };
+      return { state: { type: "unchanged" }, newMessage: undefined };
     }
 
     handlers.onSubagentSwitched(subagents.at(-1) ?? null);
@@ -257,14 +257,14 @@ export function createSubagentManager(agentRoles, handlers) {
   }
 
   /**
-   * Get the most recently activated subagent, or null if none is active.
-   * @returns {{name: string, switchMessageIndex: number} | null}
+   * Get the most recently activated subagent, or undefined if none is active.
+   * @returns {{name: string, switchMessageIndex: number} | undefined}
    */
   function getActiveSubagent() {
     const top = subagents.at(-1);
     return top
       ? { name: top.name, switchMessageIndex: top.switchMessageIndex }
-      : null;
+      : undefined;
   }
 
   /**

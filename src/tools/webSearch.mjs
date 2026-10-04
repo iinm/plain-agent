@@ -167,7 +167,7 @@ export function truncateText(content, maxLength) {
 
 /**
  * @param {WebSearchInput} input
- * @returns {Error | null}
+ * @returns {Error | undefined}
  */
 function validateInput(input) {
   if (!Array.isArray(input.searches) || input.searches.length === 0) {
@@ -192,7 +192,7 @@ function validateInput(input) {
   if (!input.question || typeof input.question !== "string") {
     return new Error("`question` is required and must be a string.");
   }
-  return null;
+  return undefined;
 }
 
 /**

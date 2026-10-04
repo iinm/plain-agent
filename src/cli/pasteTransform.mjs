@@ -57,15 +57,15 @@ export function createPasteHandler() {
   /** @type {PasteState} */
   let state = "IDLE";
   let pasteBuffer = "";
-  /** @type {NodeJS.Timeout | null} */
-  let mergeTimer = null;
+  /** @type {NodeJS.Timeout | undefined} */
+  let mergeTimer;
   /** @type {Transform} */
   let transform;
 
   const clearMergeTimer = () => {
     if (mergeTimer) {
       clearTimeout(mergeTimer);
-      mergeTimer = null;
+      mergeTimer = undefined;
     }
   };
 
@@ -134,7 +134,7 @@ export function createPasteHandler() {
       // schedule a short timer to flush the pending paste if nothing arrives.
       if (state === "PENDING" && !mergeTimer) {
         mergeTimer = setTimeout(() => {
-          mergeTimer = null;
+          mergeTimer = undefined;
           flushPasteBuffer();
         }, PASTE_MERGE_WINDOW_MS);
       }

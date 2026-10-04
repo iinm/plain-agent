@@ -154,11 +154,11 @@ export async function installClaudeCodePlugins() {
 /**
  * Extract owner/repo from source URL.
  * @param {string} source
- * @returns {string|null}
+ * @returns {string | undefined}
  */
 function extractOwnerRepo(source) {
   // Handle: https://github.com/owner/repo
   // Handle: git@github.com:owner/repo.git
   const match = source.match(/[:/]([^/]+\/[^/]+?)(?:\.git)?$/);
-  return match ? match[1] : null;
+  return match ? match[1] : undefined;
 }
