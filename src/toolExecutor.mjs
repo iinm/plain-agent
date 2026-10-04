@@ -194,10 +194,6 @@ export function createToolExecutor(toolByName, options = {}) {
   /**
    * Mask secrets in a tool result before it is handed to the model.
    *
-   * Every tool's masker is applied to every result (not just the producing
-   * tool's) so a secret emitted by one tool cannot leak through another, e.g.
-   * read_file reading a file that exec_command wrote. Only text content is
-   * masked; image content is left untouched.
    * @param {MessageContentToolResult} result
    * @returns {MessageContentToolResult}
    */

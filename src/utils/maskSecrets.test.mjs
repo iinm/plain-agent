@@ -3,10 +3,9 @@ import { describe, it } from "node:test";
 import { createSecretMasker } from "./maskSecrets.mjs";
 
 describe("createSecretMasker", () => {
-  it("returns undefined when there is no secret", () => {
-    assert.equal(createSecretMasker(undefined), undefined);
-    assert.equal(createSecretMasker({}), undefined);
-    assert.equal(createSecretMasker({ EMPTY: "" }), undefined);
+  it("returns an identity function when there is no secret", () => {
+    assert.equal(createSecretMasker({})("a b"), "a b");
+    assert.equal(createSecretMasker({ EMPTY: "" })("x"), "x");
   });
 
   it("masks the plain secret", () => {
@@ -14,7 +13,7 @@ describe("createSecretMasker", () => {
     const mask = createSecretMasker({ SECRET: "secret-value" });
 
     // when:
-    const result = mask?.("a secret-value b");
+    const result = mask("a secret-value b");
 
     // then:
     assert.equal(result, "a *** b");
@@ -34,7 +33,7 @@ describe("createSecretMasker", () => {
     ].join(" ");
 
     // when:
-    const result = mask?.(input);
+    const result = mask(input);
 
     // then:
     assert.equal(result, "*** *** *** *** *** ***");
@@ -45,7 +44,7 @@ describe("createSecretMasker", () => {
     const mask = createSecretMasker({ SHORT: "token", LONG: "token-extra" });
 
     // when:
-    const result = mask?.("token-extra token");
+    const result = mask("token-extra token");
 
     // then:
     assert.equal(result, "*** ***");

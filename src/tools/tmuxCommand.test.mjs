@@ -65,6 +65,6 @@ describe("tmuxCommandTool env and secrets", () => {
 
     // then:
     assert.equal(withSecrets.maskOutput?.("x s3cr3t y"), "x *** y");
-    assert.equal(withoutSecrets.maskOutput, undefined);
+    assert.equal(withoutSecrets.maskOutput?.("x s3cr3t y"), "x s3cr3t y");
   });
 });

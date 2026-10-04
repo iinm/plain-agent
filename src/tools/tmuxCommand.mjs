@@ -15,9 +15,7 @@ const OUTPUT_MAX_LENGTH = 1024 * 8;
  * @returns {Tool & SandboxModeProvider}
  */
 export function createTmuxCommandTool(config) {
-  const maskSecrets = createSecretMasker(config?.secrets);
-  /** @param {string} text */
-  const mask = (text) => maskSecrets?.(text) ?? text;
+  const mask = createSecretMasker(config?.secrets ?? {});
   const sessionEnv = { ...(config?.env ?? {}), ...(config?.secrets ?? {}) };
   const envArgs = Object.entries(sessionEnv).flatMap(([key, value]) => [
     "-e",
@@ -251,6 +249,6 @@ export function createTmuxCommandTool(config) {
         mode: "sandbox",
       };
     },
-    maskOutput: maskSecrets,
+    maskOutput: mask,
   };
 }
