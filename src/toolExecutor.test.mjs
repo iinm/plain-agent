@@ -6,13 +6,15 @@ import { createToolExecutor } from "./toolExecutor.mjs";
  * @param {string} name
  * @param {import("./tool").ToolImplementation} impl
  * @param {((text: string) => string)=} maskOutput
+ * @param {((input: Record<string, unknown>) => Error | undefined)=} validateInput
  * @returns {import("./tool").Tool}
  */
-function createTool(name, impl, maskOutput) {
+function createTool(name, impl, maskOutput, validateInput) {
   return {
     def: { name, description: name, inputSchema: {} },
     impl,
     maskOutput,
+    validateInput,
   };
 }
 
@@ -132,5 +134,60 @@ describe("toolExecutor secret masking", () => {
     assert.equal(part.type, "text");
     if (part.type !== "text") return;
     assert.equal(part.text, "value=s3cr3t");
+  });
+
+  it("masks validation errors from validateBatch", () => {
+    // given:
+    const executor = createToolExecutor(
+      new Map([
+        [
+          "exec_command",
+          createTool("exec_command", async () => "ok", maskS3cr3t),
+        ],
+        [
+          "read_file",
+          createTool(
+            "read_file",
+            async () => "unused",
+            undefined,
+            () => new Error("invalid input: s3cr3t"),
+          ),
+        ],
+      ]),
+    );
+
+    // when:
+    const validation = executor.validateBatch([toolUse("read_file")]);
+
+    // then:
+    if (validation.isValid) assert.fail("expected validation to fail");
+    assert.equal(validation.errorMessage, "invalid input: ***");
+    const part = validation.toolResults[0].content[0];
+    assert.equal(part.type, "text");
+    if (part.type !== "text") return;
+    assert.equal(part.text, "invalid input: ***");
+  });
+
+  it("masks validation errors returned by executeBatch", async () => {
+    // given:
+    const executor = createToolExecutor(
+      new Map([
+        [
+          "exec_command",
+          createTool("exec_command", async () => "ok", maskS3cr3t),
+        ],
+      ]),
+    );
+
+    // when:
+    const result = await executor.executeBatch([toolUse("s3cr3t_tool")]);
+
+    // then:
+    if (result.success) assert.fail("expected execution to fail");
+    assert.equal(result.errorMessage, "Tool not found: ***_tool");
+    const part = result.errors[0].content[0];
+    assert.equal(part.type, "text");
+    if (part.type !== "text") return;
+    assert.equal(part.text, "Tool not found: ***_tool");
   });
 });

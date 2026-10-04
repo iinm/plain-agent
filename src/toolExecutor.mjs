@@ -75,10 +75,10 @@ export function createToolExecutor(toolByName, options = {}) {
     if (errors.length > 0) {
       return {
         isValid: false,
-        errorMessage: errors.map((e) => e.message).join("; "),
+        errorMessage: sanitizeText(errors.map((e) => e.message).join("; ")),
         toolResults: toolUseParts.map((toolUse, index) => {
           const error = errors.find((e) => e.index === index);
-          return {
+          return sanitizeToolResult({
             type: "tool_result",
             toolUseId: toolUse.toolUseId,
             toolName: toolUse.toolName,
@@ -91,7 +91,7 @@ export function createToolExecutor(toolByName, options = {}) {
               },
             ],
             isError: true,
-          };
+          });
         }),
       };
     }
@@ -101,14 +101,16 @@ export function createToolExecutor(toolByName, options = {}) {
     if (!exclusiveResult.isValid) {
       return {
         isValid: false,
-        errorMessage: exclusiveResult.errorMessage,
-        toolResults: toolUseParts.map((t) => ({
-          type: "tool_result",
-          toolUseId: t.toolUseId,
-          toolName: t.toolName,
-          content: [{ type: "text", text: exclusiveResult.errorMessage }],
-          isError: true,
-        })),
+        errorMessage: sanitizeText(exclusiveResult.errorMessage),
+        toolResults: toolUseParts.map((t) =>
+          sanitizeToolResult({
+            type: "tool_result",
+            toolUseId: t.toolUseId,
+            toolName: t.toolName,
+            content: [{ type: "text", text: exclusiveResult.errorMessage }],
+            isError: true,
+          }),
+        ),
       };
     }
 
@@ -201,14 +203,24 @@ export function createToolExecutor(toolByName, options = {}) {
    */
   function sanitizeToolResult(result) {
     if (maskOutputs.length === 0) return result;
-    /** @param {string} text */
-    const mask = (text) => maskOutputs.reduce((acc, fn) => fn(acc), text);
     return {
       ...result,
       content: result.content.map((part) =>
-        part.type === "text" ? { ...part, text: mask(part.text) } : part,
+        part.type === "text"
+          ? { ...part, text: sanitizeText(part.text) }
+          : part,
       ),
     };
+  }
+
+  /**
+   * Apply every tool's masker to a text string. Also used for error messages
+   * that reach the model without a tool result, e.g. validation errors.
+   * @param {string} text
+   * @returns {string}
+   */
+  function sanitizeText(text) {
+    return maskOutputs.reduce((acc, fn) => fn(acc), text);
   }
 
   /**
@@ -219,7 +231,7 @@ export function createToolExecutor(toolByName, options = {}) {
   async function execute(toolUse) {
     const tool = toolByName.get(toolUse.toolName);
     if (!tool) {
-      return {
+      return sanitizeToolResult({
         type: "tool_result",
         toolUseId: toolUse.toolUseId,
         toolName: toolUse.toolName,
@@ -227,7 +239,7 @@ export function createToolExecutor(toolByName, options = {}) {
           { type: "text", text: `Tool not found: ${toolUse.toolName}` },
         ],
         isError: true,
-      };
+      });
     }
 
     const result = await tool.impl(toolUse.input);
