@@ -20,14 +20,6 @@ export type SandboxMode =
     }
   | undefined;
 
-/**
- * Implemented by tools that can report the sandbox mode for a given input.
- * - `null` if the tool has no sandbox configuration
- * - `"unsandboxed"` if a sandbox rule matched with `mode: "unsandboxed"`
- * - `"sandbox"` otherwise (sandbox config exists, default execution is sandboxed)
- * Used by the CLI to display an `[unsandboxed]` badge for tool calls that
- * will execute outside the sandbox.
- */
 export type SandboxModeProvider = {
   getSandboxMode: (input: unknown) => SandboxMode;
 };

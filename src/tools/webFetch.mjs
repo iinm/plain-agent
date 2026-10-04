@@ -143,7 +143,7 @@ export function createWebFetchTool(config) {
       validateInput(
         /** @type {WebFetchInput} */ (input),
         config.allowedDomains,
-      ) ?? undefined,
+      ),
 
     /**
      * Reduce the URL to its origin so approving one URL approves any path on
@@ -205,7 +205,7 @@ function isUrlAllowed(url, allowedDomains) {
 /**
  * @param {WebFetchInput} input
  * @param {string[] | undefined} allowedDomains
- * @returns {Error | null}
+ * @returns {Error | undefined}
  */
 function validateInput(input, allowedDomains) {
   if (!input.url || typeof input.url !== "string") {
@@ -225,7 +225,7 @@ function validateInput(input, allowedDomains) {
   if (!input.question || typeof input.question !== "string") {
     return new Error("`question` is required and must be a string.");
   }
-  return null;
+  return undefined;
 }
 
 /**
@@ -268,24 +268,24 @@ function matchesDomain(hostname, domain) {
 }
 
 /**
- * Parse `url` as an http(s) URL; return null for other schemes or invalid
+ * Parse `url` as an http(s) URL; return undefined for other schemes or invalid
  * input.
  *
  * @param {unknown} url
- * @returns {URL | null}
+ * @returns {URL | undefined}
  */
 function parseHttpUrl(url) {
   if (typeof url !== "string") {
-    return null;
+    return undefined;
   }
   try {
     const u = new URL(url);
     if (u.protocol !== "http:" && u.protocol !== "https:") {
-      return null;
+      return undefined;
     }
     return u;
   } catch {
-    return null;
+    return undefined;
   }
 }
 

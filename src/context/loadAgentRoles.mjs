@@ -73,10 +73,10 @@ export async function loadAgentRoles(claudeCodePlugins) {
           const fullPath = path.join(dir, file);
           const content = await fs.readFile(fullPath, "utf-8").catch((err) => {
             console.error(`Failed to read agent role file ${fullPath}:`, err);
-            return null;
+            return undefined;
           });
 
-          if (content === null) return null;
+          if (content === undefined) return undefined;
 
           const role = parseAgentRole(file, content, fullPath, idPrefix);
 
@@ -105,7 +105,7 @@ async function getMarkdownFiles(dir, baseDir = dir) {
     let isFile = entry.isFile();
 
     if (entry.isSymbolicLink()) {
-      const stat = await fs.stat(fullPath).catch(() => null);
+      const stat = await fs.stat(fullPath).catch(() => undefined);
       if (!stat) continue;
       isDirectory = stat.isDirectory();
       isFile = stat.isFile();

@@ -107,7 +107,7 @@ export async function readUsageRecords(options = {}) {
 
 /**
  * Build a usage record from a finished session's cost summary.
- * Returns null when there's nothing worth recording (no tokens).
+ * Returns undefined when there's nothing worth recording (no tokens).
  *
  * @param {Object} args
  * @param {string} args.sessionId
@@ -116,7 +116,7 @@ export async function readUsageRecords(options = {}) {
  * @param {string} args.workingDir
  * @param {CostSummary} args.costSummary
  * @param {Date} [args.now]
- * @returns {UsageRecord | null}
+ * @returns {UsageRecord | undefined}
  */
 export function buildUsageRecord({
   sessionId,
@@ -132,7 +132,7 @@ export function buildUsageRecord({
     tokens[key] = entry.tokens;
   }
   if (Object.keys(tokens).length === 0) {
-    return null;
+    return undefined;
   }
   const timestamp = (now ?? new Date()).toISOString();
   return {
@@ -143,6 +143,8 @@ export function buildUsageRecord({
     workingDir,
     currency: costSummary.currency,
     unit: costSummary.unit,
+    // JSON.stringify drops undefined values, which would remove this key.
+    // Use null instead so each record keeps an explicit "no pricing" marker.
     totalCost:
       costSummary.totalCost === undefined ? null : costSummary.totalCost,
     tokens,

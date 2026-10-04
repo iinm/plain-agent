@@ -243,7 +243,7 @@ export function createAgent({
     },
     getActiveSubagent: () => {
       const active = subagentManager.getActiveSubagent();
-      return active ? { name: active.name } : null;
+      return active ? { name: active.name } : undefined;
     },
   };
 }

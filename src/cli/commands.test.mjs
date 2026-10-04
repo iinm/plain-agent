@@ -131,10 +131,10 @@ describe("parseToolApprovalInput", () => {
     }
   });
 
-  it("returns null for other input, including /resume", () => {
+  it("returns undefined for other input, including /resume", () => {
     // when/then:
     for (const input of ["n", "no", "please change", "/resume", "/help"]) {
-      assert.equal(parseToolApprovalInput(input), null);
+      assert.equal(parseToolApprovalInput(input), undefined);
     }
   });
 });
@@ -158,7 +158,7 @@ function createStubAgent() {
       resume: () => {
         calls.resume += 1;
       },
-      getActiveSubagent: () => null,
+      getActiveSubagent: () => undefined,
     })
   );
 }

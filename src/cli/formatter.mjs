@@ -842,7 +842,7 @@ async function renderPatch(filePath, patch) {
 
   // Prefer original lines frozen at execution time so the diff is accurate even
   // if the file has already been written; fall back to reading from disk.
-  /** @type {string[] | import("../tools/patchFile").PatchOriginalLines | null} */
+  /** @type {string[] | import("../tools/patchFile").PatchOriginalLines | undefined} */
   let originalLines = getPatchOriginalLines({ filePath, patch });
   if (!originalLines && filePath) {
     const original = await noThrow(() => fs.readFile(filePath, "utf8"));
@@ -891,11 +891,11 @@ function highlightPatchPlain(patch) {
 /**
  * Extract the nonce from the first open marker in a patch_file patch.
  * @param {string} patch
- * @returns {string | null}
+ * @returns {string | undefined}
  */
 function extractPatchNonce(patch) {
   const match = patch.match(/^(REPLACE|INSERT_AFTER)\s+(\S+)/m);
-  return match ? match[2] : null;
+  return match ? match[2] : undefined;
 }
 
 /**

@@ -84,8 +84,8 @@ export function startInteractiveSession({
 }) {
   const state = {
     turn: true,
-    /** @type {string[] | null} */
-    multiLineBuffer: null,
+    /** @type {string[] | undefined} */
+    multiLineBuffer: undefined,
     subagentName: agent.getActiveSubagent()?.name ?? "",
     spinnerIndex: 0,
     spinnerLastTime: 0,
@@ -166,8 +166,8 @@ export function startInteractiveSession({
    * Also aborts multi-line input mode if active.
    */
   const resetInput = () => {
-    if (state.multiLineBuffer !== null) {
-      state.multiLineBuffer = null;
+    if (state.multiLineBuffer !== undefined) {
+      state.multiLineBuffer = undefined;
       cli.setPrompt(currentCliPrompt);
     }
     cli.write(null, { ctrl: true, name: "a" }); // move to line start
@@ -189,7 +189,7 @@ export function startInteractiveSession({
     }
 
     // User turn: clear current input. On empty input, show exit hint.
-    const hasInput = cli.line.length > 0 || state.multiLineBuffer !== null;
+    const hasInput = cli.line.length > 0 || state.multiLineBuffer !== undefined;
     if (hasInput) {
       resetInput();
     } else {
@@ -207,7 +207,10 @@ export function startInteractiveSession({
 
   const handleCtrlD = () => {
     // User turn with non-empty input: ignore Ctrl-D entirely.
-    if (state.turn && (cli.line.length > 0 || state.multiLineBuffer !== null)) {
+    if (
+      state.turn &&
+      (cli.line.length > 0 || state.multiLineBuffer !== undefined)
+    ) {
       return;
     }
 
@@ -332,7 +335,7 @@ export function startInteractiveSession({
 
     // Check for multi-line delimiter
     if (lineInput.trim() === '"""') {
-      if (state.multiLineBuffer === null) {
+      if (state.multiLineBuffer === undefined) {
         state.multiLineBuffer = [];
         cli.setPrompt(styleText("gray", "... "));
         cli.prompt();
@@ -340,7 +343,7 @@ export function startInteractiveSession({
       }
 
       const combined = state.multiLineBuffer.join("\n");
-      state.multiLineBuffer = null;
+      state.multiLineBuffer = undefined;
       cli.setPrompt(currentCliPrompt);
 
       await processInput(combined);
@@ -348,7 +351,7 @@ export function startInteractiveSession({
     }
 
     // Accumulate lines if in multi-line mode
-    if (state.multiLineBuffer !== null) {
+    if (state.multiLineBuffer !== undefined) {
       state.multiLineBuffer.push(lineInput);
       cli.prompt();
       return;

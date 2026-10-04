@@ -70,13 +70,13 @@ export function createToolUseApprover({
           toolUse.toolName,
           toolUse.input,
         )
-          ? null
+          ? undefined
           : findUnsafeToolInputReason(
               maskApprovalInput(toolUse.toolName, toolUse.input),
               allowedPaths,
               allowGitUnmanagedFiles,
             );
-        if (unsafeReason !== null) {
+        if (unsafeReason !== undefined) {
           return {
             action: defaultAction,
             reason: `Path validation failed: ${unsafeReason}`,

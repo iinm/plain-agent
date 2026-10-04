@@ -273,7 +273,7 @@ export function applyBlocks(original, blocks) {
  * line (backward-compatible), or as sparse {@link PatchOriginalLines}.
  *
  * @param {PatchBlock} block
- * @param {string[] | PatchOriginalLines | null} originalLines
+ * @param {string[] | PatchOriginalLines | undefined} originalLines
  * @param {string} nonce
  * @param {{ header?: DiffStyler, del?: DiffStyler, add?: DiffStyler }} [style]
  * @returns {string}
@@ -378,10 +378,10 @@ export function collectPatchLineRanges(blocks) {
  * Look up original lines captured before applying a patch.
  *
  * @param {PatchFileInput} input
- * @returns {PatchOriginalLines | null}
+ * @returns {PatchOriginalLines | undefined}
  */
 export function getPatchOriginalLines(input) {
-  return patchOriginalLinesCache.get(patchOriginalLinesCacheKey(input)) ?? null;
+  return patchOriginalLinesCache.get(patchOriginalLinesCacheKey(input));
 }
 /**
  * @param {string} headerArgs
@@ -576,14 +576,14 @@ function buildPatchOriginalLines(originalLines, ranges) {
 /**
  * Normalize the original-content argument of {@link renderPatchBlock} into a
  * uniform accessor, accepting either an absolute line array or sparse original
- * lines. Returns null when no content is available.
+ * lines. Returns undefined when no content is available.
  *
- * @param {string[] | PatchOriginalLines | null} originalLines
- * @returns {{ totalLines: number; getLine: (line: number) => string } | null}
+ * @param {string[] | PatchOriginalLines | undefined} originalLines
+ * @returns {{ totalLines: number; getLine: (line: number) => string } | undefined}
  */
 function normalizeOriginalSource(originalLines) {
   if (!originalLines) {
-    return null;
+    return undefined;
   }
   if (Array.isArray(originalLines)) {
     return {

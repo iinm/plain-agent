@@ -27,17 +27,7 @@ export type ToolApprovalDecision =
   | { action: "deny"; content: AgentInput };
 
 export type Agent = {
-  /**
-   * Start the agent loop and return the async event stream. Consume with
-   * `for await`. Also kicks off the internal input queue consumer; call
-   * exactly once per session.
-   */
   start: () => AsyncIterable<AgentEvent>;
-  /**
-   * Send user input to the agent. Input is pushed onto an internal async
-   * queue and consumed by the agent loop; may be called from multiple places
-   * (plain input, slash commands).
-   */
   send: (input: AgentInput) => void;
   /**
    * Answer a pending tool-approval request (emitted as `tool_use_request`).
@@ -50,8 +40,7 @@ export type Agent = {
   resume: () => void;
   stop: () => void;
   pauseAutoApprove: () => void;
-  /** Subagent currently active for this session, or null. */
-  getActiveSubagent: () => { name: string } | null;
+  getActiveSubagent: () => { name: string } | undefined;
 };
 
 /**
@@ -102,7 +91,7 @@ export type AgentConfig = {
     startTime: Date;
   };
   /** When provided, the agent restores its state from this snapshot. */
-  initialState?: SessionState | null;
+  initialState?: SessionState;
   /** Soft limit on input tokens; triggers auto-compact prompt when exceeded. */
   contextSoftLimit?: number;
   /** Keys in providerTokenUsage to sum for input token count. */

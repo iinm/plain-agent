@@ -25,7 +25,7 @@ const BUILTIN_ALLOWED_PATHS = [
  * @param {unknown} input
  * @param {string[]} [allowedPaths=[]] - Additional allowed paths (outside working directory)
  * @param {boolean} [allowGitUnmanagedFiles=false] - Allow access to git-unmanaged files
- * @returns {string | null} Rejection reason, or null when the input is safe
+ * @returns {string | undefined} Rejection reason, or undefined when the input is safe
  */
 export function findUnsafeToolInputReason(
   input,
@@ -33,7 +33,7 @@ export function findUnsafeToolInputReason(
   allowGitUnmanagedFiles = false,
 ) {
   if (["number", "boolean", "undefined"].includes(typeof input)) {
-    return null;
+    return undefined;
   }
 
   if (typeof input === "string") {
@@ -47,16 +47,16 @@ export function findUnsafeToolInputReason(
         allowedPaths,
         allowGitUnmanagedFiles,
       );
-      if (reason !== null) {
+      if (reason !== undefined) {
         return reason;
       }
     }
-    return null;
+    return undefined;
   }
 
   if (typeof input === "object") {
     if (input === null) {
-      return null;
+      return undefined;
     }
     for (const value of Object.values(input)) {
       const reason = findUnsafeToolInputReason(
@@ -64,11 +64,11 @@ export function findUnsafeToolInputReason(
         allowedPaths,
         allowGitUnmanagedFiles,
       );
-      if (reason !== null) {
+      if (reason !== undefined) {
         return reason;
       }
     }
-    return null;
+    return undefined;
   }
 
   return `unsupported input type: ${typeof input}`;
@@ -78,7 +78,7 @@ export function findUnsafeToolInputReason(
  * @param {string} arg
  * @param {string[]} [allowedPaths=[]] - Additional allowed paths (outside working directory)
  * @param {boolean} [allowGitUnmanagedFiles=false] - Allow access to git-unmanaged files
- * @returns {string | null}
+ * @returns {string | undefined}
  */
 function findUnsafeItemReason(
   arg,
@@ -155,7 +155,7 @@ function findUnsafeItemReason(
  * @param {string} arg
  * @param {string[]} [allowedPaths=[]] - Additional allowed paths (outside working directory)
  * @param {boolean} [allowGitUnmanagedFiles=false] - Allow access to git-unmanaged files
- * @returns {string | null}
+ * @returns {string | undefined}
  */
 function findUnsafeItemRawReason(
   arg,
@@ -192,7 +192,7 @@ function findUnsafeItemRawReason(
   // Built-in allowed paths (memory, tmp, claude-code-plugins) are always safe.
   // This check must come before the .plain-agent/ block below.
   if (isInBuiltinAllowedPath(realPath)) {
-    return null;
+    return undefined;
   }
 
   // Any other path under .plain-agent/ is unsafe and cannot be overridden
@@ -215,13 +215,13 @@ function findUnsafeItemRawReason(
     return `path is not managed by git (ignored or outside a repository): ${arg}`;
   }
 
-  return null;
+  return undefined;
 }
 
 /**
  * @param {string} absPath
  * @param {string} workingDir
- * @returns {string | null}
+ * @returns {string | undefined}
  */
 function resolveRealPath(absPath, workingDir) {
   const realPathResult = noThrowSync(() => fs.realpathSync(absPath));
@@ -237,7 +237,7 @@ function resolveRealPath(absPath, workingDir) {
 
   for (let depth = 0; depth < MAX_SYMLINK_DEPTH; depth++) {
     if (seen.has(currentPath)) {
-      return null; // Circular link
+      return undefined; // Circular link
     }
     seen.add(currentPath);
 
@@ -262,7 +262,7 @@ function resolveRealPath(absPath, workingDir) {
   }
 
   if (seen.size >= MAX_SYMLINK_DEPTH) {
-    return null; // Too deep
+    return undefined; // Too deep
   }
 
   return currentPath;

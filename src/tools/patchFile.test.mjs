@@ -953,7 +953,7 @@ describe("patch original lines cache (LRU)", () => {
     }
 
     // then: the oldest entry is gone, the newest remains.
-    assert.equal(getPatchOriginalLines(inputs[0]), null);
+    assert.equal(getPatchOriginalLines(inputs[0]), undefined);
     assert.ok(getPatchOriginalLines(inputs[inputs.length - 1]));
   });
 });
