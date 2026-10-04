@@ -19,6 +19,13 @@
  */
 export function createToolExecutor(toolByName, options = {}) {
   const { exclusiveToolNames = [] } = options;
+  /** @type {((text: string) => string)[]} */
+  const maskOutputs = [];
+  for (const tool of toolByName.values()) {
+    if (tool.maskOutput) {
+      maskOutputs.push(tool.maskOutput);
+    }
+  }
 
   /**
    * @typedef {ValidationSuccess | ValidationFailure} ValidationResult
@@ -183,6 +190,28 @@ export function createToolExecutor(toolByName, options = {}) {
   }
 
   /**
+   * Mask secrets in a tool result before it is handed to the model.
+   *
+   * Every tool's masker is applied to every result (not just the producing
+   * tool's) so a secret emitted by one tool cannot leak through another, e.g.
+   * read_file reading a file that exec_command wrote. Only text content is
+   * masked; image content is left untouched.
+   * @param {MessageContentToolResult} result
+   * @returns {MessageContentToolResult}
+   */
+  function sanitizeToolResult(result) {
+    if (maskOutputs.length === 0) return result;
+    /** @param {string} text */
+    const mask = (text) => maskOutputs.reduce((acc, fn) => fn(acc), text);
+    return {
+      ...result,
+      content: result.content.map((part) =>
+        part.type === "text" ? { ...part, text: mask(part.text) } : part,
+      ),
+    };
+  }
+
+  /**
    * Execute a tool use and return the result
    * @param {MessageContentToolUse} toolUse
    * @returns {Promise<MessageContentToolResult>}
@@ -203,30 +232,30 @@ export function createToolExecutor(toolByName, options = {}) {
 
     const result = await tool.impl(toolUse.input);
     if (result instanceof Error) {
-      return {
+      return sanitizeToolResult({
         type: "tool_result",
         toolUseId: toolUse.toolUseId,
         toolName: toolUse.toolName,
         content: [{ type: "text", text: result.message }],
         isError: true,
-      };
+      });
     }
 
     if (typeof result === "string") {
-      return {
+      return sanitizeToolResult({
         type: "tool_result",
         toolUseId: toolUse.toolUseId,
         toolName: toolUse.toolName,
         content: [{ type: "text", text: result }],
-      };
+      });
     }
 
-    return {
+    return sanitizeToolResult({
       type: "tool_result",
       toolUseId: toolUse.toolUseId,
       toolName: toolUse.toolName,
       content: result,
-    };
+    });
   }
 
   return {

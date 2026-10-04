@@ -639,8 +639,15 @@ Files are loaded in the following order. Settings in later files override earlie
       // "args": ["-dump", "-o", "display_link_number=1"]
     },
 
-    // Enable the tmux tool
-    "tmux": { "enabled": true },
+    // Enable the tmux tool.
+    // env/secrets are passed only when creating a new session (new-session/new),
+    // as `tmux new-session -e KEY=VALUE`. Existing sessions are not modified.
+    // secrets are also masked with "***" in tmux output.
+    "tmux": {
+      "enabled": true,
+      "env": { "MY_VAR": "my-value" },
+      "secrets": { "GH_TOKEN": { "$env": "GH_TOKEN" } }
+    },
 
     "execCommand": {
       // Additional environment variables passed to executed commands.
@@ -649,7 +656,7 @@ Files are loaded in the following order. Settings in later files override earlie
         "MY_VAR": "my-value"
       },
 
-      // Like env, but values are masked with "***" in command output,
+      // Like env, but values are masked with "***" in tool output (all tools),
       // so secrets do not leak into the agent's context.
       "secrets": {
         "GH_TOKEN": { "$env": "GH_TOKEN" }

@@ -1,3 +1,4 @@
+import type { ToolEnvConfig } from "../tool";
 import type { ExecCommandSanboxConfig } from "./execCommand";
 
 export type TmuxCommandInput = {
@@ -5,6 +6,6 @@ export type TmuxCommandInput = {
   args?: string[];
 };
 
-export type TmuxCommandConfig = {
+export type TmuxCommandConfig = ToolEnvConfig & {
   sandbox?: ExecCommandSanboxConfig;
 };

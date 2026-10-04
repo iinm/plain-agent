@@ -369,6 +369,8 @@ export async function main(argv = process.argv) {
 
   if (appConfig.tools?.tmux?.enabled) {
     const tmuxCommandTool = createTmuxCommandTool({
+      env: appConfig.tools?.tmux?.env,
+      secrets: appConfig.tools?.tmux?.secrets,
       sandbox: appConfig.sandbox,
     });
     builtinTools.push(tmuxCommandTool);

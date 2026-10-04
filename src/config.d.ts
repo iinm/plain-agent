@@ -1,6 +1,6 @@
 import { ClaudeCodePluginRepo } from "./claudeCodePlugin.mjs";
 import { ModelDefinition, PlatformConfig } from "./model.definition";
-import { ToolUsePattern } from "./tool";
+import { ToolEnvConfig, ToolUsePattern } from "./tool";
 import { ExecCommandSanboxConfig } from "./tools/execCommand";
 import {
   WebFetchToolCommonOptions,
@@ -89,11 +89,8 @@ export type AppConfig = {
   tools?: {
     webSearch?: WebSearchToolConfig;
     webFetch?: WebFetchToolConfig;
-    tmux?: { enabled: boolean };
-    execCommand?: {
-      env?: Record<string, string>;
-      secrets?: Record<string, string>;
-    };
+    tmux?: { enabled: boolean } & ToolEnvConfig;
+    execCommand?: ToolEnvConfig;
   };
   mcpServers?: Record<string, MCPServerConfig>;
   notifyCmd?: { command: string; args?: string[] };

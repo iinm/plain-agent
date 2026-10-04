@@ -4,6 +4,7 @@
  */
 
 import { execFile } from "node:child_process";
+import { createSecretMasker } from "../utils/maskSecrets.mjs";
 import { noThrow } from "../utils/noThrow.mjs";
 
 const OUTPUT_MAX_LENGTH = 1024 * 8;
@@ -14,6 +15,15 @@ const OUTPUT_MAX_LENGTH = 1024 * 8;
  * @returns {Tool & SandboxModeProvider}
  */
 export function createTmuxCommandTool(config) {
+  const maskSecrets = createSecretMasker(config?.secrets);
+  /** @param {string} text */
+  const mask = (text) => maskSecrets?.(text) ?? text;
+  const sessionEnv = { ...(config?.env ?? {}), ...(config?.secrets ?? {}) };
+  const envArgs = Object.entries(sessionEnv).flatMap(([key, value]) => [
+    "-e",
+    `${key}=${value}`,
+  ]);
+
   /** @type {Tool & SandboxModeProvider} */
   return {
     def: {
@@ -90,9 +100,10 @@ export function createTmuxCommandTool(config) {
           return { command, args };
         };
 
+        const isSessionCreation = ["new-session", "new"].includes(command);
         const execFileTmuxCommandInput = useSandbox({
           command: "tmux",
-          args: [command, ...args],
+          args: [command, ...(isSessionCreation ? envArgs : []), ...args],
         });
 
         return new Promise((resolve, _reject) => {
@@ -102,12 +113,14 @@ export function createTmuxCommandTool(config) {
             execFileOptions,
             async (err, stdout, stderr) => {
               // capture-pane output may include blank lines, so trim it
-              const stdoutTruncated = stdout.trim().slice(-OUTPUT_MAX_LENGTH);
+              const stdoutTrimmed = mask(stdout.trim());
+              const stdoutTruncated = stdoutTrimmed.slice(-OUTPUT_MAX_LENGTH);
               const isStdoutTruncated =
-                stdout.trim().length > OUTPUT_MAX_LENGTH;
-              const stderrTruncated = stderr.trim().slice(-OUTPUT_MAX_LENGTH);
+                stdoutTrimmed.length > OUTPUT_MAX_LENGTH;
+              const stderrTrimmed = mask(stderr.trim());
+              const stderrTruncated = stderrTrimmed.slice(-OUTPUT_MAX_LENGTH);
               const isStderrTruncated =
-                stderr.trim().length > OUTPUT_MAX_LENGTH;
+                stderrTrimmed.length > OUTPUT_MAX_LENGTH;
               const result = [
                 stdoutTruncated
                   ? `<stdout>\n${isStdoutTruncated ? "(Output truncated) ..." : ""}${stdoutTruncated}\n</stdout>`
@@ -118,12 +131,13 @@ export function createTmuxCommandTool(config) {
                   : "<stderr></stderr>",
               ];
               if (!stderr && err) {
-                const errMessageTruncated = err.message.slice(
+                const errMessageMasked = mask(err.message);
+                const errMessageTruncated = errMessageMasked.slice(
                   0,
                   OUTPUT_MAX_LENGTH,
                 );
                 const isErrMessageTruncated =
-                  err.message.length > OUTPUT_MAX_LENGTH;
+                  errMessageMasked.length > OUTPUT_MAX_LENGTH;
                 result.push(
                   `\n<error>\n${err.name}: ${errMessageTruncated}${isErrMessageTruncated ? "... (Message truncated)" : ""}</error>`,
                 );
@@ -158,7 +172,7 @@ export function createTmuxCommandTool(config) {
                   },
                 );
                 result.push(
-                  `\n<tmux:list-windows>\n${listWindowResult}</tmux:list-windows>`,
+                  `\n<tmux:list-windows>\n${mask(listWindowResult)}</tmux:list-windows>`,
                 );
               }
 
@@ -208,8 +222,12 @@ export function createTmuxCommandTool(config) {
                   previous = captured;
                 }
 
-                const capturedTruncated = captured.slice(-OUTPUT_MAX_LENGTH);
-                const isCapturedTruncated = captured.length > OUTPUT_MAX_LENGTH;
+                const capturedMasked = mask(captured);
+                const capturedTruncated = capturedMasked.slice(
+                  -OUTPUT_MAX_LENGTH,
+                );
+                const isCapturedTruncated =
+                  capturedMasked.length > OUTPUT_MAX_LENGTH;
                 result.push(
                   `\n<tmux:capture-pane target="${target}">\n${isCapturedTruncated ? "(Output truncated) ..." : ""}${capturedTruncated}\n</tmux:capture-pane>`,
                 );
@@ -233,5 +251,6 @@ export function createTmuxCommandTool(config) {
         mode: "sandbox",
       };
     },
+    maskOutput: maskSecrets,
   };
 }

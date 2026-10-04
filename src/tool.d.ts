@@ -7,7 +7,26 @@ export type Tool = {
   maskApprovalInput?: (
     input: Record<string, unknown>,
   ) => Record<string, unknown>;
+
+  /**
+   * Mask secrets in a tool's output text before it is handed to the model.
+   *
+   * Contract:
+   * - Must be pure and idempotent.
+   * - Receives text only; image content is never passed.
+   * - A tool that may emit its own secrets must apply this masker to its output
+   *   *before* truncating it, because truncation can split a secret.
+   *   The tool executor applies every tool's masker to every tool result as a
+   *   cross-tool safety net (e.g. read_file reading a file that exec_command
+   *   wrote), not as a replacement for the pre-truncation masking.
+   */
+  maskOutput?: (text: string) => string;
   injectImpl?: (impl: ToolImplementation) => void;
+};
+
+export type ToolEnvConfig = {
+  env?: Record<string, string>;
+  secrets?: Record<string, string>;
 };
 
 export type SandboxMode =

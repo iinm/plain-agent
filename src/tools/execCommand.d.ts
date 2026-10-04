@@ -1,11 +1,11 @@
+import type { ToolEnvConfig } from "../tool";
+
 export type ExecCommandInput = {
   command: string;
   args?: string[];
 };
 
-export type ExecCommandConfig = {
-  env?: Record<string, string>;
-  secrets?: Record<string, string>;
+export type ExecCommandConfig = ToolEnvConfig & {
   sandbox?: ExecCommandSanboxConfig;
 };
 
