@@ -5,6 +5,7 @@
 
 import { execFile } from "node:child_process";
 import { writeTmpFile } from "../tmpfile.mjs";
+import { createSecretMasker } from "../utils/maskSecrets.mjs";
 import { matchValue } from "../utils/matchValue.mjs";
 import { noThrow } from "../utils/noThrow.mjs";
 
@@ -16,6 +17,8 @@ const OUTPUT_TRUNCATED_LENGTH = 1024 * 2;
  * @returns {Tool & SandboxModeProvider}
  */
 export function createExecCommandTool(config) {
+  const maskSecrets = createSecretMasker(config?.secrets);
+
   /** @type {Tool & SandboxModeProvider} */
   return {
     def: {
@@ -71,6 +74,8 @@ Examples:
       return;
     },
 
+    maskSecrets,
+
     /**
      * @param {ExecCommandInput} input
      * @returns {Promise<string | Error>}
@@ -97,38 +102,6 @@ Examples:
               timeout: 5 * 60 * 1000,
             },
             async (err, stdoutRaw, stderrRaw) => {
-              /**
-               * @param {string} commandOutput
-               * @returns {string}
-               */
-              const maskSecrets = (commandOutput) => {
-                return Object.values(config?.secrets ?? {}).reduce(
-                  (acc, secret) => {
-                    if (typeof secret !== "string" || secret.length === 0) {
-                      return acc;
-                    }
-
-                    const variants = new Set([
-                      secret,
-                      Buffer.from(secret, "utf8").toString("base64"),
-                      Buffer.from(secret, "utf8")
-                        .toString("base64")
-                        .replace(/=+$/, ""),
-                      Buffer.from(secret, "utf8").toString("base64url"),
-                      encodeURIComponent(secret),
-                      encodeURI(secret),
-                      JSON.stringify(secret).slice(1, -1),
-                      secret.replace(/ /g, "+"),
-                    ]);
-
-                    return [...variants].reduce(
-                      (masked, variant) => masked.replaceAll(variant, "***"),
-                      acc,
-                    );
-                  },
-                  commandOutput,
-                );
-              };
               const stdout = maskSecrets(stdoutRaw);
               const stderr = maskSecrets(stderrRaw);
 
