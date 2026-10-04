@@ -641,8 +641,9 @@ Files are loaded in the following order. Settings in later files override earlie
 
     // Enable the tmux tool.
     // env/secrets are passed only when creating a new session (new-session/new),
-    // as `tmux new-session -e KEY=VALUE`. Existing sessions are not modified.
-    // secrets are also masked with "***" in tmux output.
+    // as `tmux new-session -e KEY=VALUE` (requires tmux >= 3.2).
+    // Existing sessions are not modified.
+    // secrets are masked with "***" in tool output (all tools), like execCommand.
     "tmux": {
       "enabled": true,
       "env": { "MY_VAR": "my-value" },
@@ -658,6 +659,11 @@ Files are loaded in the following order. Settings in later files override earlie
 
       // Like env, but values are masked with "***" in tool output (all tools),
       // so secrets do not leak into the agent's context.
+      // Notes:
+      // - Very short values are masked wherever they appear, which can corrupt
+      //   unrelated output; prefer values of at least a few characters.
+      // - A tool that truncates its own output must mask secrets before
+      //   truncating, otherwise a secret split by the boundary may not match.
       "secrets": {
         "GH_TOKEN": { "$env": "GH_TOKEN" }
       }

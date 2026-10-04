@@ -17,7 +17,9 @@ const OUTPUT_TRUNCATED_LENGTH = 1024 * 2;
  * @returns {Tool & SandboxModeProvider}
  */
 export function createExecCommandTool(config) {
-  const mask = createSecretMasker(config?.secrets ?? {});
+  const maskSecrets = createSecretMasker(config?.secrets ?? {});
+  /** @param {string} text */
+  const mask = (text) => maskSecrets?.(text) ?? text;
 
   /** @type {Tool & SandboxModeProvider} */
   return {
@@ -73,7 +75,7 @@ Examples:
 
       return;
     },
-    maskOutput: mask,
+    maskOutput: maskSecrets,
 
     /**
      * @param {ExecCommandInput} input

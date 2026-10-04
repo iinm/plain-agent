@@ -15,7 +15,9 @@ const OUTPUT_MAX_LENGTH = 1024 * 8;
  * @returns {Tool & SandboxModeProvider}
  */
 export function createTmuxCommandTool(config) {
-  const mask = createSecretMasker(config?.secrets ?? {});
+  const maskSecrets = createSecretMasker(config?.secrets ?? {});
+  /** @param {string} text */
+  const mask = (text) => maskSecrets?.(text) ?? text;
   const sessionEnv = { ...(config?.env ?? {}), ...(config?.secrets ?? {}) };
   const envArgs = Object.entries(sessionEnv).flatMap(([key, value]) => [
     "-e",
@@ -64,6 +66,7 @@ export function createTmuxCommandTool(config) {
       await noThrow(async () => {
         const { command } = input;
         const args = input.args || [];
+        const normalizedCommand = normalizeTmuxCommand(command);
 
         // tmux treats ";" as a command separator, so escape it before sending
         if (command === "send-keys") {
@@ -98,7 +101,7 @@ export function createTmuxCommandTool(config) {
           return { command, args };
         };
 
-        const isSessionCreation = ["new-session", "new"].includes(command);
+        const isSessionCreation = normalizedCommand === "new-session";
         const execFileTmuxCommandInput = useSandbox({
           command: "tmux",
           args: [command, ...(isSessionCreation ? envArgs : []), ...args],
@@ -141,11 +144,15 @@ export function createTmuxCommandTool(config) {
                 );
               }
 
-              if (["new-session", "new", "new-window"].includes(command)) {
+              if (
+                normalizedCommand === "new-session" ||
+                normalizedCommand === "new-window"
+              ) {
                 // show window list after creating a new session or window
-                const targetPosition = command.includes("window")
-                  ? args.indexOf("-t") + 1
-                  : args.indexOf("-s") + 1;
+                const targetPosition =
+                  normalizedCommand === "new-window"
+                    ? args.indexOf("-t") + 1
+                    : args.indexOf("-s") + 1;
                 const target = args[targetPosition];
 
                 const execFileTmuxListWindowInput = useSandbox({
@@ -161,7 +168,9 @@ export function createTmuxCommandTool(config) {
                       (err, stdout, _stderr) => {
                         if (err) {
                           console.error(
-                            `Failed to list tmux windows: ${err.message}, stack=${err.stack}`,
+                            mask(
+                              `Failed to list tmux windows: ${err.message}, stack=${err.stack}`,
+                            ),
                           );
                         }
                         return resolve(stdout);
@@ -195,7 +204,9 @@ export function createTmuxCommandTool(config) {
                       (err, stdout, _stderr) => {
                         if (err) {
                           console.error(
-                            `Failed to capture tmux pane: ${err.message}, stack=${err.stack}`,
+                            mask(
+                              `Failed to capture tmux pane: ${err.message}, stack=${err.stack}`,
+                            ),
                           );
                         }
                         return resolve(stdout.trim());
@@ -249,6 +260,20 @@ export function createTmuxCommandTool(config) {
         mode: "sandbox",
       };
     },
-    maskOutput: mask,
+    maskOutput: maskSecrets,
   };
+}
+
+/**
+ * tmux accepts unambiguous command abbreviations (e.g. `new`, `new-s`), so
+ * normalize them to the canonical name. Used for session detection so that
+ * `-e` injection works regardless of abbreviation.
+ * @param {string} command
+ * @returns {string}
+ */
+function normalizeTmuxCommand(command) {
+  if (command.length === 0) return command;
+  return (
+    ["new-session", "new-window"].find((c) => c.startsWith(command)) ?? command
+  );
 }
