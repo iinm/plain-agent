@@ -21,6 +21,20 @@ export function createToolExecutor(toolByName, options = {}) {
   const { exclusiveToolNames = [] } = options;
 
   /**
+   * @param {string} text
+   * @returns {string}
+   */
+  const maskSecrets = (text) => {
+    let masked = text;
+    for (const tool of toolByName.values()) {
+      if (tool.maskSecrets) {
+        masked = tool.maskSecrets(masked);
+      }
+    }
+    return masked;
+  };
+
+  /**
    * @typedef {ValidationSuccess | ValidationFailure} ValidationResult
    */
 
@@ -41,8 +55,7 @@ export function createToolExecutor(toolByName, options = {}) {
    * @param {MessageContentToolUse[]} toolUseParts - Tool uses to validate
    * @returns {ValidationResult}
    */
-  function validateBatch(toolUseParts) {
-    // Tool existence + Input validation
+  const validateBatch = (toolUseParts) => {
     /** @type {{index: number, message: string}[]} */
     const errors = [];
 
@@ -60,7 +73,7 @@ export function createToolExecutor(toolByName, options = {}) {
       if (tool.validateInput) {
         const result = tool.validateInput(toolUse.input);
         if (result instanceof Error) {
-          errors.push({ index: i, message: result.message });
+          errors.push({ index: i, message: maskSecrets(result.message) });
         }
       }
     }
@@ -106,7 +119,7 @@ export function createToolExecutor(toolByName, options = {}) {
     }
 
     return { isValid: true };
-  }
+  };
 
   /**
    * @typedef {ExecuteBatchSuccess | ExecuteBatchFailure} ExecuteBatchResult
@@ -130,7 +143,7 @@ export function createToolExecutor(toolByName, options = {}) {
    * @param {MessageContentToolUse[]} toolUseParts
    * @returns {Promise<ExecuteBatchResult>}
    */
-  async function executeBatch(toolUseParts) {
+  const executeBatch = async (toolUseParts) => {
     const validation = validateBatch(toolUseParts);
 
     if (!validation.isValid) {
@@ -152,14 +165,14 @@ export function createToolExecutor(toolByName, options = {}) {
       success: true,
       results,
     };
-  }
+  };
 
   /**
    * Validate exclusive tool constraints
    * @param {MessageContentToolUse[]} toolUseParts
    * @returns {{isValid: true} | {isValid: false, errorMessage: string}}
    */
-  function validateExclusiveTools(toolUseParts) {
+  const validateExclusiveTools = (toolUseParts) => {
     const exclusiveTools = toolUseParts.filter((t) =>
       exclusiveToolNames.includes(t.toolName),
     );
@@ -180,14 +193,14 @@ export function createToolExecutor(toolByName, options = {}) {
     }
 
     return { isValid: true };
-  }
+  };
 
   /**
    * Execute a tool use and return the result
    * @param {MessageContentToolUse} toolUse
    * @returns {Promise<MessageContentToolResult>}
    */
-  async function execute(toolUse) {
+  const execute = async (toolUse) => {
     const tool = toolByName.get(toolUse.toolName);
     if (!tool) {
       return {
@@ -207,7 +220,7 @@ export function createToolExecutor(toolByName, options = {}) {
         type: "tool_result",
         toolUseId: toolUse.toolUseId,
         toolName: toolUse.toolName,
-        content: [{ type: "text", text: result.message }],
+        content: [{ type: "text", text: maskSecrets(result.message) }],
         isError: true,
       };
     }
@@ -217,7 +230,7 @@ export function createToolExecutor(toolByName, options = {}) {
         type: "tool_result",
         toolUseId: toolUse.toolUseId,
         toolName: toolUse.toolName,
-        content: [{ type: "text", text: result }],
+        content: [{ type: "text", text: maskSecrets(result) }],
       };
     }
 
@@ -225,9 +238,16 @@ export function createToolExecutor(toolByName, options = {}) {
       type: "tool_result",
       toolUseId: toolUse.toolUseId,
       toolName: toolUse.toolName,
-      content: result,
+      content: result.map((part) =>
+        part.type === "text"
+          ? {
+              ...part,
+              text: maskSecrets(part.text),
+            }
+          : part,
+      ),
     };
-  }
+  };
 
   return {
     executeBatch,
