@@ -147,3 +147,66 @@ describe("parseCliArgs (sandbox subcommand)", () => {
     });
   });
 });
+
+describe("parseCliArgs (clean subcommand)", () => {
+  it("treats no target as both tmp and sessions", () => {
+    // when:
+    const sub = parse(["clean"]);
+
+    // then:
+    assert.deepEqual(sub, {
+      type: "clean",
+      targets: ["tmp", "sessions"],
+      force: false,
+      dryRun: false,
+    });
+  });
+
+  it("parses a single target", () => {
+    // when:
+    const sub = parse(["clean", "tmp"]);
+
+    // then:
+    assert.deepEqual(sub, {
+      type: "clean",
+      targets: ["tmp"],
+      force: false,
+      dryRun: false,
+    });
+  });
+
+  it("dedupes targets and normalizes their order", () => {
+    // when:
+    const sub = parse(["clean", "sessions", "tmp", "tmp"]);
+
+    // then:
+    assert.deepEqual(sub, {
+      type: "clean",
+      targets: ["tmp", "sessions"],
+      force: false,
+      dryRun: false,
+    });
+  });
+
+  it("parses -f and -n flags", () => {
+    // when:
+    const sub = parse(["clean", "sessions", "-f", "-n"]);
+
+    // then:
+    assert.deepEqual(sub, {
+      type: "clean",
+      targets: ["sessions"],
+      force: true,
+      dryRun: true,
+    });
+  });
+
+  it("returns an error for an unknown target", () => {
+    // when:
+    const result = parseCliArgs(["node", "plain", "clean", "foo"]);
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /Unknown clean target: foo/);
+  });
+});

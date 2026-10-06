@@ -13,6 +13,7 @@ import {
 } from "./claudeCodePlugin.mjs";
 import { parseCliArgs, printHelp } from "./cli/args.mjs";
 import { startBatchSession } from "./cli/batch.mjs";
+import { runCleanCommand } from "./cli/clean.mjs";
 import { runCostCommand } from "./cli/cost.mjs";
 import { startInteractiveSession } from "./cli/interactive.mjs";
 import { runTestApprovalCommand } from "./cli/testApproval.mjs";
@@ -89,6 +90,21 @@ export async function main(argv = process.argv) {
       );
     }
     process.exit(0);
+  }
+
+  if (cliArgs.subcommand.type === "clean") {
+    try {
+      const exitCode = await runCleanCommand({
+        targets: cliArgs.subcommand.targets,
+        force: cliArgs.subcommand.force,
+        dryRun: cliArgs.subcommand.dryRun,
+      });
+      process.exit(exitCode);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(message);
+      process.exit(1);
+    }
   }
 
   if (cliArgs.subcommand.type === "install-claude-code-plugins") {

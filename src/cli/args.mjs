@@ -1,5 +1,5 @@
 /**
- * @typedef {HelpSubcommand | InteractiveSubcommand | BatchSubcommand | ListModelsSubcommand | ListSessionsSubcommand | InstallClaudeCodePluginsSubcommand | CostSubcommand | TestApprovalSubcommand | SandboxSubcommand} Subcommand
+ * @typedef {HelpSubcommand | InteractiveSubcommand | BatchSubcommand | ListModelsSubcommand | ListSessionsSubcommand | InstallClaudeCodePluginsSubcommand | CostSubcommand | TestApprovalSubcommand | SandboxSubcommand | CleanSubcommand} Subcommand
  */
 
 /**
@@ -46,6 +46,13 @@
  * Arguments after `--` are passed through to the sandbox command as-is.
  * @typedef {{ type: 'sandbox', config: string[], passthroughArgs: string[] }} SandboxSubcommand
  */
+/**
+ * @typedef {('tmp' | 'sessions')} CleanTarget
+ */
+
+/**
+ * @typedef {{ type: 'clean', targets: CleanTarget[], force: boolean, dryRun: boolean }} CleanSubcommand
+ */
 
 /**
  * @typedef {Object} CliArgs
@@ -81,6 +88,11 @@ Subcommands:
   models        List available models.
 
   sessions      List resumable sessions.
+
+  clean [tmp] [sessions] [-f] [-n]
+                Remove .plain-agent/tmp and/or .plain-agent/sessions entirely.
+                No target removes both. -f skips confirmation (required without a TTY),
+                -n shows what would be removed without removing it.
 
   batch [-c <config-file>] [-m <model+variant>] [-s <resumable-session-id>]
         [--budget-soft-limit <budget>] [--prompt-on-budget-exceed <prompt>] PROMPT
@@ -252,6 +264,37 @@ export function parseCliArgs(argv) {
   if (subcommandName === "sessions") {
     return {
       subcommand: { type: "sessions" },
+    };
+  }
+  if (subcommandName === "clean") {
+    const cleanArgs = args.slice(1);
+    /** @type {Set<CleanTarget>} */
+    const requested = new Set();
+    let force = false;
+    let dryRun = false;
+
+    for (const arg of cleanArgs) {
+      if (arg === "-f" || arg === "--force") {
+        force = true;
+      } else if (arg === "-n" || arg === "--dry-run") {
+        dryRun = true;
+      } else if (arg === "tmp" || arg === "sessions") {
+        requested.add(arg);
+      } else {
+        return new Error(
+          `Unknown clean target: ${arg}\nUsage: plain clean [tmp] [sessions] [-f] [-n]`,
+        );
+      }
+    }
+
+    /** @type {CleanTarget[]} */
+    const canonical = ["tmp", "sessions"];
+    const targets = canonical.filter(
+      (target) => requested.size === 0 || requested.has(target),
+    );
+
+    return {
+      subcommand: { type: "clean", targets, force, dryRun },
     };
   }
 

@@ -434,6 +434,23 @@ plain -s 2026-05-10-0803-a7k
 plain -s -
 ```
 
+Remove the project-local working data, `.plain-agent/tmp` and `.plain-agent/sessions`, entirely.
+Deleted sessions cannot be resumed afterwards. Run without a target to remove both.
+
+```sh
+plain clean
+
+# Remove only one of them:
+plain clean tmp
+plain clean sessions
+
+# Skip confirmation (required when stdin is not a TTY):
+plain clean -f
+
+# Show what would be removed without removing it:
+plain clean -n
+```
+
 Run in non-interactive batch mode.
 In batch mode, user configuration files are not loaded automatically. Only the files specified with `-c` are loaded.
 
