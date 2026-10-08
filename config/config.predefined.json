@@ -522,8 +522,8 @@
   },
   "models": [
     {
-      "name": "claude-haiku-4-5",
-      "variant": "thinking-16k",
+      "name": "claude-haiku-5-5",
+      "variant": "thinking-high",
       "platform": {
         "name": "anthropic",
         "variant": "default",
@@ -532,19 +532,20 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "claude-haiku-4-5",
+          "model": "claude-haiku-5-5",
           "max_tokens": 32768,
-          "thinking": { "type": "enabled", "budget_tokens": 16384 }
+          "thinking": { "type": "adaptive" },
+          "output_config": { "effort": "high" }
         }
       },
       "cost": {
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 1.0,
-          "output_tokens": 5.0,
-          "cache_read_input_tokens": 0.1,
-          "cache_creation_input_tokens": 1.25
+          "input_tokens": 0.1,
+          "output_tokens": 0.5,
+          "cache_read_input_tokens": 0.01,
+          "cache_creation_input_tokens": 0.125
         }
       },
       "autoCompact": {
@@ -556,8 +557,8 @@
       }
     },
     {
-      "name": "claude-haiku-4-5",
-      "variant": "thinking-32k",
+      "name": "claude-haiku-5-5",
+      "variant": "thinking-max",
       "platform": {
         "name": "anthropic",
         "variant": "default",
@@ -566,19 +567,20 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "claude-haiku-4-5",
+          "model": "claude-haiku-5-5",
           "max_tokens": 64000,
-          "thinking": { "type": "enabled", "budget_tokens": 32768 }
+          "thinking": { "type": "adaptive" },
+          "output_config": { "effort": "max" }
         }
       },
       "cost": {
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 1.0,
-          "output_tokens": 5.0,
-          "cache_read_input_tokens": 0.1,
-          "cache_creation_input_tokens": 1.25
+          "input_tokens": 0.1,
+          "output_tokens": 0.5,
+          "cache_read_input_tokens": 0.01,
+          "cache_creation_input_tokens": 0.125
         }
       },
       "autoCompact": {
@@ -801,8 +803,8 @@
     },
 
     {
-      "name": "claude-haiku-4-5",
-      "variant": "thinking-16k-bedrock",
+      "name": "claude-haiku-5-5",
+      "variant": "thinking-high-bedrock",
       "platform": {
         "name": "bedrock",
         "variant": "default"
@@ -810,19 +812,20 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+          "model": "global.anthropic.claude-haiku-5-5",
           "max_tokens": 32768,
-          "thinking": { "type": "enabled", "budget_tokens": 16384 }
+          "thinking": { "type": "adaptive" },
+          "output_config": { "effort": "high" }
         }
       },
       "cost": {
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 1.0,
-          "output_tokens": 5.0,
-          "cache_read_input_tokens": 0.1,
-          "cache_creation_input_tokens": 1.25
+          "input_tokens": 0.1,
+          "output_tokens": 0.5,
+          "cache_read_input_tokens": 0.01,
+          "cache_creation_input_tokens": 0.125
         }
       },
       "autoCompact": {
@@ -834,8 +837,8 @@
       }
     },
     {
-      "name": "claude-haiku-4-5",
-      "variant": "thinking-32k-bedrock",
+      "name": "claude-haiku-5-5",
+      "variant": "thinking-max-bedrock",
       "platform": {
         "name": "bedrock",
         "variant": "default"
@@ -843,19 +846,20 @@
       "model": {
         "format": "anthropic",
         "config": {
-          "model": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+          "model": "global.anthropic.claude-haiku-5-5",
           "max_tokens": 64000,
-          "thinking": { "type": "enabled", "budget_tokens": 32768 }
+          "thinking": { "type": "adaptive" },
+          "output_config": { "effort": "max" }
         }
       },
       "cost": {
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 1.0,
-          "output_tokens": 5.0,
-          "cache_read_input_tokens": 0.1,
-          "cache_creation_input_tokens": 1.25
+          "input_tokens": 0.1,
+          "output_tokens": 0.5,
+          "cache_read_input_tokens": 0.01,
+          "cache_creation_input_tokens": 0.125
         }
       },
       "autoCompact": {
@@ -1700,8 +1704,8 @@
     },
 
     {
-      "name": "claude-haiku-4-5",
-      "variant": "thinking-16k-bedrock-converse",
+      "name": "claude-haiku-5-5",
+      "variant": "thinking-high-bedrock-converse",
       "platform": {
         "name": "bedrock",
         "variant": "default"
@@ -1709,16 +1713,14 @@
       "model": {
         "format": "bedrock-converse",
         "config": {
-          "model": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+          "model": "global.anthropic.claude-haiku-5-5",
           "enablePromptCaching": true,
           "inferenceConfig": {
             "max_tokens": 32768
           },
           "additionalModelRequestFields": {
-            "reasoning_config": {
-              "type": "enabled",
-              "budget_tokens": 16384
-            }
+            "thinking": { "type": "adaptive" },
+            "output_config": { "effort": "high" }
           }
         }
       },

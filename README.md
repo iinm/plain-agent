@@ -910,7 +910,7 @@ aws sso login --profile "$profile"
 echo '{"anthropic_version": "bedrock-2023-05-31", "max_tokens": 1024, "messages": [{"role": "user", "content": "Hello"}]}' > request.json
 
 aws bedrock-runtime invoke-model \
-  --model-id global.anthropic.claude-haiku-4-5-20251001-v1:0 \
+  --model-id global.anthropic.claude-haiku-5-5 \
   --body fileb://request.json \
   --profile "$profile" \
   --region ap-northeast-1 \
