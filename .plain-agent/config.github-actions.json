@@ -12,7 +12,7 @@
 
   "systemPrompt": {
     "userPreferences": [
-      "Concise, plain language with concrete examples",
+      "Focus on key points; explain with concrete examples",
       "",
       "Rules:",
       "- Code comments are prohibited by default, except for:",
