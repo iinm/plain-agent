@@ -32,17 +32,15 @@
   },
   "scripts": {
     "check": "npm run lint && tsc && npm run test && npm run test:config",
-    "test": "node --test --test-reporter=./testReporter.mjs --test-timeout=30000 --test-force-exit",
-    "test:coverage": "c8 --reporter=html --reporter=text --exclude='src/**/*.test.mjs' --exclude='e2e/**' node --test --test-reporter=./testReporter.mjs --test-timeout=30000 --test-force-exit",
+    "test": "node --test --test-reporter=dot --test-timeout=30000 --test-force-exit",
+    "test:coverage": "node --test-reporter=spec --test --test-timeout=30000 --test-force-exit --experimental-test-coverage --test-coverage-exclude=' src/**/*.test.mjs' --test-coverage-exclude='e2e/**'",
     "test:config": "bash -c 'set -e; mkdir -p tmp; cd tmp; env HOME=. ../bin/plain test-approval'",
     "lint": "npx @biomejs/biome check",
     "fix": "npx @biomejs/biome check --fix"
   },
-  "dependencies": {},
   "devDependencies": {
     "@biomejs/biome": "^2.5.2",
     "@types/node": "^24.19.0",
-    "c8": "^12.0.0",
     "typescript": "^7.0.2"
   }
 }
