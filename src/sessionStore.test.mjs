@@ -39,6 +39,30 @@ const userMessage = {
   role: "user",
   content: [{ type: "text", text: "hello" }],
 };
+/** @type {import("./model").AssistantMessage} */
+const assistantToolUseMessage = {
+  role: "assistant",
+  content: [
+    {
+      type: "tool_use",
+      toolUseId: "tool-1",
+      toolName: "read_file",
+      input: { filePath: "a.txt" },
+    },
+  ],
+};
+/** @type {import("./model").UserMessage} */
+const toolResultMessage = {
+  role: "user",
+  content: [
+    {
+      type: "tool_result",
+      toolUseId: "tool-1",
+      toolName: "read_file",
+      content: [{ type: "text", text: "ok" }],
+    },
+  ],
+};
 
 describe("sessionFilePath", () => {
   it("uses the jsonl extension", () => {
@@ -227,6 +251,164 @@ describe("persistSessionEvent + loadSession", () => {
       () => loadSession(metadata.sessionId, { dir: tmpDir }),
       /Unsupported session file version/,
     );
+  });
+
+  it("appends a synthetic error tool result for a dangling trailing tool_use", async () => {
+    // given:
+    await persistSessionEvent(
+      metadata.sessionId,
+      {
+        timestamp: new Date(),
+        type: "session_start",
+        sessionFormatVersion: SESSION_FORMAT_VERSION,
+        ...metadata,
+      },
+      { dir: tmpDir },
+    );
+    await persistSessionEvent(
+      metadata.sessionId,
+      {
+        timestamp: new Date(),
+        type: "message",
+        message: assistantToolUseMessage,
+      },
+      { dir: tmpDir },
+    );
+
+    // when:
+    const loaded = await loadSession(metadata.sessionId, { dir: tmpDir });
+
+    // then:
+    assert.deepEqual(loaded?.messages, [
+      assistantToolUseMessage,
+      {
+        role: "user",
+        content: [
+          {
+            type: "tool_result",
+            toolUseId: "tool-1",
+            toolName: "read_file",
+            content: [
+              {
+                type: "text",
+                text: "Tool result was not recorded because the session ended. The tool may or may not have run; re-run if needed.",
+              },
+            ],
+            isError: true,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("appends one synthetic result per unmatched tool_use block", async () => {
+    // given:
+    /** @type {import("./model").AssistantMessage} */
+    const multiToolUse = {
+      role: "assistant",
+      content: [
+        {
+          type: "tool_use",
+          toolUseId: "tool-1",
+          toolName: "read_file",
+          input: {},
+        },
+        {
+          type: "tool_use",
+          toolUseId: "tool-2",
+          toolName: "read_file",
+          input: {},
+        },
+      ],
+    };
+    await persistSessionEvent(
+      metadata.sessionId,
+      {
+        timestamp: new Date(),
+        type: "session_start",
+        sessionFormatVersion: SESSION_FORMAT_VERSION,
+        ...metadata,
+      },
+      { dir: tmpDir },
+    );
+    await persistSessionEvent(
+      metadata.sessionId,
+      { timestamp: new Date(), type: "message", message: multiToolUse },
+      { dir: tmpDir },
+    );
+
+    // when:
+    const loaded = await loadSession(metadata.sessionId, { dir: tmpDir });
+
+    // then:
+    assert.deepEqual(
+      loaded?.messages[1].content.map((part) =>
+        part.type === "tool_result" ? part.toolUseId : undefined,
+      ),
+      ["tool-1", "tool-2"],
+    );
+  });
+
+  it("leaves history unchanged when the tool_use already has a result", async () => {
+    // given:
+    await persistSessionEvent(
+      metadata.sessionId,
+      {
+        timestamp: new Date(),
+        type: "session_start",
+        sessionFormatVersion: SESSION_FORMAT_VERSION,
+        ...metadata,
+      },
+      { dir: tmpDir },
+    );
+    await persistSessionEvent(
+      metadata.sessionId,
+      {
+        timestamp: new Date(),
+        type: "message",
+        message: assistantToolUseMessage,
+      },
+      { dir: tmpDir },
+    );
+    await persistSessionEvent(
+      metadata.sessionId,
+      { timestamp: new Date(), type: "message", message: toolResultMessage },
+      { dir: tmpDir },
+    );
+
+    // when:
+    const loaded = await loadSession(metadata.sessionId, { dir: tmpDir });
+
+    // then:
+    assert.deepEqual(loaded?.messages, [
+      assistantToolUseMessage,
+      toolResultMessage,
+    ]);
+  });
+
+  it("leaves history unchanged when it ends with a plain user message", async () => {
+    // given:
+    await persistSessionEvent(
+      metadata.sessionId,
+      {
+        timestamp: new Date(),
+        type: "session_start",
+        sessionFormatVersion: SESSION_FORMAT_VERSION,
+        ...metadata,
+      },
+      { dir: tmpDir },
+    );
+    await persistSessionEvent(
+      metadata.sessionId,
+      { timestamp: new Date(), type: "message", message: userMessage },
+      { dir: tmpDir },
+    );
+
+    // when:
+    const loaded = await loadSession(metadata.sessionId, { dir: tmpDir });
+
+    // then:
+    assert.deepEqual(loaded?.messages, [userMessage]);
   });
 });
 

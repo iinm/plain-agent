@@ -1,5 +1,5 @@
 /**
- * @import { Message, ProviderTokenUsage } from "./model"
+ * @import { Message, MessageContentToolResult, ProviderTokenUsage } from "./model"
  */
 
 import fs from "node:fs/promises";
@@ -185,7 +185,7 @@ export async function loadSession(sessionId, options = {}) {
     modelName: firstEvent.modelName,
     workingDir: firstEvent.workingDir,
     startTime: firstEvent.startTime,
-    messages,
+    messages: repairInterruptedToolUse(messages),
     subagentState: { subagents, subagentCount },
     tokenUsageHistory,
   };
@@ -276,4 +276,35 @@ function isSubagent(subagent) {
     typeof candidate.goal === "string" &&
     typeof candidate.switchMessageIndex === "number"
   );
+}
+
+/**
+ * Append synthetic error `tool_result` blocks for a trailing assistant
+ * `tool_use` that has no recorded result. A session terminated mid-tool-use
+ * ends with an unmatched `tool_use`, which providers reject on the next request.
+ * @param {Message[]} messages
+ * @returns {Message[]}
+ */
+function repairInterruptedToolUse(messages) {
+  const last = messages.at(-1);
+  if (last?.role !== "assistant") return messages;
+
+  const toolUses = last.content.filter((part) => part.type === "tool_use");
+  if (toolUses.length === 0) return messages;
+
+  /** @type {MessageContentToolResult[]} */
+  const toolResults = toolUses.map((toolUse) => ({
+    type: "tool_result",
+    toolUseId: toolUse.toolUseId,
+    toolName: toolUse.toolName,
+    content: [
+      {
+        type: "text",
+        text: "Tool result was not recorded because the session ended. The tool may or may not have run; re-run if needed.",
+      },
+    ],
+    isError: true,
+  }));
+
+  return [...messages, { role: "user", content: toolResults }];
 }
