@@ -291,7 +291,7 @@ describe("persistSessionEvent + loadSession", () => {
             content: [
               {
                 type: "text",
-                text: "Tool call did not complete: the session ended before the tool result was recorded. The tool may or may not have run. Re-run it if the result is still needed.",
+                text: "Tool result was not recorded because the session ended. The tool may or may not have run; re-run if needed.",
               },
             ],
             isError: true,
