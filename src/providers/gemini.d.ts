@@ -4,6 +4,13 @@ export type GeminiModelConfig = {
   model: string;
   generationConfig?: GeminiGenerationConfig;
   safetySettings?: GeminiSafetySetting[];
+
+  /**
+   * Whether to create explicit context caches via cachedContents.
+   * Set to false for models that support implicit caching only.
+   * @default true
+   */
+  explicitCaching?: boolean;
 };
 
 // https://ai.google.dev/api/generate-content

@@ -99,7 +99,7 @@ export function createCacheEnabledGeminiModelCaller(
         }
       })();
 
-      const { model, ...modelConfigWithoutName } = modelConfig;
+      const { model, explicitCaching, ...modelConfigWithoutName } = modelConfig;
 
       /** @type {Pick<GeminiGenerateContentInput, "generationConfig" | "safetySettings">} */
       const baseRequest = {
@@ -240,6 +240,7 @@ export function createCacheEnabledGeminiModelCaller(
 
       // Create context cache for next request
       if (
+        explicitCaching !== false &&
         props.minCacheableTokenCount < content.usageMetadata.promptTokenCount
       ) {
         await updateCache({
