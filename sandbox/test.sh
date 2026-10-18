@@ -364,8 +364,10 @@ rm -rf "$workdir"
 
 
 echo "case: user command runs with an empty capability bounding set"
+# when:
 out=$(plain-sandbox --dockerfile "$minial_dockerfile" --rebuild \
   bash -c 'grep -E "^(CapBnd|NoNewPrivs):" /proc/self/status')
+# then:
 grep -qE "^CapBnd:[[:space:]]+0000000000000000$" <<< "$out"
 grep -qE "^NoNewPrivs:[[:space:]]+1$" <<< "$out"
 
