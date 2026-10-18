@@ -56,7 +56,9 @@ fi
 
 section "Capabilities"
 # every service runs cap_drop: [ALL] + its own cap_add, so the bounding set must
-# equal the expected mask (bit numbers from <linux/capability.h>)
+# equal the expected mask (bit numbers from <linux/capability.h>). CapBnd, not
+# CapEff: exec'd dind processes run as uid 1000 and have CapEff=0 even when
+# cap_drop is ignored, so only the bounding set proves the drop
 check_capbnd() {
   local svc="$1" expected="$2" desc="$3" cap
   cap=$(docker exec "${COMPOSE_PROJECT_NAME}-${svc}" sh -c 'grep CapBnd /proc/self/status' 2>/dev/null | awk '{print $2}')
@@ -66,12 +68,25 @@ check_capbnd() {
     fail "${svc} capabilities are unexpected (CapBnd=0x${cap:-none}, expected 0x${expected})"
   fi
 }
+check_no_new_privs() {
+  local svc="$1" nnp
+  nnp=$(docker exec "${COMPOSE_PROJECT_NAME}-${svc}" sh -c 'grep NoNewPrivs /proc/self/status' 2>/dev/null | awk '{print $2}')
+  if [ "$nnp" = "1" ]; then
+    pass "${svc} cannot gain privileges by exec'ing a setuid binary (no-new-privileges)"
+  else
+    fail "${svc} runs without no-new-privileges (NoNewPrivs=${nnp:-none})"
+  fi
+}
 check_capbnd gateway 10c0 "NET_ADMIN (nftables/ip route) and SETUID/SETGID (dnsmasq drops to its own user)"
 check_capbnd envoy 0 "no capabilities (it binds only ports above 1024)"
 check_capbnd sandbox db "what a root agent shell needs (no NET_RAW, NET_ADMIN, SYS_CHROOT or MKNOD)"
 check_capbnd dind c0 "SETUID/SETGID (rootlesskit's setuid newuidmap helper)"
 check_capbnd route-keeper-sandbox 1000 "NET_ADMIN (repairs the default route from outside)"
 check_capbnd route-keeper-dind 1000 "NET_ADMIN (repairs the default route from outside)"
+# dind is the exception: rootlesskit reaches root through the setuid newuidmap helper
+for s in gateway envoy sandbox route-keeper-sandbox route-keeper-dind; do
+  check_no_new_privs "$s"
+done
 internal=$(docker network inspect "${COMPOSE_PROJECT_NAME}-internal" --format '{{.Internal}}')
 if [ "$internal" = "true" ]; then
   pass "internal network is internal (no route out of the network itself; a gateway failure blocks traffic instead of bypassing it)"
@@ -85,6 +100,21 @@ else
   fail "dind is privileged (cap_drop is silently ignored on privileged containers)"
 fi
 info "Only gateway and route-keeper-* hold NET_ADMIN (they set sandbox/dind routes from outside)"
+section "Sandbox capabilities in use"
+# the kept capabilities exist for these operations; /opt is used instead of /tmp
+# because fs.protected_regular rejects writes to another user's file in a sticky
+# world-writable directory even with every capability held
+if docker exec "${COMPOSE_PROJECT_NAME}-sandbox" sh -c 'install -o 1000 -g 1000 -m 600 /dev/null /opt/verify-owned && echo x > /opt/verify-owned' 2>/dev/null; then
+  pass "sandbox root writes a file owned by another user (DAC_OVERRIDE, CHOWN, FOWNER)"
+else
+  fail "sandbox cannot write a file it does not own (check cap_add)"
+fi
+if docker exec "${COMPOSE_PROJECT_NAME}-sandbox" sh -c 'su -s /bin/sh nobody -c id' >/dev/null 2>&1; then
+  pass "sandbox root drops to another user (SETUID, SETGID)"
+else
+  fail "sandbox cannot drop to another user (check cap_add)"
+fi
+docker exec "${COMPOSE_PROJECT_NAME}-sandbox" rm -f /opt/verify-owned 2>/dev/null
 
 section "Default gateway"
 for s in sandbox dind; do
@@ -209,31 +239,24 @@ else
 fi
 
 section "L2/L3 bypass countermeasures"
-
-for s in sandbox dind route-keeper-sandbox route-keeper-dind; do
-  c="${COMPOSE_PROJECT_NAME}-${s}"
-  # CapBnd, not CapEff: exec'd dind processes run as uid 1000 and have CapEff=0
-  # even when cap_drop is ignored, so only the bounding set proves the drop
-  cap=$(docker exec "$c" sh -c 'grep CapBnd /proc/self/status' 2>/dev/null | awk '{print $2}')
-  if [ -n "$cap" ] && [ "$((16#$cap & 16#2000))" -eq 0 ]; then
-    pass "$c has no CAP_NET_RAW (cannot spoof L2 frames via AF_PACKET)"
-  else
-    fail "$c holds CAP_NET_RAW (can spoof L2 frames)"
-  fi
-done
-
-# internal: true is enforced by a Docker-managed chain in the host filter table.
+# internal: true is enforced by a Docker-managed rule in the host filter table.
 # The chain name differs by Docker version (DOCKER-INTERNAL on 29+,
-# DOCKER-ISOLATION-STAGE-1 on 28 and earlier), so match the rule in any chain
+# DOCKER-ISOLATION-STAGE-1 on 28 and earlier), so match the rule itself
 brname="br-$(docker network inspect "${COMPOSE_PROJECT_NAME}-internal" --format '{{.Id}}' | cut -c1-12)"
-# nft renders the conditions in its own order; match 3 of them instead of exact text
-host_rule=$(docker run --rm --net host --cap-add NET_ADMIN \
-  --entrypoint nft "${COMPOSE_PROJECT_NAME}/gateway:latest" list ruleset 2>/dev/null \
-  | grep -- "iifname \"${brname}\"" | grep -- "ip daddr != ${INTERNAL_SUBNET}" | grep -- 'drop')
-if [ -n "$host_rule" ]; then
-  pass "host filter table drops the internal bridge -> outside (second layer against L2/L3 direct hits)"
+host_ruleset=$(docker run --rm --net host --cap-add NET_ADMIN \
+  --entrypoint nft "${COMPOSE_PROJECT_NAME}/gateway:latest" list ruleset 2>/dev/null)
+if ! grep -- '^table ip filter' <<< "$host_ruleset" >/dev/null; then
+  # the rule lives in the legacy tables, which nft cannot see; the behavioral
+  # check below still proves the block
+  info "host iptables backend is legacy; skipping the structural check"
 else
-  fail "host-side internal block rule not found (check Docker behavior)"
+  # nft renders the conditions in its own order; match 3 of them instead of exact text
+  host_rule=$(grep -- "iifname \"${brname}\"" <<< "$host_ruleset" | grep -- "ip daddr != ${INTERNAL_SUBNET}" | grep -- 'drop')
+  if [ -n "$host_rule" ]; then
+    pass "host filter table drops the internal bridge -> outside (second layer against L2/L3 direct hits)"
+  else
+    fail "host-side internal block rule not found (check Docker behavior)"
+  fi
 fi
 
 # deliberately point the route at the host: the block must still hold, and route-keeper must repair it
