@@ -36,7 +36,7 @@ Options:
   --dockerfile FILE         Path to a Dockerfile. If not set, a preset Dockerfile
                             and network policy is used.
                             The image must include busybox, bash, iptables, ipset,
-                            dnsmasq, dig, setpriv (util-linux), and the shadow
+                            dnsmasq, dig, getent, setpriv (util-linux), and the shadow
                             utilities (useradd, usermod, groupmod).
                             If the image's default user is not root, its UID/GID is
                             changed to match the host user, which also changes the
@@ -408,7 +408,6 @@ main() {
   local docker_exec_opts=(
     --interactive
     --user 0:0
-    --workdir "$container_workdir"
   )
 
   local docker_build_context=""
@@ -687,7 +686,7 @@ EOF
 
   run docker exec "${docker_exec_opts[@]}" "$container_name" \
     "$CONTAINER_SCRIPT_PATH" container_exec "$container_project_root" \
-    "$host_user_id" "$host_group_id" "$@"
+    "$container_workdir" "$host_user_id" "$host_group_id" "$@"
 }
 
 start_container_terminator() {
@@ -728,14 +727,19 @@ cleanup_networks() {
 }
 
 container_exec() {
-  local project_dir="$1" uid="$2" gid="$3"
-  shift 3
+  local project_dir="$1" workdir="$2" uid="$3" gid="$4"
+  shift 4
 
   # Wait for the project directory owner to match the execution user (on colima).
   for _ in $(seq 20); do
     if test "$(stat -c '%u:%g' "$project_dir")" = "$uid:$gid"; then
-      HOME="$(getent passwd "$uid" | cut -d: -f6)"
-      USER="$(getent passwd "$uid" | cut -d: -f1)"
+      local passwd_entry
+      passwd_entry=$(getent passwd "$uid") || {
+        echo "Error: no passwd entry for uid $uid (container setup incomplete?)" >&2
+        exit 1
+      }
+      HOME="$(cut -d: -f6 <<< "$passwd_entry")"
+      USER="$(cut -d: -f1 <<< "$passwd_entry")"
       export HOME USER
 
       local entry=("$@")
@@ -743,11 +747,12 @@ container_exec() {
         entry=(/sandbox/bin/user-entrypoint.sh "$@")
       fi
 
+      # shellcheck disable=SC2016
       exec setpriv \
         --reuid="$uid" --regid="$gid" --init-groups \
         --bounding-set=-all --inh-caps=-all \
         --no-new-privs \
-        -- "${entry[@]}"
+        -- sh -c 'cd -- "$0" && exec "$@"' "$workdir" "${entry[@]}"
     fi
     sleep 0.5
   done
