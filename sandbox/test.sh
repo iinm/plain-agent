@@ -120,12 +120,14 @@ out=$(plain-sandbox --dry-run --dockerfile "$minial_dockerfile" --env FOO=bar tr
 # then:
 grep -qE "DRY_RUN: docker run .+ --env FOO=bar" <<< "$out"
 
+
 echo "case: --env option can be specified multiple times"
 # when:
 out=$(plain-sandbox --dry-run --dockerfile "$minial_dockerfile" --env FOO=bar --env BAZ=qux true)
 # then:
 grep -qE "DRY_RUN: docker run .+ --env FOO=bar" <<< "$out"
 grep -qE "DRY_RUN: docker run .+ --env BAZ=qux" <<< "$out"
+
 
 echo "case: --volume option creates and mounts volume"
 # when:
@@ -340,6 +342,7 @@ out=$(plain-sandbox --dockerfile "$minial_dockerfile" --rebuild --env-file no-su
 # then:
 test "$status" -ne 0
 grep -qE "Removing network" <<< "$out"
+
 
 echo "case: rebuild image automatically when the Dockerfile content changes"
 # given:
