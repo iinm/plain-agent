@@ -444,7 +444,6 @@ main() {
   if test "$allow_net" = "yes"; then
     docker_run_opts+=(
       --cap-add NET_ADMIN
-      --cap-add NET_RAW
       --net "$network_name"
       --add-host host.docker.internal:host-gateway
     )
