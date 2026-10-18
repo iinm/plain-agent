@@ -842,7 +842,6 @@ setup_container_firewall() {
   fi
 
   # All DNS must go through dnsmasq (runs as nobody); others are rejected on port 53.
-  # The docker embedded DNS (127.0.0.11) is blocked by destination: its DNAT hides port 53.
   local dnsmasq_uid
   dnsmasq_uid=$(id -u nobody 2> /dev/null || echo 65534)
 
@@ -870,8 +869,12 @@ setup_container_firewall() {
     echo "    oifname \"lo\" ip daddr 127.0.0.1 tcp dport 53 accept"
     echo "    meta nfproto ipv4 udp dport 53 meta skuid != $dnsmasq_uid reject with icmp port-unreachable"
     echo "    meta nfproto ipv4 tcp dport 53 meta skuid != $dnsmasq_uid reject with tcp reset"
+    # The reject above matches on dport 53, but Docker DNATs 127.0.0.11:53 in
+    # nat OUTPUT before this chain, so the embedded DNS arrives with a
+    # different port; block it by destination instead.
     echo "    oifname \"lo\" ip daddr 127.0.0.11 meta skuid != $dnsmasq_uid reject"
-    # dnsmasq alone may query upstreams (e.g. 127.0.0.11); replies return via lo accept / ESTABLISHED
+    # dnsmasq alone may query upstream DNS servers from resolv.conf, which are
+    # not necessarily the loopback embedded DNS.
     echo "    udp dport 53 meta skuid $dnsmasq_uid accept"
     echo "    tcp dport 53 meta skuid $dnsmasq_uid accept"
     # allow localhost
@@ -1000,7 +1003,9 @@ start_container_firewall_updater() {
     # (the nftables equivalent of `ipset swap`)
     local element_list=""
     if test "${#elements[@]}" -gt 0; then
-      element_list=$(printf '%s\n' "${elements[@]}" | sort -u | tr '\n' ',')
+      # nft rejects an element covered by a wider one of the same port ("File
+      # exists"), aborting the whole transaction.
+      element_list=$(printf '%s\n' "${elements[@]}" | drop_nested_allow_list_elements | tr '\n' ',')
       element_list="${element_list%,}"
     fi
     {
@@ -1019,6 +1024,40 @@ start_container_firewall_updater() {
     fi
     sleep "$shortest_ttl"
   done
+}
+
+# In:  `10.0.0.0/8 . 443`, `10.1.0.0/16 . 443`, `10.1.2.3 . 443`,
+#      `10.1.2.0/24 . 8080`
+# Out: `10.0.0.0/8 . 443`, `10.1.2.0/24 . 8080`
+drop_nested_allow_list_elements() {
+  awk '
+    {
+      separator = index($0, " . ")
+      address = substr($0, 1, separator - 1)
+      port = substr($0, separator + 3)
+      if (index(address, "/") > 0) {
+        split(address, parts, "/")
+        ip = parts[1]
+        prefix_length = parts[2]
+      } else {
+        ip = address
+        prefix_length = 32
+      }
+      split(ip, octets, ".")
+      first = octets[1] * 16777216 + octets[2] * 65536 + octets[3] * 256 + octets[4]
+      last = first + 2 ^ (32 - prefix_length) - 1
+      printf "%s\t%d\t%d\t%s\n", port, first, last, address
+    }
+  ' | sort -k1,1n -k2,2n -k3,3nr | awk '
+    {
+      if ($1 == port && $2 <= last) {
+        next
+      }
+      port = $1
+      last = $3
+      printf "%s . %s\n", $4, $1
+    }
+  '
 }
 
 setup_container_user() {

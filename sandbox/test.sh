@@ -280,6 +280,23 @@ if lsof -i:18080 | grep -q "$nc_pid"; then
 fi
 
 
+echo "case: --allow-net allows overlapping CIDR range and address"
+# given:
+docker_host_address=$(plain-sandbox --dockerfile "$minial_dockerfile" --allow-net 10.0.0.0/24 busybox ip route | grep default | cut -d' ' -f3)
+if test "$(uname)" = "Darwin"; then
+  nc -l 18080 &> /dev/null &
+else
+  nc -l -p 18080 &> /dev/null &
+fi
+nc_pid=$!
+# when/then:
+plain-sandbox --dockerfile "$minial_dockerfile" --rebuild --allow-net "${docker_host_address%.*}.0/24:18080,${docker_host_address}:18080" busybox nc -w 2 "$docker_host_address" 18080 < /dev/null
+# cleanup:
+if lsof -i:18080 | grep -q "$nc_pid"; then
+  kill "$nc_pid"
+fi
+
+
 echo "case: --allow-net 0.0.0.0/0 allows access to any destination"
 # when/then:
 plain-sandbox --dockerfile "$minial_dockerfile" --rebuild --allow-net 0.0.0.0/0 busybox nc -w 2 example.com 443 < /dev/null
