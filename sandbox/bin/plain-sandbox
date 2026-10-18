@@ -35,15 +35,17 @@ Options:
 
   --dockerfile FILE         Path to a Dockerfile. If not set, a preset Dockerfile
                             and network policy is used.
-                            The container must include busybox, bash, iptables, ipset,
-                            dnsmasq, dig, and the shadow utilities (useradd, usermod,
-                            groupmod).
-                            The UID/GID of the image's default user is changed to match
-                            the host user, which also changes the ownership of its home
-                            directory. Make the home directory traversable by root
-                            (e.g. chmod 755), because the container runs without the
-                            DAC_OVERRIDE / DAC_READ_SEARCH capabilities.
-  --env KEY=VALUE          Set environment variables in the container (repeatable).
+                            The image must include busybox, bash, iptables, ipset,
+                            dnsmasq, dig, getent, setpriv (util-linux), and the shadow
+                            utilities (useradd, usermod, groupmod).
+                            If the image's default user is not root, its UID/GID is
+                            changed to match the host user, which also changes the
+                            ownership of its home directory. Make that home directory
+                            traversable by root (e.g. chmod 755), because the container
+                            runs without the DAC_OVERRIDE / DAC_READ_SEARCH
+                            capabilities. If the default user is root, a "sandbox"
+                            user is created at startup instead.
+  --env KEY=VALUE           Set environment variables in the container (repeatable).
   --env-file FILE           Path to a .env file to load environment variables from.
   --platform                Specify the platform for image building and container execution
                             (e.g., linux/arm64 or linux/amd64).
@@ -400,12 +402,12 @@ main() {
     --cap-add SETUID
     --cap-add SETGID
     --cap-add KILL
+    --cap-add SETPCAP
     --mount "type=bind,source=${MOUNTABLE_SCRIPT_PATH},target=${CONTAINER_SCRIPT_PATH},readonly"
   )
   local docker_exec_opts=(
     --interactive
-    --user "$host_user_id:$host_group_id"
-    --workdir "$container_workdir"
+    --user 0:0
   )
 
   local docker_build_context=""
@@ -683,7 +685,8 @@ EOF
   exec 2>&4
 
   run docker exec "${docker_exec_opts[@]}" "$container_name" \
-    "$CONTAINER_SCRIPT_PATH" container_exec "$container_project_root" "$@"
+    "$CONTAINER_SCRIPT_PATH" container_exec "$container_project_root" \
+    "$container_workdir" "$host_user_id" "$host_group_id" "$@"
 }
 
 start_container_terminator() {
@@ -724,18 +727,32 @@ cleanup_networks() {
 }
 
 container_exec() {
-  local project_dir="$1"
-  shift 1
+  local project_dir="$1" workdir="$2" uid="$3" gid="$4"
+  shift 4
 
   # Wait for the project directory owner to match the execution user (on colima).
-  local max_attempts=20
-  for _ in $(seq "$max_attempts"); do
-    if stat -c "%U:%G" "$project_dir" | grep -qE "$(id -un):$(id -gn)"; then
+  for _ in $(seq 20); do
+    if test "$(stat -c '%u:%g' "$project_dir")" = "$uid:$gid"; then
+      local passwd_entry
+      passwd_entry=$(getent passwd "$uid") || {
+        echo "Error: no passwd entry for uid $uid (container setup incomplete?)" >&2
+        exit 1
+      }
+      HOME="$(cut -d: -f6 <<< "$passwd_entry")"
+      USER="$(cut -d: -f1 <<< "$passwd_entry")"
+      export HOME USER
+
+      local entry=("$@")
       if test -x /sandbox/bin/user-entrypoint.sh; then
-        exec /sandbox/bin/user-entrypoint.sh "$@"
-      else
-        exec "$@"
+        entry=(/sandbox/bin/user-entrypoint.sh "$@")
       fi
+
+      # shellcheck disable=SC2016
+      exec setpriv \
+        --reuid="$uid" --regid="$gid" --init-groups \
+        --bounding-set=-all --inh-caps=-all \
+        --no-new-privs \
+        -- sh -c 'cd -- "$0" && exec "$@"' "$workdir" "${entry[@]}"
     fi
     sleep 0.5
   done

@@ -363,6 +363,15 @@ docker image ls --format '{{.Repository}}:{{.Tag}}' --filter 'reference=plain-sa
 rm -rf "$workdir"
 
 
+echo "case: user command runs with an empty capability bounding set"
+# when:
+out=$(plain-sandbox --dockerfile "$minial_dockerfile" --rebuild \
+  bash -c 'grep -E "^(CapBnd|NoNewPrivs):" /proc/self/status')
+# then:
+grep -qE "^CapBnd:[[:space:]]+0000000000000000$" <<< "$out"
+grep -qE "^NoNewPrivs:[[:space:]]+1$" <<< "$out"
+
+
 echo "case: run basic command with preset configuration"
 # when/then:
 plain-sandbox --rebuild echo hello | grep -qE "^hello$"
