@@ -55,12 +55,23 @@ else
 fi
 
 section "Capabilities"
-sandbox_caps=$(docker inspect "${COMPOSE_PROJECT_NAME}-sandbox" --format '{{.HostConfig.CapAdd}}')
-if [ "$sandbox_caps" = "[]" ] || [ "$sandbox_caps" = "<no value>" ]; then
-  pass "sandbox has no extra capabilities (${sandbox_caps})"
-else
-  fail "sandbox has unexpected capabilities: ${sandbox_caps}"
-fi
+# every service runs cap_drop: [ALL] + its own cap_add, so the bounding set must
+# equal the expected mask (bit numbers from <linux/capability.h>)
+check_capbnd() {
+  local svc="$1" expected="$2" desc="$3" cap
+  cap=$(docker exec "${COMPOSE_PROJECT_NAME}-${svc}" sh -c 'grep CapBnd /proc/self/status' 2>/dev/null | awk '{print $2}')
+  if [ -n "$cap" ] && [ "$((16#$cap))" -eq "$((16#$expected))" ]; then
+    pass "${svc} holds ${desc}"
+  else
+    fail "${svc} capabilities are unexpected (CapBnd=0x${cap:-none}, expected 0x${expected})"
+  fi
+}
+check_capbnd gateway 10c0 "NET_ADMIN (iptables/ip route) and SETUID/SETGID (dnsmasq drops to its own user)"
+check_capbnd envoy 0 "no capabilities (it binds only ports above 1024)"
+check_capbnd sandbox db "what a root agent shell needs (no NET_RAW, NET_ADMIN, SYS_CHROOT or MKNOD)"
+check_capbnd dind c0 "SETUID/SETGID (rootlesskit's setuid newuidmap helper)"
+check_capbnd route-keeper-sandbox 1000 "NET_ADMIN (repairs the default route from outside)"
+check_capbnd route-keeper-dind 1000 "NET_ADMIN (repairs the default route from outside)"
 internal=$(docker network inspect "${COMPOSE_PROJECT_NAME}-internal" --format '{{.Internal}}')
 if [ "$internal" = "true" ]; then
   pass "internal network is internal (no route out of the network itself; a gateway failure blocks traffic instead of bypassing it)"

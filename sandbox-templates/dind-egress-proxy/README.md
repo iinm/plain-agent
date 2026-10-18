@@ -110,10 +110,16 @@ which closes DNS exfiltration.
   version (`DOCKER-INTERNAL` on 29+, `DOCKER-ISOLATION-STAGE-1` on 28 and earlier).
   A container cannot escape by re-pointing its route at the host, or by sending
   raw frames (AF_PACKET)
-- **CAP_NET_RAW removed** from sandbox/dind/route-keeper containers. AF_PACKET needs
-  this capability, so removing it closes L2 spoofing (e.g. ARP spoofing). dind runs
-  unprivileged, so `cap_drop` is effective; rootless dockerd does not need the
-  capability
+- **Capabilities are minimized per container** (`cap_drop: [ALL]` plus the `cap_add`
+  each one actually needs). Envoy holds none; dind holds SETUID/SETGID (rootlesskit
+  runs the setuid `newuidmap` helper, and rootless dockerd needs nothing else); the
+  gateway holds NET_ADMIN (iptables/ip route) and SETUID/SETGID (dnsmasq drops to its
+  own user after binding); route-keeper-* hold NET_ADMIN; the sandbox holds only what
+  a root agent shell needs (DAC_OVERRIDE, CHOWN, FOWNER, FSETID, SETUID, SETGID), so
+  it cannot chroot, mknod, or signal other users' processes
+- **CAP_NET_RAW is gone everywhere** (sandbox, dind, route-keeper-*). AF_PACKET needs
+  it, so removing it closes L2 spoofing (e.g. ARP spoofing). dind runs unprivileged,
+  so `cap_drop` is effective
 - **dind runs under rootless dockerd** (its own userns via rootlesskit). It only adds
   what rootless dockerd needs: `/dev/net/tun`, seccomp/AppArmor relaxed for userns
   creation and mounts, and `/proc` unmasked (`systempaths=unconfined`; the default

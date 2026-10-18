@@ -6,7 +6,9 @@ services:
     build: ./gateway
     image: ${COMPOSE_PROJECT_NAME:-agent}/gateway:latest
     container_name: ${COMPOSE_PROJECT_NAME:-agent}-gateway
-    cap_add: [NET_ADMIN]
+    # iptables and ip route need NET_ADMIN; dnsmasq drops to its own user after binding
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN, SETUID, SETGID]
     sysctls:
       net.ipv4.ip_forward: "1"
       net.ipv6.conf.all.disable_ipv6: "1"
@@ -39,6 +41,8 @@ services:
     image: envoyproxy/envoy:v1.39-latest@sha256:57e14a549d7bd43c8d3f6d03e8cfa653e037d4b38e133acd9b54f38c524401b4
     container_name: ${COMPOSE_PROJECT_NAME:-agent}-envoy
     network_mode: "service:gateway"
+    # binds only ports above 1024, so no capability is needed
+    cap_drop: [ALL]
     entrypoint: ["envoy", "-c", "/etc/envoy/envoy.yaml"]
     volumes:
       - envoy-config:/etc/envoy:ro
@@ -52,7 +56,11 @@ services:
     build: ./sandbox
     image: ${COMPOSE_PROJECT_NAME:-agent}/sandbox:latest
     container_name: ${COMPOSE_PROJECT_NAME:-agent}-sandbox
-    cap_drop: [NET_RAW]  # blocks AF_PACKET (L2 frame spoofing)
+    # DAC_OVERRIDE: root writes the host-owned workspace. CHOWN/FOWNER/FSETID and
+    # SETUID/SETGID: package installs (apt's _apt sandbox) and build scripts.
+    # NET_RAW is gone (AF_PACKET), and so are NET_ADMIN, SYS_CHROOT and MKNOD.
+    cap_drop: [ALL]
+    cap_add: [DAC_OVERRIDE, CHOWN, FOWNER, FSETID, SETUID, SETGID]
     networks:
       sandbox-internal:
         ipv4_address: ${SANDBOX_IP:-172.28.200.10}
@@ -93,7 +101,9 @@ services:
     devices:
       # slirp4netns (rootless networking) needs it
       - /dev/net/tun
-    cap_drop: [NET_RAW]
+    # rootlesskit needs the setuid newuidmap helper to write the uid/gid map
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID]
 
     networks:
       sandbox-internal:
@@ -121,8 +131,9 @@ services:
     image: ${COMPOSE_PROJECT_NAME:-agent}/gateway:latest
     container_name: ${COMPOSE_PROJECT_NAME:-agent}-route-keeper-sandbox
     network_mode: "service:sandbox"
+    # shares the sandbox netns: only the route change, and no NET_RAW there either
+    cap_drop: [ALL]
     cap_add: [NET_ADMIN]
-    cap_drop: [NET_RAW]  # shares the sandbox's netns: NET_RAW dropped there too
     entrypoint: ["/route-keeper.sh", "${GATEWAY_IP:-172.28.200.100}"]
     depends_on:
       sandbox:
@@ -134,8 +145,9 @@ services:
     image: ${COMPOSE_PROJECT_NAME:-agent}/gateway:latest
     container_name: ${COMPOSE_PROJECT_NAME:-agent}-route-keeper-dind
     network_mode: "service:dind"
+    # shares the dind netns: only the route change, and no NET_RAW there either
+    cap_drop: [ALL]
     cap_add: [NET_ADMIN]
-    cap_drop: [NET_RAW]  # shares the dind's netns: NET_RAW dropped there too
     entrypoint: ["/route-keeper.sh", "${GATEWAY_IP:-172.28.200.100}"]
     depends_on:
       dind:
