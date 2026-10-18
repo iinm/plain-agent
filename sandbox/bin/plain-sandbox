@@ -889,7 +889,8 @@ setup_container_firewall() {
         IFS=':' read -r host port <<< "$destination"
       fi
       if test "$host" = "0.0.0.0/0"; then
-        log "Allow outgoing connections to $host:$port"
+        # stdout of this block is the nft ruleset, so log to stderr
+        log "Allow outgoing connections to $host:$port" >&2
         echo "    ip daddr 0.0.0.0/0 tcp dport $port accept"
       fi
     done
