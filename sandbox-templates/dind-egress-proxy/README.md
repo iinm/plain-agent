@@ -34,6 +34,10 @@ docker compose up -d --build --wait   # start (waits until all containers are he
 ./verify.sh                           # verify (healthy when NG=0)
 ```
 
+`verify.sh` reads the host's Docker rules with `nft`, so the host's iptables must be
+the nft backend (the default on current distros). On an iptables-legacy host that
+structural check is skipped and only the behavioral one runs.
+
 ```sh
 docker compose down        # stop (images and volumes are kept)
 docker compose down -v     # full removal (dind images and certs are also deleted)
@@ -110,17 +114,24 @@ which closes DNS exfiltration.
   version (`DOCKER-INTERNAL` on 29+, `DOCKER-ISOLATION-STAGE-1` on 28 and earlier).
   A container cannot escape by re-pointing its route at the host, or by sending
   raw frames (AF_PACKET)
-- **CAP_NET_RAW removed** from sandbox/dind/route-keeper containers. AF_PACKET needs
-  this capability, so removing it closes L2 spoofing (e.g. ARP spoofing). dind runs
-  unprivileged, so `cap_drop` is effective; rootless dockerd does not need the
-  capability
+- **Capabilities are minimized per container**: `cap_drop: [ALL]` plus only the
+  `cap_add` each service needs (the reason for each is next to it in
+  docker-compose.yml), so no container can chroot, mknod, or signal other users'
+  processes
+- **no-new-privileges on every container except dind**, so a setuid binary in an
+  image cannot lift a process back out of its capability set. dind needs the setuid
+  `newuidmap` helper. Unlike `plain-sandbox`'s user command, the sandbox does not
+  drop to the host user, so it stays root and keeps DAC_OVERRIDE
+- **CAP_NET_RAW is gone from every container** (gateway, envoy, sandbox, dind,
+  route-keeper-*). AF_PACKET needs it, so removing it closes L2 spoofing (e.g. ARP
+  spoofing). dind runs unprivileged, so `cap_drop` is effective
 - **dind runs under rootless dockerd** (its own userns via rootlesskit). It only adds
   what rootless dockerd needs: `/dev/net/tun`, seccomp/AppArmor relaxed for userns
   creation and mounts, and `/proc` unmasked (`systempaths=unconfined`; the default
   masking blocks the proc mount runc needs to start containers). Agent containers
   still run under rootless dockerd (userns) and all egress stays filtered
-- **gateway ip6tables FORWARD is also DROP**. IPv6 is disabled, but if that ever
-  stops being true, egress is still blocked (fail-closed backstop)
+- **the gateway's forward chain is inet, so it drops IPv6 as well**. IPv6 is disabled,
+  but if that ever stops being true, egress is still blocked (fail-closed backstop)
 
 ## Limitations
 
