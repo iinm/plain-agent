@@ -36,7 +36,13 @@ Options:
   --dockerfile FILE         Path to a Dockerfile. If not set, a preset Dockerfile
                             and network policy is used.
                             The container must include busybox, bash, iptables, ipset,
-                            dnsmasq, and dig commands.
+                            dnsmasq, dig, and the shadow utilities (useradd, usermod,
+                            groupmod).
+                            The UID/GID of the image's default user is changed to match
+                            the host user, which also changes the ownership of its home
+                            directory. Make the home directory traversable by root
+                            (e.g. chmod 755), because the container runs without the
+                            DAC_OVERRIDE / DAC_READ_SEARCH capabilities.
   --env KEY=VALUE          Set environment variables in the container (repeatable).
   --env-file FILE           Path to a .env file to load environment variables from.
   --platform                Specify the platform for image building and container execution
@@ -388,6 +394,12 @@ main() {
     --name "$container_name"
     --entrypoint ""
     --user 0:0
+    --security-opt no-new-privileges
+    --cap-drop ALL
+    --cap-add CHOWN
+    --cap-add SETUID
+    --cap-add SETGID
+    --cap-add KILL
     --mount "type=bind,source=${MOUNTABLE_SCRIPT_PATH},target=${CONTAINER_SCRIPT_PATH},readonly"
   )
   local docker_exec_opts=(
@@ -1018,7 +1030,10 @@ setup_container_user() {
     
     if ! getent passwd sandbox &> /dev/null; then
       log "Creating user sandbox"
-      useradd -g sandbox -m sandbox
+      useradd -g sandbox -M sandbox
+      mkdir -m 755 /home/sandbox
+      cp -rT /etc/skel /home/sandbox
+      chown -R sandbox:sandbox /home/sandbox
     fi
     
     user="sandbox"
@@ -1107,8 +1122,9 @@ RUN apt-get install -y extrepo \
 # Create user
 RUN groupadd sandbox \
     && useradd -g sandbox -m sandbox \
+    && chmod 755 /home/sandbox \
     && mkdir -p /sandbox \
-    && chmod 777 /sandbox
+    && chmod 755 /sandbox
 
 # Create user entrypoint script for persistence configuration
 RUN mkdir -p /sandbox/bin
