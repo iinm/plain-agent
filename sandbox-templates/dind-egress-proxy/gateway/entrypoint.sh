@@ -57,17 +57,29 @@ for _ in $(seq 1 20); do
   fi
   sleep 1
 done
-iptables -t nat -A POSTROUTING -o "$EGRESS_IF" -j MASQUERADE
-# Envoy's own upstream connections leave via OUTPUT, so this REDIRECT cannot recurse
-iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 10443
-iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 10080
-iptables -A FORWARD -p udp --dport 53 -j DROP
-iptables -A FORWARD -p tcp --dport 53 -j DROP
-iptables -A FORWARD -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-iptables -P FORWARD DROP
-# IPv6 is disabled; this DROP is a fail-closed backstop against a future leak
-ip6tables -P FORWARD DROP
-log "iptables configured (FORWARD policy DROP)"
+# one inet table, so the drop policy covers IPv6 too (disabled, but fail-closed)
+nft delete table inet gateway 2>/dev/null || true
+cat <<EOF | nft -f -
+table inet gateway {
+  chain prerouting {
+    type nat hook prerouting priority dstnat; policy accept;
+    # Envoy's own upstream connections leave via OUTPUT, so these cannot recurse
+    tcp dport 443 redirect to :10443
+    tcp dport 80 redirect to :10080
+  }
+  chain postrouting {
+    type nat hook postrouting priority srcnat; policy accept;
+    oifname "$EGRESS_IF" masquerade
+  }
+  chain forward {
+    type filter hook forward priority filter; policy drop;
+    udp dport 53 drop
+    tcp dport 53 drop
+    ct state established,related accept
+  }
+}
+EOF
+log "nftables configured (forward policy drop)"
 
 # envoy shares the gateway netns and reads the generated config from the shared volume
 cluster_name() { printf '%s' "$1" | tr '.' '_'; }

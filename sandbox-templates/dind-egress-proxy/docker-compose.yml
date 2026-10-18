@@ -6,7 +6,7 @@ services:
     build: ./gateway
     image: ${COMPOSE_PROJECT_NAME:-agent}/gateway:latest
     container_name: ${COMPOSE_PROJECT_NAME:-agent}-gateway
-    # iptables and ip route need NET_ADMIN; dnsmasq drops to its own user after binding
+    # nftables and ip route need NET_ADMIN; dnsmasq drops to its own user after binding
     cap_drop: [ALL]
     cap_add: [NET_ADMIN, SETUID, SETGID]
     sysctls:

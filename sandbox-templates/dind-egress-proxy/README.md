@@ -113,7 +113,7 @@ which closes DNS exfiltration.
 - **Capabilities are minimized per container** (`cap_drop: [ALL]` plus the `cap_add`
   each one actually needs). Envoy holds none; dind holds SETUID/SETGID (rootlesskit
   runs the setuid `newuidmap` helper, and rootless dockerd needs nothing else); the
-  gateway holds NET_ADMIN (iptables/ip route) and SETUID/SETGID (dnsmasq drops to its
+  gateway holds NET_ADMIN (nftables/ip route) and SETUID/SETGID (dnsmasq drops to its
   own user after binding); route-keeper-* hold NET_ADMIN; the sandbox holds only what
   a root agent shell needs (DAC_OVERRIDE, CHOWN, FOWNER, FSETID, SETUID, SETGID), so
   it cannot chroot, mknod, or signal other users' processes
@@ -125,8 +125,8 @@ which closes DNS exfiltration.
   creation and mounts, and `/proc` unmasked (`systempaths=unconfined`; the default
   masking blocks the proc mount runc needs to start containers). Agent containers
   still run under rootless dockerd (userns) and all egress stays filtered
-- **gateway ip6tables FORWARD is also DROP**. IPv6 is disabled, but if that ever
-  stops being true, egress is still blocked (fail-closed backstop)
+- **the gateway's forward chain is inet, so it drops IPv6 as well**. IPv6 is disabled,
+  but if that ever stops being true, egress is still blocked (fail-closed backstop)
 
 ## Limitations
 

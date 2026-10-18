@@ -66,7 +66,7 @@ check_capbnd() {
     fail "${svc} capabilities are unexpected (CapBnd=0x${cap:-none}, expected 0x${expected})"
   fi
 }
-check_capbnd gateway 10c0 "NET_ADMIN (iptables/ip route) and SETUID/SETGID (dnsmasq drops to its own user)"
+check_capbnd gateway 10c0 "NET_ADMIN (nftables/ip route) and SETUID/SETGID (dnsmasq drops to its own user)"
 check_capbnd envoy 0 "no capabilities (it binds only ports above 1024)"
 check_capbnd sandbox db "what a root agent shell needs (no NET_RAW, NET_ADMIN, SYS_CHROOT or MKNOD)"
 check_capbnd dind c0 "SETUID/SETGID (rootlesskit's setuid newuidmap helper)"
@@ -97,20 +97,21 @@ for s in sandbox dind; do
   fi
 done
 
-section "Gateway filter rules"
-# grep -q exits early and kills the docker exec upstream with SIGPIPE (141);
-# a full-read grep avoids it
-if docker exec "${COMPOSE_PROJECT_NAME}-gateway" iptables -S FORWARD 2>/dev/null | grep -- '-P FORWARD DROP' >/dev/null; then
-  pass "FORWARD policy is DROP"
+section "Gateway nftables rules"
+# capture the ruleset first: grep -q on the pipe would kill the docker exec
+# upstream with SIGPIPE (141)
+rules=$(docker exec "${COMPOSE_PROJECT_NAME}-gateway" nft list table inet gateway 2>/dev/null)
+if grep -- 'type filter hook forward priority filter; policy drop' <<< "$rules" >/dev/null; then
+  pass "forward policy is drop (inet table, so IPv6 is closed too)"
 else
-  fail "FORWARD policy is not DROP"
+  fail "forward policy is not drop"
 fi
-if docker exec "${COMPOSE_PROJECT_NAME}-gateway" iptables -t nat -S PREROUTING 2>/dev/null | grep 'REDIRECT.*10443' >/dev/null; then
+if grep -- 'tcp dport 443 redirect to :10443' <<< "$rules" >/dev/null; then
   pass "443 is redirected to Envoy (10443)"
 else
   fail "no redirect rule for 443"
 fi
-if docker exec "${COMPOSE_PROJECT_NAME}-gateway" iptables -t nat -S PREROUTING 2>/dev/null | grep 'REDIRECT.*10080' >/dev/null; then
+if grep -- 'tcp dport 80 redirect to :10080' <<< "$rules" >/dev/null; then
   pass "80 is redirected to Envoy (10080)"
 else
   fail "no redirect rule for 80"
@@ -221,20 +222,14 @@ for s in sandbox dind route-keeper-sandbox route-keeper-dind; do
   fi
 done
 
-if docker exec "${COMPOSE_PROJECT_NAME}-gateway" ip6tables -S FORWARD 2>/dev/null | grep -- '-P FORWARD DROP' >/dev/null; then
-  pass "gateway ip6tables FORWARD policy is DROP (IPv6 side closed too)"
-else
-  fail "gateway ip6tables FORWARD policy is not DROP"
-fi
-
 # internal: true is enforced by a Docker-managed chain in the host filter table.
 # The chain name differs by Docker version (DOCKER-INTERNAL on 29+,
 # DOCKER-ISOLATION-STAGE-1 on 28 and earlier), so match the rule in any chain
 brname="br-$(docker network inspect "${COMPOSE_PROJECT_NAME}-internal" --format '{{.Id}}' | cut -c1-12)"
-# iptables -S option order varies by version; match 3 conditions instead of exact text
+# nft renders the conditions in its own order; match 3 of them instead of exact text
 host_rule=$(docker run --rm --net host --cap-add NET_ADMIN \
-  --entrypoint iptables "${COMPOSE_PROJECT_NAME}/gateway:latest" -S 2>/dev/null \
-  | grep -- "-i ${brname}" | grep -- "! -d ${INTERNAL_SUBNET}" | grep -- '-j DROP')
+  --entrypoint nft "${COMPOSE_PROJECT_NAME}/gateway:latest" list ruleset 2>/dev/null \
+  | grep -- "iifname \"${brname}\"" | grep -- "ip daddr != ${INTERNAL_SUBNET}" | grep -- 'drop')
 if [ -n "$host_rule" ]; then
   pass "host filter table drops the internal bridge -> outside (second layer against L2/L3 direct hits)"
 else
