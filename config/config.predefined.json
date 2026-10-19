@@ -1768,7 +1768,7 @@
       "model": {
         "format": "openai-chat-completions",
         "config": {
-          "model": "accounts/fireworks/models/deepseek-v4p1-flash"
+          "model": "accounts/fireworks/models/deepseek-v4p1-flash-1017"
         }
       },
       "cost": {
