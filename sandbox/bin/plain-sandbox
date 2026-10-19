@@ -730,9 +730,21 @@ container_exec() {
   local project_dir="$1" workdir="$2" uid="$3" gid="$4"
   shift 4
 
-  # Wait for the project directory owner to match the execution user (on colima).
+  local setpriv_opts=(
+    --reuid="$uid"
+    --regid="$gid"
+    --init-groups
+    --bounding-set=-all
+    --inh-caps=-all
+    --no-new-privs
+  )
+
+  # Wait for the project directory owner to match the execution user.
+  # On colima the owner is root right after the container starts and becomes the
+  # host user a few seconds later. Until then git refuses to run ("dubious
+  # ownership"), and root does not see the change, so probe as the execution user.
   for _ in $(seq 20); do
-    if test "$(stat -c '%u:%g' "$project_dir")" = "$uid:$gid"; then
+    if test "$(setpriv "${setpriv_opts[@]}" stat -c '%u:%g' "$project_dir")" = "$uid:$gid"; then
       local passwd_entry
       passwd_entry=$(getent passwd "$uid") || {
         echo "Error: no passwd entry for uid $uid (container setup incomplete?)" >&2
@@ -748,10 +760,7 @@ container_exec() {
       fi
 
       # shellcheck disable=SC2016
-      exec setpriv \
-        --reuid="$uid" --regid="$gid" --init-groups \
-        --bounding-set=-all --inh-caps=-all \
-        --no-new-privs \
+      exec setpriv "${setpriv_opts[@]}" \
         -- sh -c 'cd -- "$0" && exec "$@"' "$workdir" "${entry[@]}"
     fi
     sleep 0.5
