@@ -1168,6 +1168,7 @@ RUN apt-get update \
       build-essential git tmux \
       unzip \
     && bash -c 'ln -s $(which fdfind) /usr/local/bin/fd' \
+    && mkdir -p /opt/busybox/bin && busybox --install -s /opt/busybox/bin \
     && echo 'en_US.UTF-8 UTF-8' >> /etc/locale.gen \
     && echo 'ja_JP.UTF-8 UTF-8' >> /etc/locale.gen \
     && locale-gen
@@ -1217,8 +1218,9 @@ RUN curl -fsSL https://raw.githubusercontent.com/grml/grml-etc-core/refs/tags/v0
     && echo 'source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh' >> /home/sandbox/.zshrc.local \
     && echo 'unsetopt HIST_SAVE_BY_COPY' >> /home/sandbox/.zshrc.local
 
+ENV PATH="${PATH}:/opt/busybox/bin"
 ENV LANG=en_US.UTF-8
-ENV EDITOR="busybox vi"
+ENV EDITOR="vi"
 ENV MISE_DATA_DIR=/persistent/mise-data
 EOF
 }
