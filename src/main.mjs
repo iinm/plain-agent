@@ -423,6 +423,8 @@ export async function main(argv = process.argv) {
     }
   }
 
+  const toolByName = new Map(builtinTools.map((tool) => [tool.def.name, tool]));
+
   const toolUseApprover = createToolUseApprover({
     maxApprovals: appConfig.autoApproval?.maxApprovals || 50,
     defaultAction: appConfig.autoApproval?.defaultAction || "ask",
@@ -430,14 +432,10 @@ export async function main(argv = process.argv) {
     allowedPaths: appConfig.autoApproval?.allowedPaths ?? [],
     allowGitUnmanagedFiles:
       appConfig.autoApproval?.allowGitUnmanagedFiles ?? false,
-    maskApprovalInput: (toolName, input) => {
-      for (const tool of builtinTools) {
-        if (tool.def.name === toolName && tool.maskApprovalInput) {
-          return tool.maskApprovalInput(input);
-        }
-      }
-      return input;
-    },
+    maskApprovalInput: (toolName, input) =>
+      toolByName.get(toolName)?.maskApprovalInput?.(input) ?? input,
+    findAutoApprovalBlocker: (toolName, input) =>
+      toolByName.get(toolName)?.findAutoApprovalBlocker?.(input),
     shouldSkipPathValidation: appConfig.sandbox
       ? (toolName, input) =>
           sandboxedTools.some(

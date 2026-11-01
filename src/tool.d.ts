@@ -8,6 +8,20 @@ export type Tool = {
     input: Record<string, unknown>,
   ) => Record<string, unknown>;
   /**
+   * Return why this input must not be auto-approved even when an `allow`
+   * pattern matches. The decision then falls back to
+   * `autoApproval.defaultAction` (ask or deny), and the reason is sent to the
+   * model. Return `undefined` when there is no restriction.
+   *
+   * Receives the masked input produced by `maskApprovalInput`, so the checked
+   * scope never exceeds what "allow in this session" approved. A rule that must
+   * hold even after the user approves it belongs in `validateInput` or a config
+   * `deny` pattern instead.
+   */
+  findAutoApprovalBlocker?: (
+    input: Record<string, unknown>,
+  ) => string | undefined;
+  /**
    * Mask secrets in tool output and error messages.
    * Called by `toolExecutor` alongside every other tool's `maskSecrets`; mask
    * only the secrets this tool owns and return any other text unchanged.
@@ -66,12 +80,22 @@ export type ToolUseApproverConfig = {
    * Mask the input before auto-approval checks and recording.
    * Return a redacted object (e.g., keep only necessary fields) that will be used for:
    * - safety validation via findUnsafeToolInputReason
-   * - storing per-session allowed tool-use patterns
+   * - comparing against per-session allowed tool-use patterns
+   * - passing to the tool's findAutoApprovalBlocker
    */
   maskApprovalInput: (
     toolName: string,
     input: Record<string, unknown>,
   ) => Record<string, unknown>;
+
+  /**
+   * Return why a tool input must not be auto-approved despite a matching
+   * `allow` pattern. See `Tool.findAutoApprovalBlocker`.
+   */
+  findAutoApprovalBlocker?: (
+    toolName: string,
+    input: Record<string, unknown>,
+  ) => string | undefined;
 
   shouldSkipPathValidation?: (
     toolName: string,

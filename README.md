@@ -625,8 +625,9 @@ Files are loaded in the following order. Settings in later files override earlie
       "apiKey": "<GEMINI_API_KEY>",
       "model": "gemini-3.8-flash",
 
-      // Host allow list. Omitted denies every fetch; ["*"] allows any host.
-      // Only the initial URL's host is checked, not redirect targets.
+      // Hosts eligible for auto-approval. A fetch to any other host falls back
+      // to autoApproval.defaultAction (ask or deny). Omitted: none auto-approved;
+      // ["*"]: no restriction. Only the initial URL's host is checked, not redirect targets.
       // "example.com" matches only that domain; "*.example.com" matches subdomains.
       "allowedDomains": ["example.com", "*.wikipedia.org"]
 
