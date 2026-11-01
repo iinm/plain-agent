@@ -20,8 +20,10 @@ import {
  * based on the dumped output. The runtime tool factory receives a resolved
  * `modelCaller` instead — see `WebFetchToolOptions` in `tools/webFetch.mjs`.
  *
- * `allowedDomains` is a host allow list for every provider; matching rules live
- * on `WebFetchToolCommonOptions`. Later config files replace the whole field.
+ * `allowedDomains` lists hosts eligible for auto-approval for every provider;
+ * a fetch to any other host falls back to `autoApproval.defaultAction` (ask or
+ * deny). Matching rules live on `WebFetchToolCommonOptions`. Later config files
+ * replace the whole field.
  */
 export type WebFetchToolConfig = WebFetchToolCommonOptions &
   (

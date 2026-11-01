@@ -11,8 +11,10 @@ import { noThrow } from "../utils/noThrow.mjs";
 /**
  * Options shared by every `webFetch` provider.
  *
- * `allowedDomains` is a host allow list: a fetch is allowed only if the URL's
- * hostname matches an entry, so an omitted or empty list denies everything.
+ * `allowedDomains` is the auto-approval allow list: a fetch whose URL hostname
+ * matches an entry may be auto-approved, while a fetch to any other host falls
+ * back to `autoApproval.defaultAction` (`ask` or `deny`). An omitted or empty
+ * list auto-approves nothing; `*` removes the restriction.
  * Entries match the hostname alone, case-insensitively (scheme, port, and path
  * are ignored): `*` matches any host, `example.com` matches only that exact
  * domain, and `*.example.com` matches any subdomain of `example.com`.
@@ -23,6 +25,9 @@ import { noThrow } from "../utils/noThrow.mjs";
  *
  * Only the initial URL's host is checked, not redirect targets, so this limits
  * what the agent requests rather than where network traffic can go.
+ *
+ * Enforced by `findAutoApprovalBlocker` in the approval layer, not by
+ * `validateInput`: calling `impl` directly bypasses the list.
  *
  * @typedef {Object} WebFetchToolCommonOptions
  * @property {string[]=} allowedDomains
@@ -116,7 +121,7 @@ export function createWebFetchTool(config) {
      */
     impl: async (input) =>
       await noThrow(async () => {
-        const validationError = validateInput(input, config.allowedDomains);
+        const validationError = validateInput(input);
         if (validationError) {
           return validationError;
         }
@@ -140,10 +145,7 @@ export function createWebFetchTool(config) {
      * @returns {Error | undefined}
      */
     validateInput: (input) =>
-      validateInput(
-        /** @type {WebFetchInput} */ (input),
-        config.allowedDomains,
-      ),
+      validateInput(/** @type {WebFetchInput} */ (input)),
 
     /**
      * Reduce the URL to its origin so approving one URL approves any path on
@@ -157,6 +159,24 @@ export function createWebFetchTool(config) {
       const parsed = parseHttpUrl(webFetchInput.url);
       const url = parsed ? `${parsed.protocol}//${parsed.host}` : "";
       return { url };
+    },
+
+    /**
+     * A host outside `allowedDomains` is never auto-approved: a matching
+     * `allow` pattern falls back to `autoApproval.defaultAction`. The input is
+     * masked, so `url` is already the origin and its hostname is what the list
+     * matches.
+     *
+     * @param {Record<string, unknown>} input
+     * @returns {string | undefined}
+     */
+    findAutoApprovalBlocker: (input) => {
+      const { url } = /** @type {{ url?: unknown }} */ (input);
+      if (isUrlAllowed(url, config.allowedDomains)) {
+        return undefined;
+      }
+      const hostname = extractHostname(url);
+      return `Blocked by allowedDomains: \`${hostname}\` is not in the allow list.`;
     },
   };
 }
@@ -183,9 +203,9 @@ export function truncateText(content, maxLength) {
 }
 
 /**
- * Return whether `url` is permitted by the `allowedDomains` allow list. Rules
- * and matching are described on `WebFetchToolCommonOptions`; non-http(s) URLs
- * are always denied.
+ * Return whether `url` is eligible for auto-approval under `allowedDomains`.
+ * Rules and matching are described on `WebFetchToolCommonOptions`; non-http(s)
+ * URLs are never allowed.
  *
  * @param {unknown} url
  * @param {string[] | undefined} allowedDomains
@@ -204,22 +224,15 @@ function isUrlAllowed(url, allowedDomains) {
 
 /**
  * @param {WebFetchInput} input
- * @param {string[] | undefined} allowedDomains
  * @returns {Error | undefined}
  */
-function validateInput(input, allowedDomains) {
+function validateInput(input) {
   if (!input.url || typeof input.url !== "string") {
     return new Error("`url` is required and must be a string.");
   }
   if (canonicalizeUrl(input.url) === "") {
     return new Error(
       `Invalid URL: \`${input.url}\` must start with http(s)://`,
-    );
-  }
-  if (!isUrlAllowed(input.url, allowedDomains)) {
-    const hostname = extractHostname(input.url);
-    return new Error(
-      `Blocked by allowedDomains: \`${hostname}\` is not in the allow list.`,
     );
   }
   if (!input.question || typeof input.question !== "string") {

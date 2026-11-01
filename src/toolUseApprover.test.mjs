@@ -359,6 +359,255 @@ describe("createToolUseApprover", () => {
       reason: "Auto-approval limit exceeded (1)",
     });
   });
+
+  it("should fall back to ask with the blocker reason when an allow pattern matches", () => {
+    // given:
+    const toolApprover = createToolUseApprover({
+      patterns: [{ toolName: "web_fetch", action: "allow" }],
+      maxApprovals: 2,
+      defaultAction: "ask",
+      maskApprovalInput: (_name, input) => ({ url: String(input.url) }),
+      findAutoApprovalBlocker: (_name, input) =>
+        input.url === "https://example.com"
+          ? undefined
+          : `Blocked by allowedDomains: \`${String(input.url)}\` is not in the allow list.`,
+    });
+
+    /** @type {MessageContentToolUse} */
+    const toolUse = {
+      type: "tool_use",
+      toolUseId: "test",
+      toolName: "web_fetch",
+      input: { url: "https://other.com/a", question: "?" },
+    };
+
+    // when/then:
+    assert.deepStrictEqual(toolApprover.isAllowedToolUse(toolUse), {
+      action: "ask",
+      reason:
+        "Blocked by allowedDomains: `https://other.com/a` is not in the allow list.",
+    });
+  });
+
+  it("should fall back to deny with the blocker reason when defaultAction is deny", () => {
+    // given:
+    const toolApprover = createToolUseApprover({
+      patterns: [{ toolName: "web_fetch", action: "allow" }],
+      maxApprovals: 2,
+      defaultAction: "deny",
+      maskApprovalInput: (_name, input) => ({ url: String(input.url) }),
+      findAutoApprovalBlocker: () => "Blocked by test",
+    });
+
+    /** @type {MessageContentToolUse} */
+    const toolUse = {
+      type: "tool_use",
+      toolUseId: "test",
+      toolName: "web_fetch",
+      input: { url: "https://other.com/a", question: "?" },
+    };
+
+    // when/then:
+    assert.deepStrictEqual(toolApprover.isAllowedToolUse(toolUse), {
+      action: "deny",
+      reason: "Blocked by test",
+    });
+  });
+
+  it("should allow when the blocker returns undefined", () => {
+    // given:
+    const toolApprover = createToolUseApprover({
+      patterns: [{ toolName: "web_fetch", action: "allow" }],
+      maxApprovals: 2,
+      defaultAction: "ask",
+      maskApprovalInput: (_name, input) => ({ url: String(input.url) }),
+      findAutoApprovalBlocker: () => undefined,
+    });
+
+    /** @type {MessageContentToolUse} */
+    const toolUse = {
+      type: "tool_use",
+      toolUseId: "test",
+      toolName: "web_fetch",
+      input: { url: "https://example.com/a", question: "?" },
+    };
+
+    // when/then:
+    assert.deepStrictEqual(toolApprover.isAllowedToolUse(toolUse), {
+      action: "allow",
+    });
+  });
+
+  it("should not consume maxApprovals when a blocker downgrades the decision", () => {
+    // given:
+    const toolApprover = createToolUseApprover({
+      patterns: [{ toolName: "web_fetch", action: "allow" }],
+      maxApprovals: 1,
+      defaultAction: "ask",
+      maskApprovalInput: (_name, input) => ({ url: String(input.url) }),
+      findAutoApprovalBlocker: (_name, input) =>
+        input.url === "https://blocked.com" ? "Blocked by test" : undefined,
+    });
+
+    /** @param {string} url @returns {MessageContentToolUse} */
+    const makeToolUse = (url) => ({
+      type: "tool_use",
+      toolUseId: "test",
+      toolName: "web_fetch",
+      input: { url, question: "?" },
+    });
+
+    // when:
+    const blocked = toolApprover.isAllowedToolUse(
+      makeToolUse("https://blocked.com"),
+    );
+    const allowed = toolApprover.isAllowedToolUse(
+      makeToolUse("https://ok.com"),
+    );
+    const exceeded = toolApprover.isAllowedToolUse(
+      makeToolUse("https://ok.com"),
+    );
+
+    // then:
+    assert.deepStrictEqual(blocked, {
+      action: "ask",
+      reason: "Blocked by test",
+    });
+    assert.deepStrictEqual(allowed, { action: "allow" });
+    assert.deepStrictEqual(exceeded, {
+      action: "ask",
+      reason: "Auto-approval limit exceeded (1)",
+    });
+  });
+
+  it("should not call the blocker when a deny pattern matches", () => {
+    // given:
+    let blockerCalls = 0;
+    const toolApprover = createToolUseApprover({
+      patterns: [
+        {
+          toolName: "web_fetch",
+          input: { url: "https://other.com" },
+          action: "deny",
+          reason: "nope",
+        },
+      ],
+      maxApprovals: 2,
+      defaultAction: "ask",
+      maskApprovalInput: (_name, input) => ({ url: String(input.url) }),
+      findAutoApprovalBlocker: () => {
+        blockerCalls += 1;
+        return "Blocked by test";
+      },
+    });
+
+    /** @type {MessageContentToolUse} */
+    const toolUse = {
+      type: "tool_use",
+      toolUseId: "test",
+      toolName: "web_fetch",
+      input: { url: "https://other.com", question: "?" },
+    };
+
+    // when:
+    const decision = toolApprover.isAllowedToolUse(toolUse);
+
+    // then:
+    assert.deepStrictEqual(decision, { action: "deny", reason: "nope" });
+    assert.equal(blockerCalls, 0);
+  });
+
+  it("should match config patterns against the raw input, not the masked input", () => {
+    // given: the mask drops `question`, which the config pattern requires.
+    const toolApprover = createToolUseApprover({
+      patterns: [
+        {
+          toolName: "web_fetch",
+          input: { question: "?" },
+          action: "allow",
+        },
+      ],
+      maxApprovals: 2,
+      defaultAction: "deny",
+      maskApprovalInput: (_name, input) => ({ url: String(input.url) }),
+    });
+
+    /** @type {MessageContentToolUse} */
+    const toolUse = {
+      type: "tool_use",
+      toolUseId: "test",
+      toolName: "web_fetch",
+      input: { url: "https://example.com/a", question: "?" },
+    };
+
+    // when/then:
+    assert.deepStrictEqual(toolApprover.isAllowedToolUse(toolUse), {
+      action: "allow",
+    });
+  });
+
+  it("should match an in-session approval against the masked input", () => {
+    // given:
+    const toolApprover = createToolUseApprover({
+      patterns: [],
+      maxApprovals: 5,
+      defaultAction: "ask",
+      maskApprovalInput: (_name, input) => ({
+        url: new URL(String(input.url)).origin,
+      }),
+    });
+
+    /** @param {string} url @returns {MessageContentToolUse} */
+    const makeToolUse = (url) => ({
+      type: "tool_use",
+      toolUseId: "test",
+      toolName: "web_fetch",
+      input: { url, question: "?" },
+    });
+
+    // when/then:
+    assert.deepStrictEqual(
+      toolApprover.isAllowedToolUse(makeToolUse("https://other.com/a")),
+      { action: "ask" },
+    );
+    toolApprover.allowToolUse(makeToolUse("https://other.com/a"));
+    assert.deepStrictEqual(
+      toolApprover.isAllowedToolUse(makeToolUse("https://other.com/b")),
+      { action: "allow" },
+    );
+  });
+
+  it("should skip the blocker when the same masked input was approved in this session", () => {
+    // given:
+    const toolApprover = createToolUseApprover({
+      patterns: [{ toolName: "web_fetch", action: "allow" }],
+      maxApprovals: 5,
+      defaultAction: "ask",
+      maskApprovalInput: (_name, input) => ({
+        url: new URL(String(input.url)).origin,
+      }),
+      findAutoApprovalBlocker: () => "Blocked by test",
+    });
+
+    /** @param {string} url @returns {MessageContentToolUse} */
+    const makeToolUse = (url) => ({
+      type: "tool_use",
+      toolUseId: "test",
+      toolName: "web_fetch",
+      input: { url, question: "?" },
+    });
+
+    // when/then:
+    assert.deepStrictEqual(
+      toolApprover.isAllowedToolUse(makeToolUse("https://other.com/a")),
+      { action: "ask", reason: "Blocked by test" },
+    );
+    toolApprover.allowToolUse(makeToolUse("https://other.com/a"));
+    assert.deepStrictEqual(
+      toolApprover.isAllowedToolUse(makeToolUse("https://other.com/b")),
+      { action: "allow" },
+    );
+  });
 });
 
 /**

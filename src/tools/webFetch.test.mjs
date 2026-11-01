@@ -64,7 +64,7 @@ describe("createWebFetchTool", () => {
     assert.match(result.message, /`question` is required/);
   });
 
-  it("blocks a fetch to a host outside the allow list without calling the provider", async () => {
+  it("fetches a host outside the allow list because the approval layer enforces it", async () => {
     // given:
     let modelCallerCalled = false;
     const tool = createWebFetchTool({
@@ -75,7 +75,10 @@ describe("createWebFetchTool", () => {
       modelCaller: async () => {
         modelCallerCalled = true;
         return {
-          message: { role: "assistant", content: [{ type: "text", text: "" }] },
+          message: {
+            role: "assistant",
+            content: [{ type: "text", text: "ok" }],
+          },
         };
       },
     });
@@ -84,9 +87,8 @@ describe("createWebFetchTool", () => {
     const result = await tool.impl({ url: "https://other.com", question: "?" });
 
     // then:
-    assert.ok(result instanceof Error);
-    assert.match(result.message, /Blocked by allowedDomains/);
-    assert.equal(modelCallerCalled, false);
+    assert.equal(result, "ok\n\n- [1] https://other.com/");
+    assert.equal(modelCallerCalled, true);
   });
 
   it("allows a fetch to a listed host", async () => {
@@ -114,7 +116,7 @@ describe("createWebFetchTool", () => {
     assert.equal(result, "ok\n\n- [1] https://example.com/x");
   });
 
-  it("denies every fetch when the allow list is omitted", async () => {
+  it("fetches any host when the allow list is omitted because the approval layer enforces it", async () => {
     // given:
     let modelCallerCalled = false;
     const tool = createWebFetchTool({
@@ -124,7 +126,10 @@ describe("createWebFetchTool", () => {
       modelCaller: async () => {
         modelCallerCalled = true;
         return {
-          message: { role: "assistant", content: [{ type: "text", text: "" }] },
+          message: {
+            role: "assistant",
+            content: [{ type: "text", text: "ok" }],
+          },
         };
       },
     });
@@ -136,9 +141,8 @@ describe("createWebFetchTool", () => {
     });
 
     // then:
-    assert.ok(result instanceof Error);
-    assert.match(result.message, /Blocked by allowedDomains/);
-    assert.equal(modelCallerCalled, false);
+    assert.equal(result, "ok\n\n- [1] https://example.com/");
+    assert.equal(modelCallerCalled, true);
   });
 
   it("allows a fetch to any host when the allow list is ['*']", async () => {
@@ -263,10 +267,77 @@ describe("createWebFetchTool#maskApprovalInput", () => {
 describe("createWebFetchTool#validateInput", () => {
   /**
    * @param {string} url
-   * @param {string[] | undefined} allowedDomains
    * @returns {Error | undefined}
    */
-  const validateUrl = (url, allowedDomains) => {
+  const validateUrl = (url) => {
+    const tool = createWebFetchTool({
+      provider: "command",
+      command: "true",
+      args: [],
+      modelCaller: async () => ({
+        message: { role: "assistant", content: [{ type: "text", text: "" }] },
+      }),
+    });
+    return tool.validateInput?.({ url, question: "?" });
+  };
+
+  it("accepts a host outside the allow list", () => {
+    // given:
+    const tool = createWebFetchTool({
+      provider: "command",
+      command: "true",
+      args: [],
+      allowedDomains: ["example.com"],
+      modelCaller: async () => ({
+        message: { role: "assistant", content: [{ type: "text", text: "" }] },
+      }),
+    });
+
+    // when/then:
+    assert.equal(
+      tool.validateInput?.({ url: "https://other.com", question: "?" }),
+      undefined,
+    );
+  });
+
+  it("still rejects malformed or non-http(s) URLs", () => {
+    // given/when/then:
+    assert.match(
+      validateUrl("file:///etc/passwd")?.message ?? "",
+      /must start with http/,
+    );
+    assert.match(
+      validateUrl("not a url")?.message ?? "",
+      /must start with http/,
+    );
+  });
+
+  it("requires a question", () => {
+    // given:
+    const tool = createWebFetchTool({
+      provider: "command",
+      command: "true",
+      args: [],
+      modelCaller: async () => ({
+        message: { role: "assistant", content: [{ type: "text", text: "" }] },
+      }),
+    });
+
+    // when:
+    const result = tool.validateInput?.({ url: "https://example.com" });
+
+    // then:
+    assert.match(result?.message ?? "", /`question` is required/);
+  });
+});
+
+describe("createWebFetchTool#findAutoApprovalBlocker", () => {
+  /**
+   * @param {string} url
+   * @param {string[] | undefined} allowedDomains
+   * @returns {string | undefined}
+   */
+  const blockerFor = (url, allowedDomains) => {
     const tool = createWebFetchTool({
       provider: "command",
       command: "true",
@@ -276,21 +347,22 @@ describe("createWebFetchTool#validateInput", () => {
         message: { role: "assistant", content: [{ type: "text", text: "" }] },
       }),
     });
-    return tool.validateInput?.({ url, question: "?" });
+    const masked = tool.maskApprovalInput?.({ url }) ?? {};
+    return tool.findAutoApprovalBlocker?.(masked);
   };
 
-  it("denies every URL when no allow list is configured", () => {
+  it("blocks every host when no allow list is configured", () => {
     // given/when/then:
     assert.match(
-      validateUrl("https://any.example.org/x", undefined)?.message ?? "",
+      blockerFor("https://any.example.org/x", undefined) ?? "",
       /Blocked by allowedDomains/,
     );
   });
 
-  it("denies every URL when the allow list is empty", () => {
+  it("blocks every host when the allow list is empty", () => {
     // given/when/then:
     assert.match(
-      validateUrl("https://example.com", [])?.message ?? "",
+      blockerFor("https://example.com", []) ?? "",
       /Blocked by allowedDomains/,
     );
   });
@@ -298,8 +370,8 @@ describe("createWebFetchTool#validateInput", () => {
   it("treats a non-array allow list as empty instead of throwing", () => {
     // given/when/then:
     assert.match(
-      validateUrl("https://example.com", /** @type {any} */ ("example.com"))
-        ?.message ?? "",
+      blockerFor("https://example.com", /** @type {any} */ ("example.com")) ??
+        "",
       /Blocked by allowedDomains/,
     );
   });
@@ -307,7 +379,7 @@ describe("createWebFetchTool#validateInput", () => {
   it("ignores non-string entries", () => {
     // given/when/then:
     assert.equal(
-      validateUrl(
+      blockerFor(
         "https://example.com",
         /** @type {any} */ ([42, null, "example.com"]),
       ),
@@ -317,30 +389,18 @@ describe("createWebFetchTool#validateInput", () => {
 
   it("allows any host when the allow list contains '*'", () => {
     // given/when/then:
-    assert.equal(validateUrl("https://any.example.org/x", ["*"]), undefined);
-    assert.equal(validateUrl("http://192.168.1.1/", ["*"]), undefined);
-  });
-
-  it("still denies malformed or non-http(s) URLs with '*'", () => {
-    // given/when/then:
-    assert.match(
-      validateUrl("file:///etc/passwd", ["*"])?.message ?? "",
-      /must start with http/,
-    );
-    assert.match(
-      validateUrl("not a url", ["*"])?.message ?? "",
-      /must start with http/,
-    );
+    assert.equal(blockerFor("https://any.example.org/x", ["*"]), undefined);
+    assert.equal(blockerFor("http://192.168.1.1/", ["*"]), undefined);
   });
 
   it("matches an exact host only", () => {
     // given/when/then:
     assert.equal(
-      validateUrl("https://example.com/a", ["example.com"]),
+      blockerFor("https://example.com/a", ["example.com"]),
       undefined,
     );
     assert.match(
-      validateUrl("https://a.b.example.com", ["example.com"])?.message ?? "",
+      blockerFor("https://a.b.example.com", ["example.com"]) ?? "",
       /Blocked by allowedDomains/,
     );
   });
@@ -348,11 +408,11 @@ describe("createWebFetchTool#validateInput", () => {
   it("supports wildcard entries that exclude the apex domain", () => {
     // given/when/then:
     assert.equal(
-      validateUrl("https://a.example.com", ["*.example.com"]),
+      blockerFor("https://a.example.com", ["*.example.com"]),
       undefined,
     );
     assert.match(
-      validateUrl("https://example.com", ["*.example.com"])?.message ?? "",
+      blockerFor("https://example.com", ["*.example.com"]) ?? "",
       /Blocked by allowedDomains/,
     );
   });
@@ -360,7 +420,7 @@ describe("createWebFetchTool#validateInput", () => {
   it("does not match lookalike hosts", () => {
     // given/when/then:
     assert.match(
-      validateUrl("https://evil-example.com", ["example.com"])?.message ?? "",
+      blockerFor("https://evil-example.com", ["example.com"]) ?? "",
       /Blocked by allowedDomains/,
     );
   });
@@ -368,7 +428,7 @@ describe("createWebFetchTool#validateInput", () => {
   it("ignores case, scheme, port, path, and query", () => {
     // given/when/then:
     assert.equal(
-      validateUrl("http://EXAMPLE.com:8080/p?q=1", ["example.com"]),
+      blockerFor("http://EXAMPLE.com:8080/p?q=1", ["example.com"]),
       undefined,
     );
   });
@@ -376,7 +436,7 @@ describe("createWebFetchTool#validateInput", () => {
   it("matches the host even when the URL carries userinfo", () => {
     // given/when/then:
     assert.equal(
-      validateUrl("https://user:pass@example.com/", ["example.com"]),
+      blockerFor("https://user:pass@example.com/", ["example.com"]),
       undefined,
     );
   });
@@ -384,13 +444,20 @@ describe("createWebFetchTool#validateInput", () => {
   it("does not match a trailing dot or an internationalized name", () => {
     // given/when/then:
     assert.match(
-      validateUrl("https://example.com./", ["example.com"])?.message ?? "",
+      blockerFor("https://example.com./", ["example.com"]) ?? "",
       /Blocked by allowedDomains/,
     );
     assert.match(
-      validateUrl("https://münchen.example/", ["münchen.example"])?.message ??
-        "",
+      blockerFor("https://münchen.example/", ["münchen.example"]) ?? "",
       /Blocked by allowedDomains/,
+    );
+  });
+
+  it("includes the hostname in the reason", () => {
+    // given/when/then:
+    assert.match(
+      blockerFor("https://other.com/a", ["example.com"]) ?? "",
+      /`other\.com` is not in the allow list/,
     );
   });
 });
