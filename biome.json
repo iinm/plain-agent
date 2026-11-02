@@ -47,5 +47,10 @@
       "quoteStyle": "double",
       "semicolons": "always"
     }
+  },
+  "markdown": {
+    "parser": {
+      "frontmatter": true
+    }
   }
 }
