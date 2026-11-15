@@ -28,7 +28,8 @@ export type GeminiGenerationConfig = {
         thinkingBudget?: number;
       }
     | {
-        thinkingLevel?: "low" | "medium" | "high";
+        /** Gemini 4 Hydrogen additionally supports "xhigh". */
+        thinkingLevel?: "low" | "medium" | "high" | "xhigh";
       }
   );
 };
