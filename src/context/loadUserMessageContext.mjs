@@ -5,18 +5,13 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { styleText } from "node:util";
+import {
+  imageMimeTypeFromPath,
+  imageMimeTypeMismatchError,
+} from "../utils/imageMimeType.mjs";
 import { noThrow } from "../utils/noThrow.mjs";
 import { parseFileRange } from "../utils/parseFileRange.mjs";
 import { readFileRange } from "../utils/readFileRange.mjs";
-
-/** @type {ReadonlyMap<string, string>} */
-const IMAGE_MIME_TYPES = new Map([
-  [".png", "image/png"],
-  [".jpg", "image/jpeg"],
-  [".jpeg", "image/jpeg"],
-  [".gif", "image/gif"],
-  [".webp", "image/webp"],
-]);
 
 /**
  * @param {string} message
@@ -43,8 +38,7 @@ export async function loadUserMessageContext(message) {
     const [entireMatch, leading, quoted, escaped] = match;
     const reference = quoted ?? escaped.replace(/\\ /g, " ");
 
-    const ext = path.extname(reference).toLowerCase();
-    if (IMAGE_MIME_TYPES.has(ext)) {
+    if (imageMimeTypeFromPath(reference) !== undefined) {
       const imageContent = await loadImageContent(reference);
       if (imageContent instanceof Error) {
         warn(`Failed to load image from ${reference}: ${imageContent.message}`);
@@ -114,10 +108,19 @@ async function loadImageContent(imagePath) {
 
   return await noThrow(async () => {
     const data = await readFile(absolutePath);
+    const mimeType = mimeTypeOrError(absolutePath);
+    const mismatchError = imageMimeTypeMismatchError(
+      absolutePath,
+      mimeType,
+      data,
+    );
+    if (mismatchError) {
+      throw mismatchError;
+    }
     return {
       type: "image",
       data: data.toString("base64"),
-      mimeType: inferMimeType(absolutePath),
+      mimeType,
     };
   });
 }
@@ -126,12 +129,11 @@ async function loadImageContent(imagePath) {
  * @param {string} filePath
  * @returns {string}
  */
-function inferMimeType(filePath) {
-  const extension = path.extname(filePath).toLowerCase();
-  const mimeType = IMAGE_MIME_TYPES.get(extension);
-  if (!mimeType) {
+function mimeTypeOrError(filePath) {
+  const mimeType = imageMimeTypeFromPath(filePath);
+  if (mimeType === undefined) {
     throw new Error(
-      `Unsupported image extension: ${extension} (file: ${filePath})`,
+      `Unsupported image extension: ${path.extname(filePath).toLowerCase()} (file: ${filePath})`,
     );
   }
 

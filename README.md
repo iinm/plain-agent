@@ -731,6 +731,7 @@ Files are loaded in the following order. Settings in later files override earlie
 The agent can use the following tools:
 
 - **read_file**: Read a file with line numbers (1-indexed). Supports `offset` and `limit` to read a specific range.
+- **read_image**: Read an image file (png, jpg, jpeg, gif, webp) so the agent can see it. The content must match the extension (checked against the file signature); images larger than 2 MB are rejected.
 - **write_file**: Write a file.
 - **patch_file**: Patch a file.
 - **exec_command**: Run a command without shell interpretation.
