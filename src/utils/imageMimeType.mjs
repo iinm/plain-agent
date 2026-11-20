@@ -37,8 +37,8 @@ export function imageMimeTypeFromBytes(data) {
 
 /**
  * Returns an Error when `data` does not match the MIME type declared by the
- * extension. Files whose extension and content disagree are never reinterpreted;
- * sending them as-is would fail on the provider side and strand the session.
+ * extension. The declared type is never replaced by the detected one; callers
+ * decide how to handle the mismatch.
  * @param {string} filePath
  * @param {string} declaredMimeType
  * @param {Uint8Array} data
@@ -55,7 +55,7 @@ export function imageMimeTypeMismatchError(filePath, declaredMimeType, data) {
       ? "the content is not PNG, JPEG, GIF, or WebP"
       : `the content is ${detectedMimeType}`;
   return new Error(
-    `${filePath} declares ${declaredMimeType} by its extension, but ${contentDescription}. Fix the file or its extension first; the file is sent as declared and is not reinterpreted.`,
+    `${filePath} declares ${declaredMimeType} by its extension, but ${contentDescription}. The extension and content must agree; fix the file or its extension.`,
   );
 }
 
