@@ -8,6 +8,7 @@ import {
   WebFetchToolGeminiVertexAIOptions,
 } from "./tools/webFetch.mjs";
 import {
+  WebSearchToolAgentCoreJsonOptions,
   WebSearchToolGeminiOptions,
   WebSearchToolGeminiVertexAIOptions,
 } from "./tools/webSearch.mjs";
@@ -49,14 +50,16 @@ export type WebFetchToolCommandJsonConfig = {
  * JSON-serializable webSearch configuration.
  *
  * The `command` provider runs an arbitrary local command per keyword set
- * to perform a search; the agent's main model is then used to filter the
- * combined results down to entries relevant to the question. The runtime
- * tool factory receives a resolved `modelCaller` instead — see
+ * to perform a search, and the `bedrock-agentcore` provider calls the
+ * AgentCore `InvokeWebSearch` API. In both cases the agent's main model is
+ * then used to extract the information relevant to the question. The
+ * runtime tool factory receives a resolved `modelCaller` instead — see
  * `WebSearchToolOptions` in `tools/webSearch.mjs`.
  */
 export type WebSearchToolConfig =
   | WebSearchToolGeminiOptions
   | WebSearchToolGeminiVertexAIOptions
+  | WebSearchToolAgentCoreJsonOptions
   | WebSearchToolCommandJsonConfig;
 
 export type WebSearchToolCommandJsonConfig = {

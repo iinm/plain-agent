@@ -614,6 +614,14 @@ Files are loaded in the following order. Settings in later files override earlie
       // "baseURL": "https://aiplatform.googleapis.com/v1beta1/projects/<project_id>/locations/<location>",
       // "model": "gemini-3.8-flash"
 
+      // Or use Bedrock AgentCore Web Search (requires the AWS CLI and
+      // bedrock-agentcore:InvokeWebSearch; results are distilled by the
+      // agent's model)
+      // "provider": "bedrock-agentcore",
+      // "region": "ap-northeast-1",
+      // "awsProfile": "<AWS_PROFILE>",
+      // "maxResults": 25
+
       // Or use a custom command
       // "provider": "command",
       // "command": "bash",
@@ -870,6 +878,13 @@ policy='{
         "bedrock-mantle:CreateInference"
       ],
       "Resource": "arn:aws:bedrock-mantle:*:*:*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "bedrock-agentcore:InvokeWebSearch"
+      ],
+      "Resource": "arn:aws:bedrock-agentcore:*:aws:tool/web-search.v1"
     }
   ]
 }'
