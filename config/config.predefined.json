@@ -1998,7 +1998,7 @@
     },
 
     {
-      "name": "kimi-k3",
+      "name": "kimi-k3.1-pro",
       "variant": "fireworks",
       "platform": {
         "name": "openai-compatible",
@@ -2007,16 +2007,16 @@
       "model": {
         "format": "openai-chat-completions",
         "config": {
-          "model": "accounts/fireworks/models/kimi-k3"
+          "model": "accounts/fireworks/models/kimi-k3p1-pro"
         }
       },
       "cost": {
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "prompt_tokens": 3,
-          "prompt_tokens_details.cached_tokens": -2.7,
-          "completion_tokens": 15
+          "prompt_tokens": 2,
+          "prompt_tokens_details.cached_tokens": -1.8,
+          "completion_tokens": 10
         }
       },
       "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
@@ -2041,31 +2041,6 @@
         "prices": {
           "prompt_tokens": 0.3,
           "prompt_tokens_details.cached_tokens": -0.294,
-          "completion_tokens": 1.2
-        }
-      },
-      "autoCompact": { "inputTokensKeys": ["prompt_tokens"] }
-    },
-
-    {
-      "name": "minimax-m3",
-      "variant": "fireworks",
-      "platform": {
-        "name": "openai-compatible",
-        "variant": "fireworks"
-      },
-      "model": {
-        "format": "openai-chat-completions",
-        "config": {
-          "model": "accounts/fireworks/models/minimax-m3"
-        }
-      },
-      "cost": {
-        "currency": "USD",
-        "unit": "1M",
-        "prices": {
-          "prompt_tokens": 0.3,
-          "prompt_tokens_details.cached_tokens": -0.24,
           "completion_tokens": 1.2
         }
       },
