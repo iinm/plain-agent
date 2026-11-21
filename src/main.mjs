@@ -379,7 +379,10 @@ export async function main(argv = process.argv) {
 
   if (appConfig.tools?.webSearch) {
     const webSearchConfig = appConfig.tools.webSearch;
-    if (webSearchConfig.provider === "command") {
+    if (
+      webSearchConfig.provider === "command" ||
+      webSearchConfig.provider === "bedrock-agentcore"
+    ) {
       const webSearchCallModel = createModelCaller({
         ...modelDef,
         platform: {
@@ -389,14 +392,8 @@ export async function main(argv = process.argv) {
       });
       builtinTools.push(
         createWebSearchTool({
-          provider: "command",
-          command: webSearchConfig.command,
-          args: webSearchConfig.args,
-          timeoutMs: webSearchConfig.timeoutMs,
-          env: webSearchConfig.env,
+          ...webSearchConfig,
           modelCaller: webSearchCallModel,
-          maxLengthPerSearch: webSearchConfig.maxLengthPerSearch,
-          maxTotalLength: webSearchConfig.maxTotalLength,
         }),
       );
     } else {
