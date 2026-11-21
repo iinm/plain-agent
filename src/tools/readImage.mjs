@@ -18,7 +18,7 @@ export const readImageTool = {
   def: {
     name: "read_image",
     description:
-      "Read an image file (png, jpg, jpeg, gif, webp) and return the image itself so you can see it. Use this instead of read_file for images. The content must match the extension; mismatched files are rejected. Images larger than 2 MB are rejected; resize them first.",
+      "Read an image file (png, jpg, jpeg, gif, webp) and return the image itself so you can see it.",
     inputSchema: {
       type: "object",
       properties: {
