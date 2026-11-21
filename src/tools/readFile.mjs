@@ -5,6 +5,7 @@
 
 import fs from "node:fs";
 import readline from "node:readline";
+import { imageMimeTypeFromPath } from "../utils/imageMimeType.mjs";
 import { lineHash } from "../utils/lineHash.mjs";
 import { noThrow } from "../utils/noThrow.mjs";
 
@@ -44,6 +45,13 @@ export const readFileTool = {
       const { filePath } = input;
       const offset = input.offset ?? 1;
       const limit = input.limit;
+
+      const mimeType = imageMimeTypeFromPath(filePath);
+      if (mimeType !== undefined) {
+        throw new Error(
+          `${filePath} is an image (${mimeType}). Use read_image to see it.`,
+        );
+      }
 
       if (!Number.isInteger(offset) || offset < 1) {
         throw new Error("offset must be a positive integer (1-indexed)");

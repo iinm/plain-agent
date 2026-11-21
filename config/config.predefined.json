@@ -54,6 +54,10 @@
         "action": "allow"
       },
       {
+        "toolName": "read_image",
+        "action": "allow"
+      },
+      {
         "toolName": { "$regex": "^(switch_to_subagent|switch_to_main_agent)$" },
         "action": "allow"
       },

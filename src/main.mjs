@@ -33,6 +33,7 @@ import { createCompactContextTool } from "./tools/compactContext.mjs";
 import { createExecCommandTool } from "./tools/execCommand.mjs";
 import { createPatchFileTool } from "./tools/patchFile.mjs";
 import { readFileTool } from "./tools/readFile.mjs";
+import { readImageTool } from "./tools/readImage.mjs";
 import { createSwitchToMainAgentTool } from "./tools/switchToMainAgent.mjs";
 import { createSwitchToSubagentTool } from "./tools/switchToSubagent.mjs";
 import { createTmuxCommandTool } from "./tools/tmuxCommand.mjs";
@@ -360,6 +361,7 @@ export async function main(argv = process.argv) {
   const builtinTools = [
     execCommandTool,
     readFileTool,
+    readImageTool,
     writeFileTool,
     createPatchFileTool(),
     createCompactContextTool(),

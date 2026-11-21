@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { copyFile, mkdir, readFile, rm } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, describe, it } from "node:test";
 import { loadUserMessageContext } from "./loadUserMessageContext.mjs";
@@ -114,6 +114,19 @@ describe("loadUserMessageContext", () => {
         type: "image",
       },
     ]);
+  });
+
+  it("should not attach an image whose content does not match its extension", async () => {
+    // given:
+    await mkdir(TEMP_DIR, { recursive: true });
+    const filePath = path.join(TEMP_DIR, "mismatch.png");
+    await writeFile(filePath, "this is not an image");
+
+    // when:
+    const result = await loadUserMessageContext(`@${filePath}`);
+
+    // then: the reference stays plain text and no image part is produced
+    assert.deepStrictEqual(result, [{ text: `@${filePath}`, type: "text" }]);
   });
 });
 

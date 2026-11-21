@@ -112,6 +112,18 @@ describe("readFileTool", () => {
     assert.equal(result, "");
   });
 
+  it("points at read_image when the file is an image", async () => {
+    // when:
+    const result = await readFileTool.impl({
+      filePath: "src/utils/test/iinm.png",
+    });
+
+    // then:
+    assert.ok(result instanceof Error);
+    assert.match(result.message, /is an image \(image\/png\)/);
+    assert.match(result.message, /Use read_image/);
+  });
+
   it("errors for non-existent file", async () => {
     // when:
     const result = await readFileTool.impl({

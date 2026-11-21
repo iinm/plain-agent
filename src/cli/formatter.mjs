@@ -4,6 +4,7 @@
  * @import { ExecCommandInput } from "../tools/execCommand"
  * @import { PatchBlock, PatchFileInput } from "../tools/patchFile"
  * @import { ReadFileInput } from "../tools/readFile"
+ * @import { ReadImageInput } from "../tools/readImage"
  * @import { WriteFileInput } from "../tools/writeFile"
  * @import { TmuxCommandInput } from "../tools/tmuxCommand"
  * @import { SwitchToSubagentInput } from "../tools/switchToSubagent"
@@ -16,6 +17,7 @@ import {
   parseBlocks,
   renderPatchBlock,
 } from "../tools/patchFile.mjs";
+import { base64ByteLength, formatBytes } from "../utils/formatBytes.mjs";
 import { noThrow } from "../utils/noThrow.mjs";
 
 /** Length above which a single-line arg forces block-form rendering. */
@@ -153,6 +155,12 @@ export async function formatToolUse(toolUse, options = {}) {
     return lines.join("\n");
   }
 
+  if (toolName === "read_image") {
+    /** @type {Partial<ReadImageInput>} */
+    const readImageInput = input;
+    return [`${toolName}`, `filePath: ${readImageInput.filePath}`].join("\n");
+  }
+
   if (toolName === "tmux_command") {
     /** @type {Partial<TmuxCommandInput>} */
     const tmuxCommandInput = input;
@@ -230,6 +238,16 @@ const MAX_DISPLAY_OUTPUT_LENGTH = 1024;
  */
 export function formatToolResult(toolResult) {
   const { content, isError } = toolResult;
+
+  if (!isError && toolResult.toolName === "read_image") {
+    const image = content.find((part) => part.type === "image");
+    if (image) {
+      return styleText(
+        "gray",
+        `(read_image: ${image.mimeType}, ${formatBytes(base64ByteLength(image.data))})`,
+      );
+    }
+  }
 
   /** @type {string[]} */
   const contentStringParts = [];

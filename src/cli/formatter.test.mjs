@@ -773,6 +773,61 @@ describe("formatToolResult (read_file)", () => {
   });
 });
 
+describe("formatToolUse (read_image)", () => {
+  it("renders the filePath", async () => {
+    // when:
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "i1",
+      toolName: "read_image",
+      input: { filePath: "/tmp/diagram.png" },
+    });
+
+    // then:
+    assert.equal(output, "read_image\nfilePath: /tmp/diagram.png");
+  });
+});
+
+describe("formatToolResult (read_image)", () => {
+  /** @type {string | undefined} */
+  let prevForceColor;
+  before(() => {
+    prevForceColor = process.env.FORCE_COLOR;
+    process.env.FORCE_COLOR = "1";
+  });
+  after(() => {
+    if (prevForceColor === undefined) {
+      delete process.env.FORCE_COLOR;
+    } else {
+      process.env.FORCE_COLOR = prevForceColor;
+    }
+  });
+
+  it("returns a summary instead of the base64 payload", () => {
+    // given:
+    const toolResult = /** @type {MessageContentToolResult} */ ({
+      type: "tool_result",
+      toolUseId: "i1",
+      toolName: "read_image",
+      content: [
+        {
+          type: "image",
+          data: Buffer.alloc(12_000).toString("base64"),
+          mimeType: "image/png",
+        },
+      ],
+      isError: false,
+    });
+
+    // when:
+    const output = formatToolResult(toolResult);
+
+    // then:
+    assert.equal(output, styleText("gray", "(read_image: image/png, 12 KB)"));
+    assert.ok(!output.includes("base64"));
+  });
+});
+
 describe("formatMarkdownTable", () => {
   /** @type {string | undefined} */
   let prevForceColor;
