@@ -322,25 +322,28 @@ export function formatProviderTokenUsage(usage) {
   /** @type {string[]} */
   const header = [];
   for (const [key, value] of Object.entries(usage)) {
-    if (typeof value === "number") {
+    if (["attribution", "request_fields"].includes(key)) {
+      continue;
+    }
+    if (typeof value === "number" || typeof value === "string") {
       header.push(`${key}: ${value}`);
-    } else if (typeof value === "string") {
-      header.push(`${key}: ${value}`);
-    } else if (value) {
-      lines.push(
-        `(${key}) ${Object.entries(value)
-          .filter(
-            ([k]) =>
-              ![
-                // OpenAI
-                "audio_tokens",
-                "accepted_prediction_tokens",
-                "rejected_prediction_tokens",
-              ].includes(k),
-          )
-          .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
-          .join(", ")}`,
-      );
+    } else if (value && typeof value === "object" && !Array.isArray(value)) {
+      const details = Object.entries(value)
+        .filter(
+          ([k, v]) =>
+            ![
+              // OpenAI
+              "audio_tokens",
+              "accepted_prediction_tokens",
+              "rejected_prediction_tokens",
+            ].includes(k) &&
+            (typeof v === "number" || typeof v === "string"),
+        )
+        .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
+        .join(", ");
+      if (details) {
+        lines.push(`(${key}) ${details}`);
+      }
     }
   }
 
