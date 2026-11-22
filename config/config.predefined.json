@@ -524,6 +524,12 @@
       }
     ]
   },
+  "platforms": [
+    {
+      "name": "openai-codex",
+      "variant": "default"
+    }
+  ],
   "models": [
     {
       "name": "claude-haiku-5-5",
@@ -1658,7 +1664,7 @@
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
-      "name": "gpt-6.1-sol",
+      "name": "gpt-6.1-terra",
       "variant": "thinking-medium",
       "platform": {
         "name": "openai",
@@ -1668,7 +1674,67 @@
       "model": {
         "format": "openai-responses",
         "config": {
-          "model": "gpt-6.1-sol",
+          "model": "gpt-6.1-terra",
+          "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
+          "reasoning": { "effort": "medium", "summary": "auto" },
+          "store": false,
+          "include": ["reasoning.encrypted_content"]
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "input_tokens": 1,
+          "input_tokens_details.cached_tokens": -0.95,
+          "input_tokens_details.cache_write_tokens": 0.25,
+          "output_tokens": 5
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
+    },
+    {
+      "name": "gpt-6.1-terra",
+      "variant": "thinking-high",
+      "platform": {
+        "name": "openai",
+        "variant": "default",
+        "baseURL": "https://api.openai.com"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-6.1-terra",
+          "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
+          "reasoning": { "effort": "high", "summary": "auto" },
+          "store": false,
+          "include": ["reasoning.encrypted_content"]
+        }
+      },
+      "cost": {
+        "currency": "USD",
+        "unit": "1M",
+        "prices": {
+          "input_tokens": 1,
+          "input_tokens_details.cached_tokens": -0.95,
+          "input_tokens_details.cache_write_tokens": 0.25,
+          "output_tokens": 5
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
+    },
+    {
+      "name": "gpt-6.2-sol",
+      "variant": "thinking-medium",
+      "platform": {
+        "name": "openai",
+        "variant": "default",
+        "baseURL": "https://api.openai.com"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-6.2-sol",
           "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "medium", "summary": "auto" },
           "store": false,
@@ -1688,7 +1754,7 @@
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
-      "name": "gpt-6.1-sol",
+      "name": "gpt-6.2-sol",
       "variant": "thinking-high",
       "platform": {
         "name": "openai",
@@ -1698,7 +1764,7 @@
       "model": {
         "format": "openai-responses",
         "config": {
-          "model": "gpt-6.1-sol",
+          "model": "gpt-6.2-sol",
           "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "high", "summary": "auto" },
           "store": false,
@@ -1718,7 +1784,7 @@
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
-      "name": "gpt-6-astra",
+      "name": "gpt-6.2-astra",
       "variant": "thinking-medium",
       "platform": {
         "name": "openai",
@@ -1728,7 +1794,7 @@
       "model": {
         "format": "openai-responses",
         "config": {
-          "model": "gpt-6-astra",
+          "model": "gpt-6.2-astra",
           "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "medium", "summary": "auto" },
           "store": false,
@@ -1739,16 +1805,16 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 10,
-          "input_tokens_details.cached_tokens": -9,
-          "input_tokens_details.cache_write_tokens": 2.5,
-          "output_tokens": 50
+          "input_tokens": 8,
+          "input_tokens_details.cached_tokens": -7.6,
+          "input_tokens_details.cache_write_tokens": 2,
+          "output_tokens": 40
         }
       },
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }
     },
     {
-      "name": "gpt-6-astra",
+      "name": "gpt-6.2-astra",
       "variant": "thinking-high",
       "platform": {
         "name": "openai",
@@ -1758,7 +1824,7 @@
       "model": {
         "format": "openai-responses",
         "config": {
-          "model": "gpt-6-astra",
+          "model": "gpt-6.2-astra",
           "prompt_cache_key": { "$env": "PLAIN_AGENT_SESSION_ID" },
           "reasoning": { "effort": "high", "summary": "auto" },
           "store": false,
@@ -1769,10 +1835,139 @@
         "currency": "USD",
         "unit": "1M",
         "prices": {
-          "input_tokens": 10,
-          "input_tokens_details.cached_tokens": -9,
-          "input_tokens_details.cache_write_tokens": 2.5,
-          "output_tokens": 50
+          "input_tokens": 8,
+          "input_tokens_details.cached_tokens": -7.6,
+          "input_tokens_details.cache_write_tokens": 2,
+          "output_tokens": 40
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
+    },
+
+    {
+      "name": "gpt-6-luna",
+      "variant": "thinking-medium-codex",
+      "platform": {
+        "name": "openai-codex",
+        "variant": "default"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-6-luna",
+          "reasoning": { "effort": "medium", "summary": "auto" }
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
+    },
+    {
+      "name": "gpt-6-luna",
+      "variant": "thinking-high-codex",
+      "platform": {
+        "name": "openai-codex",
+        "variant": "default"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-6-luna",
+          "reasoning": { "effort": "high", "summary": "auto" }
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
+    },
+    {
+      "name": "gpt-6.1-terra",
+      "variant": "thinking-medium-codex",
+      "platform": {
+        "name": "openai-codex",
+        "variant": "default"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-6.1-terra",
+          "reasoning": { "effort": "medium", "summary": "auto" }
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
+    },
+    {
+      "name": "gpt-6.1-terra",
+      "variant": "thinking-high-codex",
+      "platform": {
+        "name": "openai-codex",
+        "variant": "default"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-6.1-terra",
+          "reasoning": { "effort": "high", "summary": "auto" }
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
+    },
+    {
+      "name": "gpt-6.2-sol",
+      "variant": "thinking-medium-codex",
+      "platform": {
+        "name": "openai-codex",
+        "variant": "default"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-6.2-sol",
+          "reasoning": { "effort": "medium", "summary": "auto" }
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
+    },
+    {
+      "name": "gpt-6.2-sol",
+      "variant": "thinking-high-codex",
+      "platform": {
+        "name": "openai-codex",
+        "variant": "default"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-6.2-sol",
+          "reasoning": { "effort": "high", "summary": "auto" }
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
+    },
+    {
+      "name": "gpt-6.2-astra",
+      "variant": "thinking-medium-codex",
+      "platform": {
+        "name": "openai-codex",
+        "variant": "default"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-6.2-astra",
+          "reasoning": { "effort": "medium", "summary": "auto" }
+        }
+      },
+      "autoCompact": { "inputTokensKeys": ["input_tokens"] }
+    },
+    {
+      "name": "gpt-6.2-astra",
+      "variant": "thinking-high-codex",
+      "platform": {
+        "name": "openai-codex",
+        "variant": "default"
+      },
+      "model": {
+        "format": "openai-responses",
+        "config": {
+          "model": "gpt-6.2-astra",
+          "reasoning": { "effort": "high", "summary": "auto" }
         }
       },
       "autoCompact": { "inputTokensKeys": ["input_tokens"] }

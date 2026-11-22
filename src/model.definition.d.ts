@@ -41,6 +41,11 @@ export type PlatformConfig =
       apiKey: string;
     }
   | {
+      name: "openai-codex";
+      variant: string;
+      customHeaders?: Record<string, string>;
+    }
+  | {
       name: "openai-compatible";
       variant: string;
       baseURL: string;

@@ -1,6 +1,7 @@
 /**
  * @import { ModelInput, Message, AssistantMessage, ModelOutput, PartialMessageContent } from "../model"
  * @import { OpenAIFunctionToolCall, OpenAIInputImage, OpenAIInputItem, OpenAIModelConfig, OpenAIOutputItem, OpenAIOutputMessage, OpenAIReasoning, OpenAIRequest, OpenAIStreamEvent, OpenAIToolFunction } from "./openaiResponses"
+ * @import { OpenAICodexOptions } from "./platform/openaiCodex.mjs"
  * @import { ToolDefinition } from "../tool"
  */
 
@@ -9,21 +10,63 @@ import { noThrow } from "../utils/noThrow.mjs";
 import { loadAwsCredentials, signAwsRequest } from "./platform/awsSigV4.mjs";
 import { getAzureAccessToken } from "./platform/azure.mjs";
 import { resolveBedrockSigningTarget } from "./platform/bedrock.mjs";
+import { prepareOpenAICodexRequest } from "./platform/openaiCodex.mjs";
+
+/**
+ * @typedef {Object} OpenAIResponsesCallOptions
+ * @property {typeof fetch} [fetchImpl]
+ * @property {OpenAICodexOptions} [openAICodex]
+ * @property {(milliseconds: number) => Promise<void>} [sleep]
+ */
+
+/**
+ * @typedef {Object} OpenAIResponsesRetryState
+ * @property {number} retryCount
+ * @property {boolean} codexAuthRetried
+ */
 
 /**
  * @param {import("../model.definition").PlatformConfig} platformConfig
  * @param {OpenAIModelConfig} modelConfig
  * @param {ModelInput} input
- * @param {number} retryCount
+ * @param {OpenAIResponsesCallOptions} [options]
  * @returns {Promise<ModelOutput | Error>}
  */
 export async function callOpenAIResponsesModel(
   platformConfig,
   modelConfig,
   input,
-  retryCount = 0,
+  options = {},
+) {
+  return await callOpenAIResponsesModelWithRetry(
+    platformConfig,
+    modelConfig,
+    input,
+    options,
+    { retryCount: 0, codexAuthRetried: false },
+  );
+}
+
+/**
+ * @param {import("../model.definition").PlatformConfig} platformConfig
+ * @param {OpenAIModelConfig} modelConfig
+ * @param {ModelInput} input
+ * @param {OpenAIResponsesCallOptions} options
+ * @param {OpenAIResponsesRetryState} retryState
+ * @returns {Promise<ModelOutput | Error>}
+ */
+async function callOpenAIResponsesModelWithRetry(
+  platformConfig,
+  modelConfig,
+  input,
+  options,
+  retryState,
 ) {
   return await noThrow(async () => {
+    const fetchImpl = options.fetchImpl ?? fetch;
+    const sleep = options.sleep ?? defaultSleep;
+    const retryCount = retryState.retryCount;
+    let codexAuthRetried = retryState.codexAuthRetried;
     const messages = convertGenericMessageToOpenAIFormat(input.messages);
     const tools = convertGenericeToolDefinitionToOpenAIFormat(
       input.tools || [],
@@ -40,19 +83,36 @@ export async function callOpenAIResponsesModel(
       stream: true,
     };
 
-    const url = `${platformConfig.baseURL}/v1/responses`;
-    const body = JSON.stringify(request);
+    let codexRequest =
+      platformConfig.name === "openai-codex"
+        ? await prepareOpenAICodexRequest(request, {
+            ...options.openAICodex,
+            customHeaders: platformConfig.customHeaders,
+          })
+        : undefined;
 
-    // bedrock-mantle + sso profile
+    const runFetchForOpenAICodex = async () => {
+      if (!codexRequest) {
+        throw new Error("OpenAI Codex request is not prepared");
+      }
+      return fetchImpl(codexRequest.url, {
+        method: "POST",
+        headers: codexRequest.headers,
+        body: codexRequest.body,
+        signal: AbortSignal.timeout(8 * 60 * 1000),
+      });
+    };
+
     const runFetchForBedrockMantle = async () => {
+      if (platformConfig.name !== "bedrock-mantle") {
+        throw new Error(`Unsupported platform: ${platformConfig.name}`);
+      }
+      const url = `${platformConfig.baseURL}/v1/responses`;
+      const body = JSON.stringify(request);
       const { region, service } = resolveBedrockSigningTarget(url);
       const { hostname, pathname } = new URL(url);
 
-      const credentials = await loadAwsCredentials(
-        platformConfig.name === "bedrock-mantle"
-          ? platformConfig.awsProfile
-          : "",
-      );
+      const credentials = await loadAwsCredentials(platformConfig.awsProfile);
 
       const signed = signAwsRequest(
         {
@@ -69,7 +129,7 @@ export async function callOpenAIResponsesModel(
         { region, service, credentials },
       );
 
-      return fetch(url, {
+      return fetchImpl(url, {
         method: signed.method,
         headers: signed.headers,
         body: signed.body,
@@ -78,40 +138,60 @@ export async function callOpenAIResponsesModel(
     };
 
     const runFetchDefault = async () => {
-      const apiKey = await (async () => {
+      const { apiKey, baseURL } = await (async () => {
         switch (platformConfig.name) {
           case "openai":
           case "openai-compatible":
-            return platformConfig.apiKey;
+            return {
+              apiKey: platformConfig.apiKey,
+              baseURL: platformConfig.baseURL,
+            };
           case "azure":
-            return getAzureAccessToken(
-              platformConfig.azureConfigDir
-                ? {
-                    azureConfigDir: platformConfig.azureConfigDir,
-                  }
-                : undefined,
-            );
+            return {
+              apiKey: await getAzureAccessToken(
+                platformConfig.azureConfigDir
+                  ? {
+                      azureConfigDir: platformConfig.azureConfigDir,
+                    }
+                  : undefined,
+              ),
+              baseURL: platformConfig.baseURL,
+            };
           default:
             throw new Error(`Unsupported platform: ${platformConfig.name}`);
         }
       })();
 
-      return fetch(url, {
+      return fetchImpl(`${baseURL}/v1/responses`, {
         method: "POST",
         headers: {
           ...platformConfig.customHeaders,
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
-        body,
+        body: JSON.stringify(request),
         signal: AbortSignal.timeout(8 * 60 * 1000),
       });
     };
 
-    const response =
-      platformConfig.name === "bedrock-mantle"
+    let response = codexRequest
+      ? await runFetchForOpenAICodex()
+      : platformConfig.name === "bedrock-mantle"
         ? await runFetchForBedrockMantle()
         : await runFetchDefault();
+
+    if (response.status === 401 && codexRequest && !codexAuthRetried) {
+      const previousAuthorization = codexRequest.headers.Authorization;
+      const nextRequest = await prepareOpenAICodexRequest(request, {
+        ...options.openAICodex,
+        customHeaders: platformConfig.customHeaders,
+      });
+      if (nextRequest.headers.Authorization !== previousAuthorization) {
+        codexRequest = nextRequest;
+        codexAuthRetried = true;
+        response = await runFetchForOpenAICodex();
+      }
+    }
 
     const retryInterval = Math.min(2 * 2 ** retryCount, 16);
     if ((response.status === 429 || response.status >= 500) && retryCount < 5) {
@@ -121,18 +201,23 @@ export async function callOpenAIResponsesModel(
           `OpenAI rate limit exceeded. Retry in ${retryInterval} seconds...`,
         ),
       );
-      await new Promise((resolve) => setTimeout(resolve, retryInterval * 1000));
-      return callOpenAIResponsesModel(
+      await sleep(retryInterval * 1000);
+      return callOpenAIResponsesModelWithRetry(
         platformConfig,
         modelConfig,
         input,
-        retryCount + 1,
+        options,
+        { retryCount: retryCount + 1, codexAuthRetried },
       );
     }
 
     if (response.status !== 200) {
+      const responseBody =
+        platformConfig.name === "openai-codex"
+          ? undefined
+          : await response.text();
       throw new Error(
-        `Failed to call OpenAI model: status=${response.status}, body=${await response.text()}`,
+        `Failed to call OpenAI model: status=${response.status}${responseBody === undefined ? "" : `, body=${responseBody}`}`,
       );
     }
 
@@ -144,7 +229,11 @@ export async function callOpenAIResponsesModel(
 
     /** @type {OpenAIStreamEvent[]} */
     const streamEvents = [];
-    for await (const streamEvent of readOpenAIStreamData(reader)) {
+    const streamData =
+      platformConfig.name === "openai-codex"
+        ? readOpenAICodexStreamData(reader)
+        : readOpenAIStreamData(reader);
+    for await (const streamEvent of streamData) {
       streamEvents.push(streamEvent);
       const partialContent =
         convertOpenAIStreamDataToAgentPartialContent(streamEvent);
@@ -154,36 +243,59 @@ export async function callOpenAIResponsesModel(
     }
 
     const lastEvent = streamEvents.at(-1);
+    if (lastEvent?.type === "response.failed") {
+      throw new Error("OpenAI response failed");
+    }
     if (lastEvent?.type !== "response.completed") {
-      const lastEventTrimmed =
-        lastEvent?.type === "response.failed"
-          ? {
-              type: lastEvent.type,
-              response: { error: lastEvent.response.error },
-            }
-          : lastEvent;
+      const lastEventSuffix =
+        platformConfig.name === "openai-codex"
+          ? ""
+          : `: lastEvent=${lastEvent?.type ?? "none"}`;
+      if (retryCount >= 5) {
+        throw new Error(
+          `OpenAI stream did not complete after retries${lastEventSuffix}`,
+        );
+      }
       console.error(
         styleText(
           "yellow",
-          `OpenAI stream did not complete: ${JSON.stringify(lastEventTrimmed)}. Retry in ${retryInterval} seconds...`,
+          `OpenAI stream did not complete${lastEventSuffix}. Retry in ${retryInterval} seconds...`,
         ),
       );
-      await new Promise((resolve) => setTimeout(resolve, retryInterval * 1000));
-      return callOpenAIResponsesModel(
+      await sleep(retryInterval * 1000);
+      return callOpenAIResponsesModelWithRetry(
         platformConfig,
         modelConfig,
         input,
-        retryCount + 1,
+        options,
+        { retryCount: retryCount + 1, codexAuthRetried },
       );
     }
 
-    return {
-      message: convertOpenAIAssistantMessageToGenericFormat(
-        lastEvent.response.output,
-      ),
-      providerTokenUsage: lastEvent.response.usage,
-    };
+    try {
+      return {
+        message: convertOpenAIAssistantMessageToGenericFormat(
+          lastEvent.response.output,
+        ),
+        providerTokenUsage: lastEvent.response.usage,
+      };
+    } catch (error) {
+      if (
+        platformConfig.name === "openai-codex" &&
+        error instanceof SyntaxError
+      ) {
+        throw new Error("Invalid OpenAI Codex response");
+      }
+      throw error;
+    }
   });
+}
+
+/**
+ * @param {number} milliseconds
+ */
+async function defaultSleep(milliseconds) {
+  await new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 /**
@@ -592,5 +704,19 @@ export async function* readOpenAIStreamData(reader) {
     if (dataEndIndices.length) {
       buffer = buffer.slice(dataEndIndices[dataEndIndices.length - 1] + 2);
     }
+  }
+}
+
+/**
+ * @param {ReadableStreamDefaultReader<Uint8Array>} reader
+ */
+async function* readOpenAICodexStreamData(reader) {
+  try {
+    yield* readOpenAIStreamData(reader);
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error("Invalid OpenAI Codex stream response");
+    }
+    throw error;
   }
 }

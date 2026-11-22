@@ -31,13 +31,10 @@ export async function callBedrockConverseModel(
       input.tools || [],
     );
 
-    const url = (() => {
-      const baseURL = platformConfig.baseURL;
-      if (platformConfig.name !== "bedrock") {
-        throw new Error(`Unsupported platform: ${platformConfig.name}`);
-      }
-      return `${baseURL}/model/${modelConfig.model}/converse-stream`;
-    })();
+    if (platformConfig.name !== "bedrock") {
+      throw new Error(`Unsupported platform: ${platformConfig.name}`);
+    }
+    const url = `${platformConfig.baseURL}/model/${modelConfig.model}/converse-stream`;
 
     const region = extractRegionFromBaseURL(platformConfig.baseURL);
 

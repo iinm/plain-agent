@@ -1,5 +1,5 @@
 /**
- * @typedef {HelpSubcommand | InteractiveSubcommand | BatchSubcommand | ListModelsSubcommand | ListSessionsSubcommand | InstallClaudeCodePluginsSubcommand | CostSubcommand | TestApprovalSubcommand | SandboxSubcommand} Subcommand
+ * @typedef {HelpSubcommand | InteractiveSubcommand | BatchSubcommand | ListModelsSubcommand | ListSessionsSubcommand | InstallClaudeCodePluginsSubcommand | CostSubcommand | AuthSubcommand | TestApprovalSubcommand | SandboxSubcommand} Subcommand
  */
 
 /**
@@ -35,6 +35,10 @@
 
 /**
  * @typedef {{ type: 'cost', from?: string, to?: string }} CostSubcommand
+ */
+
+/**
+ * @typedef {{ type: 'auth', action: 'login' | 'logout', provider: 'openai-codex' }} AuthSubcommand
  */
 
 /**
@@ -92,6 +96,9 @@ Subcommands:
   cost [--from YYYY-MM-DD] [--to YYYY-MM-DD]
                 Show aggregated token cost per day for a period.
                 Defaults to the first day of the current month through today.
+
+  auth <login|logout> openai-codex
+                Log in to or out of a ChatGPT subscription using Device Code Flow.
 
   sandbox [-c <additional-config-file>] -- <sandbox args...>
                 Launch the sandbox command using the app config's sandbox settings.
@@ -239,6 +246,24 @@ export function parseCliArgs(argv) {
         model,
         session,
         budgetSoftLimit,
+      },
+    };
+  }
+
+  if (subcommandName === "auth") {
+    const [action, provider, ...extraArgs] = args.slice(1);
+    if (
+      !["login", "logout"].includes(action) ||
+      provider !== "openai-codex" ||
+      extraArgs.length > 0
+    ) {
+      return new Error("Usage: plain auth <login|logout> openai-codex");
+    }
+    return {
+      subcommand: {
+        type: "auth",
+        action: /** @type {'login' | 'logout'} */ (action),
+        provider,
       },
     };
   }

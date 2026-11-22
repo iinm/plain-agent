@@ -34,15 +34,13 @@ export async function callAnthropicModel(
     );
 
     const url = (() => {
-      const baseURL = platformConfig.baseURL;
-
       switch (platformConfig.name) {
         case "anthropic":
-          return `${baseURL}/v1/messages`;
+          return `${platformConfig.baseURL}/v1/messages`;
         case "bedrock":
-          return `${baseURL}/model/${modelConfig.model}/invoke-with-response-stream`;
+          return `${platformConfig.baseURL}/model/${modelConfig.model}/invoke-with-response-stream`;
         case "vertex-ai":
-          return `${baseURL}/publishers/anthropic/models/${modelConfig.model}:streamRawPredict`;
+          return `${platformConfig.baseURL}/publishers/anthropic/models/${modelConfig.model}:streamRawPredict`;
         default:
           throw new Error(`Unsupported platform: ${platformConfig.name}`);
       }

@@ -28,6 +28,9 @@ export function createCacheEnabledGeminiModelCaller(
   platformConfig,
   modelConfig,
 ) {
+  if (platformConfig.name !== "gemini" && platformConfig.name !== "vertex-ai") {
+    throw new Error(`Unsupported platform: ${platformConfig.name}`);
+  }
   const baseURL =
     platformConfig.baseURL ||
     "https://generativelanguage.googleapis.com/v1beta";

@@ -37,20 +37,18 @@ export async function callOpenAIChatCompletionsModel(
     );
 
     const url = (() => {
-      const baseURL = platformConfig.baseURL;
-
       switch (platformConfig.name) {
         case "openai":
         case "openai-compatible":
-          return `${baseURL}/v1/chat/completions`;
+          return `${platformConfig.baseURL}/v1/chat/completions`;
         case "bedrock":
-          return `${baseURL}/model/${modelConfig.model}/invoke-with-response-stream`;
+          return `${platformConfig.baseURL}/model/${modelConfig.model}/invoke-with-response-stream`;
         case "bedrock-mantle":
-          return `${baseURL}/v1/chat/completions`;
+          return `${platformConfig.baseURL}/v1/chat/completions`;
         case "vertex-ai":
-          return `${baseURL}/endpoints/openapi/chat/completions`;
+          return `${platformConfig.baseURL}/endpoints/openapi/chat/completions`;
         case "azure":
-          return `${baseURL}/models/chat/completions?api-version=2024-05-01-preview`;
+          return `${platformConfig.baseURL}/models/chat/completions?api-version=2024-05-01-preview`;
         default:
           throw new Error(`Unsupported platform: ${platformConfig.name}`);
       }
