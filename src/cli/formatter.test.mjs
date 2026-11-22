@@ -5,10 +5,12 @@ import assert from "node:assert";
 import fs from "node:fs/promises";
 import { after, afterEach, before, describe, it } from "node:test";
 import { styleText } from "node:util";
+import { createCostTracker } from "../metrics/costTracker.mjs";
 import { createPatchFileTool } from "../tools/patchFile.mjs";
 import { lineHash } from "../utils/lineHash.mjs";
 import {
   formatCommandArgs,
+  formatCostSummary,
   formatMarkdownTable,
   formatProviderTokenUsage,
   formatToolResult,
@@ -888,6 +890,40 @@ describe("formatProviderTokenUsage", () => {
     assert.equal(
       output,
       "\ninput_tokens: 10, output_tokens: 2, total_tokens: 12, status: completed",
+    );
+  });
+});
+
+describe("formatCostSummary", () => {
+  it("omits flattened provider metadata from the token breakdown", () => {
+    // given:
+    const tracker = createCostTracker();
+    tracker.recordUsage(
+      /** @type {any} */ ({
+        input_tokens: 2051,
+        input_tokens_details: { cached_tokens: 0 },
+        attribution: {
+          items: {
+            msg_0: { output_tokens: 62 },
+            rs_0: { input_tokens: 2, output_tokens: 40 },
+          },
+        },
+        request_fields: { max_output_tokens: 1024 },
+      }),
+    );
+    const summary = tracker.calculateCost();
+
+    // when:
+    const output = stripAnsi(formatCostSummary(summary));
+
+    // then:
+    assert.ok(output.includes("input_tokens: 2,051"));
+    assert.ok(output.includes("input_tokens_details.cached_tokens: 0"));
+    assert.ok(!output.includes("attribution"));
+    assert.ok(!output.includes("request_fields"));
+    assert.equal(
+      summary.breakdown["attribution.items.msg_0.output_tokens"].tokens,
+      62,
     );
   });
 });
