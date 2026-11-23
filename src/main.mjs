@@ -12,6 +12,7 @@ import {
   resolvePluginPaths,
 } from "./claudeCodePlugin.mjs";
 import { parseCliArgs, printHelp } from "./cli/args.mjs";
+import { runAuthCommand } from "./cli/auth.mjs";
 import { startBatchSession } from "./cli/batch.mjs";
 import { runCostCommand } from "./cli/cost.mjs";
 import { startInteractiveSession } from "./cli/interactive.mjs";
@@ -61,6 +62,17 @@ export async function main(argv = process.argv) {
   if (cliArgs.subcommand.type === "help") {
     printHelp();
     process.exit(0);
+  }
+
+  if (cliArgs.subcommand.type === "auth") {
+    try {
+      const exitCode = await runAuthCommand(cliArgs.subcommand);
+      process.exit(exitCode);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(message);
+      process.exit(1);
+    }
   }
 
   if (cliArgs.subcommand.type === "models") {

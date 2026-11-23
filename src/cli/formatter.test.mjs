@@ -5,11 +5,14 @@ import assert from "node:assert";
 import fs from "node:fs/promises";
 import { after, afterEach, before, describe, it } from "node:test";
 import { styleText } from "node:util";
+import { createCostTracker } from "../metrics/costTracker.mjs";
 import { createPatchFileTool } from "../tools/patchFile.mjs";
 import { lineHash } from "../utils/lineHash.mjs";
 import {
   formatCommandArgs,
+  formatCostSummary,
   formatMarkdownTable,
+  formatProviderTokenUsage,
   formatToolResult,
   formatToolUse,
 } from "./formatter.mjs";
@@ -825,6 +828,103 @@ describe("formatToolResult (read_image)", () => {
     // then:
     assert.equal(output, styleText("gray", "(read_image: image/png, 12 KB)"));
     assert.ok(!output.includes("base64"));
+  });
+});
+
+describe("formatProviderTokenUsage", () => {
+  it("omits verbose Codex fields and nested values while retaining token details", () => {
+    // given:
+    const usage = /** @type {any} */ ({
+      input_tokens: 2051,
+      output_tokens: 20,
+      total_tokens: 2071,
+      input_tokens_details: {
+        cached_tokens: 0,
+        cache_write_tokens: 0,
+        nested: { id: "nested-detail-id" },
+      },
+      output_tokens_details: {
+        reasoning_tokens: 0,
+        items: ["nested-output-item"],
+      },
+      attribution: { items: [{ id: "large-attribution-id" }] },
+      request_fields: { tools: [{ name: "large-tool-definition" }] },
+    });
+
+    // when:
+    const output = stripAnsi(formatProviderTokenUsage(usage));
+
+    // then:
+    assert.equal(
+      output,
+      [
+        "",
+        "input_tokens: 2051, output_tokens: 20, total_tokens: 2071",
+        "(input_tokens_details) cached_tokens: 0, cache_write_tokens: 0 / (output_tokens_details) reasoning_tokens: 0",
+      ].join("\n"),
+    );
+    assert.ok(!output.includes("large-attribution-id"));
+    assert.ok(!output.includes("large-tool-definition"));
+    assert.ok(!output.includes("nested-detail-id"));
+  });
+
+  it("omits detail groups emptied by filtering and preserves scalar headers", () => {
+    // given:
+    const usage = /** @type {any} */ ({
+      input_tokens: 10,
+      output_tokens: 2,
+      total_tokens: 12,
+      status: "completed",
+      input_tokens_details: {
+        audio_tokens: 1,
+        accepted_prediction_tokens: 2,
+        rejected_prediction_tokens: 3,
+      },
+      output_tokens_details: { nested: { reasoning_tokens: 1 } },
+    });
+
+    // when:
+    const output = stripAnsi(formatProviderTokenUsage(usage));
+
+    // then:
+    assert.equal(
+      output,
+      "\ninput_tokens: 10, output_tokens: 2, total_tokens: 12, status: completed",
+    );
+  });
+});
+
+describe("formatCostSummary", () => {
+  it("omits flattened provider metadata from the token breakdown", () => {
+    // given:
+    const tracker = createCostTracker();
+    tracker.recordUsage(
+      /** @type {any} */ ({
+        input_tokens: 2051,
+        input_tokens_details: { cached_tokens: 0 },
+        attribution: {
+          items: {
+            msg_0: { output_tokens: 62 },
+            rs_0: { input_tokens: 2, output_tokens: 40 },
+          },
+        },
+        request_fields: { max_output_tokens: 1024 },
+      }),
+    );
+    const summary = tracker.calculateCost();
+
+    // when:
+    const output = stripAnsi(formatCostSummary(summary));
+
+    // then:
+    assert.ok(output.includes("input_tokens: 2,051"));
+    assert.ok(output.includes("input_tokens_details.cached_tokens: 0"));
+    assert.ok(!output.includes("attribution"));
+    assert.ok(!output.includes("request_fields"));
+    assert.equal(
+      summary.breakdown["attribution.items.msg_0.output_tokens"].tokens,
+      62,
+    );
   });
 });
 

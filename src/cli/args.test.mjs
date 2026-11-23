@@ -69,6 +69,48 @@ describe("parseCliArgs (batch subcommand)", () => {
   });
 });
 
+describe("parseCliArgs (auth subcommand)", () => {
+  it("parses login and logout for openai-codex", () => {
+    // given: both supported authentication actions
+    const actions = ["login", "logout"];
+
+    // when: parsing the provider-specific commands
+    const subcommands = actions.map((action) =>
+      parse(["auth", action, "openai-codex"]),
+    );
+
+    // then: the action and provider are preserved
+    assert.deepEqual(subcommands, [
+      { type: "auth", action: "login", provider: "openai-codex" },
+      { type: "auth", action: "logout", provider: "openai-codex" },
+    ]);
+  });
+
+  it("rejects incomplete, unsupported, and extra arguments", () => {
+    // given: invalid authentication command lines
+    const invalidCommands = [
+      ["auth", "login"],
+      ["auth", "delete", "openai-codex"],
+      ["auth", "login", "other-provider"],
+      ["auth", "login", "openai-codex", "extra"],
+    ];
+
+    // when: parsing each command
+    const results = invalidCommands.map((command) =>
+      parseCliArgs(["node", "plain", ...command]),
+    );
+
+    // then: every command returns the authentication usage error
+    for (const result of results) {
+      assert.ok(result instanceof Error);
+      assert.equal(
+        result.message,
+        "Usage: plain auth <login|logout> openai-codex",
+      );
+    }
+  });
+});
+
 describe("parseCliArgs (sandbox subcommand)", () => {
   it("parses `sandbox -- --tty zsh`", () => {
     // when:

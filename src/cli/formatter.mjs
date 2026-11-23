@@ -26,6 +26,8 @@ const ARG_BLOCK_LENGTH_THRESHOLD = 60;
 /** Total JSON length above which args are rendered in block form even if each individual arg is short. */
 const ARGS_TOTAL_BLOCK_LENGTH_THRESHOLD = 160;
 
+const HIDDEN_PROVIDER_TOKEN_USAGE_KEYS = ["attribution", "request_fields"];
+
 /**
  * Format an args array for display.
  * Uses compact JSON for short single-line args; switches to a YAML-style
@@ -322,25 +324,28 @@ export function formatProviderTokenUsage(usage) {
   /** @type {string[]} */
   const header = [];
   for (const [key, value] of Object.entries(usage)) {
-    if (typeof value === "number") {
+    if (HIDDEN_PROVIDER_TOKEN_USAGE_KEYS.includes(key)) {
+      continue;
+    }
+    if (typeof value === "number" || typeof value === "string") {
       header.push(`${key}: ${value}`);
-    } else if (typeof value === "string") {
-      header.push(`${key}: ${value}`);
-    } else if (value) {
-      lines.push(
-        `(${key}) ${Object.entries(value)
-          .filter(
-            ([k]) =>
-              ![
-                // OpenAI
-                "audio_tokens",
-                "accepted_prediction_tokens",
-                "rejected_prediction_tokens",
-              ].includes(k),
-          )
-          .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
-          .join(", ")}`,
-      );
+    } else if (value && typeof value === "object" && !Array.isArray(value)) {
+      const details = Object.entries(value)
+        .filter(
+          ([k, v]) =>
+            ![
+              // OpenAI
+              "audio_tokens",
+              "accepted_prediction_tokens",
+              "rejected_prediction_tokens",
+            ].includes(k) &&
+            (typeof v === "number" || typeof v === "string"),
+        )
+        .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
+        .join(", ");
+      if (details) {
+        lines.push(`(${key}) ${details}`);
+      }
     }
   }
 
@@ -378,6 +383,13 @@ export function formatCostSummary(summary) {
 
   lines.push(styleText("bold", "\nTokens:"));
   for (const [key, { tokens, cost }] of Object.entries(summary.breakdown)) {
+    if (
+      HIDDEN_PROVIDER_TOKEN_USAGE_KEYS.some(
+        (usageKey) => key === usageKey || key.startsWith(`${usageKey}.`),
+      )
+    ) {
+      continue;
+    }
     const tokenStr = `${key}: ${tokens.toLocaleString()}`;
 
     if (cost !== undefined) {
