@@ -253,19 +253,6 @@ Create a configuration file.
 ```
 
 <details>
-<summary><b>ChatGPT Subscription provider example</b></summary>
-
-Log in with your ChatGPT subscription, then select a predefined Codex model. No additional configuration is required. Model availability depends on your ChatGPT plan.
-
-```sh
-plain auth login openai-codex
-plain -m gpt-6-luna+thinking-medium-codex
-```
-
-To log out, run `plain auth logout openai-codex`.
-</details>
-
-<details>
 <summary><b>Bedrock / Vertex AI / Azure provider examples</b></summary>
 
 ```js
