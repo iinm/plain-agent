@@ -615,8 +615,7 @@ Files are loaded in the following order. Settings in later files override earlie
       // "model": "gemini-3.8-flash"
 
       // Or use Bedrock AgentCore Web Search (requires the AWS CLI and
-      // bedrock-agentcore:InvokeWebSearch; results are distilled by the
-      // agent's model)
+      // an IAM policy granting bedrock-agentcore:InvokeWebSearch)
       // "provider": "bedrock-agentcore",
       // "region": "ap-northeast-1",
       // "awsProfile": "<AWS_PROFILE>",
