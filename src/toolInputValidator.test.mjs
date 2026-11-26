@@ -174,12 +174,12 @@ describe("findUnsafeToolInputReason for string inputs", () => {
     {
       desc: "broken symlink in allowed directory (.agent/tmp) pointing outside",
       arg: brokenSymlinkInAllowedDir,
-      expected: "outside the working directory",
+      expected: "cannot resolve path",
     },
     {
       desc: "broken symlink outside pointing outside",
       arg: brokenSymlinkOutside,
-      expected: "outside the working directory",
+      expected: "cannot resolve path",
     },
     {
       desc: "symlink in allowed directory pointing inside",
@@ -189,7 +189,7 @@ describe("findUnsafeToolInputReason for string inputs", () => {
     {
       desc: "nested symlink in allowed directory pointing outside (broken)",
       arg: nestedSymlinkInAllowedDir,
-      expected: "outside the working directory",
+      expected: "cannot resolve path",
     },
     {
       desc: "circular symlink in allowed directory",
@@ -432,6 +432,28 @@ describe("findUnsafeToolInputReason for string inputs", () => {
       }
     });
   }
+
+  it("should reject a missing file under a symlink to outside", () => {
+    // given:
+    const targetPath = path.join(tmpSymlink, "new-file.txt");
+
+    // when:
+    const reason = findUnsafeToolInputReason(targetPath, [], true);
+
+    // then:
+    assertUnsafeReason(reason, "outside the working directory");
+  });
+
+  it("should allow a missing file under an in-project directory", () => {
+    // given:
+    const targetPath = path.resolve("src", "new-file.txt");
+
+    // when:
+    const reason = findUnsafeToolInputReason(targetPath);
+
+    // then:
+    assert.strictEqual(reason, undefined);
+  });
 });
 
 describe("allowedPaths parameter", () => {

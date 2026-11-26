@@ -168,7 +168,7 @@ function findUnsafeItemRawReason(
   // It will then create an absolute path like `/path/to/project/-l`.
   const absPath = path.resolve(arg);
 
-  const realPath = resolveRealPath(absPath, workingDir);
+  const realPath = resolveRealPath(absPath);
   if (!realPath) {
     return `cannot resolve path (broken or circular symlink): ${arg}`;
   }
@@ -220,52 +220,40 @@ function findUnsafeItemRawReason(
 
 /**
  * @param {string} absPath
- * @param {string} workingDir
  * @returns {string | undefined}
  */
-function resolveRealPath(absPath, workingDir) {
-  const realPathResult = noThrowSync(() => fs.realpathSync(absPath));
-  if (!(realPathResult instanceof Error)) {
-    return realPathResult;
-  }
-
-  // realpathSync can fail if the path (or its target) doesn't exist.
-  // Manually follow symlink chain for broken links to ensure they don't point outside.
+function resolveRealPath(absPath) {
   let currentPath = absPath;
-  const seen = new Set();
-  const MAX_SYMLINK_DEPTH = 10;
+  const missingPathParts = [];
 
-  for (let depth = 0; depth < MAX_SYMLINK_DEPTH; depth++) {
-    if (seen.has(currentPath)) {
-      return undefined; // Circular link
-    }
-    seen.add(currentPath);
-
-    // Check if the current path is a symbolic link.
-    const lstats = noThrowSync(() => fs.lstatSync(currentPath));
-    if (lstats instanceof Error || !lstats.isSymbolicLink()) {
-      break; // Not a symlink or doesn't exist; stop traversal.
+  while (true) {
+    const realPathResult = noThrowSync(() => fs.realpathSync(currentPath));
+    if (!(realPathResult instanceof Error)) {
+      return path.resolve(realPathResult, ...missingPathParts);
     }
 
-    // Read the target path the symlink points to.
-    const target = noThrowSync(() => fs.readlinkSync(currentPath));
-    if (typeof target !== "string") {
-      break; // Failed to read the link; stop traversal.
+    if (
+      /** @type {NodeJS.ErrnoException} */ (realPathResult).code !== "ENOENT"
+    ) {
+      return undefined;
     }
 
-    currentPath = path.resolve(path.dirname(currentPath), target);
-
-    // If at any point it goes outside, we stop and use this path for the check.
-    if (!isInsideWorkingDirectory(currentPath, workingDir)) {
-      return currentPath;
+    const stats = noThrowSync(() => fs.lstatSync(currentPath));
+    if (!(stats instanceof Error)) {
+      return undefined;
     }
+    if (/** @type {NodeJS.ErrnoException} */ (stats).code !== "ENOENT") {
+      return undefined;
+    }
+
+    const parentPath = path.dirname(currentPath);
+    if (parentPath === currentPath) {
+      return undefined;
+    }
+
+    missingPathParts.unshift(path.basename(currentPath));
+    currentPath = parentPath;
   }
-
-  if (seen.size >= MAX_SYMLINK_DEPTH) {
-    return undefined; // Too deep
-  }
-
-  return currentPath;
 }
 
 /**
