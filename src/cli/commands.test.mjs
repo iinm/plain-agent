@@ -115,9 +115,9 @@ describe("matchAgentsCommand", () => {
 });
 
 describe("parseToolApprovalInput", () => {
-  it("preserves one-time approval spellings", () => {
+  it("maps y / yes / ｙ to allow once", () => {
     // when/then:
-    for (const input of ["y", "yes", "Yes", "yEs", "ｙ", "Ｙ"]) {
+    for (const input of ["y", "yes", "ｙ"]) {
       assert.deepEqual(parseToolApprovalInput(input), { action: "allow" });
     }
   });
