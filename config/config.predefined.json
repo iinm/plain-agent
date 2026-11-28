@@ -43,7 +43,7 @@
           "command": "rg",
           "args": {
             "$has": {
-              "$regex": "^(--unrestricted|--no-ignore|--follow|-[^-]*[uL])"
+              "$regex": "^(--unrestricted|--no-ignore|--follow|--pre($|=)|-[^-]*[uL])"
             }
           }
         },
@@ -77,6 +77,15 @@
           "args": ["-n", { "$regex": "^\\d+(,\\d+)?(p|l)$" }]
         },
         "action": "allow"
+      },
+      {
+        "toolName": "exec_command",
+        "input": {
+          "command": "git",
+          "args": { "$has": "--ext-diff" }
+        },
+        "action": "ask",
+        "reason": "--ext-diff can run an external diff program"
       },
       {
         "toolName": "exec_command",
@@ -323,6 +332,44 @@
         "toolUse": {
           "toolName": "exec_command",
           "input": { "command": "sed", "args": ["-n", "42p", "file.txt"] }
+        },
+        "expectedAction": "allow"
+      },
+      {
+        "desc": "rg with a separate --pre argument should require approval",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": {
+            "command": "rg",
+            "args": ["--pre", "converter", "pattern"]
+          }
+        },
+        "expectedAction": "ask"
+      },
+      {
+        "desc": "rg with an inline --pre argument should require approval",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "rg", "args": ["--pre=converter", "pattern"] }
+        },
+        "expectedAction": "ask"
+      },
+      {
+        "desc": "git diff with --ext-diff should require approval",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": {
+            "command": "git",
+            "args": ["diff", "--stat", "--ext-diff"]
+          }
+        },
+        "expectedAction": "ask"
+      },
+      {
+        "desc": "git diff with --no-ext-diff should be allowed",
+        "toolUse": {
+          "toolName": "exec_command",
+          "input": { "command": "git", "args": ["diff", "--no-ext-diff"] }
         },
         "expectedAction": "allow"
       },

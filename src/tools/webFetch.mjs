@@ -148,8 +148,7 @@ export function createWebFetchTool(config) {
       validateInput(/** @type {WebFetchInput} */ (input)),
 
     /**
-     * Reduce the URL to its origin so approving one URL approves any path on
-     * the same host. The in-session matcher applies the mask to both sides.
+     * Reduce the URL to its origin for auto-approval checks.
      *
      * @param {Record<string, unknown>} input
      * @returns {Record<string, unknown>}

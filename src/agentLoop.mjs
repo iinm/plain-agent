@@ -91,7 +91,7 @@ export function createAgentLoop({
   async function respondToToolApproval(decision) {
     await runTurn(() =>
       applyToolApprovalDecision(
-        { stateManager, toolExecutor, subagentManager, toolUseApprover },
+        { stateManager, toolExecutor, subagentManager },
         decision,
       ),
     );
@@ -435,7 +435,6 @@ export function createAgentLoop({
  * @property {StateManager} stateManager
  * @property {ToolExecutor} toolExecutor
  * @property {SubagentManager} subagentManager
- * @property {ToolUseApprover} toolUseApprover
  */
 
 /**
@@ -450,8 +449,7 @@ export function createAgentLoop({
  * @returns {Promise<void>}
  */
 async function applyToolApprovalDecision(context, decision) {
-  const { stateManager, toolExecutor, subagentManager, toolUseApprover } =
-    context;
+  const { stateManager, toolExecutor, subagentManager } = context;
 
   /** @type {MessageContentToolUse[]} */
   const toolUseParts = (stateManager.getMessageAt(-1)?.content ?? []).filter(
@@ -475,12 +473,6 @@ async function applyToolApprovalDecision(context, decision) {
       { role: "user", content: decision.content },
     ]);
     return;
-  }
-
-  if (decision.action === "allowSession") {
-    for (const toolUse of toolUseParts) {
-      toolUseApprover.allowToolUse(toolUse);
-    }
   }
 
   const executionResult = await toolExecutor.executeBatch(toolUseParts);

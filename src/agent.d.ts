@@ -16,14 +16,11 @@ export type AgentInput = (MessageContentText | MessageContentImage)[];
 /**
  * Outcome of a pending tool-approval request, applied to the whole batch.
  * - `allow`: run the tools once
- * - `allowSession`: run now and auto-approve the same calls for the rest of
- *   the session
  * - `deny`: reject the tools; `content` is appended as a user message so the
  *   model receives it as an instruction
  */
 export type ToolApprovalDecision =
   | { action: "allow" }
-  | { action: "allowSession" }
   | { action: "deny"; content: AgentInput };
 
 export type Agent = {

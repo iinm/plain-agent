@@ -170,46 +170,6 @@ describe("createToolUseApprover", () => {
     });
   });
 
-  it("should mask input when allowed", () => {
-    // given:
-    const toolApprover = createToolUseApprover({
-      patterns: [],
-      maxApprovals: 2,
-      defaultAction: "ask",
-      maskApprovalInput: (_name, input) => {
-        // ignore content
-        const { filePath } = input;
-        return { filePath };
-      },
-    });
-
-    /** @type {MessageContentToolUse} */
-    const toolUse = {
-      type: "tool_use",
-      toolUseId: "test",
-      toolName: "write_file",
-      input: { filePath: "allowed.txt", content: "hello" },
-    };
-
-    // when/then:
-    assert.deepStrictEqual(
-      toolApprover.isAllowedToolUse(toolUse),
-      {
-        action: "ask",
-        reason: 'No approval rule matched (default action is "ask")',
-      },
-      "should not approve disallowed tool use",
-    );
-
-    // when/then:
-    toolApprover.allowToolUse(toolUse);
-    assert.deepStrictEqual(
-      toolApprover.isAllowedToolUse(toolUse),
-      { action: "allow" },
-      "should approve allowed tool use",
-    );
-  });
-
   it("should match tool use when pattern.input is undefined", () => {
     // given:
     const toolApprover = createToolUseApprover({
@@ -580,72 +540,6 @@ describe("createToolUseApprover", () => {
     assert.deepStrictEqual(toolApprover.isAllowedToolUse(toolUse), {
       action: "allow",
     });
-  });
-
-  it("should match an in-session approval against the masked input", () => {
-    // given:
-    const toolApprover = createToolUseApprover({
-      patterns: [],
-      maxApprovals: 5,
-      defaultAction: "ask",
-      maskApprovalInput: (_name, input) => ({
-        url: new URL(String(input.url)).origin,
-      }),
-    });
-
-    /** @param {string} url @returns {MessageContentToolUse} */
-    const makeToolUse = (url) => ({
-      type: "tool_use",
-      toolUseId: "test",
-      toolName: "web_fetch",
-      input: { url, question: "?" },
-    });
-
-    // when/then:
-    assert.deepStrictEqual(
-      toolApprover.isAllowedToolUse(makeToolUse("https://other.com/a")),
-      {
-        action: "ask",
-        reason: 'No approval rule matched (default action is "ask")',
-      },
-    );
-    toolApprover.allowToolUse(makeToolUse("https://other.com/a"));
-    assert.deepStrictEqual(
-      toolApprover.isAllowedToolUse(makeToolUse("https://other.com/b")),
-      { action: "allow" },
-    );
-  });
-
-  it("should skip the blocker when the same masked input was approved in this session", () => {
-    // given:
-    const toolApprover = createToolUseApprover({
-      patterns: [{ toolName: "web_fetch", action: "allow" }],
-      maxApprovals: 5,
-      defaultAction: "ask",
-      maskApprovalInput: (_name, input) => ({
-        url: new URL(String(input.url)).origin,
-      }),
-      findAutoApprovalBlocker: () => "Blocked by test",
-    });
-
-    /** @param {string} url @returns {MessageContentToolUse} */
-    const makeToolUse = (url) => ({
-      type: "tool_use",
-      toolUseId: "test",
-      toolName: "web_fetch",
-      input: { url, question: "?" },
-    });
-
-    // when/then:
-    assert.deepStrictEqual(
-      toolApprover.isAllowedToolUse(makeToolUse("https://other.com/a")),
-      { action: "ask", reason: "Blocked by test" },
-    );
-    toolApprover.allowToolUse(makeToolUse("https://other.com/a"));
-    assert.deepStrictEqual(
-      toolApprover.isAllowedToolUse(makeToolUse("https://other.com/b")),
-      { action: "allow" },
-    );
   });
 });
 

@@ -22,8 +22,6 @@ export function createToolUseApprover({
 }) {
   const state = {
     approvalCount: 0,
-    /** @type {ToolUsePattern[]} */
-    allowedToolUseInSession: [],
   };
 
   /** @returns {void} */
@@ -36,12 +34,6 @@ export function createToolUseApprover({
    * @returns {ToolUseDecision}
    */
   function isAllowedToolUse(toolUse) {
-    const maskedInput = maskApprovalInput(toolUse.toolName, toolUse.input);
-    const allowedInSession = state.allowedToolUseInSession.some((pattern) =>
-      matchesToolUse(toolUse.toolName, maskedInput, pattern),
-    );
-
-    // Config patterns match the raw input; only session approvals use the mask.
     for (const pattern of patterns) {
       if (!matchesToolUse(toolUse.toolName, toolUse.input, pattern)) {
         continue;
@@ -67,7 +59,7 @@ export function createToolUseApprover({
       }
 
       if (action === "allow") {
-        return decideAllow(toolUse, maskedInput, allowedInSession);
+        return decideAllow(toolUse);
       }
 
       return {
@@ -80,10 +72,6 @@ export function createToolUseApprover({
       };
     }
 
-    if (allowedInSession) {
-      return decideAllow(toolUse, maskedInput, true);
-    }
-
     return defaultAction === "ask"
       ? {
           action: "ask",
@@ -94,23 +82,10 @@ export function createToolUseApprover({
 
   /**
    * @param {MessageContentToolUse} toolUse
-   * @returns {void}
-   */
-  function allowToolUse(toolUse) {
-    state.allowedToolUseInSession.push({
-      toolName: toolUse.toolName,
-      input: maskApprovalInput(toolUse.toolName, toolUse.input),
-      action: "allow",
-    });
-  }
-
-  /**
-   * @param {MessageContentToolUse} toolUse
-   * @param {Record<string, unknown>} maskedInput
-   * @param {boolean} allowedInSession
    * @returns {ToolUseDecision}
    */
-  function decideAllow(toolUse, maskedInput, allowedInSession) {
+  function decideAllow(toolUse) {
+    const maskedInput = maskApprovalInput(toolUse.toolName, toolUse.input);
     const failure = shouldSkipPathValidation(toolUse.toolName, toolUse.input)
       ? undefined
       : findUnsafeToolInput(maskedInput, allowedPaths, allowGitUnmanagedFiles);
@@ -125,13 +100,9 @@ export function createToolUseApprover({
       };
     }
 
-    // A session approval already covers everything `maskedInput` can reveal,
-    // so the blocker would only repeat what the user just confirmed.
-    if (!allowedInSession) {
-      const blocker = findAutoApprovalBlocker(toolUse.toolName, maskedInput);
-      if (blocker !== undefined) {
-        return { action: defaultAction, reason: blocker };
-      }
+    const blocker = findAutoApprovalBlocker(toolUse.toolName, maskedInput);
+    if (blocker !== undefined) {
+      return { action: defaultAction, reason: blocker };
     }
 
     state.approvalCount += 1;
@@ -160,7 +131,6 @@ export function createToolUseApprover({
   }
   return {
     isAllowedToolUse,
-    allowToolUse,
     resetApprovalCount,
   };
 }

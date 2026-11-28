@@ -15,6 +15,8 @@ import { notify } from "../utils/notify.mjs";
 import { createCommandHandler } from "./commands.mjs";
 import { createCompleter, SLASH_COMMANDS } from "./completer.mjs";
 import {
+  escapeTerminalControls,
+  escapeTerminalText,
   formatCostSummary,
   formatProviderTokenUsage,
   printMessage,
@@ -396,9 +398,9 @@ export function startInteractiveSession({
           );
         }
       } else if (partialContent.type === "text") {
-        outputStreamBuffer.feed(partialContent.content);
+        outputStreamBuffer.feed(escapeTerminalText(partialContent.content));
       } else {
-        process.stdout.write(partialContent.content);
+        process.stdout.write(escapeTerminalText(partialContent.content));
       }
     }
     if (partialContent.position === "stop") {
@@ -468,7 +470,7 @@ export function startInteractiveSession({
               state.subagentName,
               styleText(
                 "yellow",
-                `Approve ${hasMixedApprovals ? "all " : ""}${toolUseCount} ${toolText}? (y = allow once, Y = allow in this session, or feedback)`,
+                `Approve ${hasMixedApprovals ? "all " : ""}${toolUseCount} ${toolText}? (y = allow once, or feedback)`,
               ),
             ),
           );
@@ -514,15 +516,6 @@ export function startInteractiveSession({
 
   consumeAgentEvents();
   cli.prompt();
-}
-
-/** @param {string} text */
-function escapeTerminalControls(text) {
-  return text.replace(
-    /[\p{Cc}\p{Bidi_Control}]/gu,
-    (character) =>
-      `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`,
-  );
 }
 
 /**
