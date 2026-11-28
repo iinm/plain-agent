@@ -265,7 +265,8 @@ export function applyBlocks(original, blocks) {
  * the original file: the block header, then removed lines ("- "), added lines
  * ("+ "), and unchanged context ("  ") for its range only.
  *
- * The optional `style` callbacks colorize the header and change lines; they
+ * The optional `style.line` callback formats every line before the other
+ * callbacks colorize the header and change lines; they
  * default to identity so the output is plain text suitable for tool results,
  * while the CLI passes styleText-based stylers for colored display.
  *
@@ -275,10 +276,11 @@ export function applyBlocks(original, blocks) {
  * @param {PatchBlock} block
  * @param {string[] | PatchOriginalLines | undefined} originalLines
  * @param {string} nonce
- * @param {{ header?: DiffStyler, del?: DiffStyler, add?: DiffStyler }} [style]
+ * @param {{ header?: DiffStyler, del?: DiffStyler, add?: DiffStyler, line?: DiffStyler }} [style]
  * @returns {string}
  */
 export function renderPatchBlock(block, originalLines, nonce, style = {}) {
+  const formatLine = style.line ?? ((text) => text);
   const header = style.header ?? ((text) => text);
   const del = style.del ?? ((text) => text);
   const add = style.add ?? ((text) => text);
@@ -290,7 +292,9 @@ export function renderPatchBlock(block, originalLines, nonce, style = {}) {
   if (block.op === "replace") {
     out.push(
       header(
-        `REPLACE ${nonce} ${block.start}:${block.startHash}-${block.end}:${block.endHash}`,
+        formatLine(
+          `REPLACE ${nonce} ${block.start}:${block.startHash}-${block.end}:${block.endHash}`,
+        ),
       ),
     );
     if (source) {
@@ -306,25 +310,27 @@ export function renderPatchBlock(block, originalLines, nonce, style = {}) {
       // "+ ".
       for (const op of diffLines(oldSlice, block.body)) {
         if (op.type === "-") {
-          out.push(del(`- ${op.line}`));
+          out.push(del(formatLine(`- ${op.line}`)));
         } else if (op.type === "+") {
-          out.push(add(`+ ${op.line}`));
+          out.push(add(formatLine(`+ ${op.line}`)));
         } else {
-          out.push(`  ${op.line}`);
+          out.push(formatLine(`  ${op.line}`));
         }
       }
     } else {
       // No file context available — fall back to listing the body as
       // additions so the new content is still visible.
-      for (const line of block.body) {
-        out.push(add(`+ ${line}`));
+      for (const bodyLine of block.body) {
+        out.push(add(formatLine(`+ ${bodyLine}`)));
       }
     }
   } else {
     const afterSuffix = block.afterHash ? `:${block.afterHash}` : "";
-    out.push(header(`INSERT_AFTER ${nonce} ${block.after}${afterSuffix}`));
-    for (const line of block.body) {
-      out.push(add(`+ ${line}`));
+    out.push(
+      header(formatLine(`INSERT_AFTER ${nonce} ${block.after}${afterSuffix}`)),
+    );
+    for (const bodyLine of block.body) {
+      out.push(add(formatLine(`+ ${bodyLine}`)));
     }
   }
   return out.join("\n");

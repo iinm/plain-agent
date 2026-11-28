@@ -28,6 +28,27 @@ const ARGS_TOTAL_BLOCK_LENGTH_THRESHOLD = 160;
 
 const HIDDEN_PROVIDER_TOKEN_USAGE_KEYS = ["attribution", "request_fields"];
 
+/** @param {unknown} value */
+export function escapeTerminalControls(value) {
+  return String(value).replace(
+    /[\p{Cc}\p{Bidi_Control}\p{Zl}\p{Zp}]/gu,
+    (character) =>
+      `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`,
+  );
+}
+
+/** @param {string} text */
+export function escapeTerminalText(text) {
+  return text.split("\n").map(escapeTerminalControls).join("\n");
+}
+
+/** @param {string} text */
+function indentToolInput(text) {
+  return text
+    ? text.split("\n").map((line) => `  | ${line}`).join("\n")
+    : "";
+}
+
 /**
  * Format an args array for display.
  * Uses compact JSON for short single-line args; switches to a YAML-style
@@ -39,7 +60,7 @@ const HIDDEN_PROVIDER_TOKEN_USAGE_KEYS = ["attribution", "request_fields"];
  */
 export function formatCommandArgs(args) {
   if (!Array.isArray(args) || args.length === 0) {
-    return `args: ${JSON.stringify(args ?? [])}`;
+    return `args: ${escapeTerminalControls(JSON.stringify(args ?? []))}`;
   }
 
   const needsBlock =
@@ -76,7 +97,7 @@ export function formatCommandArgs(args) {
  */
 function highlightCommandArgs(args) {
   return (
-    args
+    escapeTerminalControls(args)
       // --foo
       .replace(
         /(^|\s|")(--[a-zA-Z0-9-]+)(\s|"|$)/gm,
@@ -102,6 +123,7 @@ function highlightCommandArgs(args) {
  */
 export async function formatToolUse(toolUse, options = {}) {
   const { toolName, input } = toolUse;
+  const title = escapeTerminalControls(toolName);
 
   if (toolName === "exec_command") {
     /** @type {Partial<ExecCommandInput>} */
@@ -111,13 +133,13 @@ export async function formatToolUse(toolUse, options = {}) {
       sandboxMode &&
       sandboxMode.mode === "sandbox" &&
       sandboxMode.additionalArgs?.length
-        ? `${toolName}${styleText("yellow", ` [${sandboxMode.additionalArgs.join(" ")}]`)}`
+        ? `${title}${styleText("yellow", ` [${sandboxMode.additionalArgs.join(" ")}]`)}`
         : sandboxMode && sandboxMode.mode === "unsandboxed"
-          ? `${toolName}${styleText("yellow", " [unsandboxed]")}`
-          : toolName;
+          ? `${title}${styleText("yellow", " [unsandboxed]")}`
+          : title;
     return [
       toolNameLine,
-      `command: ${JSON.stringify(execCommandInput.command)}`,
+      `command: ${escapeTerminalControls(JSON.stringify(execCommandInput.command))}`,
       formatCommandArgs(execCommandInput.args),
     ].join("\n");
   }
@@ -126,9 +148,9 @@ export async function formatToolUse(toolUse, options = {}) {
     /** @type {Partial<WriteFileInput>} */
     const writeFileInput = input;
     return [
-      `${toolName}`,
-      `filePath: ${writeFileInput.filePath}`,
-      `content:\n${writeFileInput.content}`,
+      title,
+      `filePath: ${escapeTerminalControls(writeFileInput.filePath)}`,
+      `content:\n${indentToolInput(escapeTerminalText(String(writeFileInput.content)))}`,
     ].join("\n");
   }
 
@@ -138,21 +160,26 @@ export async function formatToolUse(toolUse, options = {}) {
     const filePath = patchFileInput.filePath ?? "";
     const patch = patchFileInput.patch || "";
     const rendered = await renderPatch(filePath, patch);
-    return [`${toolName}`, `path: ${filePath}`, `patch:\n${rendered}`].join(
-      "\n",
-    );
+    return [
+      title,
+      `path: ${escapeTerminalControls(filePath)}`,
+      `patch:\n${indentToolInput(rendered)}`,
+    ].join("\n");
   }
 
   if (toolName === "read_file") {
     /** @type {Partial<ReadFileInput>} */
     const readFileInput = input;
     /** @type {string[]} */
-    const lines = [`${toolName}`, `filePath: ${readFileInput.filePath}`];
+    const lines = [
+      title,
+      `filePath: ${escapeTerminalControls(readFileInput.filePath)}`,
+    ];
     if (readFileInput.offset !== undefined) {
-      lines.push(`offset: ${readFileInput.offset}`);
+      lines.push(`offset: ${escapeTerminalControls(readFileInput.offset)}`);
     }
     if (readFileInput.limit !== undefined) {
-      lines.push(`limit: ${readFileInput.limit}`);
+      lines.push(`limit: ${escapeTerminalControls(readFileInput.limit)}`);
     }
     return lines.join("\n");
   }
@@ -160,15 +187,18 @@ export async function formatToolUse(toolUse, options = {}) {
   if (toolName === "read_image") {
     /** @type {Partial<ReadImageInput>} */
     const readImageInput = input;
-    return [`${toolName}`, `filePath: ${readImageInput.filePath}`].join("\n");
+    return [
+      title,
+      `filePath: ${escapeTerminalControls(readImageInput.filePath)}`,
+    ].join("\n");
   }
 
   if (toolName === "tmux_command") {
     /** @type {Partial<TmuxCommandInput>} */
     const tmuxCommandInput = input;
     return [
-      `${toolName}`,
-      `command: ${tmuxCommandInput.command}`,
+      title,
+      `command: ${escapeTerminalControls(tmuxCommandInput.command)}`,
       formatCommandArgs(tmuxCommandInput.args),
     ].join("\n");
   }
@@ -177,9 +207,9 @@ export async function formatToolUse(toolUse, options = {}) {
     /** @type {Partial<SwitchToSubagentInput>} */
     const switchToSubagentInput = input;
     return [
-      `${toolName}`,
-      `name: ${switchToSubagentInput.name}`,
-      `goal: ${switchToSubagentInput.goal}`,
+      title,
+      `name: ${escapeTerminalControls(switchToSubagentInput.name)}`,
+      `goal: ${escapeTerminalControls(switchToSubagentInput.goal)}`,
     ].join("\n");
   }
 
@@ -187,9 +217,9 @@ export async function formatToolUse(toolUse, options = {}) {
     /** @type {Partial<CompactContextInput>} */
     const compactContextInput = input;
     return [
-      `${toolName}`,
-      `memoryPath: ${compactContextInput.memoryPath}`,
-      `reason: ${compactContextInput.reason}`,
+      title,
+      `memoryPath: ${escapeTerminalControls(compactContextInput.memoryPath)}`,
+      `reason: ${escapeTerminalControls(compactContextInput.reason)}`,
     ].join("\n");
   }
 
@@ -197,8 +227,8 @@ export async function formatToolUse(toolUse, options = {}) {
     /** @type {Partial<import("../tools/switchToMainAgent").SwitchToMainAgentInput>} */
     const switchToMainAgentInput = input;
     return [
-      `${toolName}`,
-      `memoryPath: ${switchToMainAgentInput.memoryPath}`,
+      title,
+      `memoryPath: ${escapeTerminalControls(switchToMainAgentInput.memoryPath)}`,
     ].join("\n");
   }
 
@@ -209,9 +239,9 @@ export async function formatToolUse(toolUse, options = {}) {
       ? webSearchInput.searches.map((s) => s.keywords.join(" ")).join(" | ")
       : "";
     return [
-      `${toolName}`,
-      `searches: ${searchesLine}`,
-      `question: ${webSearchInput.question}`,
+      title,
+      `searches: ${escapeTerminalControls(searchesLine)}`,
+      `question: ${escapeTerminalControls(webSearchInput.question)}`,
     ].join("\n");
   }
 
@@ -219,15 +249,15 @@ export async function formatToolUse(toolUse, options = {}) {
     /** @type {Partial<import("../tools/webFetch.mjs").WebFetchInput>} */
     const webFetchInput = input;
     return [
-      `${toolName}`,
-      `url: ${webFetchInput.url}`,
-      `question: ${webFetchInput.question}`,
+      title,
+      `url: ${escapeTerminalControls(webFetchInput.url)}`,
+      `question: ${escapeTerminalControls(webFetchInput.question)}`,
     ].join("\n");
   }
 
   const { provider: _, ...filteredToolUse } = toolUse;
 
-  return JSON.stringify(filteredToolUse, null, 2);
+  return escapeTerminalText(JSON.stringify(filteredToolUse, null, 2));
 }
 
 /** Maximum length of output to display */
@@ -256,11 +286,11 @@ export function formatToolResult(toolResult) {
   for (const part of content) {
     switch (part.type) {
       case "text":
-        contentStringParts.push(part.text);
+        contentStringParts.push(escapeTerminalText(part.text));
         break;
       case "image":
         contentStringParts.push(
-          `data:${part.mimeType};base64,${part.data.slice(0, 20)}...`,
+          `data:${escapeTerminalControls(part.mimeType)};base64,${escapeTerminalControls(part.data.slice(0, 20))}...`,
         );
         break;
       default:
@@ -865,7 +895,7 @@ async function renderPatch(filePath, patch) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(
-      styleText("yellow", `Warning: Patch parsing failed: ${message}`),
+      styleText("yellow", `Warning: Patch parsing failed: ${escapeTerminalControls(message)}`),
     );
     return fallback;
   }
@@ -884,6 +914,7 @@ async function renderPatch(filePath, patch) {
   return blocks
     .map((block) =>
       renderPatchBlock(block, originalLines, nonce, {
+        line: escapeTerminalControls,
         header: (text) => styleText("cyan", text),
         del: (text) => styleText("magenta", text),
         add: (text) => styleText("green", text),
@@ -908,12 +939,12 @@ function highlightPatchPlain(patch) {
     .split("\n")
     .map((line) => {
       if (headerRegex.test(line)) {
-        return styleText("cyan", line);
+        return styleText("cyan", escapeTerminalControls(line));
       }
       if (line === "") {
         return line;
       }
-      return styleText("green", line);
+      return styleText("green", escapeTerminalControls(line));
     })
     .join("\n");
 }

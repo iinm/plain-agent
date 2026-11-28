@@ -144,6 +144,34 @@ describe("formatToolUse", () => {
     }
   });
 
+  it("escapes controls in file paths and frames multiline write content", async () => {
+    // given:
+    const input = {
+      filePath: `notes${ESC}[2J\nnext.txt`,
+      content: `first\nsecond\r${ESC}[K\u202e`,
+    };
+
+    // when:
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "write",
+      toolName: "write_file",
+      input,
+    });
+
+    // then:
+    assert.equal(
+      output,
+      [
+        "write_file",
+        "filePath: notes\\u001b[2J\\u000anext.txt",
+        "content:",
+        "  | first",
+        "  | second\\u000d\\u001b[K\\u202e",
+      ].join("\n"),
+    );
+  });
+
   it("formats exec_command with a multi-line script readably", async () => {
     const output = await formatToolUse({
       type: "tool_use",
@@ -375,13 +403,35 @@ describe("formatToolUse (patch_file)", () => {
         "patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
-        `REPLACE abc 3:${lineHash("charlie")}-4:${lineHash("delta")}`,
-        "- charlie",
-        "- delta",
-        "+ first new",
-        "+ second new",
+        `  | REPLACE abc 3:${lineHash("charlie")}-4:${lineHash("delta")}`,
+        "  | - charlie",
+        "  | - delta",
+        "  | + first new",
+        "  | + second new",
       ].join("\n"),
     );
+  });
+
+  it("escapes controls in both original and submitted patch lines", async () => {
+    // given:
+    const original = `original${ESC}[2J`;
+    const filePath = await writeTmp([original]);
+    const patch = [
+      `REPLACE abc 1:${lineHash(original)}`,
+      `replacement${ESC}[K`,
+    ].join("\n");
+
+    // when:
+    const output = await formatToolUse({
+      type: "tool_use",
+      toolUseId: "patch",
+      toolName: "patch_file",
+      input: { filePath, patch },
+    });
+
+    // then:
+    assert.ok(stripAnsi(output).includes("  | - original\\u001b[2J"));
+    assert.ok(stripAnsi(output).includes("  | + replacement\\u001b[K"));
   });
 
   it("renders multiple blocks including a multi-line insert", async () => {
@@ -407,12 +457,12 @@ describe("formatToolUse (patch_file)", () => {
     const stripped = stripAnsi(output);
     assert.ok(
       stripped.includes(
-        `REPLACE a1a 1:${lineHash("one")}-1:${lineHash("one")}\n- one\n+ first new`,
+        `REPLACE a1a 1:${lineHash("one")}-1:${lineHash("one")}\n  | - one\n  | + first new`,
       ),
     );
     assert.ok(
       stripped.includes(
-        `INSERT_AFTER a1a 5:${lineHash("five")}\n+ appended A\n+ appended B`,
+        `INSERT_AFTER a1a 5:${lineHash("five")}\n  | + appended A\n  | + appended B`,
       ),
     );
   });
@@ -452,13 +502,13 @@ describe("formatToolUse (patch_file)", () => {
         "patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
-        `REPLACE abc 1:${lineHash("alpha")}-5:${lineHash("echo")}`,
-        "  alpha",
-        "  bravo",
-        "- charlie",
-        "+ CHARLIE",
-        "  delta",
-        "  echo",
+        `  | REPLACE abc 1:${lineHash("alpha")}-5:${lineHash("echo")}`,
+        "  |   alpha",
+        "  |   bravo",
+        "  | - charlie",
+        "  | + CHARLIE",
+        "  |   delta",
+        "  |   echo",
       ].join("\n"),
     );
   });
@@ -488,10 +538,10 @@ describe("formatToolUse (patch_file)", () => {
         "patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
-        `REPLACE abc 1:${lineHash("one")}-3:${lineHash("three")}`,
-        "  one",
-        "  two",
-        "  three",
+        `  | REPLACE abc 1:${lineHash("one")}-3:${lineHash("three")}`,
+        "  |   one",
+        "  |   two",
+        "  |   three",
       ].join("\n"),
     );
   });
@@ -518,8 +568,8 @@ describe("formatToolUse (patch_file)", () => {
         "patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
-        `REPLACE a2a 2:${lineHash("drop me")}-2:${lineHash("drop me")}`,
-        "- drop me",
+        `  | REPLACE a2a 2:${lineHash("drop me")}-2:${lineHash("drop me")}`,
+        "  | - drop me",
       ].join("\n"),
     );
   });
@@ -560,9 +610,9 @@ describe("formatToolUse (patch_file)", () => {
         "patch_file",
         `path: ${tmpFilePath}`,
         "patch:",
-        `REPLACE abc 2:${lineHash("")}-2:${lineHash("")}`,
-        "- ",
-        "+ bravo",
+        `  | REPLACE abc 2:${lineHash("")}-2:${lineHash("")}`,
+        "  | - ",
+        "  | + bravo",
       ].join("\n"),
     );
   });
@@ -645,8 +695,8 @@ describe("formatToolUse (patch_file)", () => {
         "patch_file",
         "path: anything.mjs",
         "patch:",
-        "REPLACE abc 1-1",
-        "new",
+        "  | REPLACE abc 1-1",
+        "  | new",
       ].join("\n"),
     );
   });
@@ -670,8 +720,8 @@ describe("formatToolUse (patch_file)", () => {
         "patch_file",
         "path: anything.mjs",
         "patch:",
-        "plain text",
-        "with no markers",
+        "  | plain text",
+        "  | with no markers",
       ].join("\n"),
     );
   });
@@ -698,7 +748,7 @@ describe("formatToolUse (patch_file)", () => {
     });
 
     // then: the removed line reflects the cached original "bravo", not disk.
-    assert.ok(stripAnsi(output).includes("- bravo\n+ BRAVO!"));
+    assert.ok(stripAnsi(output).includes("- bravo\n  | + BRAVO!"));
   });
 });
 

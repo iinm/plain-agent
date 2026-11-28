@@ -13,9 +13,8 @@ export type Tool = {
    * `autoApproval.defaultAction` (ask or deny), and the reason is sent to the
    * model. Return `undefined` when there is no restriction.
    *
-   * Receives the masked input produced by `maskApprovalInput`, so the checked
-   * scope never exceeds what "allow in this session" approved. A rule that must
-   * hold even after the user approves it belongs in `validateInput` or a config
+   * Receives the masked input produced by `maskApprovalInput`. A rule that
+   * must hold after manual approval belongs in `validateInput` or a config
    * `deny` pattern instead.
    */
   findAutoApprovalBlocker?: (
@@ -77,10 +76,9 @@ export type ToolUseApproverConfig = {
   allowGitUnmanagedFiles?: boolean;
 
   /**
-   * Mask the input before auto-approval checks and recording.
+   * Mask the input before auto-approval checks.
    * Return a redacted object (e.g., keep only necessary fields) that will be used for:
    * - safety validation via findUnsafeToolInput
-   * - comparing against per-session allowed tool-use patterns
    * - passing to the tool's findAutoApprovalBlocker
    */
   maskApprovalInput: (
@@ -113,7 +111,6 @@ export type ToolUseDecision = {
 
 export type ToolUseApprover = {
   isAllowedToolUse: (toolUse: MessageContentToolUse) => ToolUseDecision;
-  allowToolUse: (toolUse: MessageContentToolUse) => void;
   resetApprovalCount: () => void;
 };
 

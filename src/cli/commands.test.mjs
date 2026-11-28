@@ -122,12 +122,10 @@ describe("parseToolApprovalInput", () => {
     }
   });
 
-  it("maps Y / YES to allow for the session", () => {
+  it("does not approve on the former session shortcuts", () => {
     // when/then:
     for (const input of ["Y", "YES"]) {
-      assert.deepEqual(parseToolApprovalInput(input), {
-        action: "allowSession",
-      });
+      assert.equal(parseToolApprovalInput(input), undefined);
     }
   });
 
