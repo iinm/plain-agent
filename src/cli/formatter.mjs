@@ -42,16 +42,6 @@ export function escapeTerminalText(text) {
   return text.split("\n").map(escapeTerminalControls).join("\n");
 }
 
-/** @param {string} text */
-function indentToolInput(text) {
-  return text
-    ? text
-        .split("\n")
-        .map((line) => `  | ${line}`)
-        .join("\n")
-    : "";
-}
-
 /**
  * Format an args array for display.
  * Uses compact JSON for short single-line args; switches to a YAML-style
@@ -867,6 +857,16 @@ function padCell(cell, targetWidth) {
   const currentWidth = charDisplayWidth(cell);
   if (currentWidth >= targetWidth) return cell;
   return cell + " ".repeat(targetWidth - currentWidth);
+}
+
+/** @param {string} text */
+function indentToolInput(text) {
+  return text
+    ? text
+        .split("\n")
+        .map((line) => `  | ${line}`)
+        .join("\n")
+    : "";
 }
 
 /**
