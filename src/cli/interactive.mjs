@@ -67,6 +67,7 @@ const HELP_MESSAGE = [
  * @property {() => Promise<void>} onStop
  * @property {ClaudeCodePlugin[]} [claudeCodePlugins]
  * @property {Tool & SandboxModeProvider} [execCommandTool]
+ * @property {import("./formatter.mjs").ToolDisplayOptions["readPatchPreview"]} [readPatchPreview]
  */
 
 /**
@@ -83,6 +84,7 @@ export function startInteractiveSession({
   onStop,
   claudeCodePlugins,
   execCommandTool,
+  readPatchPreview,
 }) {
   const state = {
     turn: true,
@@ -424,7 +426,10 @@ export function startInteractiveSession({
 
         case "message":
           try {
-            await printMessage(event.message, { execCommandTool });
+            await printMessage(event.message, {
+              execCommandTool,
+              readPatchPreview,
+            });
           } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
             console.error(

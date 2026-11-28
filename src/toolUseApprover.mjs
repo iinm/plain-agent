@@ -34,6 +34,20 @@ export function createToolUseApprover({
    * @returns {ToolUseDecision}
    */
   function isAllowedToolUse(toolUse) {
+    return decideToolUse(toolUse, true);
+  }
+
+  /** @param {Pick<MessageContentToolUse, "toolName" | "input">} toolUse */
+  function canAutoApproveToolUse(toolUse) {
+    return decideToolUse(toolUse, false).action === "allow";
+  }
+
+  /**
+   * @param {Pick<MessageContentToolUse, "toolName" | "input">} toolUse
+   * @param {boolean} consumeApproval
+   * @returns {ToolUseDecision}
+   */
+  function decideToolUse(toolUse, consumeApproval) {
     for (const pattern of patterns) {
       if (!matchesToolUse(toolUse.toolName, toolUse.input, pattern)) {
         continue;
@@ -59,7 +73,7 @@ export function createToolUseApprover({
       }
 
       if (action === "allow") {
-        return decideAllow(toolUse);
+        return decideAllow(toolUse, consumeApproval);
       }
 
       return {
@@ -81,10 +95,11 @@ export function createToolUseApprover({
   }
 
   /**
-   * @param {MessageContentToolUse} toolUse
+   * @param {Pick<MessageContentToolUse, "toolName" | "input">} toolUse
+   * @param {boolean} consumeApproval
    * @returns {ToolUseDecision}
    */
-  function decideAllow(toolUse) {
+  function decideAllow(toolUse, consumeApproval) {
     const maskedInput = maskApprovalInput(toolUse.toolName, toolUse.input);
     const failure = shouldSkipPathValidation(toolUse.toolName, toolUse.input)
       ? undefined
@@ -105,13 +120,15 @@ export function createToolUseApprover({
       return { action: defaultAction, reason: blocker };
     }
 
-    state.approvalCount += 1;
-    return state.approvalCount <= max
-      ? { action: "allow" }
-      : {
-          action: defaultAction,
-          reason: `Auto-approval limit exceeded (${max})`,
-        };
+    const nextApprovalCount = state.approvalCount + 1;
+    if (nextApprovalCount <= max) {
+      if (consumeApproval) state.approvalCount = nextApprovalCount;
+      return { action: "allow" };
+    }
+    return {
+      action: defaultAction,
+      reason: `Auto-approval limit exceeded (${max})`,
+    };
   }
 
   /**
@@ -131,6 +148,7 @@ export function createToolUseApprover({
   }
   return {
     isAllowedToolUse,
+    canAutoApproveToolUse,
     resetApprovalCount,
   };
 }

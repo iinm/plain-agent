@@ -111,6 +111,10 @@ export type ToolUseDecision = {
 
 export type ToolUseApprover = {
   isAllowedToolUse: (toolUse: MessageContentToolUse) => ToolUseDecision;
+  /** Check auto-approval without consuming the approval budget. */
+  canAutoApproveToolUse: (
+    toolUse: Pick<MessageContentToolUse, "toolName" | "input">,
+  ) => boolean;
   resetApprovalCount: () => void;
 };
 

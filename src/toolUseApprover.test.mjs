@@ -27,6 +27,7 @@ describe("createToolUseApprover", () => {
     };
 
     // when/then:
+    assert.equal(toolApprover.canAutoApproveToolUse(allowedToolUse), true);
     assert.deepStrictEqual(
       toolApprover.isAllowedToolUse(allowedToolUse),
       { action: "allow" },
@@ -45,6 +46,8 @@ describe("createToolUseApprover", () => {
       },
       "should not approve on third use (exceeds maxApprovals)",
     );
+
+    assert.equal(toolApprover.canAutoApproveToolUse(allowedToolUse), false);
 
     // when/then:
     toolApprover.resetApprovalCount();
