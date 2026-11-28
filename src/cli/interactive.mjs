@@ -433,14 +433,42 @@ export function startInteractiveSession({
 
         case "tool_use_request": {
           state.awaitingToolApproval = true;
-          const toolText =
-            event.toolUseCount === 1 ? "tool call" : "tool calls";
+          const { manualApprovals, toolUseCount } = event;
+          const hasMixedApprovals =
+            manualApprovals.length > 0 && manualApprovals.length < toolUseCount;
+          let heading = "Manual approval required";
+          if (manualApprovals.length === 0) {
+            heading += " (auto-approval paused)";
+          } else if (hasMixedApprovals) {
+            heading += ` for ${manualApprovals.length} of ${toolUseCount} tool calls`;
+          }
+          console.log(`\n${styleText("bold", heading)}`);
+          for (const {
+            callNumber,
+            toolName,
+            reason,
+            path,
+          } of manualApprovals) {
+            const detail = reason ? ` — ${escapeTerminalControls(reason)}` : "";
+            console.log(
+              `  #${callNumber} ${escapeTerminalControls(toolName)}${detail}`,
+            );
+            if (path) {
+              const input = escapeTerminalControls(JSON.stringify(path.input));
+              const target =
+                path.resolved === undefined
+                  ? ""
+                  : ` → ${escapeTerminalControls(JSON.stringify(path.resolved))}`;
+              console.log(`     ${input}${target}`);
+            }
+          }
+          const toolText = toolUseCount === 1 ? "tool call" : "tool calls";
           cli.setPrompt(
             getCliPrompt(
               state.subagentName,
               styleText(
                 "yellow",
-                `Approve ${event.toolUseCount} ${toolText}? (y = allow once, Y = allow in this session, or feedback)`,
+                `Approve ${hasMixedApprovals ? "all " : ""}${toolUseCount} ${toolText}? (y = allow once, Y = allow in this session, or feedback)`,
               ),
             ),
           );
@@ -486,6 +514,15 @@ export function startInteractiveSession({
 
   consumeAgentEvents();
   cli.prompt();
+}
+
+/** @param {string} text */
+function escapeTerminalControls(text) {
+  return text.replace(
+    /[\p{Cc}\p{Bidi_Control}]/gu,
+    (character) =>
+      `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`,
+  );
 }
 
 /**

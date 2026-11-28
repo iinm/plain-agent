@@ -3,7 +3,7 @@
  * @import { MessageContentToolUse } from './model'
  */
 
-import { findUnsafeToolInputReason } from "./toolInputValidator.mjs";
+import { findUnsafeToolInput } from "./toolInputValidator.mjs";
 import { matchValue } from "./utils/matchValue.mjs";
 
 /**
@@ -50,9 +50,13 @@ export function createToolUseApprover({
       const action = pattern.action ?? defaultAction;
 
       if (!["allow", "deny", "ask"].includes(action)) {
-        return {
-          action: defaultAction,
-        };
+        return defaultAction === "ask"
+          ? {
+              action: "ask",
+              reason:
+                "Matched approval rule has an invalid action (default action is ask)",
+            }
+          : { action: defaultAction };
       }
 
       if (action === "deny") {
@@ -66,14 +70,26 @@ export function createToolUseApprover({
         return decideAllow(toolUse, maskedInput, allowedInSession);
       }
 
-      return { action };
+      return {
+        action: "ask",
+        reason:
+          pattern.reason ||
+          (pattern.action === "ask"
+            ? 'Matched approval rule with action "ask"'
+            : 'Matched approval rule uses the default action "ask"'),
+      };
     }
 
     if (allowedInSession) {
       return decideAllow(toolUse, maskedInput, true);
     }
 
-    return { action: defaultAction };
+    return defaultAction === "ask"
+      ? {
+          action: "ask",
+          reason: 'No approval rule matched (default action is "ask")',
+        }
+      : { action: defaultAction };
   }
 
   /**
@@ -95,20 +111,17 @@ export function createToolUseApprover({
    * @returns {ToolUseDecision}
    */
   function decideAllow(toolUse, maskedInput, allowedInSession) {
-    const unsafeReason = shouldSkipPathValidation(
-      toolUse.toolName,
-      toolUse.input,
-    )
+    const failure = shouldSkipPathValidation(toolUse.toolName, toolUse.input)
       ? undefined
-      : findUnsafeToolInputReason(
-          maskedInput,
-          allowedPaths,
-          allowGitUnmanagedFiles,
-        );
-    if (unsafeReason !== undefined) {
+      : findUnsafeToolInput(maskedInput, allowedPaths, allowGitUnmanagedFiles);
+    if (failure !== undefined) {
+      const reason = `Path validation failed: ${failure.reason}`;
+      if (defaultAction === "ask") {
+        return { action: "ask", reason, path: failure.path };
+      }
       return {
         action: defaultAction,
-        reason: `Path validation failed: ${unsafeReason}`,
+        reason: failure.path ? `${reason}: ${failure.path.input}` : reason,
       };
     }
 

@@ -163,6 +163,11 @@ export function sseTextResponse(text, options) {
  * @param {Record<string, unknown>} args
  */
 export function sseToolCallResponse(toolCallId, toolName, args) {
+  return sseToolCallsResponse([{ toolCallId, toolName, args }]);
+}
+
+/** @param {{toolCallId: string, toolName: string, args: Record<string, unknown>}[]} calls */
+export function sseToolCallsResponse(calls) {
   const chunk = JSON.stringify({
     id: "test-id",
     object: "chat.completion.chunk",
@@ -171,17 +176,15 @@ export function sseToolCallResponse(toolCallId, toolName, args) {
         index: 0,
         delta: {
           role: "assistant",
-          tool_calls: [
-            {
-              index: 0,
-              id: toolCallId,
-              type: "function",
-              function: {
-                name: toolName,
-                arguments: JSON.stringify(args),
-              },
+          tool_calls: calls.map(({ toolCallId, toolName, args }, index) => ({
+            index,
+            id: toolCallId,
+            type: "function",
+            function: {
+              name: toolName,
+              arguments: JSON.stringify(args),
             },
-          ],
+          })),
         },
         finish_reason: null,
       },

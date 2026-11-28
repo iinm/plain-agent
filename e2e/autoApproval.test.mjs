@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, afterEach, before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+import { stripVTControlCharacters } from "node:util";
 
 import {
   closeAndWaitForExit,
@@ -14,6 +15,7 @@ import {
   spawnAgent,
   sseTextResponse,
   sseToolCallResponse,
+  sseToolCallsResponse,
   waitForCliReady,
   waitForOutput,
 } from "./helpers.mjs";
@@ -138,6 +140,83 @@ describe("auto-approval", () => {
 
     // then: approval prompt appears
     await waitForOutput(output, /Approve 1 tool call\?/, 2000);
+  });
+
+  it("shows approval reasons and resolved symlink paths above the batch prompt", async () => {
+    // given:
+    const outside = await fs.mkdtemp(
+      path.join(os.tmpdir(), "plain-agent-target-"),
+    );
+    cleanups.push(() => fs.rm(outside, { recursive: true, force: true }));
+    const link = path.join(workDir, "linked-dir");
+    await fs.symlink(outside, link);
+    cleanups.push(() => fs.unlink(link));
+    const requestedPath = "linked-dir/missing.txt";
+    const resolvedPath = path.join(await fs.realpath(outside), "missing.txt");
+    respondWith = () =>
+      sseToolCallsResponse([
+        { toolCallId: "ls", toolName: "exec_command", args: { command: "ls" } },
+        {
+          toolCallId: "read",
+          toolName: "read_file",
+          args: { filePath: requestedPath },
+        },
+        {
+          toolCallId: "rg",
+          toolName: "exec_command",
+          args: { command: "rg", args: ["--follow", "test"] },
+        },
+        {
+          toolCallId: "rm",
+          toolName: "exec_command",
+          args: { command: "rm", args: ["file.txt"] },
+        },
+      ]);
+    const { proc, output } = spawnAgent(workDir);
+    cleanups.push(() => closeAndWaitForExit(proc));
+
+    // when:
+    await waitForCliReady(proc, output);
+    proc.stdin.write("inspect project files\n");
+    await waitForOutput(output, /Approve all 4 tool calls\?/, 2000);
+
+    // then:
+    const rendered = output.join("");
+    assert.match(
+      stripVTControlCharacters(rendered),
+      /total_tokens: 15\r?\n\r?\nManual approval required/,
+    );
+    const heading = rendered.indexOf(
+      "Manual approval required for 3 of 4 tool calls",
+    );
+    assert.ok(heading >= 0, rendered);
+    const toolCall = rendered.indexOf(`filePath: ${requestedPath}`);
+    assert.ok(toolCall >= 0 && toolCall < heading, rendered);
+    const prompt = rendered.slice(heading);
+    assert.doesNotMatch(prompt, /#1 exec_command/);
+    assert.match(
+      prompt,
+      /#2 read_file — Path validation failed: path is outside the working directory and not in allowedPaths/,
+    );
+    assert.ok(
+      prompt.includes(
+        `${JSON.stringify(requestedPath)} → ${JSON.stringify(resolvedPath)}`,
+      ),
+      prompt,
+    );
+    assert.ok(
+      prompt.includes(
+        '#3 exec_command — Matched approval rule with action "ask"',
+      ),
+      prompt,
+    );
+    assert.ok(
+      prompt.includes(
+        '#4 exec_command — No approval rule matched (default action is "ask")',
+      ),
+      prompt,
+    );
+    assert.match(prompt, /session: .*\r?\n.*Approve all 4 tool calls\?/);
   });
 
   it("should show approval prompt when Ctrl-C is pressed before auto-approved tool execution", async () => {

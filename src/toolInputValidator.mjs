@@ -1,3 +1,5 @@
+/** @import { ApprovalPath } from "./tool" */
+
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -15,6 +17,8 @@ const BUILTIN_ALLOWED_PATHS = [
   CLAUDE_CODE_PLUGIN_DIR,
 ];
 
+/** @typedef {{ reason: string, path?: ApprovalPath }} UnsafeToolInput */
+
 /**
  * Check tool input for unsafe file access. String values are treated as file
  * paths and validated: working directory / allowedPaths confinement, no ".."
@@ -25,9 +29,9 @@ const BUILTIN_ALLOWED_PATHS = [
  * @param {unknown} input
  * @param {string[]} [allowedPaths=[]] - Additional allowed paths (outside working directory)
  * @param {boolean} [allowGitUnmanagedFiles=false] - Allow access to git-unmanaged files
- * @returns {string | undefined} Rejection reason, or undefined when the input is safe
+ * @returns {UnsafeToolInput | undefined} Failure details, or undefined when the input is safe
  */
-export function findUnsafeToolInputReason(
+export function findUnsafeToolInput(
   input,
   allowedPaths = [],
   allowGitUnmanagedFiles = false,
@@ -37,18 +41,18 @@ export function findUnsafeToolInputReason(
   }
 
   if (typeof input === "string") {
-    return findUnsafeItemReason(input, allowedPaths, allowGitUnmanagedFiles);
+    return findUnsafeItem(input, allowedPaths, allowGitUnmanagedFiles);
   }
 
   if (Array.isArray(input)) {
     for (const item of input) {
-      const reason = findUnsafeToolInputReason(
+      const failure = findUnsafeToolInput(
         item,
         allowedPaths,
         allowGitUnmanagedFiles,
       );
-      if (reason !== undefined) {
-        return reason;
+      if (failure !== undefined) {
+        return failure;
       }
     }
     return undefined;
@@ -59,28 +63,28 @@ export function findUnsafeToolInputReason(
       return undefined;
     }
     for (const value of Object.values(input)) {
-      const reason = findUnsafeToolInputReason(
+      const failure = findUnsafeToolInput(
         value,
         allowedPaths,
         allowGitUnmanagedFiles,
       );
-      if (reason !== undefined) {
-        return reason;
+      if (failure !== undefined) {
+        return failure;
       }
     }
     return undefined;
   }
 
-  return `unsupported input type: ${typeof input}`;
+  return { reason: `unsupported input type: ${typeof input}` };
 }
 
 /**
  * @param {string} arg
  * @param {string[]} [allowedPaths=[]] - Additional allowed paths (outside working directory)
  * @param {boolean} [allowGitUnmanagedFiles=false] - Allow access to git-unmanaged files
- * @returns {string | undefined}
+ * @returns {UnsafeToolInput | undefined}
  */
-function findUnsafeItemReason(
+function findUnsafeItem(
   arg,
   allowedPaths = [],
   allowGitUnmanagedFiles = false,
@@ -89,8 +93,8 @@ function findUnsafeItemReason(
   if (arg.startsWith("@")) {
     const pathPart = arg.slice(1);
     return (
-      findUnsafeItemRawReason(arg, allowedPaths, allowGitUnmanagedFiles) ??
-      findUnsafeItemRawReason(pathPart, allowedPaths, allowGitUnmanagedFiles)
+      findUnsafeRawItem(arg, allowedPaths, allowGitUnmanagedFiles) ??
+      findUnsafeRawItem(pathPart, allowedPaths, allowGitUnmanagedFiles)
     );
   }
 
@@ -98,12 +102,8 @@ function findUnsafeItemReason(
   const longOptMatch = arg.match(/^--[^=]+=(.+)$/);
   if (longOptMatch) {
     return (
-      findUnsafeItemRawReason(arg, allowedPaths, allowGitUnmanagedFiles) ??
-      findUnsafeItemReason(
-        longOptMatch[1],
-        allowedPaths,
-        allowGitUnmanagedFiles,
-      )
+      findUnsafeRawItem(arg, allowedPaths, allowGitUnmanagedFiles) ??
+      findUnsafeItem(longOptMatch[1], allowedPaths, allowGitUnmanagedFiles)
     );
   }
 
@@ -111,12 +111,8 @@ function findUnsafeItemReason(
   const shortOptMatch = arg.match(/^-[a-zA-Z](.+)$/);
   if (shortOptMatch) {
     return (
-      findUnsafeItemRawReason(arg, allowedPaths, allowGitUnmanagedFiles) ??
-      findUnsafeItemReason(
-        shortOptMatch[1],
-        allowedPaths,
-        allowGitUnmanagedFiles,
-      )
+      findUnsafeRawItem(arg, allowedPaths, allowGitUnmanagedFiles) ??
+      findUnsafeItem(shortOptMatch[1], allowedPaths, allowGitUnmanagedFiles)
     );
   }
 
@@ -127,12 +123,8 @@ function findUnsafeItemReason(
   const keyValueMatch = arg.match(/^[^-@][^=\s]*=(.+)$/);
   if (keyValueMatch) {
     return (
-      findUnsafeItemRawReason(arg, allowedPaths, allowGitUnmanagedFiles) ??
-      findUnsafeItemReason(
-        keyValueMatch[1],
-        allowedPaths,
-        allowGitUnmanagedFiles,
-      )
+      findUnsafeRawItem(arg, allowedPaths, allowGitUnmanagedFiles) ??
+      findUnsafeItem(keyValueMatch[1], allowedPaths, allowGitUnmanagedFiles)
     );
   }
 
@@ -140,24 +132,24 @@ function findUnsafeItemReason(
   const fileMatch = arg.match(/^file:\/\/(.+)$/i);
   if (fileMatch) {
     return (
-      findUnsafeItemRawReason(arg, allowedPaths, allowGitUnmanagedFiles) ??
-      findUnsafeItemRawReason(
+      findUnsafeRawItem(arg, allowedPaths, allowGitUnmanagedFiles) ??
+      findUnsafeRawItem(
         `/${fileMatch[1]}`,
         allowedPaths,
         allowGitUnmanagedFiles,
       )
     );
   }
-  return findUnsafeItemRawReason(arg, allowedPaths, allowGitUnmanagedFiles);
+  return findUnsafeRawItem(arg, allowedPaths, allowGitUnmanagedFiles);
 }
 
 /**
  * @param {string} arg
  * @param {string[]} [allowedPaths=[]] - Additional allowed paths (outside working directory)
  * @param {boolean} [allowGitUnmanagedFiles=false] - Allow access to git-unmanaged files
- * @returns {string | undefined}
+ * @returns {UnsafeToolInput | undefined}
  */
-function findUnsafeItemRawReason(
+function findUnsafeRawItem(
   arg,
   allowedPaths = [],
   allowGitUnmanagedFiles = false,
@@ -169,8 +161,15 @@ function findUnsafeItemRawReason(
   const absPath = path.resolve(arg);
 
   const realPath = resolveRealPath(absPath);
+  const approvalPath = {
+    input: arg,
+    resolved: realPath !== absPath ? realPath : undefined,
+  };
   if (!realPath) {
-    return `cannot resolve path (broken or circular symlink): ${arg}`;
+    return {
+      reason: "cannot resolve path (broken or circular symlink)",
+      path: approvalPath,
+    };
   }
 
   // Disallow any input that contains ".." as a path segment (directory traversal)
@@ -179,14 +178,20 @@ function findUnsafeItemRawReason(
   // - "safe-dir/../unsafe-path" should be disallowed
   // This check must happen before allowedPaths check for security
   if (arg.split(path.sep).includes("..")) {
-    return `path traversal (..) is not allowed: ${arg}`;
+    return {
+      reason: "path traversal (..) is not allowed",
+      path: approvalPath,
+    };
   }
 
   // .git is always unsafe and cannot be overridden by allowedPaths: writing
   // hooks or config there makes the user's later git commands run agent-planted
   // code.
   if (isInsideGitDirectory(realPath) || isInsideGitDirectory(absPath)) {
-    return `path is inside the .git directory: ${arg}`;
+    return {
+      reason: "path is inside the .git directory",
+      path: approvalPath,
+    };
   }
 
   // Built-in allowed paths (memory, tmp, claude-code-plugins) are always safe.
@@ -199,7 +204,10 @@ function findUnsafeItemRawReason(
   // by allowedPaths. This prevents privilege escalation via sandbox scripts
   // or config files even when explicitly listed in allowedPaths.
   if (isInsideProjectMetadataDir(realPath)) {
-    return `path is inside the project metadata directory (${AGENT_PROJECT_METADATA_DIR}/): ${arg}`;
+    return {
+      reason: `path is inside the project metadata directory (${AGENT_PROJECT_METADATA_DIR}/)`,
+      path: approvalPath,
+    };
   }
 
   // Path must be inside the working directory or in user-configured allowed paths
@@ -207,12 +215,18 @@ function findUnsafeItemRawReason(
     !isInsideWorkingDirectory(realPath, workingDir) &&
     !isInUserAllowedPath(realPath, allowedPaths)
   ) {
-    return `path is outside the working directory and not in allowedPaths: ${arg}`;
+    return {
+      reason: "path is outside the working directory and not in allowedPaths",
+      path: approvalPath,
+    };
   }
 
   // Deny git-unmanaged files (outside git repo or git-ignored)
   if (!allowGitUnmanagedFiles && !isGitManaged(realPath)) {
-    return `path is not managed by git (ignored or outside a repository): ${arg}`;
+    return {
+      reason: "path is not managed by git (ignored or outside a repository)",
+      path: approvalPath,
+    };
   }
 
   return undefined;
