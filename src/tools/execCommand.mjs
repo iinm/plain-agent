@@ -1,9 +1,11 @@
 /**
  * @import { Tool, SandboxModeProvider, SandboxMode } from '../tool'
- * @import { ExecCommandConfig, ExecCommandInput, ExecCommandSanboxConfig } from './execCommand'
+ * @import { SandboxConfig } from "../config"
+ * @import { ExecCommandConfig, ExecCommandInput } from './execCommand'
  */
 
 import { execFile } from "node:child_process";
+import { sandboxCommand } from "../sandboxCommand.mjs";
 import { writeTmpFile } from "../tmpfile.mjs";
 import { createSecretMasker } from "../utils/maskSecrets.mjs";
 import { matchValue } from "../utils/matchValue.mjs";
@@ -230,7 +232,7 @@ Examples:
 
 /**
  * @param {ExecCommandInput} input
- * @param {ExecCommandSanboxConfig} sandbox
+ * @param {SandboxConfig} sandbox
  * @returns {ExecCommandInput}
  */
 function rewriteInputForSandbox(input, sandbox) {
@@ -242,23 +244,5 @@ function rewriteInputForSandbox(input, sandbox) {
     return input;
   }
 
-  const args = [
-    ...(sandbox.args || []),
-    ...(matchedRule?.additionalArgs || []),
-  ];
-
-  if (sandbox.separator) {
-    args.push(sandbox.separator);
-  }
-
-  args.push(input.command);
-
-  if (input.args) {
-    args.push(...input.args);
-  }
-
-  return {
-    command: sandbox.command,
-    args,
-  };
+  return sandboxCommand(sandbox, input, matchedRule?.additionalArgs);
 }

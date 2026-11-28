@@ -3,6 +3,7 @@
  * @import { PauseSignal } from "./agentLoop.mjs";
  * @import { SystemMessage } from "./model"
  * @import { Tool, ToolDefinition } from "./tool"
+ * @import { FileTarget } from "./fileAccess.mjs"
  * @import { CompactContextInput } from "./tools/compactContext"
  * @import { SwitchToSubagentInput } from "./tools/switchToSubagent"
  * @import { SwitchToMainAgentInput } from "./tools/switchToMainAgent"
@@ -11,6 +12,7 @@
 
 import { createAgentLoop } from "./agentLoop.mjs";
 import { createStateManager } from "./agentState.mjs";
+import { createFileAccess } from "./fileAccess.mjs";
 import { SESSION_FORMAT_VERSION } from "./sessionStore.mjs";
 import { createSubagentManager } from "./subagent.mjs";
 import { createToolExecutor } from "./toolExecutor.mjs";
@@ -34,6 +36,7 @@ import { createAsyncQueue } from "./utils/createAsyncQueue.mjs";
  * @returns {Agent}
  */
 export function createAgent({
+  files = createFileAccess(),
   callModel,
   prompt,
   tools,
@@ -73,15 +76,19 @@ export function createAgent({
       }),
   });
 
-  const subagentManager = createSubagentManager(agentRoles, {
-    onSubagentSwitched: (subagent) => {
-      eventQueue.push({
-        timestamp: new Date(),
-        type: "subagent_switched",
-        subagent,
-      });
+  const subagentManager = createSubagentManager(
+    agentRoles,
+    {
+      onSubagentSwitched: (subagent) => {
+        eventQueue.push({
+          timestamp: new Date(),
+          type: "subagent_switched",
+          subagent,
+        });
+      },
     },
-  });
+    files,
+  );
 
   if (initialState) {
     subagentManager.restoreState(initialState.subagentState);
@@ -103,9 +110,10 @@ export function createAgent({
 
   /**
    * @param {SwitchToMainAgentInput} input
+   * @param {FileTarget} [target]
    */
-  const switchToMainAgentImpl = async (input) => {
-    const result = await subagentManager.switchToMainAgent(input.memoryPath);
+  const switchToMainAgentImpl = async (input, target) => {
+    const result = await subagentManager.switchToMainAgent(input, target);
     if (!result.success) {
       return new Error(result.error);
     }
@@ -114,8 +122,9 @@ export function createAgent({
 
   /**
    * @param {Record<string, unknown>} rawInput
+   * @param {FileTarget} [target]
    */
-  const compactContextImpl = async (rawInput) => {
+  const compactContextImpl = async (rawInput, target) => {
     if (subagentManager.isSubagentActive()) {
       return new Error(
         "compact_context cannot be used while running as a subagent. " +
@@ -123,7 +132,7 @@ export function createAgent({
       );
     }
     const input = /** @type {CompactContextInput} */ (rawInput);
-    return await readMemoryForCompaction(input);
+    return await readMemoryForCompaction(input, files, target);
   };
 
   /** @type {Map<string, Tool>} */
@@ -145,6 +154,7 @@ export function createAgent({
   const toolDefs = tools.map(({ def }) => def);
 
   const toolExecutor = createToolExecutor(toolByName, {
+    files,
     exclusiveToolNames: [switchToSubagentToolName, switchToMainAgentToolName],
   });
 

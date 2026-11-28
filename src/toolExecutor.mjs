@@ -3,6 +3,9 @@
  * @import { Tool } from "./tool"
  */
 
+import { createFileAccess } from "./fileAccess.mjs";
+import { noThrow } from "./utils/noThrow.mjs";
+
 /**
  * @typedef {ReturnType<typeof createToolExecutor>} ToolExecutor
  */
@@ -10,6 +13,7 @@
 /**
  * @typedef {Object} ToolExecutorOptions
  * @property {string[]} [exclusiveToolNames] - Tool names that must be called exclusively
+ * @property {import("./fileAccess.mjs").FileAccess} [files]
  */
 
 /**
@@ -18,7 +22,7 @@
  * @param {ToolExecutorOptions} [options] - Configuration options
  */
 export function createToolExecutor(toolByName, options = {}) {
-  const { exclusiveToolNames = [] } = options;
+  const { exclusiveToolNames = [], files = createFileAccess() } = options;
 
   /**
    * @param {string} text
@@ -214,7 +218,13 @@ export function createToolExecutor(toolByName, options = {}) {
       };
     }
 
-    const result = await tool.impl(toolUse.input);
+    const { input } = toolUse;
+    const spec = tool.fileTarget;
+    const result = spec
+      ? await noThrow(async () =>
+          tool.impl(input, await files.resolveToolTarget(input, spec)),
+        )
+      : await tool.impl(input);
     if (result instanceof Error) {
       return {
         type: "tool_result",

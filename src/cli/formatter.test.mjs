@@ -6,7 +6,7 @@ import fs from "node:fs/promises";
 import { after, afterEach, before, describe, it } from "node:test";
 import { styleText } from "node:util";
 import { createCostTracker } from "../metrics/costTracker.mjs";
-import { createPatchFileTool, readPatchPreview } from "../tools/patchFile.mjs";
+import { createPatchFileTool } from "../tools/patchFile.mjs";
 import { lineHash } from "../utils/lineHash.mjs";
 import {
   formatCommandArgs,
@@ -754,7 +754,7 @@ describe("formatToolUse (patch_file)", () => {
     // given: the tool impl runs first, freezing a before-snapshot, and the
     // file on disk now holds the new content.
     const tmpFilePath = await writeTmp(["alpha", "bravo", "charlie"]);
-    const tool = createPatchFileTool("zzz", () => true);
+    const tool = createPatchFileTool("zzz", { canReadPreview: () => true });
     const patch = [
       `REPLACE zzz 2:${lineHash("bravo")}-2:${lineHash("bravo")}`,
       "BRAVO!",
@@ -764,12 +764,15 @@ describe("formatToolUse (patch_file)", () => {
     assert.equal(result, `Patched file: ${tmpFilePath}`);
 
     // when: format the same input; disk already says "BRAVO!".
-    const output = await formatPatch({
-      type: "tool_use",
-      toolUseId: "tcache",
-      toolName: "patch_file",
-      input,
-    });
+    const output = await formatPatch(
+      {
+        type: "tool_use",
+        toolUseId: "tcache",
+        toolName: "patch_file",
+        input,
+      },
+      tool.readPreview,
+    );
 
     // then: the removed line reflects the cached original "bravo", not disk.
     assert.ok(stripAnsi(output).includes("- bravo\n  | + BRAVO!"));
@@ -1335,9 +1338,15 @@ describe("formatMarkdownTable", () => {
   });
 });
 
-/** @param {import("../model").MessageContentToolUse} toolUse */
-function formatPatch(toolUse) {
-  return formatToolUse(toolUse, {
-    readPatchPreview: (input) => readPatchPreview(input, () => true),
-  });
+/**
+ * @param {import("../model").MessageContentToolUse} toolUse
+ * @param {ReturnType<typeof createPatchFileTool>["readPreview"]} [readPreview]
+ */
+function formatPatch(
+  toolUse,
+  readPreview = createPatchFileTool(undefined, {
+    canReadPreview: () => true,
+  }).readPreview,
+) {
+  return formatToolUse(toolUse, { readPatchPreview: readPreview });
 }

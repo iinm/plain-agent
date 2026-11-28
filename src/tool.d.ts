@@ -1,8 +1,10 @@
+import type { FileTarget, FileTargetSpec } from "./fileAccess.mjs";
 import type { MessageContentToolUse } from "./model";
 
 export type Tool = {
   def: ToolDefinition;
   impl: ToolImplementation;
+  fileTarget?: FileTargetSpec;
   validateInput?: (input: Record<string, unknown>) => Error | undefined;
   maskApprovalInput?: (
     input: Record<string, unknown>,
@@ -51,6 +53,7 @@ export type ToolDefinition = {
 
 export type ToolImplementation = (
   input: Record,
+  target?: FileTarget,
 ) => Promise<string | StructuredToolResultContent[] | Error>;
 
 export type StructuredToolResultContent =
@@ -74,6 +77,10 @@ export type ToolUseApproverConfig = {
   allowedPaths?: string[];
   /** Allow access to git-unmanaged files (default: false) */
   allowGitUnmanagedFiles?: boolean;
+  /** Resolve the declared file target using the same backend as execution. */
+  resolveFileTarget?: (
+    toolUse: MessageContentToolUse,
+  ) => Promise<FileTarget> | undefined;
 
   /**
    * Mask the input before auto-approval checks.
@@ -110,10 +117,13 @@ export type ToolUseDecision = {
 };
 
 export type ToolUseApprover = {
-  isAllowedToolUse: (toolUse: MessageContentToolUse) => ToolUseDecision;
-  /** Check auto-approval without consuming the approval budget. */
-  canAutoApproveToolUse: (
-    toolUse: Pick<MessageContentToolUse, "toolName" | "input">,
+  isAllowedToolUse: (
+    toolUse: MessageContentToolUse,
+  ) => Promise<ToolUseDecision>;
+  /** Check a preview read without consuming an approval, using sandbox facts when supplied. */
+  canAutoApproveFileRead: (
+    filePath: string,
+    target?: import("./toolInputValidator.mjs").ResolvedToolPath,
   ) => boolean;
   resetApprovalCount: () => void;
 };

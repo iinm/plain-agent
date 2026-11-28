@@ -1,8 +1,11 @@
 import assert from "node:assert";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, it } from "node:test";
 import { AGENT_MEMORY_DIR } from "../env.mjs";
+import { createFileAccess } from "../fileAccess.mjs";
+import { createSubagentManager } from "../subagent.mjs";
 import {
   compactContextToolName,
   createCompactContextTool,
@@ -70,6 +73,64 @@ describe("readMemoryForCompaction", () => {
     assert.match(text, /Reason: context is getting large/);
     assert.match(text, new RegExp(`Memory file: ${memoryPath}`));
     assert.match(text, /# Task\n\nProgress/);
+  });
+
+  it("uses the sandbox memory directory for compaction and subagent reports", async () => {
+    // given:
+    const sandboxDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), "plain-agent-memory-"),
+    );
+    cleanups.push(() => fs.rm(sandboxDir, { recursive: true, force: true }));
+    const files = createFileAccess({
+      command: "sh",
+      args: ["-c", 'cd "$1" && shift && exec "$@"', "test-wrapper", sandboxDir],
+    });
+    const manager = createSubagentManager(
+      new Map(),
+      {
+        onSubagentSwitched: () => {},
+      },
+      files,
+    );
+    assert.equal(
+      manager.switchToSubagent("custom:test", "test", 0).success,
+      true,
+    );
+
+    const memoryPath = path.join(AGENT_MEMORY_DIR, "report.md");
+    const outside = path.join(sandboxDir, "outside.md");
+    const outsideLink = path.join(AGENT_MEMORY_DIR, "outside-link.md");
+    await fs.mkdir(path.join(sandboxDir, AGENT_MEMORY_DIR), {
+      recursive: true,
+    });
+    await fs.writeFile(path.join(sandboxDir, memoryPath), "Sandbox report");
+    await fs.writeFile(outside, "Outside memory");
+    await fs.symlink(outside, path.join(sandboxDir, outsideLink));
+
+    // when:
+    const compacted = await readMemoryForCompaction(
+      { memoryPath, reason: "test" },
+      files,
+    );
+    const report = await manager.switchToMainAgent({ memoryPath });
+    const rejectedCompaction = await readMemoryForCompaction(
+      { memoryPath: outsideLink, reason: "test" },
+      files,
+    );
+    const rejectedReport = await manager.switchToMainAgent({
+      memoryPath: outsideLink,
+    });
+
+    // then:
+    assert.match(String(compacted), /Sandbox report/);
+    assert.deepEqual(report, {
+      success: true,
+      memoryContent: "Sandbox report",
+    });
+    assert.ok(rejectedCompaction instanceof Error);
+    assert.match(rejectedCompaction.message, /Access denied/);
+    assert.ok(!rejectedReport.success);
+    assert.match(rejectedReport.error ?? "", /Access denied/);
   });
 
   it("rejects absolute paths outside of the memory directory", async () => {

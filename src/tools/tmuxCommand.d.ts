@@ -1,4 +1,4 @@
-import type { ExecCommandSanboxConfig } from "./execCommand";
+import type { SandboxConfig } from "../config";
 
 export type TmuxCommandInput = {
   command: string;
@@ -6,5 +6,5 @@ export type TmuxCommandInput = {
 };
 
 export type TmuxCommandConfig = {
-  sandbox?: ExecCommandSanboxConfig;
+  sandbox?: SandboxConfig;
 };

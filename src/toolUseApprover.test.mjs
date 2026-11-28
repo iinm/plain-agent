@@ -7,13 +7,12 @@ import { describe, it } from "node:test";
 import { createToolUseApprover } from "./toolUseApprover.mjs";
 
 describe("createToolUseApprover", () => {
-  it("should approve allowed tool use up to maxAutoApprovals", () => {
+  it("should approve allowed tool use up to maxAutoApprovals", async () => {
     // given:
     const toolApprover = createToolUseApprover({
-      patterns: [
-        { toolName: "exec_command", input: { command: "ls" }, action: "allow" },
-      ],
+      patterns: [{ toolName: "read_file", action: "allow" }],
       maxApprovals: 2,
+      allowGitUnmanagedFiles: true,
       defaultAction: "ask",
       maskApprovalInput: (_name, input) => input,
     });
@@ -22,24 +21,24 @@ describe("createToolUseApprover", () => {
     const allowedToolUse = {
       type: "tool_use",
       toolUseId: "test",
-      toolName: "exec_command",
-      input: { command: "ls" },
+      toolName: "read_file",
+      input: { filePath: "test.txt" },
     };
 
     // when/then:
-    assert.equal(toolApprover.canAutoApproveToolUse(allowedToolUse), true);
+    assert.equal(toolApprover.canAutoApproveFileRead("test.txt"), true);
     assert.deepStrictEqual(
-      toolApprover.isAllowedToolUse(allowedToolUse),
+      await toolApprover.isAllowedToolUse(allowedToolUse),
       { action: "allow" },
       "should approve on first use",
     );
     assert.deepStrictEqual(
-      toolApprover.isAllowedToolUse(allowedToolUse),
+      await toolApprover.isAllowedToolUse(allowedToolUse),
       { action: "allow" },
       "should approve on second use",
     );
     assert.deepStrictEqual(
-      toolApprover.isAllowedToolUse(allowedToolUse),
+      await toolApprover.isAllowedToolUse(allowedToolUse),
       {
         action: "ask",
         reason: "Auto-approval limit exceeded (2)",
@@ -47,18 +46,18 @@ describe("createToolUseApprover", () => {
       "should not approve on third use (exceeds maxApprovals)",
     );
 
-    assert.equal(toolApprover.canAutoApproveToolUse(allowedToolUse), false);
+    assert.equal(toolApprover.canAutoApproveFileRead("test.txt"), false);
 
     // when/then:
     toolApprover.resetApprovalCount();
     assert.deepStrictEqual(
-      toolApprover.isAllowedToolUse(allowedToolUse),
+      await toolApprover.isAllowedToolUse(allowedToolUse),
       { action: "allow" },
       "should approve on first use after reset",
     );
   });
 
-  it("should not approve disallowed tool use (action: ask by default)", () => {
+  it("should not approve disallowed tool use (action: ask by default)", async () => {
     // given:
     const toolApprover = createToolUseApprover({
       patterns: [
@@ -78,13 +77,16 @@ describe("createToolUseApprover", () => {
     };
 
     // when/then:
-    assert.deepStrictEqual(toolApprover.isAllowedToolUse(disallowedToolUse), {
-      action: "ask",
-      reason: 'No approval rule matched (default action is "ask")',
-    });
+    assert.deepStrictEqual(
+      await toolApprover.isAllowedToolUse(disallowedToolUse),
+      {
+        action: "ask",
+        reason: 'No approval rule matched (default action is "ask")',
+      },
+    );
   });
 
-  it("should fallback to default action when action is invalid (typo)", () => {
+  it("should fallback to default action when action is invalid (typo)", async () => {
     // given:
     const toolApprover = createToolUseApprover({
       patterns: [
@@ -105,14 +107,14 @@ describe("createToolUseApprover", () => {
     };
 
     // when/then:
-    assert.deepStrictEqual(toolApprover.isAllowedToolUse(toolUse), {
+    assert.deepStrictEqual(await toolApprover.isAllowedToolUse(toolUse), {
       action: "ask",
       reason:
         "Matched approval rule has an invalid action (default action is ask)",
     });
   });
 
-  it("should return the reason from a matching ask rule", () => {
+  it("should return the reason from a matching ask rule", async () => {
     // given:
     const toolApprover = createToolUseApprover({
       patterns: [
@@ -128,7 +130,7 @@ describe("createToolUseApprover", () => {
     });
 
     // when:
-    const decision = toolApprover.isAllowedToolUse({
+    const decision = await toolApprover.isAllowedToolUse({
       type: "tool_use",
       toolUseId: "test",
       toolName: "exec_command",
@@ -142,7 +144,7 @@ describe("createToolUseApprover", () => {
     });
   });
 
-  it("should deny tool use when action is deny", () => {
+  it("should deny tool use when action is deny", async () => {
     // given:
     const toolApprover = createToolUseApprover({
       patterns: [
@@ -167,13 +169,13 @@ describe("createToolUseApprover", () => {
     };
 
     // when/then:
-    assert.deepStrictEqual(toolApprover.isAllowedToolUse(deniedToolUse), {
+    assert.deepStrictEqual(await toolApprover.isAllowedToolUse(deniedToolUse), {
       action: "deny",
       reason: "Use rg",
     });
   });
 
-  it("should match tool use when pattern.input is undefined", () => {
+  it("should match tool use when pattern.input is undefined", async () => {
     // given:
     const toolApprover = createToolUseApprover({
       patterns: [
@@ -203,18 +205,18 @@ describe("createToolUseApprover", () => {
 
     // when/then:
     assert.deepStrictEqual(
-      toolApprover.isAllowedToolUse(switchToSubagentToolUse),
+      await toolApprover.isAllowedToolUse(switchToSubagentToolUse),
       { action: "allow" },
       "should approve switch_to_subagent without input pattern",
     );
     assert.deepStrictEqual(
-      toolApprover.isAllowedToolUse(reportToolUse),
+      await toolApprover.isAllowedToolUse(reportToolUse),
       { action: "allow" },
       "should approve switch_to_main_agent without input pattern",
     );
   });
 
-  it("should deny tool use when defaultAction is deny and no pattern matches", () => {
+  it("should deny tool use when defaultAction is deny and no pattern matches", async () => {
     // given:
     const toolApprover = createToolUseApprover({
       patterns: [
@@ -234,12 +236,15 @@ describe("createToolUseApprover", () => {
     };
 
     // when/then:
-    assert.deepStrictEqual(toolApprover.isAllowedToolUse(unmatchedToolUse), {
-      action: "deny",
-    });
+    assert.deepStrictEqual(
+      await toolApprover.isAllowedToolUse(unmatchedToolUse),
+      {
+        action: "deny",
+      },
+    );
   });
 
-  it("should deny tool use when a pattern matches but action is undefined and defaultAction is deny", () => {
+  it("should deny tool use when a pattern matches but action is undefined and defaultAction is deny", async () => {
     // given:
     const toolApprover = createToolUseApprover({
       patterns: [{ toolName: "exec_command", input: { command: "ls" } }],
@@ -257,13 +262,13 @@ describe("createToolUseApprover", () => {
     };
 
     // when/then:
-    assert.deepStrictEqual(toolApprover.isAllowedToolUse(toolUse), {
+    assert.deepStrictEqual(await toolApprover.isAllowedToolUse(toolUse), {
       action: "deny",
       reason: undefined,
     });
   });
 
-  it("should deny with reason when path validation rejects an allowed tool use", () => {
+  it("should deny with reason when path validation rejects an allowed tool use", async () => {
     // given:
     const toolApprover = createToolUseApprover({
       patterns: [
@@ -287,12 +292,12 @@ describe("createToolUseApprover", () => {
     };
 
     // when/then:
-    const decision = toolApprover.isAllowedToolUse(toolUse);
+    const decision = await toolApprover.isAllowedToolUse(toolUse);
     assert.strictEqual(decision.action, "deny");
     assertUnsafePathReason(decision.reason);
   });
 
-  it("should skip path validation when shouldSkipPathValidation returns true", () => {
+  it("should skip path validation when shouldSkipPathValidation returns true", async () => {
     // given:
     const toolApprover = createToolUseApprover({
       patterns: [
@@ -318,13 +323,13 @@ describe("createToolUseApprover", () => {
 
     // when/then:
     assert.deepStrictEqual(
-      toolApprover.isAllowedToolUse(toolUse),
+      await toolApprover.isAllowedToolUse(toolUse),
       { action: "allow" },
       "should allow despite an unsafe path when validation is skipped",
     );
   });
 
-  it("should deny with reason when maxApprovals is exceeded and defaultAction is deny", () => {
+  it("should deny with reason when maxApprovals is exceeded and defaultAction is deny", async () => {
     // given:
     const toolApprover = createToolUseApprover({
       patterns: [
@@ -348,18 +353,18 @@ describe("createToolUseApprover", () => {
     };
 
     // when/then:
-    assert.deepStrictEqual(toolApprover.isAllowedToolUse(toolUse), {
+    assert.deepStrictEqual(await toolApprover.isAllowedToolUse(toolUse), {
       action: "allow",
     });
 
     // when/then:
-    assert.deepStrictEqual(toolApprover.isAllowedToolUse(toolUse), {
+    assert.deepStrictEqual(await toolApprover.isAllowedToolUse(toolUse), {
       action: "deny",
       reason: "Auto-approval limit exceeded (1)",
     });
   });
 
-  it("should fall back to ask with the blocker reason when an allow pattern matches", () => {
+  it("should fall back to ask with the blocker reason when an allow pattern matches", async () => {
     // given:
     const toolApprover = createToolUseApprover({
       patterns: [{ toolName: "web_fetch", action: "allow" }],
@@ -381,14 +386,14 @@ describe("createToolUseApprover", () => {
     };
 
     // when/then:
-    assert.deepStrictEqual(toolApprover.isAllowedToolUse(toolUse), {
+    assert.deepStrictEqual(await toolApprover.isAllowedToolUse(toolUse), {
       action: "ask",
       reason:
         "Blocked by allowedDomains: `https://other.com/a` is not in the allow list.",
     });
   });
 
-  it("should fall back to deny with the blocker reason when defaultAction is deny", () => {
+  it("should fall back to deny with the blocker reason when defaultAction is deny", async () => {
     // given:
     const toolApprover = createToolUseApprover({
       patterns: [{ toolName: "web_fetch", action: "allow" }],
@@ -407,13 +412,13 @@ describe("createToolUseApprover", () => {
     };
 
     // when/then:
-    assert.deepStrictEqual(toolApprover.isAllowedToolUse(toolUse), {
+    assert.deepStrictEqual(await toolApprover.isAllowedToolUse(toolUse), {
       action: "deny",
       reason: "Blocked by test",
     });
   });
 
-  it("should allow when the blocker returns undefined", () => {
+  it("should allow when the blocker returns undefined", async () => {
     // given:
     const toolApprover = createToolUseApprover({
       patterns: [{ toolName: "web_fetch", action: "allow" }],
@@ -432,12 +437,12 @@ describe("createToolUseApprover", () => {
     };
 
     // when/then:
-    assert.deepStrictEqual(toolApprover.isAllowedToolUse(toolUse), {
+    assert.deepStrictEqual(await toolApprover.isAllowedToolUse(toolUse), {
       action: "allow",
     });
   });
 
-  it("should not consume maxApprovals when a blocker downgrades the decision", () => {
+  it("should not consume maxApprovals when a blocker downgrades the decision", async () => {
     // given:
     const toolApprover = createToolUseApprover({
       patterns: [{ toolName: "web_fetch", action: "allow" }],
@@ -457,13 +462,13 @@ describe("createToolUseApprover", () => {
     });
 
     // when:
-    const blocked = toolApprover.isAllowedToolUse(
+    const blocked = await toolApprover.isAllowedToolUse(
       makeToolUse("https://blocked.com"),
     );
-    const allowed = toolApprover.isAllowedToolUse(
+    const allowed = await toolApprover.isAllowedToolUse(
       makeToolUse("https://ok.com"),
     );
-    const exceeded = toolApprover.isAllowedToolUse(
+    const exceeded = await toolApprover.isAllowedToolUse(
       makeToolUse("https://ok.com"),
     );
 
@@ -479,7 +484,7 @@ describe("createToolUseApprover", () => {
     });
   });
 
-  it("should not call the blocker when a deny pattern matches", () => {
+  it("should not call the blocker when a deny pattern matches", async () => {
     // given:
     let blockerCalls = 0;
     const toolApprover = createToolUseApprover({
@@ -509,14 +514,14 @@ describe("createToolUseApprover", () => {
     };
 
     // when:
-    const decision = toolApprover.isAllowedToolUse(toolUse);
+    const decision = await toolApprover.isAllowedToolUse(toolUse);
 
     // then:
     assert.deepStrictEqual(decision, { action: "deny", reason: "nope" });
     assert.equal(blockerCalls, 0);
   });
 
-  it("should match config patterns against the raw input, not the masked input", () => {
+  it("should match config patterns against the raw input, not the masked input", async () => {
     // given: the mask drops `question`, which the config pattern requires.
     const toolApprover = createToolUseApprover({
       patterns: [
@@ -540,7 +545,7 @@ describe("createToolUseApprover", () => {
     };
 
     // when/then:
-    assert.deepStrictEqual(toolApprover.isAllowedToolUse(toolUse), {
+    assert.deepStrictEqual(await toolApprover.isAllowedToolUse(toolUse), {
       action: "allow",
     });
   });

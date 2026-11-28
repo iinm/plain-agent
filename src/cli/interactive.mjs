@@ -11,6 +11,7 @@ import readline from "node:readline";
 import { styleText } from "node:util";
 import { appendUsageRecord, buildUsageRecord } from "../metrics/usageStore.mjs";
 import { persistSessionEvent, sessionFileExists } from "../sessionStore.mjs";
+import { PatchPreviewTimeoutError } from "../tools/patchFile.mjs";
 import { notify } from "../utils/notify.mjs";
 import { createCommandHandler } from "./commands.mjs";
 import { createCompleter, SLASH_COMMANDS } from "./completer.mjs";
@@ -417,6 +418,7 @@ export function startInteractiveSession({
   };
 
   const consumeAgentEvents = async () => {
+    let patchPreviewTimedOut = false;
     for await (const event of agent.start()) {
       await persistSessionEvent(sessionId, event);
       switch (event.type) {
@@ -425,12 +427,19 @@ export function startInteractiveSession({
           break;
 
         case "message":
+          patchPreviewTimedOut = false;
           try {
             await printMessage(event.message, {
               execCommandTool,
               readPatchPreview,
             });
           } catch (err) {
+            if (err instanceof PatchPreviewTimeoutError) {
+              patchPreviewTimedOut = true;
+              console.error(styleText("red", err.message));
+              break;
+            }
+
             const message = err instanceof Error ? err.message : String(err);
             console.error(
               styleText("red", `Error rendering message: ${message}`),
@@ -439,6 +448,24 @@ export function startInteractiveSession({
           break;
 
         case "tool_use_request": {
+          if (patchPreviewTimedOut) {
+            patchPreviewTimedOut = false;
+            console.error(
+              "Cancelled the pending changes because the patch diff timed out.",
+            );
+            agent.respondToToolApproval({
+              action: "deny",
+              content: [
+                {
+                  type: "text",
+                  text: "Pending changes cancelled because the patch diff timed out.",
+                },
+              ],
+              stop: true,
+            });
+            break;
+          }
+
           state.awaitingToolApproval = true;
           const { manualApprovals, toolUseCount } = event;
           const hasMixedApprovals =

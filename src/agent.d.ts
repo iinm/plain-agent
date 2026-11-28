@@ -17,11 +17,11 @@ export type AgentInput = (MessageContentText | MessageContentImage)[];
  * Outcome of a pending tool-approval request, applied to the whole batch.
  * - `allow`: run the tools once
  * - `deny`: reject the tools; `content` is appended as a user message so the
- *   model receives it as an instruction
+ *   model receives it as an instruction. Set stop to return to the prompt.
  */
 export type ToolApprovalDecision =
   | { action: "allow" }
-  | { action: "deny"; content: AgentInput };
+  | { action: "deny"; content: AgentInput; stop?: boolean };
 
 export type Agent = {
   start: () => AsyncIterable<AgentEvent>;
@@ -84,6 +84,7 @@ export type AgentEvent = { timestamp: Date } & (
 export type AgentEventSink = (event: AgentEvent) => void;
 
 export type AgentConfig = {
+  files?: import("./fileAccess.mjs").FileAccess;
   callModel: CallModel;
   prompt: string;
   tools: Tool[];
