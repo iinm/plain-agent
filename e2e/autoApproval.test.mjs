@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, afterEach, before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+import { stripVTControlCharacters } from "node:util";
 
 import {
   closeAndWaitForExit,
@@ -181,6 +182,10 @@ describe("auto-approval", () => {
 
     // then:
     const rendered = output.join("");
+    assert.match(
+      stripVTControlCharacters(rendered),
+      /total_tokens: 15\r?\n\r?\nManual approval required/,
+    );
     const heading = rendered.indexOf(
       "Manual approval required for 3 of 4 tool calls",
     );

@@ -442,7 +442,7 @@ export function startInteractiveSession({
           } else if (hasMixedApprovals) {
             heading += ` for ${manualApprovals.length} of ${toolUseCount} tool calls`;
           }
-          console.log(styleText("bold", heading));
+          console.log(`\n${styleText("bold", heading)}`);
           for (const {
             callNumber,
             toolName,
