@@ -55,12 +55,12 @@ export function matchAgentsCommand(input) {
 
 /**
  * Interpret raw user input as a tool-approval decision.
- * `y`/`yes`/`ｙ` allow the pending calls once.
+ * `y`/`ｙ` allow the pending calls once.
  * @param {string} input
  * @returns {ToolApprovalDecision | undefined}
  */
 export function parseToolApprovalInput(input) {
-  if (/^(yes|y|ｙ)$/.test(input)) return { action: "allow" };
+  if (/^[yｙ]$/.test(input)) return { action: "allow" };
   return undefined;
 }
 
