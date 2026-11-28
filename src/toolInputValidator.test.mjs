@@ -1,13 +1,13 @@
 import assert from "node:assert";
-import { mkdir, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import { AGENT_PROJECT_METADATA_DIR } from "./env.mjs";
-import { findUnsafeToolInputReason } from "./toolInputValidator.mjs";
+import { findUnsafeToolInput } from "./toolInputValidator.mjs";
 
 const TEMP_DIR = path.resolve("tmp/is-safe-tool-input");
 
-describe("findUnsafeToolInputReason", () => {
+describe("findUnsafeToolInput", () => {
   const safePath = "README.md";
   const unsafePath = "../parent-file";
 
@@ -54,7 +54,7 @@ describe("findUnsafeToolInputReason", () => {
   for (const { desc, arg, expected } of testCases) {
     it(`should return ${expected} for ${desc}`, () => {
       // when:
-      const reason = findUnsafeToolInputReason(arg);
+      const reason = findUnsafeToolInput(arg);
       // then:
       if (expected === undefined) {
         assert.strictEqual(reason, undefined);
@@ -65,7 +65,7 @@ describe("findUnsafeToolInputReason", () => {
   }
 });
 
-describe("findUnsafeToolInputReason for string inputs", () => {
+describe("findUnsafeToolInput for string inputs", () => {
   const tmpSymlink = path.resolve(TEMP_DIR, "tmp");
   const agentTmpDir = path.resolve(AGENT_PROJECT_METADATA_DIR, "tmp");
   const symlinkInAllowedDir = path.resolve(agentTmpDir, "unsafe-symlink");
@@ -423,7 +423,7 @@ describe("findUnsafeToolInputReason for string inputs", () => {
   for (const { desc, arg, expected } of testCases) {
     it(`should return ${expected} for ${desc}: ${arg}`, () => {
       // when:
-      const reason = findUnsafeToolInputReason(arg);
+      const reason = findUnsafeToolInput(arg);
       // then:
       if (expected === undefined) {
         assert.strictEqual(reason, undefined);
@@ -433,15 +433,19 @@ describe("findUnsafeToolInputReason for string inputs", () => {
     });
   }
 
-  it("should reject a missing file under a symlink to outside", () => {
+  it("should report the resolved path for a missing file under a symlink to outside", async () => {
     // given:
     const targetPath = path.join(tmpSymlink, "new-file.txt");
 
     // when:
-    const reason = findUnsafeToolInputReason(targetPath, [], true);
+    const reason = findUnsafeToolInput(targetPath, [], true);
 
     // then:
     assertUnsafeReason(reason, "outside the working directory");
+    assert.deepStrictEqual(reason?.path, {
+      input: targetPath,
+      resolved: path.join(await realpath("/tmp"), "new-file.txt"),
+    });
   });
 
   it("should allow a missing file under an in-project directory", () => {
@@ -449,7 +453,7 @@ describe("findUnsafeToolInputReason for string inputs", () => {
     const targetPath = path.resolve("src", "new-file.txt");
 
     // when:
-    const reason = findUnsafeToolInputReason(targetPath);
+    const reason = findUnsafeToolInput(targetPath);
 
     // then:
     assert.strictEqual(reason, undefined);
@@ -461,7 +465,7 @@ describe("allowedPaths parameter", () => {
     // given:
     const allowedPaths = ["/tmp/allowed-test-dir"];
     // when:
-    const reason = findUnsafeToolInputReason(
+    const reason = findUnsafeToolInput(
       "/tmp/allowed-test-dir/some-file.txt",
       allowedPaths,
     );
@@ -473,10 +477,7 @@ describe("allowedPaths parameter", () => {
     // given:
     const allowedPaths = ["/tmp/allowed-test-dir"];
     // when:
-    const reason = findUnsafeToolInputReason(
-      "/tmp/allowed-test-dir",
-      allowedPaths,
-    );
+    const reason = findUnsafeToolInput("/tmp/allowed-test-dir", allowedPaths);
     // then:
     assertUnsafeReason(reason, "not managed by git");
   });
@@ -486,7 +487,7 @@ describe("allowedPaths parameter", () => {
     const allowedPaths = ["/tmp/allowed-test-dir"];
     const allowGitUnmanagedFiles = true;
     // when:
-    const reason = findUnsafeToolInputReason(
+    const reason = findUnsafeToolInput(
       "/tmp/allowed-test-dir/some-file.txt",
       allowedPaths,
       allowGitUnmanagedFiles,
@@ -499,7 +500,7 @@ describe("allowedPaths parameter", () => {
     // given
     const allowedPaths = ["/tmp/allowed-test-dir"];
     // when
-    const reason = findUnsafeToolInputReason(
+    const reason = findUnsafeToolInput(
       "/tmp/other-dir/some-file.txt",
       allowedPaths,
     );
@@ -512,10 +513,7 @@ describe("allowedPaths parameter", () => {
     /** @type {string[]} */
     const allowedPaths = [];
     // when
-    const reason = findUnsafeToolInputReason(
-      "/tmp/allowed-test-dir",
-      allowedPaths,
-    );
+    const reason = findUnsafeToolInput("/tmp/allowed-test-dir", allowedPaths);
     // then
     assertUnsafeReason(reason, "outside the working directory");
   });
@@ -524,7 +522,7 @@ describe("allowedPaths parameter", () => {
     // given
     const agentTmpDir = path.resolve(AGENT_PROJECT_METADATA_DIR, "tmp");
     // when
-    const reason = findUnsafeToolInputReason(agentTmpDir, []);
+    const reason = findUnsafeToolInput(agentTmpDir, []);
     // then
     assert.strictEqual(reason, undefined);
   });
@@ -535,10 +533,7 @@ describe("allowedPaths parameter", () => {
     const sandboxPath = path.resolve(AGENT_PROJECT_METADATA_DIR, "sandbox");
     const allowedPaths = [sandboxPath];
     // when
-    const reason = findUnsafeToolInputReason(
-      `${sandboxPath}/run.sh`,
-      allowedPaths,
-    );
+    const reason = findUnsafeToolInput(`${sandboxPath}/run.sh`, allowedPaths);
     // then: .plain-agent restriction takes priority over allowedPaths
     assertUnsafeReason(reason, "project metadata directory");
   });
@@ -547,7 +542,7 @@ describe("allowedPaths parameter", () => {
     // given: a path with .. that resolves to an allowed directory
     const allowedPaths = ["/tmp/allowed-test-dir"];
     // when
-    const reason = findUnsafeToolInputReason(
+    const reason = findUnsafeToolInput(
       "/tmp/some-dir/../allowed-test-dir/file.txt",
       allowedPaths,
     );
@@ -559,7 +554,7 @@ describe("allowedPaths parameter", () => {
     // given: allowed path is /tmp/allowed, but input starts with /tmp/allowedevil
     const allowedPaths = ["/tmp/allowed"];
     // when
-    const reason = findUnsafeToolInputReason(
+    const reason = findUnsafeToolInput(
       "/tmp/allowedevil/file.txt",
       allowedPaths,
     );
@@ -572,7 +567,7 @@ describe("allowedPaths parameter", () => {
     const allowedPaths = ["../other-project"];
     const outsidePath = path.resolve("../other-project/file.txt");
     // when
-    const reason = findUnsafeToolInputReason(outsidePath, allowedPaths);
+    const reason = findUnsafeToolInput(outsidePath, allowedPaths);
     // then: relative paths are skipped by path.isAbsolute() check, so access is denied
     assertUnsafeReason(reason, "outside the working directory");
   });
@@ -581,7 +576,7 @@ describe("allowedPaths parameter", () => {
     // given: an empty string in allowedPaths
     const allowedPaths = [""];
     // when
-    const reason = findUnsafeToolInputReason("tmp/some-file.txt", allowedPaths);
+    const reason = findUnsafeToolInput("tmp/some-file.txt", allowedPaths);
     // then: empty string should not allow arbitrary access
     assertUnsafeReason(reason, "not managed by git");
   });
@@ -591,7 +586,7 @@ describe("allowedPaths parameter", () => {
     const nodeModulesPath = path.resolve("node_modules");
     const allowedPaths = [nodeModulesPath];
     // when
-    const reason = findUnsafeToolInputReason("node_modules", allowedPaths);
+    const reason = findUnsafeToolInput("node_modules", allowedPaths);
     // then: git-ignore check takes precedence over allowedPaths
     assertUnsafeReason(reason, "not managed by git");
   });
@@ -601,7 +596,7 @@ describe("allowedPaths parameter", () => {
     const gitPath = path.resolve(".git");
     const allowedPaths = [gitPath];
     // when
-    const reason = findUnsafeToolInputReason(".git/config", allowedPaths);
+    const reason = findUnsafeToolInput(".git/config", allowedPaths);
     // then: .git restriction takes precedence over allowedPaths
     assertUnsafeReason(reason, ".git directory");
   });
@@ -612,7 +607,7 @@ describe("allowGitUnmanagedFiles parameter", () => {
     // given:
     const allowGitUnmanagedFiles = true;
     // when:
-    const reason = findUnsafeToolInputReason(
+    const reason = findUnsafeToolInput(
       "node_modules",
       [],
       allowGitUnmanagedFiles,
@@ -625,7 +620,7 @@ describe("allowGitUnmanagedFiles parameter", () => {
     // given:
     const allowGitUnmanagedFiles = true;
     // when
-    const reason = findUnsafeToolInputReason(
+    const reason = findUnsafeToolInput(
       ".git/hooks/pre-commit",
       [],
       allowGitUnmanagedFiles,
@@ -634,12 +629,12 @@ describe("allowGitUnmanagedFiles parameter", () => {
     assertUnsafeReason(reason, ".git directory");
   });
 
-  it("should propagate allowGitUnmanagedFiles through findUnsafeToolInputReason", () => {
+  it("should propagate allowGitUnmanagedFiles through findUnsafeToolInput", () => {
     // given:
     const input = { filePath: "node_modules/.package-lock.json" };
     // when:
-    const reasonAllowed = findUnsafeToolInputReason(input, [], true);
-    const reasonBlocked = findUnsafeToolInputReason(input, [], false);
+    const reasonAllowed = findUnsafeToolInput(input, [], true);
+    const reasonBlocked = findUnsafeToolInput(input, [], false);
     // then:
     assert.strictEqual(reasonAllowed, undefined);
     assertUnsafeReason(reasonBlocked, "not managed by git");
@@ -647,11 +642,12 @@ describe("allowGitUnmanagedFiles parameter", () => {
 });
 
 /**
- * @param {string | undefined} reason
+ * @param {ReturnType<typeof findUnsafeToolInput>} failure
  * @param {string} expectedSubstring
  * @returns {void}
  */
-function assertUnsafeReason(reason, expectedSubstring) {
+function assertUnsafeReason(failure, expectedSubstring) {
+  const reason = failure?.reason;
   assert.ok(
     typeof reason === "string" && reason.includes(expectedSubstring),
     `expected reason containing "${expectedSubstring}", got: ${reason}`,

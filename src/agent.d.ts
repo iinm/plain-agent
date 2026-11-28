@@ -9,7 +9,7 @@ import type {
   ProviderTokenUsage,
 } from "./model";
 import type { SessionState } from "./sessionStore.mjs";
-import type { Tool, ToolUseApprover } from "./tool";
+import type { ApprovalPath, Tool, ToolUseApprover } from "./tool";
 
 export type AgentInput = (MessageContentText | MessageContentImage)[];
 
@@ -59,7 +59,16 @@ export type AgentEvent = { timestamp: Date } & (
   | { type: "message"; message: Message }
   | { type: "partial_message_content"; partialContent: PartialMessageContent }
   | { type: "error"; error: Error }
-  | { type: "tool_use_request"; toolUseCount: number }
+  | {
+      type: "tool_use_request";
+      toolUseCount: number;
+      manualApprovals: {
+        callNumber: number;
+        toolName: string;
+        reason?: string;
+        path?: ApprovalPath;
+      }[];
+    }
   | { type: "turn_end" }
   | { type: "session_end"; cost: CostSummary }
   | { type: "token_usage"; usage: ProviderTokenUsage }

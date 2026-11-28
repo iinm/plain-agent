@@ -77,6 +77,7 @@ describe("createToolUseApprover", () => {
     // when/then:
     assert.deepStrictEqual(toolApprover.isAllowedToolUse(disallowedToolUse), {
       action: "ask",
+      reason: 'No approval rule matched (default action is "ask")',
     });
   });
 
@@ -103,6 +104,38 @@ describe("createToolUseApprover", () => {
     // when/then:
     assert.deepStrictEqual(toolApprover.isAllowedToolUse(toolUse), {
       action: "ask",
+      reason:
+        "Matched approval rule has an invalid action (default action is ask)",
+    });
+  });
+
+  it("should return the reason from a matching ask rule", () => {
+    // given:
+    const toolApprover = createToolUseApprover({
+      patterns: [
+        {
+          toolName: "exec_command",
+          action: "ask",
+          reason: "Review command before running",
+        },
+      ],
+      maxApprovals: 2,
+      defaultAction: "deny",
+      maskApprovalInput: (_name, input) => input,
+    });
+
+    // when:
+    const decision = toolApprover.isAllowedToolUse({
+      type: "tool_use",
+      toolUseId: "test",
+      toolName: "exec_command",
+      input: { command: "ls" },
+    });
+
+    // then:
+    assert.deepStrictEqual(decision, {
+      action: "ask",
+      reason: "Review command before running",
     });
   });
 
@@ -161,7 +194,10 @@ describe("createToolUseApprover", () => {
     // when/then:
     assert.deepStrictEqual(
       toolApprover.isAllowedToolUse(toolUse),
-      { action: "ask" },
+      {
+        action: "ask",
+        reason: 'No approval rule matched (default action is "ask")',
+      },
       "should not approve disallowed tool use",
     );
 
@@ -568,7 +604,10 @@ describe("createToolUseApprover", () => {
     // when/then:
     assert.deepStrictEqual(
       toolApprover.isAllowedToolUse(makeToolUse("https://other.com/a")),
-      { action: "ask" },
+      {
+        action: "ask",
+        reason: 'No approval rule matched (default action is "ask")',
+      },
     );
     toolApprover.allowToolUse(makeToolUse("https://other.com/a"));
     assert.deepStrictEqual(

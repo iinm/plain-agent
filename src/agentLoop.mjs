@@ -233,12 +233,24 @@ export function createAgentLoop({
         continue;
       }
 
-      const isAllToolUseApproved = decisions.every((d) => d.action === "allow");
-      if (!isAllToolUseApproved) {
+      const manualApprovals = decisions.flatMap((decision, index) =>
+        decision.action === "ask"
+          ? [
+              {
+                callNumber: index + 1,
+                toolName: toolUseParts[index].toolName,
+                reason: decision.reason,
+                path: decision.path,
+              },
+            ]
+          : [],
+      );
+      if (manualApprovals.length > 0) {
         emitEvent({
           timestamp: new Date(),
           type: "tool_use_request",
           toolUseCount: toolUseParts.length,
+          manualApprovals,
         });
         break;
       }
@@ -250,6 +262,7 @@ export function createAgentLoop({
           timestamp: new Date(),
           type: "tool_use_request",
           toolUseCount: toolUseParts.length,
+          manualApprovals,
         });
         break;
       }
