@@ -45,7 +45,10 @@ export function escapeTerminalText(text) {
 /** @param {string} text */
 function indentToolInput(text) {
   return text
-    ? text.split("\n").map((line) => `  | ${line}`).join("\n")
+    ? text
+        .split("\n")
+        .map((line) => `  | ${line}`)
+        .join("\n")
     : "";
 }
 
@@ -895,7 +898,10 @@ async function renderPatch(filePath, patch) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(
-      styleText("yellow", `Warning: Patch parsing failed: ${escapeTerminalControls(message)}`),
+      styleText(
+        "yellow",
+        `Warning: Patch parsing failed: ${escapeTerminalControls(message)}`,
+      ),
     );
     return fallback;
   }

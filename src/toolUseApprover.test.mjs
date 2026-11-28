@@ -541,7 +541,6 @@ describe("createToolUseApprover", () => {
       action: "allow",
     });
   });
-
 });
 
 /**

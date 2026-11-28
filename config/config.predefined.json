@@ -339,7 +339,10 @@
         "desc": "rg with a separate --pre argument should require approval",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "rg", "args": ["--pre", "converter", "pattern"] }
+          "input": {
+            "command": "rg",
+            "args": ["--pre", "converter", "pattern"]
+          }
         },
         "expectedAction": "ask"
       },
@@ -355,7 +358,10 @@
         "desc": "git diff with --ext-diff should require approval",
         "toolUse": {
           "toolName": "exec_command",
-          "input": { "command": "git", "args": ["diff", "--stat", "--ext-diff"] }
+          "input": {
+            "command": "git",
+            "args": ["diff", "--stat", "--ext-diff"]
+          }
         },
         "expectedAction": "ask"
       },
