@@ -6,7 +6,7 @@ import fs from "node:fs/promises";
 import { after, afterEach, before, describe, it } from "node:test";
 import { styleText } from "node:util";
 import { createCostTracker } from "../metrics/costTracker.mjs";
-import { createPatchFileTool } from "../tools/patchFile.mjs";
+import { createPatchFileTool, readPatchPreview } from "../tools/patchFile.mjs";
 import { lineHash } from "../utils/lineHash.mjs";
 import {
   formatCommandArgs,
@@ -410,7 +410,7 @@ describe("formatToolUse (patch_file)", () => {
     ].join("\n");
 
     // when:
-    const output = await formatToolUse({
+    const output = await formatPatch({
       type: "tool_use",
       toolUseId: "t4",
       toolName: "patch_file",
@@ -448,7 +448,7 @@ describe("formatToolUse (patch_file)", () => {
     ].join("\n");
 
     // when:
-    const output = await formatToolUse({
+    const output = await formatPatch({
       type: "tool_use",
       toolUseId: "patch",
       toolName: "patch_file",
@@ -472,7 +472,7 @@ describe("formatToolUse (patch_file)", () => {
     ].join("\n");
 
     // when:
-    const output = await formatToolUse({
+    const output = await formatPatch({
       type: "tool_use",
       toolUseId: "t5",
       toolName: "patch_file",
@@ -514,7 +514,7 @@ describe("formatToolUse (patch_file)", () => {
     ].join("\n");
 
     // when:
-    const output = await formatToolUse({
+    const output = await formatPatch({
       type: "tool_use",
       toolUseId: "t12",
       toolName: "patch_file",
@@ -550,7 +550,7 @@ describe("formatToolUse (patch_file)", () => {
     ].join("\n");
 
     // when:
-    const output = await formatToolUse({
+    const output = await formatPatch({
       type: "tool_use",
       toolUseId: "t13",
       toolName: "patch_file",
@@ -580,7 +580,7 @@ describe("formatToolUse (patch_file)", () => {
     ].join("\n");
 
     // when:
-    const output = await formatToolUse({
+    const output = await formatPatch({
       type: "tool_use",
       toolUseId: "t6",
       toolName: "patch_file",
@@ -603,7 +603,7 @@ describe("formatToolUse (patch_file)", () => {
   it("renders empty or undefined patch as a blank patch section", async () => {
     // when/then: both inputs collapse to "" before reaching the renderer.
     for (const patch of ["", undefined]) {
-      const output = await formatToolUse({
+      const output = await formatPatch({
         type: "tool_use",
         toolUseId: "t7",
         toolName: "patch_file",
@@ -622,7 +622,7 @@ describe("formatToolUse (patch_file)", () => {
     ].join("\n");
 
     // when:
-    const output = await formatToolUse({
+    const output = await formatPatch({
       type: "tool_use",
       toolUseId: "t14",
       toolName: "patch_file",
@@ -652,7 +652,7 @@ describe("formatToolUse (patch_file)", () => {
     ].join("\n");
 
     // when:
-    const output = await formatToolUse({
+    const output = await formatPatch({
       type: "tool_use",
       toolUseId: "t9",
       toolName: "patch_file",
@@ -680,14 +680,14 @@ describe("formatToolUse (patch_file)", () => {
     ].join("\n");
 
     // when: filePath does not exist on disk
-    const output = await formatToolUse({
+    const output = await formatPatch({
       type: "tool_use",
       toolUseId: "t10",
       toolName: "patch_file",
       input: { filePath: "does/not/exist.mjs", patch },
     });
 
-    // then: still shows the new content with `+` markers, but no `- ...` lines
+    // then: shows the submitted patch without original lines
     const stripped = stripAnsi(output);
     assert.ok(
       stripped.startsWith('patch_file\npath: "does/not/exist.mjs"\npatch:\n'),
@@ -697,9 +697,7 @@ describe("formatToolUse (patch_file)", () => {
         `REPLACE abc 3:${lineHash("anything")}-4:${lineHash("anything2")}`,
       ),
     );
-    assert.ok(stripped.includes("+ first new"));
-    assert.ok(stripped.includes("+ second new"));
-    assert.ok(!stripped.includes("- "));
+    assert.ok(stripped.includes("  | first new\n  | second new"));
   });
 
   it("falls back to verbatim highlight when the patch fails to parse", async () => {
@@ -707,7 +705,7 @@ describe("formatToolUse (patch_file)", () => {
     const patch = ["REPLACE abc 1-1", "new"].join("\n");
 
     // when:
-    const output = await formatToolUse({
+    const output = await formatPatch({
       type: "tool_use",
       toolUseId: "t11",
       toolName: "patch_file",
@@ -732,7 +730,7 @@ describe("formatToolUse (patch_file)", () => {
     const patch = ["plain text", "with no markers"].join("\n");
 
     // when:
-    const output = await formatToolUse({
+    const output = await formatPatch({
       type: "tool_use",
       toolUseId: "t15",
       toolName: "patch_file",
@@ -756,7 +754,7 @@ describe("formatToolUse (patch_file)", () => {
     // given: the tool impl runs first, freezing a before-snapshot, and the
     // file on disk now holds the new content.
     const tmpFilePath = await writeTmp(["alpha", "bravo", "charlie"]);
-    const tool = createPatchFileTool("zzz");
+    const tool = createPatchFileTool("zzz", () => true);
     const patch = [
       `REPLACE zzz 2:${lineHash("bravo")}-2:${lineHash("bravo")}`,
       "BRAVO!",
@@ -766,7 +764,7 @@ describe("formatToolUse (patch_file)", () => {
     assert.equal(result, `Patched file: ${tmpFilePath}`);
 
     // when: format the same input; disk already says "BRAVO!".
-    const output = await formatToolUse({
+    const output = await formatPatch({
       type: "tool_use",
       toolUseId: "tcache",
       toolName: "patch_file",
@@ -1336,3 +1334,10 @@ describe("formatMarkdownTable", () => {
     );
   });
 });
+
+/** @param {import("../model").MessageContentToolUse} toolUse */
+function formatPatch(toolUse) {
+  return formatToolUse(toolUse, {
+    readPatchPreview: (input) => readPatchPreview(input, () => true),
+  });
+}

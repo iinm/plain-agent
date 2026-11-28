@@ -32,7 +32,7 @@ import { createPrompt } from "./prompt.mjs";
 import { listSessions, loadSession } from "./sessionStore.mjs";
 import { createCompactContextTool } from "./tools/compactContext.mjs";
 import { createExecCommandTool } from "./tools/execCommand.mjs";
-import { createPatchFileTool } from "./tools/patchFile.mjs";
+import { createPatchFileTool, readPatchPreview } from "./tools/patchFile.mjs";
 import { readFileTool } from "./tools/readFile.mjs";
 import { readImageTool } from "./tools/readImage.mjs";
 import { createSwitchToMainAgentTool } from "./tools/switchToMainAgent.mjs";
@@ -375,7 +375,10 @@ export async function main(argv = process.argv) {
     readFileTool,
     readImageTool,
     writeFileTool,
-    createPatchFileTool(),
+    createPatchFileTool(
+      undefined,
+      cliArgs.subcommand.type === "batch" ? undefined : canReadPatchPreview,
+    ),
     createCompactContextTool(),
     createSwitchToSubagentTool(),
     createSwitchToMainAgentTool(),
@@ -549,9 +552,18 @@ export async function main(argv = process.argv) {
     return;
   }
 
+  /** @param {string} filePath */
+  function canReadPatchPreview(filePath) {
+    return toolUseApprover.canAutoApproveToolUse({
+      toolName: "read_file",
+      input: { filePath },
+    });
+  }
+
   startInteractiveSession({
     ...sessionOptions,
     execCommandTool,
+    readPatchPreview: (input) => readPatchPreview(input, canReadPatchPreview),
     notifyCmd: appConfig.notifyCmd,
     claudeCodePlugins: resolvePluginPaths(appConfig.claudeCodePlugins ?? []),
   });

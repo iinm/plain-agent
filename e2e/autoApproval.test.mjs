@@ -7,6 +7,7 @@ import path from "node:path";
 import { after, afterEach, before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { stripVTControlCharacters } from "node:util";
+import { lineHash } from "../src/utils/lineHash.mjs";
 
 import {
   closeAndWaitForExit,
@@ -140,6 +141,49 @@ describe("auto-approval", () => {
 
     // then: approval prompt appears
     await waitForOutput(output, /Approve 1 tool call\?/, 2000);
+  });
+
+  it("shows original patch lines only for files eligible for auto-approved reads", async () => {
+    // given:
+    const visible = "visible original";
+    const hidden = "ignored original";
+    const paths = ["preview-visible.txt", "preview-ignored.txt"];
+    const excludePath = path.join(workDir, ".git", "info", "exclude");
+    const exclude = await fs.readFile(excludePath, "utf8");
+    cleanups.push(() => fs.writeFile(excludePath, exclude));
+    await fs.appendFile(excludePath, "\n/preview-ignored.txt\n");
+    for (const [filePath, line] of [
+      [paths[0], visible],
+      [paths[1], hidden],
+    ]) {
+      const target = path.join(workDir, filePath);
+      await fs.writeFile(target, `${line}\n`);
+      cleanups.push(() => fs.unlink(target));
+    }
+    respondWith = () =>
+      sseToolCallsResponse(
+        paths.map((filePath, i) => ({
+          toolCallId: `patch-${i}`,
+          toolName: "patch_file",
+          args: {
+            filePath,
+            patch: `REPLACE abc 1:${lineHash(i === 0 ? visible : hidden)}\nreplacement ${i}`,
+          },
+        })),
+      );
+    const { proc, output } = spawnAgent(workDir);
+    cleanups.push(() => closeAndWaitForExit(proc));
+
+    // when:
+    await waitForCliReady(proc, output);
+    proc.stdin.write("prepare the patches\n");
+    await waitForOutput(output, /Approve 2 tool calls\?/, 2000);
+
+    // then:
+    const rendered = stripVTControlCharacters(output.join(""));
+    assert.ok(rendered.includes(`  | - ${visible}`), rendered);
+    assert.ok(rendered.includes("  | replacement 1"), rendered);
+    assert.ok(!rendered.includes(hidden), rendered);
   });
 
   it("shows approval reasons and resolved symlink paths above the batch prompt", async () => {

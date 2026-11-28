@@ -5,13 +5,13 @@ import { lineHash } from "../utils/lineHash.mjs";
 import {
   collectPatchLineRanges,
   createPatchFileTool,
-  getPatchOriginalLines,
   parseBlocks,
+  readPatchPreview,
   renderPatchBlock,
 } from "./patchFile.mjs";
 
 describe("patchFileTool", () => {
-  const patchFileTool = createPatchFileTool("012");
+  const patchFileTool = createPatchFileTool("012", () => true);
 
   /** @type {(() => Promise<void>)[]} */
   const cleanups = [];
@@ -888,8 +888,8 @@ describe("renderPatchBlock with sparse original lines", () => {
     assert.equal(out, ["REPLACE xyz 1:aa-1:aa", "- old", "+ NEW"].join("\n"));
   });
 });
-describe("patch original lines cache (LRU)", () => {
-  const patchFileTool = createPatchFileTool("012");
+describe("patch preview snapshots", () => {
+  const patchFileTool = createPatchFileTool("012", () => true);
 
   /** @type {(() => Promise<void>)[]} */
   const cleanups = [];
@@ -928,10 +928,30 @@ describe("patch original lines cache (LRU)", () => {
     await patchFileTool.impl(input);
 
     // then: the original lines hold the pre-write line 2 only, plus total count.
-    const snapshot = getPatchOriginalLines(input);
-    assert.ok(snapshot);
-    assert.equal(snapshot.totalLines, 3);
-    assert.deepEqual(snapshot.lines, { 2: "bravo" });
+    const snapshot = await readPatchPreview(input, () => true);
+    assert.deepEqual(snapshot, { totalLines: 3, lines: { 2: "bravo" } });
+    assert.deepEqual(await readPatchPreview({ ...input }, () => true), [
+      "alpha",
+      "BRAVO!",
+      "charlie",
+    ]);
+    assert.equal(await readPatchPreview(input, () => false), undefined);
+  });
+
+  it("does not use the edited file when the original was too large to preview", async () => {
+    // given:
+    const original = "x".repeat(64 * 1024 + 1);
+    const filePath = await writeTmp([original]);
+    const input = {
+      filePath,
+      patch: `REPLACE 012 1:${lineHash(original)}\nshort replacement`,
+    };
+
+    // when:
+    assert.equal(await patchFileTool.impl(input), `Patched file: ${filePath}`);
+
+    // then:
+    assert.equal(await readPatchPreview(input, () => true), undefined);
   });
 
   it("evicts the oldest entry once the size limit is exceeded", async () => {
@@ -952,8 +972,11 @@ describe("patch original lines cache (LRU)", () => {
       await patchFileTool.impl(input);
     }
 
-    // then: the oldest entry is gone, the newest remains.
-    assert.equal(getPatchOriginalLines(inputs[0]), undefined);
-    assert.ok(getPatchOriginalLines(inputs[inputs.length - 1]));
+    // then: the evicted call has no preview; the newest retains its original lines.
+    assert.equal(await readPatchPreview(inputs[0], () => true), undefined);
+    assert.deepEqual(
+      await readPatchPreview(inputs[inputs.length - 1], () => true),
+      { totalLines: 1, lines: { 1: "x" } },
+    );
   });
 });

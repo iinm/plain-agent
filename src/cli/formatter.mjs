@@ -2,7 +2,7 @@
  * @import { Message, MessageContentToolUse, MessageContentToolResult, ProviderTokenUsage } from "../model"
  * @import { CompactContextInput } from "../tools/compactContext"
  * @import { ExecCommandInput } from "../tools/execCommand"
- * @import { PatchBlock, PatchFileInput } from "../tools/patchFile"
+ * @import { PatchBlock, PatchFileInput, PatchOriginalLines } from "../tools/patchFile"
  * @import { ReadFileInput } from "../tools/readFile"
  * @import { ReadImageInput } from "../tools/readImage"
  * @import { WriteFileInput } from "../tools/writeFile"
@@ -10,15 +10,9 @@
  * @import { SwitchToSubagentInput } from "../tools/switchToSubagent"
  */
 
-import fs from "node:fs/promises";
 import { styleText } from "node:util";
-import {
-  getPatchOriginalLines,
-  parseBlocks,
-  renderPatchBlock,
-} from "../tools/patchFile.mjs";
+import { parseBlocks, renderPatchBlock } from "../tools/patchFile.mjs";
 import { base64ByteLength, formatBytes } from "../utils/formatBytes.mjs";
-import { noThrow } from "../utils/noThrow.mjs";
 
 /** Length above which a single-line arg forces block-form rendering. */
 const ARG_BLOCK_LENGTH_THRESHOLD = 60;
@@ -120,9 +114,15 @@ function highlightCommandArgs(args) {
  */
 
 /**
+ * @typedef {object} ToolDisplayOptions
+ * @property {SandboxModeProvider} [execCommandTool]
+ * @property {(input: PatchFileInput) => Promise<string[] | PatchOriginalLines | undefined>} [readPatchPreview]
+ */
+
+/**
  * Format tool use for display.
  * @param {MessageContentToolUse} toolUse
- * @param {{ execCommandTool?: SandboxModeProvider }} [options]
+ * @param {ToolDisplayOptions} [options]
  * @returns {Promise<string>}
  */
 export async function formatToolUse(toolUse, options = {}) {
@@ -162,8 +162,10 @@ export async function formatToolUse(toolUse, options = {}) {
     /** @type {Partial<PatchFileInput>} */
     const patchFileInput = input;
     const filePath = patchFileInput.filePath ?? "";
-    const patch = patchFileInput.patch || "";
-    const rendered = await renderPatch(filePath, patch);
+    const rendered = await renderPatch(
+      patchFileInput,
+      options.readPatchPreview,
+    );
     return [
       title,
       `path: ${formatToolPath(filePath)}`,
@@ -439,7 +441,7 @@ export function formatCostSummary(summary) {
 /**
  * Print a message to the console.
  * @param {Message} message
- * @param {{ execCommandTool?: SandboxModeProvider }} [options]
+ * @param {ToolDisplayOptions} [options]
  * @returns {Promise<void>}
  */
 export async function printMessage(message, options = {}) {
@@ -885,17 +887,14 @@ function indentToolInput(text) {
 }
 
 /**
- * Render a patch_file `patch` string for terminal display.
+ * Render a diff when authorized original lines are available.
  *
- * Attempts to show a side-by-side diff (- removed, + added,   unchanged)
- * by parsing the patch and reading the target file. Falls back to plain
- * syntax highlighting on any failure.
- *
- * @param {string} filePath
- * @param {string} patch
+ * @param {Partial<PatchFileInput>} input
+ * @param {ToolDisplayOptions["readPatchPreview"]} readPatchPreview
  * @returns {Promise<string>}
  */
-async function renderPatch(filePath, patch) {
+async function renderPatch(input, readPatchPreview) {
+  const { filePath, patch } = input;
   if (!patch) {
     return "";
   }
@@ -921,16 +920,10 @@ async function renderPatch(filePath, patch) {
     return fallback;
   }
 
-  // Prefer original lines frozen at execution time so the diff is accurate even
-  // if the file has already been written; fall back to reading from disk.
-  /** @type {string[] | import("../tools/patchFile").PatchOriginalLines | undefined} */
-  let originalLines = getPatchOriginalLines({ filePath, patch });
-  if (!originalLines && filePath) {
-    const original = await noThrow(() => fs.readFile(filePath, "utf8"));
-    if (!(original instanceof Error)) {
-      originalLines = splitContentLines(original);
-    }
-  }
+  const originalLines = filePath
+    ? await readPatchPreview?.(/** @type {PatchFileInput} */ (input))
+    : undefined;
+  if (!originalLines) return fallback;
 
   return blocks
     .map((block) =>
@@ -981,18 +974,4 @@ function highlightPatchPlain(patch) {
 function extractPatchNonce(patch) {
   const match = patch.match(/^(REPLACE|INSERT_AFTER)\s+(\S+)/m);
   return match ? match[2] : undefined;
-}
-
-/**
- * Split file content into lines, dropping the trailing empty element when
- * the file ends with a newline (matches patch_file's own line indexing).
- * @param {string} content
- * @returns {string[]}
- */
-function splitContentLines(content) {
-  const lines = content.split("\n");
-  if (lines.length > 0 && lines[lines.length - 1] === "") {
-    lines.pop();
-  }
-  return lines;
 }

@@ -3,28 +3,29 @@
  * @import { PatchBlock, PatchFileInput, PatchOriginalLines } from './patchFile'
  */
 
-import { createHash } from "node:crypto";
+import { constants, realpathSync, statSync } from "node:fs";
 import fs from "node:fs/promises";
 import { diffLines } from "../utils/diffLines.mjs";
 import { lineHash } from "../utils/lineHash.mjs";
-import { noThrow } from "../utils/noThrow.mjs";
+import { noThrow, noThrowSync } from "../utils/noThrow.mjs";
 
-/** Maximum entries in the original-lines cache. */
-const MAX_PATCH_ORIGINAL_LINES_CACHE_ENTRIES = 32;
+const MAX_PATCH_PREVIEW_BYTES = 64 * 1024;
+const MAX_PATCH_PREVIEW_SNAPSHOTS = 32;
 
-/**
- * Original lines captured before applying a patch, keyed by patch input.
- *
- * @type {Map<string, PatchOriginalLines>}
- */
-const patchOriginalLinesCache = new Map();
+/** @typedef {{filePath: string, dev: number, ino: number}} PreviewTarget */
+/** @type {Map<PatchFileInput, {target: PreviewTarget, lines: PatchOriginalLines}>} */
+const patchPreviewSnapshots = new Map();
+/** @type {WeakSet<PatchFileInput>} */
+const startedPatches = new WeakSet();
 
 /**
  * @param {string} [nonce]
+ * @param {(filePath: string) => boolean} [canReadPreview]
  * @returns {Tool}
  */
 export function createPatchFileTool(
   nonce = Math.random().toString(36).substring(2, 5),
+  canReadPreview = undefined,
 ) {
   return {
     def: {
@@ -77,16 +78,24 @@ content at beginning of file
           );
         }
 
-        const original = await fs.readFile(filePath, "utf8");
-        // Freeze the original lines for the diff preview here, before the
-        // write, so the CLI can render an accurate diff no matter when it runs.
-        setPatchOriginalLines(
-          input,
-          buildPatchOriginalLines(
-            splitFileLines(original),
-            collectPatchLineRanges(blocks),
-          ),
-        );
+        startedPatches.add(input);
+        const target = findPreviewTarget(filePath, canReadPreview);
+        const file = await fs.open(filePath, "r");
+        let original;
+        try {
+          const stats = target ? await file.stat() : undefined;
+          original = await file.readFile("utf8");
+          if (
+            target &&
+            stats &&
+            matchesPreviewTarget(target, stats) &&
+            Buffer.byteLength(original) <= MAX_PATCH_PREVIEW_BYTES
+          ) {
+            rememberPatchPreview(input, target, original, blocks);
+          }
+        } finally {
+          await file.close();
+        }
         const newContent = applyBlocks(original, blocks);
         await fs.writeFile(filePath, newContent);
 
@@ -337,15 +346,36 @@ export function renderPatchBlock(block, originalLines, nonce, style = {}) {
 }
 
 /**
- * Compute a deterministic cache key for a patch input.
+ * Read original lines for a CLI preview when the same path can be read without
+ * asking the user. A snapshot belongs to a single tool call.
  *
  * @param {PatchFileInput} input
- * @returns {string}
+ * @param {(filePath: string) => boolean} canRead
+ * @returns {Promise<string[] | PatchOriginalLines | undefined>}
  */
-function patchOriginalLinesCacheKey(input) {
-  const { filePath, patch } = input;
-  const serialized = JSON.stringify({ filePath, patch });
-  return createHash("sha256").update(serialized).digest("hex");
+export async function readPatchPreview(input, canRead) {
+  const target = findPreviewTarget(input.filePath, canRead);
+  if (!target) return undefined;
+
+  if (!startedPatches.has(input)) {
+    const original = await noThrow(() => readPreviewFile(target));
+    if (!startedPatches.has(input)) {
+      return typeof original === "string"
+        ? splitFileLines(original)
+        : undefined;
+    }
+  }
+
+  // Once application starts, only the pre-edit snapshot can provide a diff.
+  const snapshot = patchPreviewSnapshots.get(input);
+  if (
+    snapshot &&
+    snapshot.target.filePath === target.filePath &&
+    matchesPreviewTarget(target, snapshot.target)
+  ) {
+    return snapshot.lines;
+  }
+  return undefined;
 }
 
 /**
@@ -380,15 +410,6 @@ export function collectPatchLineRanges(blocks) {
   return merged;
 }
 
-/**
- * Look up original lines captured before applying a patch.
- *
- * @param {PatchFileInput} input
- * @returns {PatchOriginalLines | undefined}
- */
-export function getPatchOriginalLines(input) {
-  return patchOriginalLinesCache.get(patchOriginalLinesCacheKey(input));
-}
 /**
  * @param {string} headerArgs
  * @param {"replace" | "insert"} op
@@ -531,29 +552,81 @@ function detectConflicts(blocks) {
 }
 
 /**
- * Store original lines using an opaque cache key derived from the patch input,
- * maintaining the cache as an LRU: re-inserting an existing key moves it to
- * newest, and once the entry count exceeds
- * {@link MAX_PATCH_ORIGINAL_LINES_CACHE_ENTRIES} the oldest entries are
- * evicted.
- *
  * @param {PatchFileInput} input
- * @param {PatchOriginalLines} originalLines
+ * @param {PreviewTarget} target
+ * @param {string} original
+ * @param {PatchBlock[]} blocks
  */
-function setPatchOriginalLines(input, originalLines) {
-  const key = patchOriginalLinesCacheKey(input);
-  if (patchOriginalLinesCache.has(key)) {
-    patchOriginalLinesCache.delete(key);
+function rememberPatchPreview(input, target, original, blocks) {
+  patchPreviewSnapshots.set(input, {
+    target,
+    lines: buildPatchOriginalLines(
+      splitFileLines(original),
+      collectPatchLineRanges(blocks),
+    ),
+  });
+  if (patchPreviewSnapshots.size > MAX_PATCH_PREVIEW_SNAPSHOTS) {
+    const oldest = patchPreviewSnapshots.keys().next().value;
+    if (oldest) patchPreviewSnapshots.delete(oldest);
   }
-  patchOriginalLinesCache.set(key, originalLines);
-  while (
-    patchOriginalLinesCache.size > MAX_PATCH_ORIGINAL_LINES_CACHE_ENTRIES
-  ) {
-    const oldest = patchOriginalLinesCache.keys().next().value;
-    if (oldest === undefined) {
-      break;
+}
+
+/**
+ * Capture the resolved target before consulting the approval policy and
+ * confirm that the request still resolves to that path after the check.
+ *
+ * @param {string} filePath
+ * @param {(filePath: string) => boolean} [canRead]
+ * @returns {PreviewTarget | undefined}
+ */
+function findPreviewTarget(filePath, canRead) {
+  if (!canRead || typeof filePath !== "string") return undefined;
+
+  const target = noThrowSync(() => {
+    const resolvedPath = realpathSync(filePath);
+    const stats = statSync(resolvedPath);
+    if (
+      !stats.isFile() ||
+      !canRead(filePath) ||
+      realpathSync(filePath) !== resolvedPath
+    ) {
+      return undefined;
     }
-    patchOriginalLinesCache.delete(oldest);
+    return { filePath: resolvedPath, dev: stats.dev, ino: stats.ino };
+  });
+  return target instanceof Error ? undefined : target;
+}
+
+/**
+ * @param {PreviewTarget} target
+ * @param {{dev: number, ino: number}} stats
+ */
+function matchesPreviewTarget(target, stats) {
+  return target.dev === stats.dev && target.ino === stats.ino;
+}
+
+/** @param {PreviewTarget} target */
+async function readPreviewFile(target) {
+  const file = await fs.open(
+    target.filePath,
+    constants.O_RDONLY | constants.O_NONBLOCK | constants.O_NOFOLLOW,
+  );
+  try {
+    const stats = await file.stat();
+    if (
+      !stats.isFile() ||
+      !matchesPreviewTarget(target, stats) ||
+      stats.size > MAX_PATCH_PREVIEW_BYTES
+    ) {
+      return undefined;
+    }
+
+    const buffer = Buffer.alloc(stats.size + 1);
+    const { bytesRead } = await file.read(buffer, 0, buffer.length, 0);
+    if (bytesRead !== stats.size) return undefined;
+    return buffer.toString("utf8", 0, bytesRead);
+  } finally {
+    await file.close();
   }
 }
 
