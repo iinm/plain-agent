@@ -164,12 +164,34 @@ describe("formatToolUse", () => {
       output,
       [
         "write_file",
-        "filePath: notes\\u001b[2J\\u000anext.txt",
+        'filePath: "notes\\u001b[2J\\nnext.txt"',
         "content:",
         "  | first",
         "  | second\\u000d\\u001b[K\\u202e",
       ].join("\n"),
     );
+  });
+
+  it("distinguishes a literal escape sequence in a file path", async () => {
+    // given:
+    const literal = "notes\\u001b.txt";
+    const escaped = "notes\u001b.txt";
+
+    // when:
+    const [literalOutput, escapedOutput] = await Promise.all(
+      [literal, escaped].map((filePath) =>
+        formatToolUse({
+          type: "tool_use",
+          toolUseId: "read",
+          toolName: "read_file",
+          input: { filePath },
+        }),
+      ),
+    );
+
+    // then:
+    assert.ok(literalOutput.includes('filePath: "notes\\\\u001b.txt"'));
+    assert.ok(escapedOutput.includes('filePath: "notes\\u001b.txt"'));
   });
 
   it("formats exec_command with a multi-line script readably", async () => {
@@ -396,12 +418,16 @@ describe("formatToolUse (patch_file)", () => {
     });
 
     // then:
-    assert.ok(output.startsWith(`patch_file\npath: ${tmpFilePath}\npatch:\n`));
+    assert.ok(
+      output.startsWith(
+        `patch_file\npath: ${JSON.stringify(tmpFilePath)}\npatch:\n`,
+      ),
+    );
     assert.equal(
       stripAnsi(output),
       [
         "patch_file",
-        `path: ${tmpFilePath}`,
+        `path: ${JSON.stringify(tmpFilePath)}`,
         "patch:",
         `  | REPLACE abc 3:${lineHash("charlie")}-4:${lineHash("delta")}`,
         "  | - charlie",
@@ -500,7 +526,7 @@ describe("formatToolUse (patch_file)", () => {
       stripAnsi(output),
       [
         "patch_file",
-        `path: ${tmpFilePath}`,
+        `path: ${JSON.stringify(tmpFilePath)}`,
         "patch:",
         `  | REPLACE abc 1:${lineHash("alpha")}-5:${lineHash("echo")}`,
         "  |   alpha",
@@ -536,7 +562,7 @@ describe("formatToolUse (patch_file)", () => {
       stripAnsi(output),
       [
         "patch_file",
-        `path: ${tmpFilePath}`,
+        `path: ${JSON.stringify(tmpFilePath)}`,
         "patch:",
         `  | REPLACE abc 1:${lineHash("one")}-3:${lineHash("three")}`,
         "  |   one",
@@ -566,7 +592,7 @@ describe("formatToolUse (patch_file)", () => {
       stripAnsi(output),
       [
         "patch_file",
-        `path: ${tmpFilePath}`,
+        `path: ${JSON.stringify(tmpFilePath)}`,
         "patch:",
         `  | REPLACE a2a 2:${lineHash("drop me")}-2:${lineHash("drop me")}`,
         "  | - drop me",
@@ -583,7 +609,7 @@ describe("formatToolUse (patch_file)", () => {
         toolName: "patch_file",
         input: { filePath: "empty.txt", patch },
       });
-      assert.equal(output, "patch_file\npath: empty.txt\npatch:\n");
+      assert.equal(output, 'patch_file\npath: "empty.txt"\npatch:\n');
     }
   });
 
@@ -608,7 +634,7 @@ describe("formatToolUse (patch_file)", () => {
       stripAnsi(output),
       [
         "patch_file",
-        `path: ${tmpFilePath}`,
+        `path: ${JSON.stringify(tmpFilePath)}`,
         "patch:",
         `  | REPLACE abc 2:${lineHash("")}-2:${lineHash("")}`,
         "  | - ",
@@ -664,7 +690,7 @@ describe("formatToolUse (patch_file)", () => {
     // then: still shows the new content with `+` markers, but no `- ...` lines
     const stripped = stripAnsi(output);
     assert.ok(
-      stripped.startsWith("patch_file\npath: does/not/exist.mjs\npatch:\n"),
+      stripped.startsWith('patch_file\npath: "does/not/exist.mjs"\npatch:\n'),
     );
     assert.ok(
       stripped.includes(
@@ -693,7 +719,7 @@ describe("formatToolUse (patch_file)", () => {
       stripAnsi(output),
       [
         "patch_file",
-        "path: anything.mjs",
+        'path: "anything.mjs"',
         "patch:",
         "  | REPLACE abc 1-1",
         "  | new",
@@ -718,7 +744,7 @@ describe("formatToolUse (patch_file)", () => {
       stripAnsi(output),
       [
         "patch_file",
-        "path: anything.mjs",
+        'path: "anything.mjs"',
         "patch:",
         "  | plain text",
         "  | with no markers",
@@ -763,7 +789,7 @@ describe("formatToolUse (read_file)", () => {
     });
 
     // then:
-    assert.equal(output, "read_file\nfilePath: src/app.mjs");
+    assert.equal(output, 'read_file\nfilePath: "src/app.mjs"');
   });
 
   it("includes offset and limit when provided", async () => {
@@ -781,7 +807,7 @@ describe("formatToolUse (read_file)", () => {
     // then:
     assert.equal(
       output,
-      ["read_file", "filePath: src/app.mjs", "offset: 10", "limit: 50"].join(
+      ["read_file", 'filePath: "src/app.mjs"', "offset: 10", "limit: 50"].join(
         "\n",
       ),
     );
@@ -837,7 +863,7 @@ describe("formatToolUse (read_image)", () => {
     });
 
     // then:
-    assert.equal(output, "read_image\nfilePath: /tmp/diagram.png");
+    assert.equal(output, 'read_image\nfilePath: "/tmp/diagram.png"');
   });
 });
 
