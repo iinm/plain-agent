@@ -2,7 +2,7 @@
  * @import { MessageContentText, MessageContentImage } from "../model";
  */
 
-import { readFile } from "node:fs/promises";
+import { readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { styleText } from "node:util";
 import {
@@ -80,15 +80,33 @@ async function loadContextSnippet(reference, workingDir) {
   }
 
   const absolutePath = path.resolve(fileRange.filePath);
-  const relativePath = path.relative(workingDir, absolutePath);
-  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+  if (isOutsideDirectory(workingDir, absolutePath)) {
     warn(
       `Refusing to load context from outside working directory: ${absolutePath}`,
     );
     return undefined;
   }
 
-  const fileContent = await readFileRange(fileRange);
+  const resolved = await noThrow(() =>
+    Promise.all([realpath(workingDir), realpath(fileRange.filePath)]),
+  );
+  if (resolved instanceof Error) {
+    warn(`Failed to load context from ${reference}: ${resolved.message}`);
+    return undefined;
+  }
+
+  const [resolvedWorkingDir, resolvedFilePath] = resolved;
+  if (isOutsideDirectory(resolvedWorkingDir, resolvedFilePath)) {
+    warn(
+      `Refusing to load context from outside working directory: ${resolvedFilePath}`,
+    );
+    return undefined;
+  }
+
+  const fileContent = await readFileRange({
+    ...fileRange,
+    filePath: resolvedFilePath,
+  });
   if (fileContent instanceof Error) {
     warn(`Failed to load context from ${reference}: ${fileContent}`);
     return undefined;
@@ -96,6 +114,16 @@ async function loadContextSnippet(reference, workingDir) {
 
   return [`<context location="${reference}">`, fileContent, "</context>"].join(
     "\n",
+  );
+}
+
+/** @param {string} directory @param {string} target */
+function isOutsideDirectory(directory, target) {
+  const relative = path.relative(directory, target);
+  return (
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
   );
 }
 

@@ -1,10 +1,16 @@
 /**
  * @import { ToolUseApprover, ToolUseApproverConfig, ToolUseDecision, ToolUsePattern } from './tool'
+ * @import { FileTarget } from "./fileAccess.mjs"
+ * @import { ResolvedToolPath } from "./toolInputValidator.mjs"
  * @import { MessageContentToolUse } from './model'
  */
 
-import { findUnsafeToolInput } from "./toolInputValidator.mjs";
+import {
+  findUnsafeResolvedToolPath,
+  findUnsafeToolInput,
+} from "./toolInputValidator.mjs";
 import { matchValue } from "./utils/matchValue.mjs";
+import { noThrow } from "./utils/noThrow.mjs";
 
 /**
  * @param {ToolUseApproverConfig} config
@@ -18,6 +24,7 @@ export function createToolUseApprover({
   findAutoApprovalBlocker = () => undefined,
   allowedPaths = [],
   allowGitUnmanagedFiles = false,
+  resolveFileTarget,
   shouldSkipPathValidation = () => false,
 }) {
   const state = {
@@ -31,23 +38,51 @@ export function createToolUseApprover({
 
   /**
    * @param {MessageContentToolUse} toolUse
-   * @returns {ToolUseDecision}
+   * @returns {Promise<ToolUseDecision>}
    */
-  function isAllowedToolUse(toolUse) {
-    return decideToolUse(toolUse, true);
-  }
+  async function isAllowedToolUse(toolUse) {
+    const ruleDecision = decideApprovalRule(toolUse);
+    if (ruleDecision?.action === "deny") return ruleDecision;
 
-  /** @param {Pick<MessageContentToolUse, "toolName" | "input">} toolUse */
-  function canAutoApproveToolUse(toolUse) {
-    return decideToolUse(toolUse, false).action === "allow";
+    const target = await noThrow(async () => resolveFileTarget?.(toolUse));
+    if (target instanceof Error) {
+      return {
+        action: defaultAction,
+        reason: target.message,
+      };
+    }
+
+    if (ruleDecision) {
+      return target
+        ? {
+            ...ruleDecision,
+            path: { input: target.inputPath, resolved: target.realPath },
+          }
+        : ruleDecision;
+    }
+
+    return decideAllow(toolUse, true, target);
   }
 
   /**
-   * @param {Pick<MessageContentToolUse, "toolName" | "input">} toolUse
-   * @param {boolean} consumeApproval
-   * @returns {ToolUseDecision}
+   * @param {string} filePath
+   * @param {ResolvedToolPath} [target]
    */
-  function decideToolUse(toolUse, consumeApproval) {
+  function canAutoApproveFileRead(filePath, target) {
+    const toolUse = { toolName: "read_file", input: { filePath } };
+    const decision =
+      decideApprovalRule(toolUse) ??
+      decideAllow(toolUse, false, target && { ...target, inputPath: filePath });
+    return decision.action === "allow";
+  }
+
+  /**
+   * Return a final decision for denied, unmatched or manual rules. A matching
+   * allow rule still requires validation and an available approval.
+   * @param {Pick<MessageContentToolUse, "toolName" | "input">} toolUse
+   * @returns {ToolUseDecision | undefined}
+   */
+  function decideApprovalRule(toolUse) {
     for (const pattern of patterns) {
       if (!matchesToolUse(toolUse.toolName, toolUse.input, pattern)) {
         continue;
@@ -72,9 +107,7 @@ export function createToolUseApprover({
         };
       }
 
-      if (action === "allow") {
-        return decideAllow(toolUse, consumeApproval);
-      }
+      if (action === "allow") return undefined;
 
       return {
         action: "ask",
@@ -97,13 +130,25 @@ export function createToolUseApprover({
   /**
    * @param {Pick<MessageContentToolUse, "toolName" | "input">} toolUse
    * @param {boolean} consumeApproval
+   * @param {FileTarget} [fileTarget]
    * @returns {ToolUseDecision}
    */
-  function decideAllow(toolUse, consumeApproval) {
+  function decideAllow(toolUse, consumeApproval, fileTarget) {
     const maskedInput = maskApprovalInput(toolUse.toolName, toolUse.input);
-    const failure = shouldSkipPathValidation(toolUse.toolName, toolUse.input)
-      ? undefined
-      : findUnsafeToolInput(maskedInput, allowedPaths, allowGitUnmanagedFiles);
+    const failure = fileTarget
+      ? findUnsafeResolvedToolPath(
+          fileTarget.inputPath,
+          fileTarget,
+          allowedPaths,
+          allowGitUnmanagedFiles,
+        )
+      : shouldSkipPathValidation(toolUse.toolName, toolUse.input)
+        ? undefined
+        : findUnsafeToolInput(
+            maskedInput,
+            allowedPaths,
+            allowGitUnmanagedFiles,
+          );
     if (failure !== undefined) {
       const reason = `Path validation failed: ${failure.reason}`;
       if (defaultAction === "ask") {
@@ -148,7 +193,7 @@ export function createToolUseApprover({
   }
   return {
     isAllowedToolUse,
-    canAutoApproveToolUse,
+    canAutoApproveFileRead,
     resetApprovalCount,
   };
 }

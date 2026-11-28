@@ -25,6 +25,7 @@ import {
 import { loadAgentRoles } from "./context/loadAgentRoles.mjs";
 import { loadPrompts } from "./context/loadPrompts.mjs";
 import { AGENT_PROJECT_METADATA_DIR, USER_NAME } from "./env.mjs";
+import { createFileAccess } from "./fileAccess.mjs";
 import { setupMCPServer } from "./mcp/integration.mjs";
 import { createCostTracker } from "./metrics/costTracker.mjs";
 import { createModelCaller } from "./model.mjs";
@@ -32,15 +33,15 @@ import { createPrompt } from "./prompt.mjs";
 import { listSessions, loadSession } from "./sessionStore.mjs";
 import { createCompactContextTool } from "./tools/compactContext.mjs";
 import { createExecCommandTool } from "./tools/execCommand.mjs";
-import { createPatchFileTool, readPatchPreview } from "./tools/patchFile.mjs";
-import { readFileTool } from "./tools/readFile.mjs";
-import { readImageTool } from "./tools/readImage.mjs";
+import { createPatchFileTool } from "./tools/patchFile.mjs";
+import { createReadFileTool } from "./tools/readFile.mjs";
+import { createReadImageTool } from "./tools/readImage.mjs";
 import { createSwitchToMainAgentTool } from "./tools/switchToMainAgent.mjs";
 import { createSwitchToSubagentTool } from "./tools/switchToSubagent.mjs";
 import { createTmuxCommandTool } from "./tools/tmuxCommand.mjs";
 import { createWebFetchTool } from "./tools/webFetch.mjs";
 import { createWebSearchTool } from "./tools/webSearch.mjs";
-import { writeFileTool } from "./tools/writeFile.mjs";
+import { createWriteFileTool } from "./tools/writeFile.mjs";
 import { createToolUseApprover } from "./toolUseApprover.mjs";
 
 /**
@@ -370,15 +371,24 @@ export async function main(argv = process.argv) {
   });
   sandboxedTools.push(execCommandTool);
 
+  const files = createFileAccess(
+    appConfig.sandbox,
+    appConfig.tools?.execCommand?.env,
+  );
+  const patchFileTool = createPatchFileTool(undefined, {
+    files,
+    canReadPreview:
+      cliArgs.subcommand.type === "batch"
+        ? undefined
+        : (filePath, target) =>
+            toolUseApprover.canAutoApproveFileRead(filePath, target),
+  });
   const builtinTools = [
     execCommandTool,
-    readFileTool,
-    readImageTool,
-    writeFileTool,
-    createPatchFileTool(
-      undefined,
-      cliArgs.subcommand.type === "batch" ? undefined : canReadPatchPreview,
-    ),
+    createReadFileTool(files),
+    createReadImageTool(files),
+    createWriteFileTool(files),
+    patchFileTool,
     createCompactContextTool(),
     createSwitchToSubagentTool(),
     createSwitchToMainAgentTool(),
@@ -444,6 +454,10 @@ export async function main(argv = process.argv) {
     defaultAction: appConfig.autoApproval?.defaultAction || "ask",
     patterns: appConfig.autoApproval?.patterns || [],
     allowedPaths: appConfig.autoApproval?.allowedPaths ?? [],
+    resolveFileTarget: ({ toolName, input }) => {
+      const spec = toolByName.get(toolName)?.fileTarget;
+      return spec ? files.resolveToolTarget(input, spec) : undefined;
+    },
     allowGitUnmanagedFiles:
       appConfig.autoApproval?.allowGitUnmanagedFiles ?? false,
     maskApprovalInput: (toolName, input) =>
@@ -494,6 +508,7 @@ export async function main(argv = process.argv) {
       : undefined;
 
   const agent = createAgent({
+    files,
     callModel: async (input) => {
       const output = await agentCallModel(input);
       if (!(output instanceof Error) && output.providerTokenUsage) {
@@ -552,18 +567,10 @@ export async function main(argv = process.argv) {
     return;
   }
 
-  /** @param {string} filePath */
-  function canReadPatchPreview(filePath) {
-    return toolUseApprover.canAutoApproveToolUse({
-      toolName: "read_file",
-      input: { filePath },
-    });
-  }
-
   startInteractiveSession({
     ...sessionOptions,
     execCommandTool,
-    readPatchPreview: (input) => readPatchPreview(input, canReadPatchPreview),
+    readPatchPreview: patchFileTool.readPreview,
     notifyCmd: appConfig.notifyCmd,
     claudeCodePlugins: resolvePluginPaths(appConfig.claudeCodePlugins ?? []),
   });

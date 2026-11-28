@@ -1,7 +1,6 @@
 import { ClaudeCodePluginRepo } from "./claudeCodePlugin.mjs";
 import { ModelDefinition, PlatformConfig } from "./model.definition";
 import { ToolUsePattern } from "./tool";
-import { ExecCommandSanboxConfig } from "./tools/execCommand";
 import {
   WebFetchToolCommonOptions,
   WebFetchToolGeminiOptions,
@@ -76,6 +75,20 @@ export type WebSearchToolCommandJsonConfig = {
   maxTotalLength?: number;
 };
 
+export type SandboxConfig = {
+  command: string;
+  args?: string[];
+  separator?: string;
+  rules?: {
+    pattern: {
+      command: string;
+      args?: string[];
+    };
+    mode: "sandbox" | "unsandboxed";
+    additionalArgs?: string[];
+  }[];
+};
+
 export type AppConfig = {
   model?: string;
   models?: ModelDefinition[];
@@ -90,7 +103,7 @@ export type AppConfig = {
     /** Allow access to git-unmanaged files (default: false) */
     allowGitUnmanagedFiles?: boolean;
   };
-  sandbox?: ExecCommandSanboxConfig;
+  sandbox?: SandboxConfig;
   tools?: {
     webSearch?: WebSearchToolConfig;
     webFetch?: WebFetchToolConfig;

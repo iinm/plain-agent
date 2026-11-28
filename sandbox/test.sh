@@ -63,6 +63,30 @@ echo "case: receive stdin"
 echo hello | plain-sandbox --dockerfile "$minial_dockerfile" --rebuild cat | grep -qE "^hello$"
 
 
+echo "case: concurrent calls share a fully initialized cold sandbox"
+# given: a new working directory gives the calls a fresh container name.
+parallel_workdir=$(mktemp -d)
+parallel_dockerfile="$SCRIPT_DIR/$minial_dockerfile"
+# when:
+(
+  trap 'rm -rf "$parallel_workdir"' EXIT
+  cd "$parallel_workdir"
+  plain-sandbox --dockerfile "$parallel_dockerfile" echo first > first.out &
+  first_pid=$!
+  plain-sandbox --dockerfile "$parallel_dockerfile" echo second > second.out &
+  second_pid=$!
+  first_result=0
+  second_result=0
+  wait "$first_pid" || first_result=$?
+  wait "$second_pid" || second_result=$?
+  # then:
+  test "$first_result" -eq 0
+  test "$second_result" -eq 0
+  test "$(cat first.out)" = first
+  test "$(cat second.out)" = second
+)
+
+
 echo "case: --dry-run option displays the command that would be executed"
 # when:
 out=$(plain-sandbox --dry-run --dockerfile "$minial_dockerfile" touch test)

@@ -20,6 +20,33 @@ const BUILTIN_ALLOWED_PATHS = [
 /** @typedef {{ reason: string, path?: ApprovalPath }} UnsafeToolInput */
 
 /**
+ * Filesystem facts for an existing file, collected where it will be read.
+ * @typedef {{ workingDir: string, realPath: string, gitManaged: boolean }} ResolvedToolPath
+ */
+
+/**
+ * Apply path policy using facts from the filesystem that will serve the read.
+ * @param {string} filePath
+ * @param {ResolvedToolPath} target
+ * @param {string[]} allowedPaths
+ * @param {boolean} allowGitUnmanagedFiles
+ */
+export function findUnsafeResolvedToolPath(
+  filePath,
+  { workingDir, realPath, gitManaged },
+  allowedPaths,
+  allowGitUnmanagedFiles,
+) {
+  return validateResolvedPath(
+    filePath,
+    workingDir,
+    realPath,
+    allowedPaths,
+    () => allowGitUnmanagedFiles || gitManaged,
+  );
+}
+
+/**
  * Check tool input for unsafe file access. String values are treated as file
  * paths and validated: working directory / allowedPaths confinement, no ".."
  * traversal, no .git/ or .plain-agent/ metadata access, git-managed files only.
@@ -76,6 +103,87 @@ export function findUnsafeToolInput(
   }
 
   return { reason: `unsupported input type: ${typeof input}` };
+}
+
+/**
+ * @param {string} absPath
+ * @returns {string | undefined}
+ */
+export function resolveRealPath(absPath) {
+  let currentPath = absPath;
+  const missingPathParts = [];
+
+  while (true) {
+    const realPathResult = noThrowSync(() => fs.realpathSync(currentPath));
+    if (!(realPathResult instanceof Error)) {
+      return path.resolve(realPathResult, ...missingPathParts);
+    }
+
+    if (
+      /** @type {NodeJS.ErrnoException} */ (realPathResult).code !== "ENOENT"
+    ) {
+      return undefined;
+    }
+
+    const stats = noThrowSync(() => fs.lstatSync(currentPath));
+    if (!(stats instanceof Error)) {
+      return undefined;
+    }
+    if (/** @type {NodeJS.ErrnoException} */ (stats).code !== "ENOENT") {
+      return undefined;
+    }
+
+    const parentPath = path.dirname(currentPath);
+    if (parentPath === currentPath) {
+      return undefined;
+    }
+
+    missingPathParts.unshift(path.basename(currentPath));
+    currentPath = parentPath;
+  }
+}
+
+/**
+ * Check if the path is managed by git (inside a git repo and not ignored).
+ * @param {string} absPath
+ * @returns {boolean}
+ */
+export function isGitManaged(absPath) {
+  const dir = findExistingDirectory(absPath);
+
+  /** @type {string} */
+  let gitRoot;
+  try {
+    gitRoot = execFileSync("git", ["-C", dir, "rev-parse", "--show-toplevel"], {
+      stdio: ["ignore", "pipe", "ignore"],
+      encoding: "utf-8",
+    }).trim();
+  } catch {
+    // Not inside a git repository
+    return false;
+  }
+
+  try {
+    execFileSync(
+      "git",
+      ["-C", gitRoot, "check-ignore", "--no-index", "-q", "--", absPath],
+      { stdio: ["ignore", "ignore", "ignore"] },
+    );
+    // File is git-ignored: not managed
+    return false;
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "status" in error &&
+      typeof error.status === "number" &&
+      error.status === 1
+    ) {
+      // Not ignored: managed
+      return true;
+    }
+    // Other error: treat as not managed for safety
+    return false;
+  }
 }
 
 /**
@@ -155,12 +263,32 @@ function findUnsafeRawItem(
   allowGitUnmanagedFiles = false,
 ) {
   const workingDir = process.cwd();
+  const realPath = resolveRealPath(path.resolve(workingDir, arg));
+  return validateResolvedPath(
+    arg,
+    workingDir,
+    realPath,
+    allowedPaths,
+    (target) => allowGitUnmanagedFiles || isGitManaged(target),
+  );
+}
 
-  // Note: An argument can be a command option (e.g., '-l').
-  // It will then create an absolute path like `/path/to/project/-l`.
-  const absPath = path.resolve(arg);
-
-  const realPath = resolveRealPath(absPath);
+/**
+ * @param {string} arg
+ * @param {string} workingDir
+ * @param {string | undefined} realPath
+ * @param {string[]} allowedPaths
+ * @param {(targetPath: string) => boolean} acceptsGitPath
+ * @returns {UnsafeToolInput | undefined}
+ */
+function validateResolvedPath(
+  arg,
+  workingDir,
+  realPath,
+  allowedPaths,
+  acceptsGitPath,
+) {
+  const absPath = path.resolve(workingDir, arg);
   const approvalPath = {
     input: arg,
     resolved: realPath !== absPath ? realPath : undefined,
@@ -196,14 +324,14 @@ function findUnsafeRawItem(
 
   // Built-in allowed paths (memory, tmp, claude-code-plugins) are always safe.
   // This check must come before the .plain-agent/ block below.
-  if (isInBuiltinAllowedPath(realPath)) {
+  if (isInBuiltinAllowedPath(realPath, workingDir)) {
     return undefined;
   }
 
   // Any other path under .plain-agent/ is unsafe and cannot be overridden
   // by allowedPaths. This prevents privilege escalation via sandbox scripts
   // or config files even when explicitly listed in allowedPaths.
-  if (isInsideProjectMetadataDir(realPath)) {
+  if (isInsideProjectMetadataDir(realPath, workingDir)) {
     return {
       reason: `path is inside the project metadata directory (${AGENT_PROJECT_METADATA_DIR}/)`,
       path: approvalPath,
@@ -222,7 +350,7 @@ function findUnsafeRawItem(
   }
 
   // Deny git-unmanaged files (outside git repo or git-ignored)
-  if (!allowGitUnmanagedFiles && !isGitManaged(realPath)) {
+  if (!acceptsGitPath(realPath)) {
     return {
       reason: "path is not managed by git (ignored or outside a repository)",
       path: approvalPath,
@@ -230,44 +358,6 @@ function findUnsafeRawItem(
   }
 
   return undefined;
-}
-
-/**
- * @param {string} absPath
- * @returns {string | undefined}
- */
-function resolveRealPath(absPath) {
-  let currentPath = absPath;
-  const missingPathParts = [];
-
-  while (true) {
-    const realPathResult = noThrowSync(() => fs.realpathSync(currentPath));
-    if (!(realPathResult instanceof Error)) {
-      return path.resolve(realPathResult, ...missingPathParts);
-    }
-
-    if (
-      /** @type {NodeJS.ErrnoException} */ (realPathResult).code !== "ENOENT"
-    ) {
-      return undefined;
-    }
-
-    const stats = noThrowSync(() => fs.lstatSync(currentPath));
-    if (!(stats instanceof Error)) {
-      return undefined;
-    }
-    if (/** @type {NodeJS.ErrnoException} */ (stats).code !== "ENOENT") {
-      return undefined;
-    }
-
-    const parentPath = path.dirname(currentPath);
-    if (parentPath === currentPath) {
-      return undefined;
-    }
-
-    missingPathParts.unshift(path.basename(currentPath));
-    currentPath = parentPath;
-  }
 }
 
 /**
@@ -286,11 +376,12 @@ function isInsideWorkingDirectory(targetPath, workingDir) {
  * Check if the path is under a built-in allowed directory
  * (.plain-agent/{memory,tmp,claude-code-plugins}).
  * @param {string} targetPath - Must be an absolute path.
+ * @param {string} workingDir
  * @returns {boolean}
  */
-function isInBuiltinAllowedPath(targetPath) {
+function isInBuiltinAllowedPath(targetPath, workingDir) {
   for (const builtinPath of BUILTIN_ALLOWED_PATHS) {
-    const absPath = path.resolve(builtinPath);
+    const absPath = path.resolve(workingDir, builtinPath);
     if (
       targetPath === absPath ||
       targetPath.startsWith(`${absPath}${path.sep}`)
@@ -327,10 +418,11 @@ function isInUserAllowedPath(targetPath, allowedPaths) {
 /**
  * Check if the path is under .plain-agent/.
  * @param {string} targetPath
+ * @param {string} workingDir
  * @returns {boolean}
  */
-function isInsideProjectMetadataDir(targetPath) {
-  const metadataAbsPath = path.resolve(AGENT_PROJECT_METADATA_DIR);
+function isInsideProjectMetadataDir(targetPath, workingDir) {
+  const metadataAbsPath = path.resolve(workingDir, AGENT_PROJECT_METADATA_DIR);
   return (
     targetPath === metadataAbsPath ||
     targetPath.startsWith(`${metadataAbsPath}${path.sep}`)
@@ -345,49 +437,6 @@ function isInsideProjectMetadataDir(targetPath) {
  */
 function isInsideGitDirectory(targetPath) {
   return targetPath.toLowerCase().split(path.sep).includes(".git");
-}
-
-/**
- * Check if the path is managed by git (inside a git repo and not ignored).
- * @param {string} absPath
- * @returns {boolean}
- */
-function isGitManaged(absPath) {
-  const dir = findExistingDirectory(absPath);
-
-  /** @type {string} */
-  let gitRoot;
-  try {
-    gitRoot = execFileSync("git", ["-C", dir, "rev-parse", "--show-toplevel"], {
-      stdio: ["ignore", "pipe", "ignore"],
-      encoding: "utf-8",
-    }).trim();
-  } catch {
-    // Not inside a git repository
-    return false;
-  }
-
-  try {
-    execFileSync(
-      "git",
-      ["-C", gitRoot, "check-ignore", "--no-index", "-q", "--", absPath],
-      { stdio: ["ignore", "ignore", "ignore"] },
-    );
-    // File is git-ignored: not managed
-    return false;
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      "status" in error &&
-      typeof error.status === "number" &&
-      error.status === 1
-    ) {
-      // Not ignored: managed
-      return true;
-    }
-    // Other error: treat as not managed for safety
-    return false;
-  }
 }
 
 /**

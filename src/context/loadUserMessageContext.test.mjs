@@ -1,5 +1,14 @@
 import assert from "node:assert";
-import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { after, describe, it } from "node:test";
 import { loadUserMessageContext } from "./loadUserMessageContext.mjs";
@@ -114,6 +123,55 @@ describe("loadUserMessageContext", () => {
         type: "image",
       },
     ]);
+  });
+
+  it("rejects text references whose symlink target is outside the working directory", async (t) => {
+    // given:
+    await mkdir(TEMP_DIR, { recursive: true });
+    const outsideDir = await mkdtemp(
+      path.join(os.tmpdir(), "plain-agent-reference-"),
+    );
+    t.after(() => rm(outsideDir, { recursive: true, force: true }));
+    const outsideFile = path.join(outsideDir, "notes.txt");
+    const link = path.join(TEMP_DIR, "outside.txt");
+    await writeFile(outsideFile, "outside text");
+    await symlink(outsideFile, link);
+    const message = `@'${link}'`;
+
+    // when:
+    const result = await loadUserMessageContext(message);
+
+    // then:
+    assert.deepStrictEqual(result, [{ type: "text", text: message }]);
+  });
+
+  it("reads text references and symlinks inside the working directory", async () => {
+    // given:
+    const fixture = await mkdtemp(path.join(process.cwd(), "..context-"));
+    try {
+      const notes = path.join(fixture, "notes.txt");
+      const link = path.join(fixture, "inside.txt");
+      await writeFile(notes, "first line\nsecond line\n");
+      await symlink(notes, link);
+
+      for (const filePath of [notes, link]) {
+        const reference = `${filePath}:2`;
+        const message = `@'${reference}'`;
+
+        // when:
+        const result = await loadUserMessageContext(message);
+
+        // then:
+        assert.deepStrictEqual(result, [
+          {
+            type: "text",
+            text: `${message}\n\n<context location="${reference}">\nsecond line\n</context>`,
+          },
+        ]);
+      }
+    } finally {
+      await rm(fixture, { recursive: true, force: true });
+    }
   });
 
   it("should not attach an image whose content does not match its extension", async () => {

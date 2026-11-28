@@ -6,12 +6,13 @@ import {
   collectPatchLineRanges,
   createPatchFileTool,
   parseBlocks,
-  readPatchPreview,
   renderPatchBlock,
 } from "./patchFile.mjs";
 
 describe("patchFileTool", () => {
-  const patchFileTool = createPatchFileTool("012", () => true);
+  const patchFileTool = createPatchFileTool("012", {
+    canReadPreview: () => true,
+  });
 
   /** @type {(() => Promise<void>)[]} */
   const cleanups = [];
@@ -889,7 +890,9 @@ describe("renderPatchBlock with sparse original lines", () => {
   });
 });
 describe("patch preview snapshots", () => {
-  const patchFileTool = createPatchFileTool("012", () => true);
+  const patchFileTool = createPatchFileTool("012", {
+    canReadPreview: () => true,
+  });
 
   /** @type {(() => Promise<void>)[]} */
   const cleanups = [];
@@ -923,19 +926,22 @@ describe("patch preview snapshots", () => {
       "BRAVO!",
     ].join("\n");
     const input = { filePath: tmpFilePath, patch };
+    let canRead = true;
+    const tool = createPatchFileTool("012", { canReadPreview: () => canRead });
 
     // when:
-    await patchFileTool.impl(input);
+    await tool.impl(input);
 
     // then: the original lines hold the pre-write line 2 only, plus total count.
-    const snapshot = await readPatchPreview(input, () => true);
+    const snapshot = await tool.readPreview(input);
     assert.deepEqual(snapshot, { totalLines: 3, lines: { 2: "bravo" } });
-    assert.deepEqual(await readPatchPreview({ ...input }, () => true), [
+    assert.deepEqual(await tool.readPreview({ ...input }), [
       "alpha",
       "BRAVO!",
       "charlie",
     ]);
-    assert.equal(await readPatchPreview(input, () => false), undefined);
+    canRead = false;
+    assert.equal(await tool.readPreview(input), undefined);
   });
 
   it("does not use the edited file when the original was too large to preview", async () => {
@@ -951,7 +957,7 @@ describe("patch preview snapshots", () => {
     assert.equal(await patchFileTool.impl(input), `Patched file: ${filePath}`);
 
     // then:
-    assert.equal(await readPatchPreview(input, () => true), undefined);
+    assert.equal(await patchFileTool.readPreview(input), undefined);
   });
 
   it("evicts the oldest entry once the size limit is exceeded", async () => {
@@ -972,10 +978,10 @@ describe("patch preview snapshots", () => {
       await patchFileTool.impl(input);
     }
 
-    // then: the evicted call has no preview; the newest retains its original lines.
-    assert.equal(await readPatchPreview(inputs[0], () => true), undefined);
+    // then: the oldest entry is gone, the newest remains.
+    assert.equal(await patchFileTool.readPreview(inputs[0]), undefined);
     assert.deepEqual(
-      await readPatchPreview(inputs[inputs.length - 1], () => true),
+      await patchFileTool.readPreview(inputs[inputs.length - 1]),
       { totalLines: 1, lines: { 1: "x" } },
     );
   });

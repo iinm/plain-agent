@@ -4,9 +4,8 @@
  * @import { AgentRole } from "./context/loadAgentRoles.mjs"
  */
 
-import fs from "node:fs/promises";
-import path from "node:path";
 import { AGENT_PROJECT_METADATA_DIR } from "./env.mjs";
+import { createFileAccess, MEMORY_TARGET } from "./fileAccess.mjs";
 import { CLAUDE_CODE_COMPATIBILITY_NOTES } from "./prompt.mjs";
 import { switchToMainAgentToolName } from "./tools/switchToMainAgent.mjs";
 
@@ -21,8 +20,13 @@ import { switchToMainAgentToolName } from "./tools/switchToMainAgent.mjs";
  * Creates a manager for subagent lifecycle and state.
  * @param {Map<string, AgentRole>} agentRoles
  * @param {SubagentStateEventHandlers} handlers
+ * @param {import("./fileAccess.mjs").FileAccess} [files]
  */
-export function createSubagentManager(agentRoles, handlers) {
+export function createSubagentManager(
+  agentRoles,
+  handlers,
+  files = createFileAccess(),
+) {
   /** @type {{name: string; goal: string; switchMessageIndex: number}[]} */
   const subagents = [];
   let subagentCount = 0;
@@ -122,10 +126,11 @@ export function createSubagentManager(agentRoles, handlers) {
 
   /**
    * Switch back to the main agent role and read the memory file.
-   * @param {string} memoryPath
+   * @param {SwitchToMainAgentInput} input
+   * @param {import("./fileAccess.mjs").FileTarget} [target]
    * @returns {Promise<SwitchToMainAgentResult>}
    */
-  async function switchToMainAgent(memoryPath) {
+  async function switchToMainAgent(input, target) {
     if (subagents.length === 0) {
       return {
         success: false,
@@ -133,20 +138,12 @@ export function createSubagentManager(agentRoles, handlers) {
       };
     }
 
-    const absolutePath = path.resolve(memoryPath);
-    const memoryDir = path.resolve(AGENT_PROJECT_METADATA_DIR, "memory");
-    const relativePath = path.relative(memoryDir, absolutePath);
-    if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-      return {
-        success: false,
-        error: `Access denied: memoryPath must be within ${AGENT_PROJECT_METADATA_DIR}/memory`,
-      };
-    }
-
     try {
-      const memoryContent = await fs.readFile(absolutePath, {
-        encoding: "utf-8",
-      });
+      const resolved =
+        target ?? (await files.resolveToolTarget(input, MEMORY_TARGET));
+      const memoryContent = (await files.readFile(resolved.realPath)).toString(
+        "utf8",
+      );
       return {
         success: true,
         memoryContent: memoryContent,

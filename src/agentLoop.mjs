@@ -2,7 +2,7 @@
  * @import { AgentEventSink, AgentBudgetConfig, ToolApprovalDecision } from "./agent"
  * @import { StateManager } from "./agentState.mjs"
  * @import { CallModel, MessageContentText, MessageContentImage, MessageContentToolResult, PartialMessageContent, MessageContentToolUse, ProviderTokenUsage } from "./model"
- * @import { ToolDefinition, ToolUseApprover } from "./tool"
+ * @import { ToolDefinition, ToolUseApprover, ToolUseDecision } from "./tool"
  * @import { ToolExecutor } from "./toolExecutor.mjs";
  * @import { SubagentManager } from "./subagent.mjs"
  */
@@ -62,13 +62,14 @@ export function createAgentLoop({
   /**
    * Reset per-turn signals, apply a state mutation, then run the turn loop.
    * @param {() => void | Promise<void>} mutate
+   * @param {boolean} [continueTurn]
    * @returns {Promise<void>}
    */
-  async function runTurn(mutate) {
+  async function runTurn(mutate, continueTurn = true) {
     pauseSignal.reset();
     toolUseApprover.resetApprovalCount();
     await mutate();
-    await runTurnLoop();
+    if (continueTurn) await runTurnLoop();
     emitEvent({ timestamp: new Date(), type: "turn_end" });
   }
 
@@ -89,11 +90,13 @@ export function createAgentLoop({
    * @returns {Promise<void>}
    */
   async function respondToToolApproval(decision) {
-    await runTurn(() =>
-      applyToolApprovalDecision(
-        { stateManager, toolExecutor, subagentManager },
-        decision,
-      ),
+    await runTurn(
+      () =>
+        applyToolApprovalDecision(
+          { stateManager, toolExecutor, subagentManager },
+          decision,
+        ),
+      decision.action === "allow" || !decision.stop,
     );
   }
 
@@ -208,8 +211,12 @@ export function createAgentLoop({
         continue;
       }
 
-      // Approve tool use
-      const decisions = toolUseParts.map(toolUseApprover.isAllowedToolUse);
+      // Consume auto-approvals in request order, including sandbox checks.
+      /** @type {ToolUseDecision[]} */
+      const decisions = [];
+      for (const toolUse of toolUseParts) {
+        decisions.push(await toolUseApprover.isAllowedToolUse(toolUse));
+      }
 
       const hasDeniedToolUse = decisions.some((d) => d.action === "deny");
       if (hasDeniedToolUse) {

@@ -3,9 +3,7 @@
  * @import { CompactContextInput } from './compactContext'
  */
 
-import fs from "node:fs/promises";
-import path from "node:path";
-import { AGENT_MEMORY_DIR } from "../env.mjs";
+import { createFileAccess, MEMORY_TARGET } from "../fileAccess.mjs";
 import { noThrow } from "../utils/noThrow.mjs";
 
 export const compactContextToolName = "compact_context";
@@ -19,6 +17,7 @@ export function createCompactContextTool() {
 
   /** @type {Tool} */
   const tool = {
+    fileTarget: MEMORY_TARGET,
     def: {
       name: compactContextToolName,
       description:
@@ -57,22 +56,18 @@ export function createCompactContextTool() {
  * Read a memory file and return the compact_context tool result string.
  * Validates that the memoryPath is within the project memory directory.
  * @param {CompactContextInput} input
+ * @param {import("../fileAccess.mjs").FileAccess} [files]
+ * @param {import("../fileAccess.mjs").FileTarget} [target]
  * @returns {Promise<string | Error>}
  */
-export async function readMemoryForCompaction(input) {
+export async function readMemoryForCompaction(input, files, target) {
+  const backend = files ?? createFileAccess();
   return await noThrow(async () => {
-    const absolutePath = path.resolve(input.memoryPath);
-    const memoryDir = path.resolve(AGENT_MEMORY_DIR);
-    const relativePath = path.relative(memoryDir, absolutePath);
-    if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
-      return new Error(
-        `Access denied: memoryPath must be within ${AGENT_MEMORY_DIR}`,
-      );
-    }
-
-    const memoryContent = await fs.readFile(absolutePath, {
-      encoding: "utf-8",
-    });
+    const resolved =
+      target ?? (await backend.resolveToolTarget(input, MEMORY_TARGET));
+    const memoryContent = (await backend.readFile(resolved.realPath)).toString(
+      "utf8",
+    );
 
     return [
       "Context compacted. Prior conversation has been discarded.",

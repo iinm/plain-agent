@@ -186,6 +186,232 @@ describe("auto-approval", () => {
     assert.ok(!rendered.includes(hidden), rendered);
   });
 
+  it("uses the configured sandbox for built-in file access and previews", async () => {
+    // given: a wrapper that executes relative to a separate filesystem view.
+    const sandboxDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), "plain-agent-view-"),
+    );
+    cleanups.push(() => fs.rm(sandboxDir, { recursive: true, force: true }));
+    execFileSync("git", ["init", "-q"], { cwd: sandboxDir });
+    const hostExcludePath = path.join(workDir, ".git", "info", "exclude");
+    const hostExclude = await fs.readFile(hostExcludePath, "utf8");
+    cleanups.push(() => fs.writeFile(hostExcludePath, hostExclude));
+    await fs.appendFile(
+      hostExcludePath,
+      "\nread.txt\nnew/\nsandbox-patch.txt\n",
+    );
+
+    const patchedPath = "sandbox-patch.txt";
+    const ignoredPath = "sandbox-ignored.txt";
+    const ignoredSource = "old line from sandbox-ignored file";
+    await fs.writeFile(
+      path.join(sandboxDir, ".gitignore"),
+      `${ignoredPath}\nimage.png\n`,
+    );
+    await fs.writeFile(
+      path.join(sandboxDir, ignoredPath),
+      `${ignoredSource}\n`,
+    );
+    const outsidePath = "host-only.txt";
+    const source = "sandbox original";
+    const hostSource = "host original";
+    await fs.writeFile(path.join(sandboxDir, patchedPath), `${source}\n`);
+    await fs.writeFile(
+      path.join(sandboxDir, "read.txt"),
+      "sandbox read\n".repeat(30_000),
+    );
+    const image = await fs.readFile(
+      path.join(__dirname, "../src/utils/test/iinm.png"),
+    );
+    await fs.writeFile(path.join(sandboxDir, "image.png"), image);
+    await fs.writeFile(path.join(workDir, patchedPath), hostSource);
+    await fs.writeFile(path.join(workDir, outsidePath), "host-only contents");
+    cleanups.push(() => fs.unlink(path.join(workDir, patchedPath)));
+    cleanups.push(() => fs.unlink(path.join(workDir, outsidePath)));
+
+    const configPath = path.join(workDir, ".plain-agent", "config.json");
+    const originalConfig = await fs.readFile(configPath, "utf8");
+    cleanups.push(() => fs.writeFile(configPath, originalConfig));
+    const config = JSON.parse(originalConfig);
+    config.sandbox = {
+      command: "sh",
+      args: ["-c", 'cd "$1" && shift && exec "$@"', "test-wrapper", sandboxDir],
+      rules: [{ pattern: { command: "cat" }, mode: "unsandboxed" }],
+    };
+    config.autoApproval ??= {};
+    config.autoApproval.patterns = [
+      { toolName: "patch_file", action: "allow" },
+      { toolName: "write_file", action: "allow" },
+      ...(config.autoApproval.patterns ?? []),
+    ];
+    await fs.writeFile(configPath, JSON.stringify(config));
+
+    let toolResults = "";
+    let callCount = 0;
+    respondWith = (body) => {
+      if (callCount++ > 0) {
+        toolResults = body;
+        return sseTextResponse("file-operations-done");
+      }
+
+      const nonce = body.match(/REPLACE ([a-z0-9]+) \{start\}/)?.[1];
+      return sseToolCallsResponse([
+        {
+          toolCallId: "read",
+          toolName: "read_file",
+          args: { filePath: "read.txt", limit: 1 },
+        },
+        {
+          toolCallId: "outside",
+          toolName: "read_file",
+          args: { filePath: outsidePath },
+        },
+        {
+          toolCallId: "image",
+          toolName: "read_image",
+          args: { filePath: "image.png" },
+        },
+        {
+          toolCallId: "patch",
+          toolName: "patch_file",
+          args: {
+            filePath: patchedPath,
+            patch: `REPLACE ${nonce} 1:${lineHash(source)}\nreplacement`,
+          },
+        },
+        {
+          toolCallId: "ignored",
+          toolName: "patch_file",
+          args: {
+            filePath: ignoredPath,
+            patch: `REPLACE ${nonce} 1:${lineHash(ignoredSource)}\nreplace sandbox-ignored line`,
+          },
+        },
+        {
+          toolCallId: "ignored-read",
+          toolName: "read_file",
+          args: { filePath: ignoredPath },
+        },
+        {
+          toolCallId: "write",
+          toolName: "write_file",
+          args: {
+            filePath: "new/nested.txt",
+            content: "日本語 and $HOME\nend",
+          },
+        },
+      ]);
+    };
+
+    const { proc, output } = spawnAgent(workDir);
+    cleanups.push(() => closeAndWaitForExit(proc));
+
+    // when:
+    await waitForCliReady(proc, output);
+    proc.stdin.write("run file operations\n");
+    await waitForOutput(output, /Approve all 7 tool calls\?/, 3000);
+
+    // then: the preview reads the same view as the tools.
+    const rendered = stripVTControlCharacters(output.join(""));
+    assert.ok(rendered.includes(`  | - ${source}`), rendered);
+    assert.ok(!rendered.includes(hostSource), rendered);
+    assert.ok(rendered.includes("replace sandbox-ignored line"), rendered);
+    assert.ok(!rendered.includes(ignoredSource), rendered);
+    assert.doesNotMatch(
+      rendered,
+      /#(?:1|2) read_file|#4 patch_file|#7 write_file/,
+    );
+    assert.match(rendered, /#3 read_image .*path is not managed by git/);
+    assert.match(rendered, /#5 patch_file .*path is not managed by git/);
+    assert.match(rendered, /#6 read_file .*path is not managed by git/);
+
+    // when:
+    proc.stdin.write("y\n");
+    await waitForOutput(output, /file-operations-done/, 4000);
+
+    // then: operations used the sandbox view, including failures.
+    assert.match(toolResults, /sandbox read/);
+    assert.match(
+      toolResults,
+      /"tool_call_id":"ignored-read","content":"1:[0-9a-f]+[|]/,
+    );
+    assert.match(toolResults, /Sandbox file operation \(cat\) failed/);
+    assert.ok(!toolResults.includes("host-only contents"));
+    assert.ok(toolResults.includes(image.toString("base64")));
+    assert.equal(
+      await fs.readFile(path.join(sandboxDir, patchedPath), "utf8"),
+      "replacement\n",
+    );
+    assert.equal(
+      await fs.readFile(path.join(workDir, patchedPath), "utf8"),
+      hostSource,
+    );
+    assert.equal(
+      await fs.readFile(path.join(sandboxDir, "new/nested.txt"), "utf8"),
+      "日本語 and $HOME\nend",
+    );
+    await assert.rejects(fs.access(path.join(workDir, "new/nested.txt")), {
+      code: "ENOENT",
+    });
+  });
+
+  it("cancels a pending patch when the sandbox diff times out", async () => {
+    // given: a sandbox that stalls during file metadata inspection.
+    const configPath = path.join(workDir, ".plain-agent", "config.json");
+    const originalConfig = await fs.readFile(configPath, "utf8");
+    cleanups.push(() => fs.writeFile(configPath, originalConfig));
+    const config = JSON.parse(originalConfig);
+    config.sandbox = {
+      command: "sh",
+      args: [
+        "-c",
+        'if [ "$1" = sh ]; then exec sleep 30; fi; exec "$@"',
+        "test-wrapper",
+      ],
+    };
+    await fs.writeFile(configPath, JSON.stringify(config));
+
+    const filePath = "timeout-patch.txt";
+    const source = "before the patch";
+    await fs.writeFile(path.join(workDir, filePath), `${source}\n`);
+    cleanups.push(() => fs.unlink(path.join(workDir, filePath)));
+    let calls = 0;
+    respondWith = (body) => {
+      if (calls++ > 0) return sseTextResponse("ready for another request");
+      const nonce = body.match(/REPLACE ([a-z0-9]+) \{start\}/)?.[1];
+      return sseToolCallResponse("patch-timeout", "patch_file", {
+        filePath,
+        patch: `REPLACE ${nonce} 1:${lineHash(source)}\nafter the patch`,
+      });
+    };
+
+    const { proc, output } = spawnAgent(workDir);
+    cleanups.push(() => closeAndWaitForExit(proc));
+
+    // when:
+    await waitForCliReady(proc, output);
+    proc.stdin.write("apply a patch\n");
+    await waitForOutput(output, /Cancelled the pending changes/, 14_000);
+
+    // then:
+    assert.doesNotMatch(
+      stripVTControlCharacters(output.join("")),
+      /Approve 1 tool call/,
+    );
+    assert.equal(
+      await fs.readFile(path.join(workDir, filePath), "utf8"),
+      `${source}\n`,
+    );
+    assert.equal(calls, 1);
+
+    // when: a new request can run after the cancellation.
+    proc.stdin.write("next request\n");
+    await waitForOutput(output, /ready for another request/, 3000);
+
+    // then:
+    assert.equal(calls, 2);
+  });
+
   it("shows approval reasons and resolved symlink paths above the batch prompt", async () => {
     // given:
     const outside = await fs.mkdtemp(

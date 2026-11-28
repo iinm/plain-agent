@@ -1,5 +1,6 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
+import { createFileAccess, FILE_TARGET } from "./fileAccess.mjs";
 import { createToolExecutor } from "./toolExecutor.mjs";
 
 /**
@@ -50,6 +51,32 @@ const textAt = (toolResult, partIndex) => {
   }
   return part.text;
 };
+
+it("passes the prepared file target and original input to execution", async () => {
+  // given:
+  const files = createFileAccess();
+  const call = createToolUse("read", { filePath: "README.md" });
+  const prepared = await files.resolveToolTarget(call.input, FILE_TARGET);
+  const tool = createTool({
+    name: "read",
+    fileTarget: FILE_TARGET,
+    impl: async (input, target) => {
+      assert.equal(input, call.input);
+      assert.equal(target, prepared);
+      return "read";
+    },
+  });
+  const executor = createToolExecutor(new Map([[tool.def.name, tool]]), {
+    files,
+  });
+
+  // when:
+  const result = await executor.executeBatch([call]);
+
+  // then:
+  assert.ok(result.success);
+  assert.equal(textAt(result.results[0], 0), "read");
+});
 
 describe("createToolExecutor#executeBatch maskSecrets", () => {
   it("masks a string result using a tool's maskSecrets", async () => {

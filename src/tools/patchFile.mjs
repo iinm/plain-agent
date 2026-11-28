@@ -3,31 +3,78 @@
  * @import { PatchBlock, PatchFileInput, PatchOriginalLines } from './patchFile'
  */
 
-import { constants, realpathSync, statSync } from "node:fs";
-import fs from "node:fs/promises";
+import { createFileAccess, FILE_TARGET } from "../fileAccess.mjs";
 import { diffLines } from "../utils/diffLines.mjs";
 import { lineHash } from "../utils/lineHash.mjs";
-import { noThrow, noThrowSync } from "../utils/noThrow.mjs";
+import { noThrow } from "../utils/noThrow.mjs";
 
 const MAX_PATCH_PREVIEW_BYTES = 64 * 1024;
 const MAX_PATCH_PREVIEW_SNAPSHOTS = 32;
+const PATCH_PREVIEW_TIMEOUT_MS = 10_000;
 
-/** @typedef {{filePath: string, dev: number, ino: number}} PreviewTarget */
-/** @type {Map<PatchFileInput, {target: PreviewTarget, lines: PatchOriginalLines}>} */
-const patchPreviewSnapshots = new Map();
-/** @type {WeakSet<PatchFileInput>} */
-const startedPatches = new WeakSet();
+export class PatchPreviewTimeoutError extends Error {
+  constructor() {
+    super("Timed out while loading the patch diff");
+  }
+}
 
 /**
  * @param {string} [nonce]
- * @param {(filePath: string) => boolean} [canReadPreview]
- * @returns {Tool}
+ * @param {{ files?: import("../fileAccess.mjs").FileAccess, canReadPreview?: import("../fileAccess.mjs").FileReadPolicy }} [options]
+ * @returns {Tool & {readPreview: (input: PatchFileInput) => Promise<string[] | PatchOriginalLines | undefined>}}
  */
 export function createPatchFileTool(
   nonce = Math.random().toString(36).substring(2, 5),
-  canReadPreview = undefined,
+  { files = createFileAccess(), canReadPreview } = {},
 ) {
+  /** @type {Map<PatchFileInput, {source: string, lines: PatchOriginalLines}>} */
+  const snapshots = new Map();
+  /** @type {WeakSet<PatchFileInput>} */
+  const startedPatches = new WeakSet();
+
   return {
+    fileTarget: FILE_TARGET,
+    async readPreview(input) {
+      if (typeof input.filePath !== "string" || !canReadPreview) {
+        return undefined;
+      }
+
+      const signal = AbortSignal.timeout(PATCH_PREVIEW_TIMEOUT_MS);
+      const preview = await noThrow(async () => {
+        const target = await files.resolveToolTarget(
+          input,
+          FILE_TARGET,
+          signal,
+        );
+        const authorized = await files.authorizeRead(
+          target,
+          canReadPreview,
+          signal,
+        );
+        if (!authorized) return undefined;
+        if (!startedPatches.has(input)) {
+          const original = await authorized.read(MAX_PATCH_PREVIEW_BYTES);
+          if (!startedPatches.has(input)) {
+            return original
+              ? splitFileLines(original.toString("utf8"))
+              : undefined;
+          }
+        }
+
+        const snapshot = snapshots.get(input);
+        return snapshot?.source === authorized.source
+          ? snapshot.lines
+          : undefined;
+      });
+      if (
+        signal.aborted ||
+        (preview instanceof Error && preview.name === "TimeoutError")
+      ) {
+        throw new PatchPreviewTimeoutError();
+      }
+      return preview instanceof Error ? undefined : preview;
+    },
+
     def: {
       name: "patch_file",
       description: `Modify a file by replacing or inserting content.
@@ -66,9 +113,10 @@ content at beginning of file
 
     /**
      * @param {PatchFileInput} input
+     * @param {import("../fileAccess.mjs").FileTarget} [target]
      * @returns {Promise<string | Error>}
      */
-    impl: async (input) =>
+    impl: async (input, target) =>
       await noThrow(async () => {
         const { filePath, patch } = input;
         const blocks = parseBlocks(patch, nonce);
@@ -79,25 +127,37 @@ content at beginning of file
         }
 
         startedPatches.add(input);
-        const target = findPreviewTarget(filePath, canReadPreview);
-        const file = await fs.open(filePath, "r");
-        let original;
-        try {
-          const stats = target ? await file.stat() : undefined;
-          original = await file.readFile("utf8");
-          if (
-            target &&
-            stats &&
-            matchesPreviewTarget(target, stats) &&
-            Buffer.byteLength(original) <= MAX_PATCH_PREVIEW_BYTES
-          ) {
-            rememberPatchPreview(input, target, original, blocks);
-          }
-        } finally {
-          await file.close();
+        const capture = canReadPreview
+          ? await noThrow(async () => {
+              const signal = AbortSignal.timeout(PATCH_PREVIEW_TIMEOUT_MS);
+              const previewTarget =
+                target ??
+                (await files.resolveToolTarget(input, FILE_TARGET, signal));
+              const authorized = await files.authorizeRead(
+                previewTarget,
+                canReadPreview,
+                signal,
+              );
+              if (!authorized) return undefined;
+              const bytes = await authorized.read();
+              return bytes ? { source: authorized.source, bytes } : undefined;
+            })
+          : undefined;
+        const preview = capture instanceof Error ? undefined : capture;
+        const original = (
+          preview?.bytes ?? (await files.readFile(target?.realPath ?? filePath))
+        ).toString("utf8");
+        if (preview && preview.bytes.length <= MAX_PATCH_PREVIEW_BYTES) {
+          rememberPatchPreview(
+            snapshots,
+            input,
+            preview.source,
+            original,
+            blocks,
+          );
         }
         const newContent = applyBlocks(original, blocks);
-        await fs.writeFile(filePath, newContent);
+        await files.writeFile(target?.realPath ?? filePath, newContent);
 
         return `Patched file: ${filePath}`;
       }),
@@ -346,39 +406,6 @@ export function renderPatchBlock(block, originalLines, nonce, style = {}) {
 }
 
 /**
- * Read original lines for a CLI preview when the same path can be read without
- * asking the user. A snapshot belongs to a single tool call.
- *
- * @param {PatchFileInput} input
- * @param {(filePath: string) => boolean} canRead
- * @returns {Promise<string[] | PatchOriginalLines | undefined>}
- */
-export async function readPatchPreview(input, canRead) {
-  const target = findPreviewTarget(input.filePath, canRead);
-  if (!target) return undefined;
-
-  if (!startedPatches.has(input)) {
-    const original = await noThrow(() => readPreviewFile(target));
-    if (!startedPatches.has(input)) {
-      return typeof original === "string"
-        ? splitFileLines(original)
-        : undefined;
-    }
-  }
-
-  // Once application starts, only the pre-edit snapshot can provide a diff.
-  const snapshot = patchPreviewSnapshots.get(input);
-  if (
-    snapshot &&
-    snapshot.target.filePath === target.filePath &&
-    matchesPreviewTarget(target, snapshot.target)
-  ) {
-    return snapshot.lines;
-  }
-  return undefined;
-}
-
-/**
  * Compute the set of original line ranges needed to render a patch's diff
  * preview: the union of every replace block's `[start, end]` (1-based,
  * inclusive). Insert blocks reference no original content and are excluded.
@@ -552,81 +579,23 @@ function detectConflicts(blocks) {
 }
 
 /**
+ * @param {Map<PatchFileInput, {source: string, lines: PatchOriginalLines}>} snapshots
  * @param {PatchFileInput} input
- * @param {PreviewTarget} target
+ * @param {string} source
  * @param {string} original
  * @param {PatchBlock[]} blocks
  */
-function rememberPatchPreview(input, target, original, blocks) {
-  patchPreviewSnapshots.set(input, {
-    target,
+function rememberPatchPreview(snapshots, input, source, original, blocks) {
+  snapshots.set(input, {
+    source,
     lines: buildPatchOriginalLines(
       splitFileLines(original),
       collectPatchLineRanges(blocks),
     ),
   });
-  if (patchPreviewSnapshots.size > MAX_PATCH_PREVIEW_SNAPSHOTS) {
-    const oldest = patchPreviewSnapshots.keys().next().value;
-    if (oldest) patchPreviewSnapshots.delete(oldest);
-  }
-}
-
-/**
- * Capture the resolved target before consulting the approval policy and
- * confirm that the request still resolves to that path after the check.
- *
- * @param {string} filePath
- * @param {(filePath: string) => boolean} [canRead]
- * @returns {PreviewTarget | undefined}
- */
-function findPreviewTarget(filePath, canRead) {
-  if (!canRead || typeof filePath !== "string") return undefined;
-
-  const target = noThrowSync(() => {
-    const resolvedPath = realpathSync(filePath);
-    const stats = statSync(resolvedPath);
-    if (
-      !stats.isFile() ||
-      !canRead(filePath) ||
-      realpathSync(filePath) !== resolvedPath
-    ) {
-      return undefined;
-    }
-    return { filePath: resolvedPath, dev: stats.dev, ino: stats.ino };
-  });
-  return target instanceof Error ? undefined : target;
-}
-
-/**
- * @param {PreviewTarget} target
- * @param {{dev: number, ino: number}} stats
- */
-function matchesPreviewTarget(target, stats) {
-  return target.dev === stats.dev && target.ino === stats.ino;
-}
-
-/** @param {PreviewTarget} target */
-async function readPreviewFile(target) {
-  const file = await fs.open(
-    target.filePath,
-    constants.O_RDONLY | constants.O_NONBLOCK | constants.O_NOFOLLOW,
-  );
-  try {
-    const stats = await file.stat();
-    if (
-      !stats.isFile() ||
-      !matchesPreviewTarget(target, stats) ||
-      stats.size > MAX_PATCH_PREVIEW_BYTES
-    ) {
-      return undefined;
-    }
-
-    const buffer = Buffer.alloc(stats.size + 1);
-    const { bytesRead } = await file.read(buffer, 0, buffer.length, 0);
-    if (bytesRead !== stats.size) return undefined;
-    return buffer.toString("utf8", 0, bytesRead);
-  } finally {
-    await file.close();
+  if (snapshots.size > MAX_PATCH_PREVIEW_SNAPSHOTS) {
+    const oldest = snapshots.keys().next().value;
+    if (oldest) snapshots.delete(oldest);
   }
 }
 

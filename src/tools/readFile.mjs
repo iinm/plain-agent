@@ -3,76 +3,88 @@
  * @import { ReadFileInput } from './readFile'
  */
 
-import fs from "node:fs";
 import readline from "node:readline";
+import { createFileAccess, FILE_TARGET } from "../fileAccess.mjs";
 import { imageMimeTypeFromPath } from "../utils/imageMimeType.mjs";
 import { lineHash } from "../utils/lineHash.mjs";
 import { noThrow } from "../utils/noThrow.mjs";
 
 const OUTPUT_MAX_LENGTH = 1024 * 8;
 
-/** @type {Tool} */
-export const readFileTool = {
-  def: {
-    name: "read_file",
-    description:
-      "Read a file with line numbers (1-indexed). Each line is prefixed with its number and a short content hash: `{no}:{hash}|{content}` (e.g. `1:a3|function hello() {`).",
-    inputSchema: {
-      type: "object",
-      properties: {
-        filePath: {
-          type: "string",
+/**
+ * @param {import("../fileAccess.mjs").FileAccess} [files]
+ * @returns {Tool}
+ */
+export function createReadFileTool(files = createFileAccess()) {
+  return {
+    fileTarget: FILE_TARGET,
+    def: {
+      name: "read_file",
+      description:
+        "Read a file with line numbers (1-indexed). Each line is prefixed with its number and a short content hash: `{no}:{hash}|{content}` (e.g. `1:a3|function hello() {`).",
+      inputSchema: {
+        type: "object",
+        properties: {
+          filePath: {
+            type: "string",
+          },
+          offset: {
+            description: "1-indexed start line. Defaults to 1.",
+            type: "number",
+          },
+          limit: {
+            description: "Maximum number of lines to return.",
+            type: "number",
+          },
         },
-        offset: {
-          description: "1-indexed start line. Defaults to 1.",
-          type: "number",
-        },
-        limit: {
-          description: "Maximum number of lines to return.",
-          type: "number",
-        },
+        required: ["filePath"],
       },
-      required: ["filePath"],
     },
-  },
 
-  /**
-   * @param {ReadFileInput} input
-   * @returns {Promise<string | Error>}
-   */
-  impl: async (input) =>
-    await noThrow(async () => {
-      const { filePath } = input;
-      const offset = input.offset ?? 1;
-      const limit = input.limit;
+    /**
+     * @param {ReadFileInput} input
+     * @param {import("../fileAccess.mjs").FileTarget} [target]
+     * @returns {Promise<string | Error>}
+     */
+    impl: async (input, target) =>
+      await noThrow(async () => {
+        const { filePath } = input;
+        const offset = input.offset ?? 1;
+        const limit = input.limit;
 
-      const mimeType = imageMimeTypeFromPath(filePath);
-      if (mimeType !== undefined) {
-        throw new Error(
-          `${filePath} is an image (${mimeType}). Use read_image to see it.`,
+        const mimeType = imageMimeTypeFromPath(filePath);
+        if (mimeType !== undefined) {
+          throw new Error(
+            `${filePath} is an image (${mimeType}). Use read_image to see it.`,
+          );
+        }
+
+        if (!Number.isInteger(offset) || offset < 1) {
+          throw new Error("offset must be a positive integer (1-indexed)");
+        }
+        if (limit !== undefined && (!Number.isInteger(limit) || limit < 1)) {
+          throw new Error("limit must be a positive integer");
+        }
+
+        const lines = await files.readStream(
+          target?.realPath ?? filePath,
+          (stream) => readLineRange(stream, offset, limit),
         );
-      }
+        return formatNumberedLines(lines, offset);
+      }),
+  };
+}
 
-      if (!Number.isInteger(offset) || offset < 1) {
-        throw new Error("offset must be a positive integer (1-indexed)");
-      }
-      if (limit !== undefined && (!Number.isInteger(limit) || limit < 1)) {
-        throw new Error("limit must be a positive integer");
-      }
-
-      const lines = await readLineRange(filePath, offset, limit);
-      return formatNumberedLines(lines, offset);
-    }),
-};
+export const readFileTool = createReadFileTool();
 
 /**
- * @param {string} filePath
+ * @param {import("node:stream").Readable} stream
  * @param {number} offset
  * @param {number | undefined} limit
  * @returns {Promise<string[]>}
  */
-async function readLineRange(filePath, offset, limit) {
-  const stream = fs.createReadStream(filePath, { encoding: "utf8" });
+async function readLineRange(stream, offset, limit) {
+  stream.setEncoding("utf8");
   const rl = readline.createInterface({
     input: stream,
     crlfDelay: Number.POSITIVE_INFINITY,
@@ -117,9 +129,6 @@ async function readLineRange(filePath, offset, limit) {
     }
   } finally {
     rl.close();
-    if (!stream.destroyed) {
-      stream.destroy();
-    }
   }
 
   return lines;

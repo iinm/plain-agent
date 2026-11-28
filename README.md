@@ -144,8 +144,9 @@ When a `sandbox` is set, path validation is skipped for sandboxed `exec_command`
 
 ### Sandbox
 
-The agent can run arbitrary commands via `exec_command` and `tmux_command`. You can configure a wrapper command that intercepts both.
-A Docker-based wrapper called `plain-sandbox` is included, but the interface is designed to work with other tools as well, such as [Anthropic Sandbox Runtime (srt)](https://github.com/anthropic-experimental/sandbox-runtime).
+The sandbox wrapper handles `exec_command`, `tmux_command`, and built-in file operations. File tools validate paths and access files inside the sandbox. Relative paths are resolved from its working directory.
+
+On Linux, the bundled Docker wrapper `plain-sandbox` requires `flock`. Custom wrappers such as [Anthropic Sandbox Runtime (srt)](https://github.com/anthropic-experimental/sandbox-runtime) must forward arguments and standard streams without a TTY. Built-in file tools need `sh`, `realpath`, `git`, `cat`, `tee`, `mkdir`, and `test` in the sandbox.
 
 ```js
 {
@@ -667,7 +668,7 @@ Files are loaded in the following order. Settings in later files override earlie
     }
   },
 
-  // Sandbox environment for the exec_command and tmux_command tools
+  // Sandbox environment for commands and built-in file access
   "sandbox": {
     // Commands are wrapped and executed with this command
     "command": "plain-sandbox",

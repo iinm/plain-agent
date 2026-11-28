@@ -2,6 +2,8 @@
  * @import { Tool, ToolImplementation } from '../tool'
  */
 
+import { MEMORY_TARGET } from "../fileAccess.mjs";
+
 export const switchToMainAgentToolName = "switch_to_main_agent";
 
 /** @returns {Tool} */
@@ -13,6 +15,7 @@ export function createSwitchToMainAgentTool() {
 
   /** @type {Tool} */
   const tool = {
+    fileTarget: MEMORY_TARGET,
     def: {
       name: switchToMainAgentToolName,
       description: "Switch back to the main agent role and report the result.",

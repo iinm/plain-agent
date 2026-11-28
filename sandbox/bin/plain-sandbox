@@ -5,7 +5,9 @@ set -eu -o pipefail
 SCRIPT_PATH=$(readlink -f "${BASH_SOURCE[0]}")
 SCRIPT_NAME=$(basename "${BASH_SOURCE[0]}")
 
-MOUNTABLE_SCRIPT_PATH="$HOME/.cache/$SCRIPT_NAME/$SCRIPT_NAME"
+SANDBOX_CACHE_DIR="$HOME/.cache/$SCRIPT_NAME"
+MOUNTABLE_SCRIPT_PATH="$SANDBOX_CACHE_DIR/$SCRIPT_NAME"
+CONTAINER_READY_FILE="/sandbox/.plain-sandbox-ready"
 CONTAINER_SCRIPT_PATH="/sandbox/bin/$SCRIPT_NAME"
 PLAIN_SANDBOX_PRESET_BASE_IMAGE="${PLAIN_SANDBOX_PRESET_BASE_IMAGE:-debian:stable-slim@sha256:fbfb4059d2127120aa05b6e6064523d2102552f0cf0026ddf0701c12f1f8f3e0}"
 CONTAINER_NETWORK_ALLOW_LIST=allow_list
@@ -174,8 +176,12 @@ sha256_short() {
 VERBOSE="no"
 DRY_RUN="no"
 IMAGE_NAME=
+INIT_LOCK_FD=
 
 main() {
+  local original_args=("$@")
+  INIT_LOCK_FD="${PLAIN_SANDBOX_INIT_LOCK_FD:-}"
+  unset PLAIN_SANDBOX_INIT_LOCK_FD
   # Options
   local dockerfile=""
   local allow_write="no"
@@ -302,6 +308,30 @@ main() {
     return 1
   fi
 
+  local project_id
+  project_id="$(sha256_short 8 <<< "$(pwd)")"
+
+  # The image tag is shared by all sandbox configurations in this directory.
+  IMAGE_NAME="$(printf '%s' "${SCRIPT_NAME}--$(basename "$(pwd)")-$project_id" | tr '[:upper:]' '[:lower:]')"
+  if test "$DRY_RUN" = "no" && test -z "$INIT_LOCK_FD"; then
+    mkdir -p "$SANDBOX_CACHE_DIR"
+    local lock_path="$SANDBOX_CACHE_DIR/$IMAGE_NAME.lock"
+    if test "$(uname -s)" = "Darwin"; then
+      # macOS provides advisory file locks through its system zsh.
+      touch "$lock_path"
+      exec /bin/zsh -fc '
+        zmodload zsh/system
+        zsystem flock -e -t 300 -f fd "$1" || exit 1
+        export PLAIN_SANDBOX_INIT_LOCK_FD="$fd"
+        shift
+        exec "$@"
+      ' plain-sandbox "$lock_path" "$BASH" "$SCRIPT_PATH" "${original_args[@]}"
+    fi
+    exec 9>> "$lock_path"
+    flock -x -w 300 9
+    INIT_LOCK_FD=9
+  fi
+
   # save stdout, stderr
   exec 3>&1
   exec 4>&2
@@ -323,9 +353,18 @@ main() {
   }
 
   log "Copy script to mountable path: $SCRIPT_PATH -> $MOUNTABLE_SCRIPT_PATH"
-  run mkdir -p "$(dirname "$MOUNTABLE_SCRIPT_PATH")"
-  run cp -f "$SCRIPT_PATH" "$MOUNTABLE_SCRIPT_PATH"
-  run chmod +x "$MOUNTABLE_SCRIPT_PATH"
+  if test "$DRY_RUN" = "no"; then
+    # Other projects share the cache. Publish a complete script in one rename.
+    local staged_script
+    staged_script=$(mktemp "$SANDBOX_CACHE_DIR/$SCRIPT_NAME.XXXXXX")
+    cp -f "$SCRIPT_PATH" "$staged_script"
+    chmod 755 "$staged_script"
+    mv -f "$staged_script" "$MOUNTABLE_SCRIPT_PATH"
+  else
+    run mkdir -p "$SANDBOX_CACHE_DIR"
+    run cp -f "$SCRIPT_PATH" "$MOUNTABLE_SCRIPT_PATH"
+    run chmod +x "$MOUNTABLE_SCRIPT_PATH"
+  fi
 
   local host_user_id
   local host_group_id
@@ -338,12 +377,6 @@ main() {
   host_project_root="$(git rev-parse --show-toplevel || pwd)"
   container_project_root="$host_project_root"
   container_workdir=$(pwd)
-
-  local project_id
-  project_id="$(sha256_short 8 <<< "$(pwd)")"
-
-  # Docker repository names must be lowercase.
-  IMAGE_NAME="$(printf '%s' "${SCRIPT_NAME}--$(basename "$(pwd)")-$project_id" | tr '[:upper:]' '[:lower:]')"
 
   local image_tag
   image_tag="latest"
@@ -395,6 +428,7 @@ main() {
     --detach
     --rm
     --name "$container_name"
+    --label plain-sandbox.managed-init=1
     --entrypoint ""
     --user 0:0
     --security-opt no-new-privileges
@@ -587,7 +621,9 @@ EOF
     fi
     exec 1>&2
   
-    run cleanup_networks "$IMAGE_NAME"
+    if test -n "$INIT_LOCK_FD"; then
+      run cleanup_networks "$IMAGE_NAME"
+    fi
   
     exec 3>&-
     exec 4>&-
@@ -596,6 +632,10 @@ EOF
   }
  
   trap 'on_exit' EXIT
+
+  if test "$DRY_RUN" = "no"; then
+    cleanup_networks "$IMAGE_NAME"
+  fi
 
   local existing_image_hash=""
   if test "$DRY_RUN" = "no"; then
@@ -623,7 +663,7 @@ EOF
     log "Image already exists, skipping build: $IMAGE_NAME"
   fi
 
-  if test "$DRY_RUN" = "no" && test "$(docker inspect --type container "$container_name" --format "{{ .State.Running }}" 2> /dev/null)" = "true"; then
+  if test "$DRY_RUN" = "no" && sandbox_container_ready "$container_name"; then
     log "Container is already running. Reusing $container_name"
   else
     log "Stopping any existing container: $container_name"
@@ -675,10 +715,20 @@ EOF
     run docker exec --user 0:0 "$container_name" "$CONTAINER_SCRIPT_PATH" setup_container_user \
       "$container_default_user_id" "$container_default_group_id" \
       "$host_user_id" "$host_group_id"
+    run docker exec --user 0:0 "$container_name" touch "$CONTAINER_READY_FILE"
   fi
 
   run docker exec --detach --user 0:0 "$container_name" \
     "$CONTAINER_SCRIPT_PATH" start_container_terminator "$keep_alive_seconds"
+
+  if test -n "$INIT_LOCK_FD"; then
+    # Bash 3.2 requires a literal fd number for this redirection.
+    case "$INIT_LOCK_FD" in
+      *[!0-9]*) return 1 ;;
+      *) eval "exec $INIT_LOCK_FD>&-" ;;
+    esac
+    INIT_LOCK_FD=""
+  fi
 
   # restore stdout, stderr
   exec 1>&3
@@ -687,6 +737,20 @@ EOF
   run docker exec "${docker_exec_opts[@]}" "$container_name" \
     "$CONTAINER_SCRIPT_PATH" container_exec "$container_project_root" \
     "$container_workdir" "$host_user_id" "$host_group_id" "$@"
+}
+
+sandbox_container_ready() {
+  local container_name="$1"
+  local state
+  state=$(docker inspect --type container "$container_name" \
+    --format '{{.State.Running}} {{index .Config.Labels "plain-sandbox.managed-init"}}' \
+    2> /dev/null) || return 1
+  case "$state" in
+    "true 1")
+      docker exec --user 0:0 "$container_name" test -f "$CONTAINER_READY_FILE" ;;
+    "true "*) return 0 ;; # Containers created by older releases.
+    *) return 1 ;;
+  esac
 }
 
 start_container_terminator() {
