@@ -938,6 +938,22 @@ describe("patch preview snapshots", () => {
     assert.equal(await readPatchPreview(input, () => false), undefined);
   });
 
+  it("does not use the edited file when the original was too large to preview", async () => {
+    // given:
+    const original = "x".repeat(64 * 1024 + 1);
+    const filePath = await writeTmp([original]);
+    const input = {
+      filePath,
+      patch: `REPLACE 012 1:${lineHash(original)}\nshort replacement`,
+    };
+
+    // when:
+    assert.equal(await patchFileTool.impl(input), `Patched file: ${filePath}`);
+
+    // then:
+    assert.equal(await readPatchPreview(input, () => true), undefined);
+  });
+
   it("evicts the oldest entry once the size limit is exceeded", async () => {
     // given: run more patches than the cache can hold, tracking every input.
     /** @type {{ filePath: string; patch: string }[]} */
@@ -956,8 +972,8 @@ describe("patch preview snapshots", () => {
       await patchFileTool.impl(input);
     }
 
-    // then: the oldest entry is gone, the newest remains.
-    assert.deepEqual(await readPatchPreview(inputs[0], () => true), ["y0"]);
+    // then: the evicted call has no preview; the newest retains its original lines.
+    assert.equal(await readPatchPreview(inputs[0], () => true), undefined);
     assert.deepEqual(
       await readPatchPreview(inputs[inputs.length - 1], () => true),
       { totalLines: 1, lines: { 1: "x" } },

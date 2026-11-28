@@ -142,7 +142,7 @@ export async function formatToolUse(toolUse, options = {}) {
     const writeFileInput = input;
     return [
       title,
-      `filePath: ${escapeTerminalControls(writeFileInput.filePath)}`,
+      `filePath: ${formatToolPath(writeFileInput.filePath)}`,
       `content:\n${indentToolInput(escapeTerminalText(String(writeFileInput.content)))}`,
     ].join("\n");
   }
@@ -157,7 +157,7 @@ export async function formatToolUse(toolUse, options = {}) {
     );
     return [
       title,
-      `path: ${escapeTerminalControls(filePath)}`,
+      `path: ${formatToolPath(filePath)}`,
       `patch:\n${indentToolInput(rendered)}`,
     ].join("\n");
   }
@@ -168,7 +168,7 @@ export async function formatToolUse(toolUse, options = {}) {
     /** @type {string[]} */
     const lines = [
       title,
-      `filePath: ${escapeTerminalControls(readFileInput.filePath)}`,
+      `filePath: ${formatToolPath(readFileInput.filePath)}`,
     ];
     if (readFileInput.offset !== undefined) {
       lines.push(`offset: ${escapeTerminalControls(readFileInput.offset)}`);
@@ -182,10 +182,9 @@ export async function formatToolUse(toolUse, options = {}) {
   if (toolName === "read_image") {
     /** @type {Partial<ReadImageInput>} */
     const readImageInput = input;
-    return [
-      title,
-      `filePath: ${escapeTerminalControls(readImageInput.filePath)}`,
-    ].join("\n");
+    return [title, `filePath: ${formatToolPath(readImageInput.filePath)}`].join(
+      "\n",
+    );
   }
 
   if (toolName === "tmux_command") {
@@ -213,7 +212,7 @@ export async function formatToolUse(toolUse, options = {}) {
     const compactContextInput = input;
     return [
       title,
-      `memoryPath: ${escapeTerminalControls(compactContextInput.memoryPath)}`,
+      `memoryPath: ${formatToolPath(compactContextInput.memoryPath)}`,
       `reason: ${escapeTerminalControls(compactContextInput.reason)}`,
     ].join("\n");
   }
@@ -223,7 +222,7 @@ export async function formatToolUse(toolUse, options = {}) {
     const switchToMainAgentInput = input;
     return [
       title,
-      `memoryPath: ${escapeTerminalControls(switchToMainAgentInput.memoryPath)}`,
+      `memoryPath: ${formatToolPath(switchToMainAgentInput.memoryPath)}`,
     ].join("\n");
   }
 
@@ -859,6 +858,11 @@ function padCell(cell, targetWidth) {
   const currentWidth = charDisplayWidth(cell);
   if (currentWidth >= targetWidth) return cell;
   return cell + " ".repeat(targetWidth - currentWidth);
+}
+
+/** @param {unknown} filePath */
+function formatToolPath(filePath) {
+  return escapeTerminalControls(JSON.stringify(filePath));
 }
 
 /** @param {string} text */

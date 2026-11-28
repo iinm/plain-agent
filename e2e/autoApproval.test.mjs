@@ -234,7 +234,9 @@ describe("auto-approval", () => {
       "Manual approval required for 3 of 4 tool calls",
     );
     assert.ok(heading >= 0, rendered);
-    const toolCall = rendered.indexOf(`filePath: ${requestedPath}`);
+    const toolCall = rendered.indexOf(
+      `filePath: ${JSON.stringify(requestedPath)}`,
+    );
     assert.ok(toolCall >= 0 && toolCall < heading, rendered);
     const prompt = rendered.slice(heading);
     assert.doesNotMatch(prompt, /#1 exec_command/);
