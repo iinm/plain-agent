@@ -22,18 +22,29 @@ const ARGS_TOTAL_BLOCK_LENGTH_THRESHOLD = 160;
 
 const HIDDEN_PROVIDER_TOKEN_USAGE_KEYS = ["attribution", "request_fields"];
 
-/** @param {unknown} value */
-export function escapeTerminalControls(value) {
+/**
+ * @param {unknown} value
+ * @param {{ preserveTabs?: boolean }} [options]
+ */
+export function escapeTerminalControls(value, { preserveTabs = false } = {}) {
   return String(value).replace(
     /[\p{Cc}\p{Bidi_Control}\p{Zl}\p{Zp}]/gu,
     (character) =>
-      `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`,
+      preserveTabs && character === "\t"
+        ? character
+        : `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`,
   );
 }
 
-/** @param {string} text */
-export function escapeTerminalText(text) {
-  return text.split("\n").map(escapeTerminalControls).join("\n");
+/**
+ * @param {string} text
+ * @param {{ preserveTabs?: boolean }} [options]
+ */
+export function escapeTerminalText(text, options) {
+  return text
+    .split("\n")
+    .map((line) => escapeTerminalControls(line, options))
+    .join("\n");
 }
 
 /**
@@ -143,7 +154,7 @@ export async function formatToolUse(toolUse, options = {}) {
     return [
       title,
       `filePath: ${formatToolPath(writeFileInput.filePath)}`,
-      `content:\n${indentToolInput(escapeTerminalText(String(writeFileInput.content)))}`,
+      `content:\n${indentToolInput(escapeTerminalText(String(writeFileInput.content), { preserveTabs: true }))}`,
     ].join("\n");
   }
 
@@ -917,7 +928,7 @@ async function renderPatch(input, readPatchPreview) {
   return blocks
     .map((block) =>
       renderPatchBlock(block, originalLines, nonce, {
-        line: escapeTerminalControls,
+        line: (text) => escapeTerminalControls(text, { preserveTabs: true }),
         header: (text) => styleText("cyan", text),
         del: (text) => styleText("magenta", text),
         add: (text) => styleText("green", text),
@@ -947,7 +958,10 @@ function highlightPatchPlain(patch) {
       if (line === "") {
         return line;
       }
-      return styleText("green", escapeTerminalControls(line));
+      return styleText(
+        "green",
+        escapeTerminalControls(line, { preserveTabs: true }),
+      );
     })
     .join("\n");
 }

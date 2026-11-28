@@ -148,7 +148,7 @@ describe("formatToolUse", () => {
     // given:
     const input = {
       filePath: `notes${ESC}[2J\nnext.txt`,
-      content: `first\nsecond\r${ESC}[K\u202e`,
+      content: `first\n\tsecond\r${ESC}[K\u202e`,
     };
 
     // when:
@@ -167,7 +167,7 @@ describe("formatToolUse", () => {
         'filePath: "notes\\u001b[2J\\nnext.txt"',
         "content:",
         "  | first",
-        "  | second\\u000d\\u001b[K\\u202e",
+        "  | \tsecond\\u000d\\u001b[K\\u202e",
       ].join("\n"),
     );
   });
@@ -440,11 +440,11 @@ describe("formatToolUse (patch_file)", () => {
 
   it("escapes controls in both original and submitted patch lines", async () => {
     // given:
-    const original = `original${ESC}[2J`;
+    const original = `\toriginal${ESC}[2J`;
     const filePath = await writeTmp([original]);
     const patch = [
       `REPLACE abc 1:${lineHash(original)}`,
-      `replacement${ESC}[K`,
+      `\treplacement${ESC}[K`,
     ].join("\n");
 
     // when:
@@ -456,8 +456,8 @@ describe("formatToolUse (patch_file)", () => {
     });
 
     // then:
-    assert.ok(stripAnsi(output).includes("  | - original\\u001b[2J"));
-    assert.ok(stripAnsi(output).includes("  | + replacement\\u001b[K"));
+    assert.ok(stripAnsi(output).includes("  | - \toriginal\\u001b[2J"));
+    assert.ok(stripAnsi(output).includes("  | + \treplacement\\u001b[K"));
   });
 
   it("renders multiple blocks including a multi-line insert", async () => {

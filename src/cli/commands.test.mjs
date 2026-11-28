@@ -115,16 +115,16 @@ describe("matchAgentsCommand", () => {
 });
 
 describe("parseToolApprovalInput", () => {
-  it("maps y / yes / ｙ to allow once", () => {
+  it("maps y / ｙ to allow once", () => {
     // when/then:
-    for (const input of ["y", "yes", "ｙ"]) {
+    for (const input of ["y", "ｙ"]) {
       assert.deepEqual(parseToolApprovalInput(input), { action: "allow" });
     }
   });
 
-  it("does not approve on the former session shortcuts", () => {
+  it("does not approve on other variants of y or yes", () => {
     // when/then:
-    for (const input of ["Y", "YES"]) {
+    for (const input of ["Y", "Ｙ", "yes", "YES", "Yes"]) {
       assert.equal(parseToolApprovalInput(input), undefined);
     }
   });
